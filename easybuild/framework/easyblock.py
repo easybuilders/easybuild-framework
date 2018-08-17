@@ -2498,8 +2498,11 @@ class EasyBlock(object):
         force = build_option('force') or build_option('rebuild')
         skip = False
 
-        # skip step if specified as individual (skippable) step
-        if skippable and (self.skip or step in self.cfg['skipsteps']):
+        # under --skip, sanity check is not skipped
+        general_skip = self.skip and step != SANITYCHECK_STEP
+
+        # skip step if specified as individual (skippable) step, or if --skip is used
+        if skippable and (general_skip or step in self.cfg['skipsteps']):
             self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
             skip = True
 
@@ -2645,7 +2648,7 @@ class EasyBlock(object):
         steps_part3 = [
             (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False),
             (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
-            (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], False),
+            (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], True),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),
             (MODULE_STEP, 'creating module', [lambda x: x.make_module_step], False),
             (PERMISSIONS_STEP, 'permissions', [lambda x: x.permissions_step], False),
