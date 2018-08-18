@@ -244,7 +244,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for existing module
         args = [
-            toy_ec ,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
