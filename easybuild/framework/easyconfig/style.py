@@ -32,6 +32,7 @@ import re
 import sys
 from vsc.utils import fancylogger
 
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -154,6 +155,10 @@ def cmdline_easyconfigs_style_check(paths):
     print_msg("Running style check on %d easyconfig(s)..." % len(paths), prefix=False)
     style_check_passed = True
     for path in paths:
+        # if an EasyConfig instance is provided, just grab the corresponding file path
+        if isinstance(path, EasyConfig):
+            path = path.path
+
         if check_easyconfigs_style([path]) == 0:
             res = 'PASS'
         else:

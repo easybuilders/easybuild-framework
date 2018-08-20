@@ -49,6 +49,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
+from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -677,3 +678,11 @@ def check_sha256_checksums(ecs, whitelist=None):
                 checksum_issues.append(msg)
 
     return checksum_issues
+
+
+def run_contrib_checks(easyconfigs):
+    """Run contribution check on specified easyconfigs."""
+    # start by running style checks
+    res = cmdline_easyconfigs_style_check(easyconfigs)
+
+    return res
