@@ -2499,10 +2499,10 @@ class EasyBlock(object):
         skip = False
 
         # under --skip, sanity check is not skipped
-        general_skip = self.skip and step != SANITYCHECK_STEP
+        cli_skip = self.skip and step != SANITYCHECK_STEP
 
         # skip step if specified as individual (skippable) step, or if --skip is used
-        if skippable and (general_skip or step in self.cfg['skipsteps']):
+        if skippable and (cli_skip or step in self.cfg['skipsteps']):
             self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
             skip = True
 
