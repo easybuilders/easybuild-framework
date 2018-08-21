@@ -29,8 +29,8 @@ EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, BLIS, LAPA
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
-from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.linalg.blis import BLIS
 from easybuild.toolchains.linalg.lapack import Lapack
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
