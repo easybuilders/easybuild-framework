@@ -240,11 +240,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         topdir = os.path.abspath(os.path.dirname(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
-            eb_file,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -266,7 +266,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for non-existing module
         args = [
-            eb_file,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -286,6 +286,31 @@ class CommandLineOptionsTest(EnhancedTestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
+        toy_mod_glob = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '*')
+        for toy_mod in glob.glob(toy_mod_glob):
+            remove_file(toy_mod)
+        self.assertFalse(glob.glob(toy_mod_glob))
+
+        # make sure that sanity check is *NOT* skipped under --skip
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        regex = re.compile("sanity_check_paths = \{(.|\n)*\}", re.M)
+        test_ec_txt = regex.sub("sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}", test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+        args = [
+            test_ec,
+            '--skip',
+            '--force',
+        ]
+        error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # check use of skipsteps to skip sanity check
+        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
     def test_job(self):
         """Test submitting build as a job."""
