@@ -31,12 +31,12 @@ EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, BLIS, LAPA
 
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.gompi import Gompi
-from easybuild.toolchains.linalg.blis import BLIS
+from easybuild.toolchains.linalg.blis import Blis
 from easybuild.toolchains.linalg.lapack import Lapack
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-class Goblf(Gompi, BLIS, Lapack, ScaLAPACK, Fftw):
+class Goblf(Gompi, Blis, Lapack, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW."""
     NAME = 'goblf'
     SUBTOOLCHAIN = Gompi.NAME

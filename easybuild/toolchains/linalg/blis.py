@@ -35,7 +35,7 @@ from easybuild.tools.toolchain.linalg import LinAlg
 TC_CONSTANT_BLIS = 'BLIS'
 
 
-class BLIS(LinAlg):
+class Blis(LinAlg):
     """
     Trivial class, provides BLIS support.
     """
