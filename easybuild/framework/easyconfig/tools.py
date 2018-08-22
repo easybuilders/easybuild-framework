@@ -680,9 +680,32 @@ def check_sha256_checksums(ecs, whitelist=None):
     return checksum_issues
 
 
-def run_contrib_checks(easyconfigs):
+def run_contrib_checks(ecs):
     """Run contribution check on specified easyconfigs."""
-    # start by running style checks
-    res = cmdline_easyconfigs_style_check(easyconfigs)
 
-    return res
+    def print_result(result, label):
+        """Helper function to print result of last group of checks."""
+        if result:
+            print_msg("\n>> All %s checks PASSed!" % label, prefix=False)
+        else:
+            print_msg("\n>> One or more %s checks FAILED!" % label, prefix=False)
+
+    # start by running style checks
+    style_check_ok = cmdline_easyconfigs_style_check(ecs)
+    print_result(style_check_ok, "style")
+
+    # check whether SHA256 checksums are in place
+    print_msg("\nChecking for SHA256 checksums in %d easyconfig(s)...\n" % len(ecs), prefix=False)
+    sha256_checksums_ok = True
+    for ec in ecs:
+        sha256_res = check_sha256_checksums([ec])
+        if sha256_res:
+            sha256_checksums_ok = False
+            msgs = ['[FAIL] %s' % ec.path] + sha256_res
+        else:
+            msgs = ['[PASS] %s' % ec.path]
+        print_msg('\n'.join(msgs), prefix=False)
+
+    print_result(sha256_checksums_ok, "SHA256 checksums")
+
+    return style_check_ok and sha256_checksums_ok

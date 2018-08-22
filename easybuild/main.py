@@ -182,8 +182,9 @@ def check_contrib_or_style(ecs, check_contrib, check_style):
         if run_check:
             _log.info("Running %s checks on %d specified easyconfigs...", check_label, len(ecs))
             if check_function(ecs):
-                print_msg("All %s checks passed!" % check_label, prefix=False)
+                print_msg("\n>> All %s checks PASSed!\n" % check_label, prefix=False)
             else:
+                print_msg('', prefix=False)
                 raise EasyBuildError("One or more %s checks FAILED!" % check_label)
 
     return check_contrib or check_style
@@ -518,7 +519,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
-        clean_exit(logfile, eb_tmpdir, testing)
+        cleanup(logfile, eb_tmpdir, testing)
 
 
 if __name__ == "__main__":

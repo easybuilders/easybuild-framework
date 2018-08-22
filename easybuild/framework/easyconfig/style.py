@@ -152,7 +152,7 @@ def cmdline_easyconfigs_style_check(paths):
     :param paths: list of paths to easyconfig files to check
     :return: True when style check passed on all easyconfig files, False otherwise
     """
-    print_msg("Running style check on %d easyconfig(s)..." % len(paths), prefix=False)
+    print_msg("\nRunning style check on %d easyconfig(s)...\n" % len(paths), prefix=False)
     style_check_passed = True
     for path in paths:
         # if an EasyConfig instance is provided, just grab the corresponding file path

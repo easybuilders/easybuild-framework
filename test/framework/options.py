@@ -3211,16 +3211,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 print "Skipping test_check_contrib_style, since pycodestyle or pep8 is not available"
                 return
 
-        for check_type in ['contrib', 'style']:
-            args = [
-                '--check-%s' % check_type,
-                'GCC-4.9.2.eb',
-                'toy-0.0.eb',
-            ]
-            stdout, _ = self._run_mock_eb(args, raise_error=True)
+        regex = re.compile(r"Running style check on 2 easyconfig\(s\)(.|\n)*>> All style checks PASSed!", re.M)
+        args = [
+            '--check-style',
+            'GCC-4.9.2.eb',
+            'toy-0.0.eb',
+        ]
+        stdout, _ = self._run_mock_eb(args, raise_error=True)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-            regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        # --check-contrib fails because of missing checksums, but style test passes
+        args[0] = '--check-contrib'
+        self.mock_stdout(True)
+        error_pattern = "One or more contribution checks FAILED"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        self.mock_stdout(False)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # copy toy-0.0.eb test easyconfig, fiddle with it to make style check fail
         toy = os.path.join(self.test_prefix, 'toy.eb')
@@ -3251,6 +3258,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ]
             for pattern in patterns:
                 self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_check_contrib_non_style(self):
+        """Test non-style checks performed by --check-contrib."""
+        args = [
+            '--check-contrib',
+            'toy-0.0.eb',
+        ]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        error_pattern = "One or more contribution checks FAILED"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+
+        # SHA256 checksum checks fail
+        patterns = [
+            r"\[FAIL\] .*/toy-0.0.eb$",
+            r"^Checksums missing for one or more sources/patches in toy-0.0.eb: "
+            r"found 1 sources \+ 2 patches vs 1 checksums$",
+            r"^>> One or more SHA256 checksums checks FAILED!",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
     def test_allow_use_as_root(self):
         """Test --allow-use-as-root-and-accept-consequences"""
