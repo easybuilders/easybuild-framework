@@ -942,6 +942,7 @@ def check_pr_eligible_to_merge(pr_data):
                 elif 'FAILED' in comment:
                     res = not_eligible(msg_tmpl % 'FAILED')
                     test_report_found = True
+                    break
                 else:
                     print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
 
@@ -1004,7 +1005,7 @@ def merge_pr(pr):
 
     # also fetch comments
     comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
-    status, comments_data = github_api_get_request(comments_url, github_user)
+    status, comments_data = github_api_get_request(comments_url, github_user, per_page=GITHUB_MAX_PER_PAGE)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, comments_data)
