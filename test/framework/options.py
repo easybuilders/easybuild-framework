@@ -2822,6 +2822,28 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertTrue(expected_stdout in stdout)
 
+        # test --merge-pr on a PR that has a lot of comments
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/2553
+        args = [
+            '--merge-pr',
+            '6677',
+            '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+        self.assertEqual(stderr.strip(), '')
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #6677 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* last test report is successful: OK",
+            "* approved review: OK (by boegel)",
+            "* milestone is set: OK (3.7.0)",
+            '',
+            "Review OK, merging pull request!",
+        ])
+        self.assertTrue(expected_stdout in stdout)
+
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
         if self.github_token is None:
