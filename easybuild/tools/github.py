@@ -438,7 +438,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []
-    for patched_file in patched_files:
+    for patched_file in [f for f in patched_files if not f.startswith('test/')]:
         fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
         if os.path.exists(os.path.join(path, fn)):
             ec_files.append(os.path.join(path, fn))
@@ -1095,7 +1095,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             title = commit_msg
         elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
-            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
             if len(names_and_versions) <= 3:
                 main_title = ', '.join(names_and_versions)
             else:
@@ -1148,11 +1148,12 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             # post labels
             pr = data['html_url'].split('/')[-1]
             pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
-            status, data = pr_url.labels.post(body=labels)
-            if not status == HTTP_STATUS_OK:
-                raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
-
-            print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+            try:
+                status, data = pr_url.labels.post(body=labels)
+                if status == HTTP_STATUS_OK:
+                    print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+            except urllib2.HTTPError as err:
+                _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
 @only_if_module_is_available('git', pkgname='GitPython')

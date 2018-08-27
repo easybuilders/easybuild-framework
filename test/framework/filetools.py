@@ -1114,10 +1114,14 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
         self.assertTrue(eb340_url, res)
         pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern += 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
-        regex = re.compile(pattern)
+        pattern_md5 = pattern + 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
+        pattern_sha256 = pattern + 'easybuild-[0-9rc.]+.tar.gz#sha256=[a-f0-9]{64}$'
+        regex_md5 = re.compile(pattern_md5)
+        regex_sha256 = re.compile(pattern_sha256)
         for url in res:
-            self.assertTrue(regex.match(url), "Pattern '%s' matches for '%s'" % (regex.pattern, url))
+            error_msg = "Pattern '%s' or '%s' matches for '%s'" % (regex_md5.pattern, regex_sha256.pattern, url)
+            self.assertTrue(regex_md5.match(url) or regex_sha256.match(url), error_msg)
+
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
 
@@ -1406,15 +1410,17 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 2)
+        self.assertEqual(len(hits), 3)
         self.assertTrue(all(os.path.exists(p) for p in hits))
         self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
         self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1423,7 +1429,8 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
@@ -1431,13 +1438,15 @@ class FileToolsTest(EnhancedTestCase):
         expected = [
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""

@@ -57,6 +57,7 @@ from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
@@ -387,6 +388,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
+
+    if options.containerize:
+        # if --containerize/-C create a container recipe (and optionally container image), and stop
+        containerize(easyconfigs)
+        cleanup(logfile, eb_tmpdir, testing)
+        sys.exit(0)
 
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short

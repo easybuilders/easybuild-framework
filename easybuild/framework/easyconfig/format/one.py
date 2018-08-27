@@ -297,7 +297,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         rawlines = rawtxt.split('\n')
 
         # extract header first
-        while rawlines[0].startswith('#'):
+        while rawlines and rawlines[0].startswith('#'):
             self.comments['header'].append(rawlines.pop(0))
 
         parsed_ec = self.get_config_dict()

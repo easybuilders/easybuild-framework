@@ -41,12 +41,10 @@ import difflib
 import functools
 import os
 import re
-import shutil
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
 
-import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -60,7 +58,8 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, templat
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, mkdir, read_file, write_file
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
+from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -275,6 +274,12 @@ class EasyConfig(object):
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
 
+        # constructing easyconfig parser object includes a "raw" parse,
+        # which serves as a check to see whether supplied easyconfig file is an actual easyconfig...
+        self.log.info("Performing quick parse to check for valid easyconfig file...")
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                       auto_convert_value_types=auto_convert_value_types)
+
         self.modules_tool = modules_tool()
 
         # use legacy module classes as default
@@ -319,8 +324,6 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
-                                       auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # perform validations
@@ -596,12 +599,17 @@ class EasyConfig(object):
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
-    def dependencies(self):
+    def dependencies(self, build_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+
+        :param build_only: only return build dependencies, discard others
         """
-        deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+        if build_only:
+            deps = self['builddependencies']
+        else:
+            deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -785,7 +793,7 @@ class EasyConfig(object):
             dependency.update(dep)
 
             # make sure 'dummy' key is handled appropriately
-            if 'dummy' in dep and not 'toolchain' in dep:
+            if 'dummy' in dep and 'toolchain' not in dep:
                 dependency['toolchain'] = dep['dummy']
 
             if dep.get('external_module', False):
@@ -932,7 +940,6 @@ class EasyConfig(object):
 
         # recursive call, until there are no more changes to template values;
         # important since template values may include other templates
-        prev_template_values = None
         cont = True
         while cont:
             cont = False
@@ -1084,14 +1091,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                           class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
-                # if we only get the class name, most likely we're dealing with a generic easyblock
-                try:
-                    modulepath = get_module_path(easyblock, generic=True)
-                    cls = get_class_for(modulepath, class_name)
-                except ImportError, err:
-                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
-                    modulepath = get_module_path(easyblock)
-                    cls = get_class_for(modulepath, class_name)
+                modulepath = get_module_path(easyblock)
+                cls = get_class_for(modulepath, class_name)
                 _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
         else:
             # if no easyblock specified, try to find if one exists
@@ -1100,7 +1101,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
             # The following is a generic way to calculate unique class names for any funny software title
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)
-            modulepath = get_module_path(class_name)
+            modulepath = get_module_path(class_name, generic=False)
             modulepath_imported = False
             try:
                 __import__(modulepath, globals(), locals(), [''])
@@ -1113,7 +1114,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 _log.debug("Module path '%s' found" % modulepath)
             else:
                 _log.debug("No module path '%s' found" % modulepath)
-                modulepath_bis = get_module_path(name, decode=False)
+                modulepath_bis = get_module_path(name, generic=False, decode=False)
                 _log.debug("Module path determined based on software name: %s" % modulepath_bis)
                 if modulepath_bis != modulepath:
                     _log.nosupport("Determining module path based on software name", '2.0')
@@ -1151,13 +1152,19 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
-def get_module_path(name, generic=False, decode=True):
+def get_module_path(name, generic=None, decode=True):
     """
     Determine the module path for a given easyblock or software name,
     based on the encoded class name.
+
+    :param generic: whether or not the easyblock is generic (if None: auto-derive from specified class name)
+    :param decode: whether or not to decode the provided class name
     """
     if name is None:
         return None
+
+    if generic is None:
+        generic = not name.startswith(EASYBLOCK_CLASS_PREFIX)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:
@@ -1205,8 +1212,7 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                _log.warning("Unable to resolve template value %s with dict %s" %
-                                 (value, tmpl_dict))
+                _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}
