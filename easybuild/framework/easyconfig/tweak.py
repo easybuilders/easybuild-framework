@@ -94,18 +94,46 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
         orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
-    # keep track of originally listed easyconfigs (via their path)
-    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
-
-    # determine toolchain based on last easyconfigs
-    if orig_ecs:
-        toolchain = orig_ecs[-1]['ec']['toolchain']
-        _log.debug("Filtering using toolchain %s" % toolchain)
+        # determine original toolchain based on last easyconfig
+        tcname = orig_ecs[-1]['ec']['toolchain']['name']
+        _log.debug("Filtering using toolchain %s", tcname)
 
         # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
-        if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
-            while orig_ecs[0]['ec']['toolchain'] != toolchain:
-                orig_ecs = orig_ecs[1:]
+        if tcname != DUMMY_TOOLCHAIN_NAME:
+
+            # locate toolchain itself, there should be exactly one match
+            tc_ecs = [ec for ec in orig_ecs if ec['ec']['name'] == tcname]
+            if len(tc_ecs) == 1:
+                tc_ec = tc_ecs[0]
+            else:
+                raise EasyBuildError("Failed to isolate toolchain '%s' in dependency graph: %s", tcname, orig_ecs)
+
+            # FIXME: need to actually construct dep graph without toolchain,
+            #        since some dependencies of toolchain may also be needed for dependencies of software...
+            # determine full dep graph for toolchain itself
+            tc_dep_mod_names = set()
+            tc_deps = [tc_ec]
+            while tc_deps:
+                # handle one toolchain dependency at a time
+                tc_dep = tc_deps.pop()
+                tc_dep_mod_names.add(tc_dep['full_mod_name'])
+                # add dependencies of this toolchain dep to list of toolchain deps to process
+                for dep in tc_dep['ec'].dependencies():
+                    tc_deps.append([ec for ec in orig_ecs if ec['full_mod_name'] == dep['full_mod_name']][0])
+                # also add toolchain used for this toolchain dep to list of toolchain deps to process
+                tc_name, tc_ver = tc_dep['ec']['toolchain']['name'], tc_dep['ec']['toolchain']['version']
+                if tc_name != DUMMY_TOOLCHAIN_NAME:
+                    tc_deps.append([ec for ec in orig_ecs if ec['ec']['name'] == tc_name and ec['ec']['version'] + ec['ec']['versionsuffix'] == tc_ver][0])
+
+            # filter out toolchain + its dependencies
+            retained_ecs = []
+            for ec in orig_ecs:
+                if ec['full_mod_name'] not in tc_dep_mod_names:
+                    retained_ecs.append(ec)
+            orig_ecs = retained_ecs
+
+    # keep track of originally listed easyconfigs (via their path)
+    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
