@@ -47,8 +47,8 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
-from easybuild.framework.easyconfig.easyconfig import letter_dir_for, get_easyblock_class, process_easyconfig
-from easybuild.framework.easyconfig.easyconfig import resolve_template, verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, letter_dir_for
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, resolve_template, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -59,7 +59,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, which, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, remove_file, symlink
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -380,6 +381,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
         os.close(fd)
+        remove_file(tweaked_fn)
+
         patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -415,6 +418,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
+
+        remove_file(tweaked_fn)
 
         eb = EasyConfig(self.eb_file)
         # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
@@ -559,6 +564,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], False)
         self.assertEqual(res[1], os.path.join(self.ec_dir, fns[-1]))
+        remove_file(res[1])
 
         # should not pick between multiple available toolchain names
         name = "pi"
@@ -590,7 +596,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['versionsuffix'], specs['versionsuffix'])
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
         self.assertEqual(ec['start_dir'], specs['start_dir'])
-        os.remove(res[1])
+        remove_file(res[1])
 
         specs.update({
             'foo': 'bar123'
@@ -608,7 +614,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['version'], specs['version'])
         txt = read_file(res[1])
         self.assertTrue(re.search("^version = [\"']%s[\"']$" % ver, txt, re.M))
-        os.remove(res[1])
+        remove_file(res[1])
 
         # should pick correct toolchain version as well, i.e. now newer than what's specified, if a choice needs to be made
         specs.update({
@@ -697,6 +703,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res[0], True)
         error_pattern = "Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
+        remove_file(res[1])
 
         specs['dependencies'].append(('test', '3.2.1'))
 
@@ -1902,6 +1909,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
 
         expected = {
+            'bitbucket_account': 'gzip',
             'github_account': None,
             'name': 'gzip',
             'nameletter': 'g',
@@ -1921,6 +1929,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['version'] = '0.01'
 
         expected = {
+            'bitbucket_account': 'toy',
             'github_account': None,
             'name': 'toy',
             'nameletter': 't',
@@ -2155,6 +2164,24 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+    def test_get_module_path(self):
+        """Test get_module_path function."""
+        self.assertEqual(get_module_path('EB_bzip2', generic=False), 'easybuild.easyblocks.bzip2')
+        self.assertEqual(get_module_path('EB_bzip2'), 'easybuild.easyblocks.bzip2')
+
+        self.assertEqual(get_module_path('RPackage'), 'easybuild.easyblocks.generic.rpackage')
+        self.assertEqual(get_module_path('RPackage', generic=True), 'easybuild.easyblocks.generic.rpackage')
+
+    def test_not_an_easyconfig(self):
+        """Test error reporting when a file that's not actually an easyconfig file is provided."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
+        # run test on an easyconfig file that was downloaded using wget using a non-raw GitHub URL
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
+        not_an_ec = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'not_an_easyconfig.eb')
+
+        error_pattern = "Parsing easyconfig file failed: invalid syntax"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
 
 
 def suite():

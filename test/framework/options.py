@@ -240,11 +240,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         topdir = os.path.abspath(os.path.dirname(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
-            eb_file,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -266,7 +266,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for non-existing module
         args = [
-            eb_file,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -286,6 +286,31 @@ class CommandLineOptionsTest(EnhancedTestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
+        toy_mod_glob = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '*')
+        for toy_mod in glob.glob(toy_mod_glob):
+            remove_file(toy_mod)
+        self.assertFalse(glob.glob(toy_mod_glob))
+
+        # make sure that sanity check is *NOT* skipped under --skip
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        regex = re.compile("sanity_check_paths = \{(.|\n)*\}", re.M)
+        test_ec_txt = regex.sub("sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}", test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+        args = [
+            test_ec,
+            '--skip',
+            '--force',
+        ]
+        error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # check use of skipsteps to skip sanity check
+        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
     def test_job(self):
         """Test submitting build as a job."""
@@ -331,45 +356,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for stdout_arg in ['--logtostdout', '-l']:
 
-            _stdout = sys.stdout
-
-            fd, fn = tempfile.mkstemp()
-            fh = os.fdopen(fd, 'w')
-            sys.stdout = fh
-
             args = [
-                    '--software-name=somethingrandom',
-                    '--robot', '.',
-                    '--debug',
-                    stdout_arg,
-                   ]
+                '--software-name=somethingrandom',
+                '--robot', '.',
+                '--debug',
+                stdout_arg,
+            ]
+            self.mock_stdout(True)
             self.eb_main(args, logfile=dummylogfn)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
 
             # make sure we restore
-            sys.stdout.flush()
-            sys.stdout = _stdout
             fancylogger.logToScreen(enable=False, stdout=True)
 
-            outtxt = read_file(fn)
+            error_msg = "Log messages are printed to stdout when %s is used (stdout: %s)" % (stdout_arg, stdout)
+            self.assertTrue(len(stdout) > 100, error_msg)
 
-            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when %s is used (outtxt: %s)" % (stdout_arg, outtxt))
-
-            # cleanup
-            os.remove(fn)
-
-        stdoutorig = sys.stdout
-        sys.stdout = open("/dev/null", 'w')
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ecfile = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         self.logfile = None
-        out = self.eb_main([toy_ecfile, '--debug', '-l', '--force'], raise_error=True)
+
+        self.mock_stdout(True)
+        self.eb_main([toy_ecfile, '--debug', '-l', '--force'], do_build=True, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue("Auto-enabling streaming output" in stdout)
+        self.assertTrue("== (streaming) output for command 'gcc toy.c -o toy':" in stdout)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
-
-        sys.stdout.close()
-        sys.stdout = stdoutorig
 
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
@@ -2865,6 +2883,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"#",
             r"buildpath\s* \(C\) = /weird/build/dir",
             r"configfiles\s* \(C\) = .*" + cfgfile,
+            r"containerpath\s* \(D\) = %s" % os.path.join(default_prefix, 'containers'),
             r"deprecated\s* \(E\) = 10000000",
             r"ignoreconfigfiles\s* \(E\) = %s" % ', '.join(os.environ['EASYBUILD_IGNORECONFIGFILES'].split(',')),
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
@@ -2913,6 +2932,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
         regex = re.compile(r'^include-easyblocks \(E\) = .*/testeasyblocktoinclude.py$', re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_prefix(self):
+        """Test which configuration settings are affected by --prefix."""
+        txt, _ = self._run_mock_eb(['--show-full-config', '--prefix=%s' % self.test_prefix], raise_error=True)
+
+        regex = re.compile("(?P<cfg_opt>\S*).*%s.*" % self.test_prefix, re.M)
+
+        expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
+        self.assertEqual(sorted(regex.findall(txt)), expected)
 
     def test_dump_env_config(self):
         """Test for --dump-env-config."""
