@@ -850,8 +850,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # GCC/OpenMPI dependencies are there, but part of toolchain => 'x'
             ("GCC-4.6.4.eb", "GCC/4.6.4", 'x'),
             ("OpenMPI-1.6.4-GCC-4.6.4.eb", "OpenMPI/1.6.4-GCC-4.6.4", 'x'),
-            # OpenBLAS dependency is there, but not listed => 'x'
-            ("OpenBLAS-0.2.6-gompi-1.3.12-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-gompi-1.3.12-LAPACK-3.4.2", 'x'),
+            # OpenBLAS dependency is listed, but not there => ' '
+            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2", ' '),
             # both FFTW and ScaLAPACK are listed => 'F'
             ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
             ("FFTW-3.3.3-gompi-1.3.12.eb", "FFTW/3.3.3-gompi-1.3.12", 'F'),
@@ -883,8 +883,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "hwloc/1.6.2", 'x'),
             ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
             ("gompi-1.4.10.eb", "Core", "gompi/1.4.10", 'x'),
-            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
-             "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
+            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "Compiler/GCC/4.7.2",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2", ' '),
             ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "FFTW/3.3.3", 'x'),
             ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
              "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
@@ -922,8 +922,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/system", "hwloc/1.6.2", 'x'),
             ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/mpi", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
             ("gompi-1.4.10.eb", "Core/toolchain", "gompi/1.4.10", 'x'),
-            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
-             "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
+            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "Compiler/GCC/4.7.2/numlib",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2", ' '),
             ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib", "FFTW/3.3.3", 'x'),
             ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
              "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
@@ -1613,7 +1613,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
         self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', outtxt))
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         # zlib is not a dep at all
@@ -1627,7 +1627,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
         self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', outtxt))
         self.assertFalse(re.search(r'module: FFTW/3\.3\.3-gompi', outtxt))
         self.assertTrue(re.search(r'module: FFTW/\.3\.3\.3-gompi', outtxt))
         self.assertFalse(re.search(r'module: ScaLAPACK/2\.0\.2-gompi', outtxt))
