@@ -34,6 +34,7 @@ from time import gmtime, strftime
 import re
 import time
 
+from pkg_resources import get_distribution, DistributionNotFound
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -79,7 +80,6 @@ class GC3Pie(JobBackend):
     """
 
     REQ_VERSION = '2.4.0'
-    VERSION_REGEX = re.compile(r'^(?P<version>\S*) version')
 
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def __init__(self, *args, **kwargs):
@@ -90,24 +90,15 @@ class GC3Pie(JobBackend):
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
-        # location of __version__ to use may change, depending on the minimal required SVN revision for development versions
-        version_str = gc3libs.core.__version__
+        try:
+            pkg = get_distribution('gc3pie')
+        except DistributionNotFound as err:
+            raise EasyBuildError(
+                "Cannot load GC3Pie package: %s" % err)
 
-        match = self.VERSION_REGEX.search(version_str)
-        if match:
-            version = match.group('version')
-            self.log.debug("Parsed GC3Pie version info: '%s'", version)
-
-            if version == 'development':
-                # presume it's OK -- there's no way to check since GC3Pie switched to git
-                return True
-
-            if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
-                raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
-                                     version, self.REQ_VERSION)
-        else:
-            raise EasyBuildError("Failed to parse GC3Pie version string '%s' using pattern %s",
-                                 version_str, self.VERSION_REGEX.pattern)
+        if LooseVersion(pkg.version) < LooseVersion(self.REQ_VERSION):
+            raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
+                                 pkg.version, self.REQ_VERSION)
 
     def init(self):
         """
