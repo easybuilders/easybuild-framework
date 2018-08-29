@@ -143,6 +143,20 @@ def get_toolchain_hierarchy(parent_toolchain):
     The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
     build option is enabled.
 
+    The most complex hierarchy we have now is goolfc which works as follows:
+
+        goolfc
+        /     \
+     gompic    golfc(*)
+          \    /   \      (*)optional toolchains, not compulsory for backwards compatibility
+          gcccuda golf(*)
+              \   /
+               GCC
+                |
+             GCCcore
+                |
+             (dummy: only if enabled)
+
     :param parent_toolchain: dictionary with name/version of parent toolchain
     """
     # obtain list of all possible subtoolchains
