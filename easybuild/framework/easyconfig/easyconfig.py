@@ -230,15 +230,7 @@ def get_toolchain_hierarchy(parent_toolchain):
         # parse the easyconfig
         parsed_ec = process_easyconfig(path, validate=False)[0]
 
-        if isinstance(subtoolchain_name, list):
-            for name in subtoolchain_name[1:]:
-                # find secondary subtoolchains, without recursing into them
-                sub_tc_name, sub_tc_version = get_subtoolchain_in_deps(parsed_ec, name, current_tc_name)
-                toolchain_hierarchy.insert(0, {'name': sub_tc_name, 'version': sub_tc_version})
-            subtoolchain_name = subtoolchain_name[0]
-
-        current_tc_name, current_tc_version = get_subtoolchain_in_deps(parsed_ec, subtoolchain_name,
-                                                                       current_tc_name)
+        current_tc_name, current_tc_version = get_subtoolchain_in_deps(parsed_ec, subtoolchain_name)
         if current_tc_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
             # we're done
             break
