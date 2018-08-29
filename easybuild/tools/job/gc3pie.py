@@ -79,7 +79,7 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
-    REQ_VERSION = '2.4.0'
+    REQ_VERSION = '2.5.0'
 
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def __init__(self, *args, **kwargs):
