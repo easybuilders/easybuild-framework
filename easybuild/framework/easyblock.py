@@ -560,7 +560,8 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False, git_config={}):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False, 
+            git_config={}):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -678,15 +679,15 @@ class EasyBlock(object):
                     recursive = git_config.pop('recursive', False)
                     if git_config:
                         raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s",
-                                                    git_config)
+                                git_config)
                     if not repo_name:
-                        raise EasyBuildError("git_config specified, but no repo_name specified")
+                        raise EasyBuildError("repo_name not specified in git_config parameter")
                     if not tag and not commit:
-                        raise EasyBuildError("git_config specified, but neither tag nor commit specified")
+                        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
                     if tag and commit:
-                        raise EasyBuildError("git_config specified, and both tag and commit specified. Specify only one")
+                        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
                     if not url:
-                        raise EasyBuildError("git_config specified, but no url specified")
+                        raise EasyBuildError("url not specified in git_config parameter")
                     if '.tar.gz' not in filename:
                         raise EasyBuildError("git_config only supports filename ending in .tar.gz")
 
@@ -702,7 +703,7 @@ class EasyBlock(object):
                         cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
                     (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
                     if commit:
-                        change_dir(os.path.join(targetdir,repo_name))
+                        change_dir(os.path.join(targetdir, repo_name))
                         recursive = " && git submodule update " if recursive else ""
                         cmd = "git checkout %s %s " % (commit, recursive)
                         (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
