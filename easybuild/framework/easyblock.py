@@ -338,7 +338,7 @@ class EasyBlock(object):
             checksums = self.cfg['checksums']
 
         for index, source in enumerate(sources):
-            extract_cmd, download_filename, source_urls = None, None, None
+            extract_cmd, download_filename, source_urls, git_config = None, None, None, {}
 
             if isinstance(source, basestring):
                 filename = source
