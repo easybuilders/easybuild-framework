@@ -35,6 +35,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 
 import copy
@@ -338,7 +339,7 @@ class EasyBlock(object):
             checksums = self.cfg['checksums']
 
         for index, source in enumerate(sources):
-            extract_cmd, download_filename, source_urls = None, None, None
+            extract_cmd, download_filename, source_urls, git_config = None, None, None, {}
 
             if isinstance(source, basestring):
                 filename = source
@@ -349,6 +350,7 @@ class EasyBlock(object):
                 extract_cmd = source.pop('extract_cmd', None)
                 download_filename = source.pop('download_filename', None)
                 source_urls = source.pop('source_urls', None)
+                git_config = source.pop('git_config', {})
                 if source:
                     raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
@@ -362,7 +364,7 @@ class EasyBlock(object):
             # check if the sources can be located
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
             path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download,
-                                    urls=source_urls)
+                                    urls=source_urls, git_config=git_config)
             if path:
                 self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
@@ -560,7 +562,8 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
+                    git_config={}):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -569,6 +572,7 @@ class EasyBlock(object):
         :param extension: indicates whether locations for extension sources should also be considered
         :param urls: list of source URLs where this file may be available
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
+        :param git_config: dictionary to parametrize how to download the repository
         :force_download: always try to download file, even if it's already available in source path
         """
         srcpaths = source_paths()
@@ -664,6 +668,52 @@ class EasyBlock(object):
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
+            elif git_config:
+                # if a non-empty dictionary was provided, download from git and archive
+                if not isinstance(git_config, dict):
+                    raise EasyBuildError("Found a non null git_config in 'sources', but value is not a dictionary")
+                else:
+                    git_config = git_config.copy()
+                    tag = git_config.pop('tag', None)
+                    url = git_config.pop('url', None)
+                    repo_name = git_config.pop('repo_name', None)
+                    commit = git_config.pop('commit', None)
+                    recursive = git_config.pop('recursive', False)
+                    if git_config:
+                        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s",
+                                             git_config)
+                    if not repo_name:
+                        raise EasyBuildError("repo_name not specified in git_config parameter")
+                    if not tag and not commit:
+                        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
+                    if tag and commit:
+                        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+                    if not url:
+                        raise EasyBuildError("url not specified in git_config parameter")
+                    if '.tar.gz' not in filename:
+                        raise EasyBuildError("git_config only supports filename ending in .tar.gz")
+
+                    targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+                    mkdir(targetdir, parents=True)
+                    targetpath = os.path.join(targetdir, filename)
+
+                    change_dir(targetdir)
+                    recursive = " --recursive " if recursive else ""
+                    if tag:
+                        cmd = "git clone --branch %s %s %s/%s.git " % (tag, recursive, url, repo_name)
+                    else:
+                        cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
+                    (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+                    if commit:
+                        change_dir(os.path.join(targetdir, repo_name))
+                        recursive = " && git submodule update " if recursive else ""
+                        cmd = "git checkout %s %s " % (commit, recursive)
+                        (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+                        change_dir(targetdir)
+                    cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
+                    (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+                    return targetpath
+
             else:
                 # try and download source files from specified source URLs
                 if urls:
