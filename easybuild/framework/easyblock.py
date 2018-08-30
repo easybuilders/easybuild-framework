@@ -561,7 +561,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                     git_config={}):
+                    git_config={}):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
