@@ -560,8 +560,8 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False, 
-            git_config={}):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
+                     git_config={}):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -679,7 +679,7 @@ class EasyBlock(object):
                     recursive = git_config.pop('recursive', False)
                     if git_config:
                         raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s",
-                                git_config)
+                                             git_config)
                     if not repo_name:
                         raise EasyBuildError("repo_name not specified in git_config parameter")
                     if not tag and not commit:
