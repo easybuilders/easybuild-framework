@@ -51,7 +51,7 @@ try:
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
-    from gc3libs.workflow import DependentTaskCollection, AbortOnError
+    from gc3libs.workflow import AbortOnError, DependentTaskCollection
 
     # inject EasyBuild logger into GC3Pie
     gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
