@@ -1628,6 +1628,7 @@ def copy(paths, target_path, force_in_dry_run=False):
         else:
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
+
 def get_source_from_git(filename, targetdir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
@@ -1671,7 +1672,7 @@ def get_source_from_git(filename, targetdir, git_config):
         cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
     (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
 
-    #if a specific commit is asked for, check it out
+    # if a specific commit is asked for, check it out
     if commit:
         change_dir(os.path.join(targetdir, repo_name))
         recursive = " && git submodule update " if recursive else ""
@@ -1679,12 +1680,13 @@ def get_source_from_git(filename, targetdir, git_config):
         (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
         change_dir(targetdir)
 
-    #create an archive and delete the git repo
+    # create an archive and delete the git repo
     cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
     (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
 
     change_dir(cwd)
     return targetpath
+
 
 def move_file(path, target_path, force_in_dry_run=False):
     """
