@@ -1669,19 +1669,19 @@ def get_source_from_git(filename, targetdir, git_config):
         cmd = "git clone --branch %s %s %s/%s.git " % (tag, recursive, url, repo_name)
     else:
         cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
-    (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+    (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
 
     #if a specific commit is asked for, check it out
     if commit:
         change_dir(os.path.join(targetdir, repo_name))
         recursive = " && git submodule update " if recursive else ""
         cmd = "git checkout %s %s " % (commit, recursive)
-        (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+        (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
         change_dir(targetdir)
 
     #create an archive and delete the git repo
     cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
-    (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+    (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
 
     change_dir(cwd)
     return targetpath
