@@ -672,7 +672,7 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
             elif git_config:
-                get_source_from_git(filename, targetdir, git_config)
+                return get_source_from_git(filename, targetdir, git_config)
             else:
                 # try and download source files from specified source URLs
                 if urls:
