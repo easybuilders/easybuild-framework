@@ -170,8 +170,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, ho
     return res
 
 
-def check_contrib_or_style(ecs, check_contrib, check_style):
+def run_contrib_style_checks(ecs, check_contrib, check_style):
     """
+    Handle running of contribution and style checks on specified easyconfigs (if desired).
+
     :return: boolean indicating whether or not any checks were actually performed
     """
     check_actions = {
@@ -394,7 +396,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
 
     # handle --check-contrib & --check-style options
-    if check_contrib_or_style([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
+    if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
         clean_exit(logfile, eb_tmpdir, testing)
 
     # verify easyconfig filenames, if desired

@@ -671,7 +671,7 @@ def check_sha256_checksums(ecs, whitelist=None):
         for (fn, chksum) in checksums:
             # check that there's only one checksum specified per file (i.e. a string, not a list/tuple)
             if not isinstance(chksum, basestring):
-                msg = "Exactly one (SHA256) checksum should be specified for %s in %s" % (fn, ec_fn)
+                msg = "One string containing a SHA256 checksum must be specified for %s in %s" % (fn, ec_fn)
                 checksum_issues.append(msg)
             elif not sha256_regex.match(chksum):
                 msg = "Checksum '%s' for %s in %s must be a SHA256 checksum" % (chksum, fn, ec_fn)
@@ -683,9 +683,9 @@ def check_sha256_checksums(ecs, whitelist=None):
 def run_contrib_checks(ecs):
     """Run contribution check on specified easyconfigs."""
 
-    def print_result(result, label):
+    def print_result(checks_passed, label):
         """Helper function to print result of last group of checks."""
-        if result:
+        if checks_passed:
             print_msg("\n>> All %s checks PASSed!" % label, prefix=False)
         else:
             print_msg("\n>> One or more %s checks FAILED!" % label, prefix=False)
@@ -698,10 +698,10 @@ def run_contrib_checks(ecs):
     print_msg("\nChecking for SHA256 checksums in %d easyconfig(s)...\n" % len(ecs), prefix=False)
     sha256_checksums_ok = True
     for ec in ecs:
-        sha256_res = check_sha256_checksums([ec])
-        if sha256_res:
+        sha256_checksum_fails = check_sha256_checksums([ec])
+        if sha256_checksum_fails:
             sha256_checksums_ok = False
-            msgs = ['[FAIL] %s' % ec.path] + sha256_res
+            msgs = ['[FAIL] %s' % ec.path] + sha256_checksum_fails
         else:
             msgs = ['[PASS] %s' % ec.path]
         print_msg('\n'.join(msgs), prefix=False)
