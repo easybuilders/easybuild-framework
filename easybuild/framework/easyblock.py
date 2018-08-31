@@ -75,6 +75,7 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_f
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
 from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import get_source_from_git
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
@@ -345,6 +346,7 @@ class EasyBlock(object):
                 filename = source
 
             elif isinstance(source, dict):
+                # Making a copy to avoid modifying the object with pops
                 source = source.copy()
                 filename = source.pop('filename', None)
                 extract_cmd = source.pop('extract_cmd', None)
@@ -563,7 +565,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config={}):
+                    git_config=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -664,56 +666,14 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
+            targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+
             if foundfile:
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
             elif git_config:
-                # if a non-empty dictionary was provided, download from git and archive
-                if not isinstance(git_config, dict):
-                    raise EasyBuildError("Found a non null git_config in 'sources', but value is not a dictionary")
-                else:
-                    git_config = git_config.copy()
-                    tag = git_config.pop('tag', None)
-                    url = git_config.pop('url', None)
-                    repo_name = git_config.pop('repo_name', None)
-                    commit = git_config.pop('commit', None)
-                    recursive = git_config.pop('recursive', False)
-                    if git_config:
-                        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s",
-                                             git_config)
-                    if not repo_name:
-                        raise EasyBuildError("repo_name not specified in git_config parameter")
-                    if not tag and not commit:
-                        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
-                    if tag and commit:
-                        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
-                    if not url:
-                        raise EasyBuildError("url not specified in git_config parameter")
-                    if '.tar.gz' not in filename:
-                        raise EasyBuildError("git_config only supports filename ending in .tar.gz")
-
-                    targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
-                    mkdir(targetdir, parents=True)
-                    targetpath = os.path.join(targetdir, filename)
-
-                    change_dir(targetdir)
-                    recursive = " --recursive " if recursive else ""
-                    if tag:
-                        cmd = "git clone --branch %s %s %s/%s.git " % (tag, recursive, url, repo_name)
-                    else:
-                        cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
-                    (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
-                    if commit:
-                        change_dir(os.path.join(targetdir, repo_name))
-                        recursive = " && git submodule update " if recursive else ""
-                        cmd = "git checkout %s %s " % (commit, recursive)
-                        (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
-                        change_dir(targetdir)
-                    cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
-                    (cmdstdouterr, ec) = run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
-                    return targetpath
-
+                get_source_from_git(filename, targetdir, git_config)
             else:
                 # try and download source files from specified source URLs
                 if urls:
@@ -722,7 +682,6 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
                 mkdir(targetdir, parents=True)
 
                 for url in source_urls:
