@@ -148,14 +148,14 @@ def get_toolchain_hierarchy(parent_toolchain):
         goolfc
         /     \
      gompic    golfc(*)
-          \    /   \      (*)optional toolchains, not compulsory for backwards compatibility
+          \    /   \      (*) optional toolchains, not compulsory for backwards compatibility
           gcccuda golf(*)
               \   /
                GCC
                 |
              GCCcore
                 |
-             (dummy: only if enabled)
+             (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
 
     :param parent_toolchain: dictionary with name/version of parent toolchain
     """
@@ -166,7 +166,8 @@ def get_toolchain_hierarchy(parent_toolchain):
 
     # the parent toolchain is at the top of the hierarchy
     toolchain_hierarchy = [parent_toolchain]
-    # use a queue to handle a breadth-first-search of the hierarchy
+    # use a queue to handle a breadth-first-search of the hierarchy,
+    # which is required to take into account the potential for multiple subtoolchains
     bfs_queue = [parent_toolchain]
     visited = set()
 
@@ -174,8 +175,10 @@ def get_toolchain_hierarchy(parent_toolchain):
         current_tc = bfs_queue.pop()
         current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
         subtoolchain_names = subtoolchains[current_tc_name]
+        # if current toolchain has no subtoolchains, consider next toolchain in queue
         if subtoolchain_names is None:
             continue
+        # make sure we always have a list of subtoolchains, even if there's only one
         if not isinstance(subtoolchain_names, list):
             subtoolchain_names = [subtoolchain_names]
         # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
@@ -233,7 +236,7 @@ def get_toolchain_hierarchy(parent_toolchain):
                               subtoolchain_name)
                     subtoolchain_name = GCCcore.SUBTOOLCHAIN
                     subtoolchain_version = ''
-                # dummy toolchain: end of the line
+                # dummy toolchain: bottom of the hierarchy
                 elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
                     subtoolchain_version = ''
                 elif ((subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains) and
@@ -242,6 +245,7 @@ def get_toolchain_hierarchy(parent_toolchain):
                     # the module dependencies. This is only allowed for and inside optional subtoolchains.
                     subtoolchain_version = current_tc_version
                 elif subtoolchain_name in optional_toolchains:
+                    # consider next subtoolchain in case the current one was optional
                     continue
                 else:
                     raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
@@ -256,7 +260,7 @@ def get_toolchain_hierarchy(parent_toolchain):
                                          subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
 
             if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
-                # we're done
+                # skip dummy if add_dummy_to_minimal_toolchains is not set
                 continue
 
             # add to hierarchy and move to next
