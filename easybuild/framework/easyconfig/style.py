@@ -33,7 +33,7 @@ import sys
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools.build_log import print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
