@@ -742,6 +742,21 @@ def verify_checksum(path, checksums):
     return True
 
 
+def is_sha256_checksum(value):
+    """Check whether provided string is a SHA256 checksum."""
+    res = False
+    if isinstance(value, basestring):
+        if re.match('^[0-9a-f]{64}$', value):
+            res = True
+            _log.debug("String value '%s' has the correct format to be a SHA256 checksum", value)
+        else:
+            _log.debug("String value '%s' does NOT have the correct format to be a SHA256 checksum", value)
+    else:
+        _log.debug("Non-string value %s is not a SHA256 checksum", value)
+
+    return res
+
+
 def find_base_dir():
     """
     Try to locate a possible new base directory

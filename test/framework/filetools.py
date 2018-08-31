@@ -1725,6 +1725,23 @@ class FileToolsTest(EnhancedTestCase):
         run_check()
 
 
+    def test_is_sha256_checksum(self):
+        """Test for is_sha256_checksum function."""
+        a_sha256_checksum = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+        self.assertTrue(ft.is_sha256_checksum(a_sha256_checksum))
+
+        for not_a_sha256_checksum in [
+            'be662daa971a640e40be5c804d9d7d10',  # MD5 != SHA256
+            [a_sha256_checksum],  # False for a list of whatever, even with only a single SHA256 in it
+            True,
+            12345,
+            '',
+            (a_sha256_checksum, ),
+            [],
+        ]:
+            self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
