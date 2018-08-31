@@ -134,6 +134,60 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
+def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands):
+    """
+    Returns unique version for subtoolchain, in tc dict.
+    If there is no unique version:
+    * use '' for dummy, if dummy is not skipped.
+    * GCCcore can be downgraded to dummy.
+    * return None for skipped subtoolchains, that is,
+      optional toolchains or dummy without add_dummy_to_minimal_toolchains.
+    * in all other cases, raises an exception.
+    """
+    current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
+
+    uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+
+    if len(uniq_subtc_versions) == 1:
+        subtoolchain_version = list(uniq_subtc_versions)[0]
+    elif len(uniq_subtc_versions) == 0:
+        # only retain GCCcore as subtoolchain if version was found
+        if subtoolchain_name == GCCcore.NAME:
+            _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
+                      subtoolchain_name)
+            # downgrade to dummy
+            subtoolchain_name = GCCcore.SUBTOOLCHAIN
+            subtoolchain_version = ''
+        # dummy toolchain: bottom of the hierarchy
+        elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+            subtoolchain_version = ''
+        else:
+            is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
+            if is_optional_tc and robot_find_easyconfig(subtoolchain_name, current_tc_version):
+                # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
+                # the module dependencies. This is only allowed for and inside optional subtoolchains.
+                subtoolchain_version = current_tc_version
+            elif subtoolchain_name in optional_toolchains:
+                # skip if the subtoolchain considered now is optional
+                return None
+            else:
+                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                     subtoolchain_name, current_tc_name)
+    elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+        # Don't care about multiple versions of dummy
+        _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
+        subtoolchain_version = ''
+    else:
+        raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                             subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
+
+    if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
+        # skip dummy if add_dummy_to_minimal_toolchains is not set
+        return None
+
+    return {'name': subtoolchain_name, 'version': subtoolchain_version}
+
+
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain):
     """
@@ -224,48 +278,9 @@ def get_toolchain_hierarchy(parent_toolchain):
         cands = [c for c in cands if c['name'] in subtoolchain_names]
 
         for subtoolchain_name in subtoolchain_names:
-            uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
-
-            if len(uniq_subtc_versions) == 1:
-                subtoolchain_version = list(uniq_subtc_versions)[0]
-
-            elif len(uniq_subtc_versions) == 0:
-                # only retain GCCcore as subtoolchain if version was found
-                if subtoolchain_name == GCCcore.NAME:
-                    _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
-                              subtoolchain_name)
-                    subtoolchain_name = GCCcore.SUBTOOLCHAIN
-                    subtoolchain_version = ''
-                # dummy toolchain: bottom of the hierarchy
-                elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                    subtoolchain_version = ''
-                else:
-                    is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
-                    if is_optional_tc and robot_find_easyconfig(subtoolchain_name, current_tc_version):
-                        # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
-                        # the module dependencies. This is only allowed for and inside optional subtoolchains.
-                        subtoolchain_version = current_tc_version
-                    elif subtoolchain_name in optional_toolchains:
-                        # consider next subtoolchain in case the one considered now is optional
-                        continue
-                    else:
-                        raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                             subtoolchain_name, current_tc_name)
-            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                # Don't care about multiple versions of dummy
-                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
-                subtoolchain_version = ''
-            else:
-                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                     subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
-
-            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
-                # skip dummy if add_dummy_to_minimal_toolchains is not set
-                continue
-
+            tc = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
             # add to hierarchy and move to next
-            if subtoolchain_name not in visited:
-                tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
+            if tc is not None and tc['name'] not in visited:
                 toolchain_hierarchy.insert(0, tc)
                 bfs_queue.insert(0, tc)
                 visited.add(tc['name'])
