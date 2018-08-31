@@ -239,25 +239,25 @@ def get_toolchain_hierarchy(parent_toolchain):
                 # dummy toolchain: bottom of the hierarchy
                 elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
                     subtoolchain_version = ''
-                elif ((subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains) and
-                      robot_find_easyconfig(subtoolchain_name, current_tc_version)):
-                    # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
-                    # the module dependencies. This is only allowed for and inside optional subtoolchains.
-                    subtoolchain_version = current_tc_version
-                elif subtoolchain_name in optional_toolchains:
-                    # consider next subtoolchain in case the current one was optional
-                    continue
                 else:
-                    raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                         subtoolchain_name, current_tc_name)
+                    is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
+                    if is_optional_tc and robot_find_easyconfig(subtoolchain_name, current_tc_version):
+                        # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
+                        # the module dependencies. This is only allowed for and inside optional subtoolchains.
+                        subtoolchain_version = current_tc_version
+                    elif subtoolchain_name in optional_toolchains:
+                        # consider next subtoolchain in case the one considered now is optional
+                        continue
+                    else:
+                        raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                             subtoolchain_name, current_tc_name)
+            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                # Don't care about multiple versions of dummy
+                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
+                subtoolchain_version = ''
             else:
-                if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                    # Don't care about multiple versions of dummy
-                    _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
-                    subtoolchain_version = ''
-                else:
-                    raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                         subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
+                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                     subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
 
             if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
                 # skip dummy if add_dummy_to_minimal_toolchains is not set
