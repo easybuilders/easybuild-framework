@@ -662,8 +662,15 @@ def check_sha256_checksums(ecs, whitelist=None):
         # a checksum should be available for each of them
         components = ec.get('components', [])
         if ec['easyblock'] == 'Bundle':
+            klass = get_easyblock_class(ec['easyblock'])
+            app = klass(ec)
+            components = getattr(app, 'comp_cfgs', None)
+            if components is None:
+                raise EasyBuildError("Failed to obtained list of components for easyconfig using Bundle easyblock: %s",
+                                     ec.path)
+
             for comp in components:
-                comp_name, comp_opts = grab_name_opts(comp)
+                comp_name, comp_opts = comp['name'], comp
                 check_checksums_for(ec_fn, comp_opts, sub="of component %s" % comp_name)
 
         # make sure all provided checksums are SHA256
