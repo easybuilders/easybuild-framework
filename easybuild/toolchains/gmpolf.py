@@ -33,6 +33,7 @@ EasyBuild support for gmpolf compiler toolchain (includes GCC, MPICH2, OpenBLAS,
 """
 
 from easybuild.toolchains.gmpich import Gmpich
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -41,4 +42,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Gmpolf(Gmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpolf'
-    SUBTOOLCHAIN = Gmpich.NAME
+    SUBTOOLCHAIN = [Gmpich.NAME, Golf.NAME]
