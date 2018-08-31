@@ -609,80 +609,15 @@ def check_sha256_checksums(ecs, whitelist=None):
     if whitelist is None:
         whitelist = []
 
-    def grab_name_opts(spec):
-        """Determine extension/components name & options from given specification."""
-        name = spec[0]
-        # take into account that maybe only extension/component name & version is specified (i.e. no 3rd tuple element)
-        if len(spec) == 3:
-            opts = spec[2]
-        else:
-            opts = {}
-
-        return (name, opts)
-
-    def check_checksums_for(ec_fn, ent, sub='', source_cnt=None):
-        """
-        Utility function: check whether checksums for all sources/patches are available, for given entity
-        """
-        if source_cnt is None:
-            source_cnt = len(ent.get('sources', []))
-        # take into account that there may not be any patches/checksums for extensions/components
-        patch_cnt = len(ent.get('patches', []))
-        checksum_cnt = len(ent.get('checksums', []))
-
-        if (source_cnt + patch_cnt) != checksum_cnt:
-            if sub:
-                sub = "%s in %s" % (sub, ec_fn)
-            else:
-                sub = "in %s" % ec_fn
-            msg = "Checksums missing for one or more sources/patches %s: " % sub
-            msg += "found %d sources + %d patches " % (source_cnt, patch_cnt)
-            msg += "vs %d checksums" % checksum_cnt
-            checksum_issues.append(msg)
-
     for ec in ecs:
-        ec_fn = os.path.basename(ec.path)
-
         # skip whitelisted software
+        ec_fn = os.path.basename(ec.path)
         if any(re.match(regex, ec_fn) for regex in whitelist):
+            _log.info("Skipping SHA256 checksum check for %s because of whitelist (%s)", ec.path, whitelist)
             continue
 
-        checksums = zip(ec['sources'] + ec['patches'], ec['checksums'])
-
-        # check whether a checksum if available for every source + patch
-        check_checksums_for(ec_fn, ec)
-
-        # also check checksums for extensions
-        for ext in ec['exts_list']:
-            ext_name, ext_opts = grab_name_opts(ext)
-            # only a single source per extension is supported (see source_tmpl)
-            check_checksums_for(ec_fn, ext_opts, sub="of extension %s" % ext_name, source_cnt=1)
-
-        # easyconfigs using Bundle easyblock may have a list of components;
-        # a checksum should be available for each of them
-        components = ec.get('components', [])
-        if ec['easyblock'] == 'Bundle':
-            klass = get_easyblock_class(ec['easyblock'])
-            app = klass(ec)
-            components = getattr(app, 'comp_cfgs', None)
-            if components is None:
-                raise EasyBuildError("Failed to obtained list of components for easyconfig using Bundle easyblock: %s",
-                                     ec.path)
-
-            for comp in components:
-                comp_name, comp_opts = comp['name'], comp
-                check_checksums_for(ec_fn, comp_opts, sub="of component %s" % comp_name)
-
-        # make sure all provided checksums are SHA256
-        sha256_regex = re.compile('^[0-9a-f]{64}$')
-        for (fn, chksum) in checksums:
-            # check that there's only one checksum specified per file (i.e. a string, not a list/tuple)
-            if not isinstance(chksum, basestring):
-                msg = "One string containing a SHA256 checksum must be specified for %s in %s" % (fn, ec_fn)
-                checksum_issues.append(msg)
-            elif not sha256_regex.match(chksum):
-                msg = "Checksum '%s' for %s in %s must be a SHA256 checksum" % (chksum, fn, ec_fn)
-                checksum_issues.append(msg)
+        klass = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        checksum_issues.extend(klass(ec).check_checksums())
 
     return checksum_issues
 

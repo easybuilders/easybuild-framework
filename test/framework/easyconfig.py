@@ -2219,7 +2219,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
-        self.assertTrue(res[-1].endswith("must be a SHA256 checksum"))
+        self.assertTrue(res[-1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz"))
 
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
@@ -2243,56 +2243,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
-        expected = "One string containing a SHA256 checksum must be specified for toy-0.0.tar.gz"
-        self.assertTrue(res[-1].startswith(expected))
-
-    def test_check_sha256_checksums_bundle(self):
-        """Test for check_sha256_checksums function."""
-        self.contents = '\n'.join([
-            'easyblock = "Bundle"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": ""}',
-            'default_component_specs = {"sources": [SOURCE_TAR_GZ]}',
-            'components = [',
-            '    ("foo", "1.2.3"),',
-            '    ("bar", "4.5.6"),',
-            ']',
-        ])
-        self.prep()
-        ecs, _ = parse_easyconfigs([(self.eb_file, False)])
-        ecs = [ec['ec'] for ec in ecs]
-
-        # make sure components are actually found
-        self.assertTrue(ecs[0]['components'])
-
-        res = check_sha256_checksums(ecs)
-
-        # missing checksums for both components are found
-        self.assertTrue(res)
-        self.assertTrue(res[0].startswith("Checksums missing for one or more sources/patches of component foo in"))
-        self.assertTrue(res[1].startswith("Checksums missing for one or more sources/patches of component bar in"))
-
-        # try again, with checksums for components in place
-        regex = re.compile('^components = (.|\n)*', re.M)
-        components = '\n'.join([
-            'components = [',
-            '    ("foo", "1.2.3", {"checksums": ["0789b689641c2c90aee68af7bc0ae403"]}),',
-            '    ("bar", "4.5.6", {"checksums": ["55a7c38e3bd8232afc670f3b423972a7"]}),',
-            ']',
-        ])
-        self.contents = regex.sub(components, self.contents)
-        self.prep()
-        ecs, _ = parse_easyconfigs([(self.eb_file, False)])
-        ecs = [ec['ec'] for ec in ecs]
-
-        self.assertTrue(ecs[0]['components'])
-
-        # if no checksum issues are found, result is an empty list
-        self.assertEqual(check_sha256_checksums(ecs), [])
-
+        self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz: "))
 
 
 def suite():
