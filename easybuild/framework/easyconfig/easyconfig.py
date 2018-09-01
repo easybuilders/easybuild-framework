@@ -139,7 +139,6 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
     Returns unique version for subtoolchain, in tc dict.
     If there is no unique version:
     * use '' for dummy, if dummy is not skipped.
-    * GCCcore can be downgraded to dummy.
     * return None for skipped subtoolchains, that is,
       optional toolchains or dummy without add_dummy_to_minimal_toolchains.
     * in all other cases, raises an exception.
@@ -151,15 +150,8 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
     if len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
     elif len(uniq_subtc_versions) == 0:
-        # only retain GCCcore as subtoolchain if version was found
-        if subtoolchain_name == GCCcore.NAME:
-            _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
-                      subtoolchain_name)
-            # downgrade to dummy
-            subtoolchain_name = GCCcore.SUBTOOLCHAIN
-            subtoolchain_version = ''
         # dummy toolchain: bottom of the hierarchy
-        elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
             subtoolchain_version = ''
         else:
             is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
@@ -185,7 +177,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
         # skip dummy if add_dummy_to_minimal_toolchains is not set
         return None
 
-    return {'name': subtoolchain_name, 'version': subtoolchain_version}
+    return subtoolchain_version
 
 
 @toolchain_hierarchy_cache
@@ -278,12 +270,20 @@ def get_toolchain_hierarchy(parent_toolchain):
         cands = [c for c in cands if c['name'] in subtoolchain_names]
 
         for subtoolchain_name in subtoolchain_names:
-            tc = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+            subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+            # special case: GCCcore not found: downgrade to dummy for legacy toolchains
+            if subtoolchain_version is None and subtoolchain_name == GCCcore.NAME:
+                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
+                          subtoolchain_name)
+                subtoolchain_name = GCCcore.SUBTOOLCHAIN
+                subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name,
+                                                                optional_toolchains, cands)
             # add to hierarchy and move to next
-            if tc is not None and tc['name'] not in visited:
+            if subtoolchain_version is not None and subtoolchain_name not in visited:
+                tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
                 toolchain_hierarchy.insert(0, tc)
                 bfs_queue.insert(0, tc)
-                visited.add(tc['name'])
+                visited.add(subtoolchain_name)
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy

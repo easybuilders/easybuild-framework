@@ -37,3 +37,4 @@ class GCCcore(Gcc):
     # Replace the default compiler module name with our own
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    OPTIONAL = True
