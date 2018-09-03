@@ -616,8 +616,8 @@ def check_sha256_checksums(ecs, whitelist=None):
             _log.info("Skipping SHA256 checksum check for %s because of whitelist (%s)", ec.path, whitelist)
             continue
 
-        klass = get_easyblock_class(ec['easyblock'], name=ec['name'])
-        checksum_issues.extend(klass(ec).check_checksums())
+        eb_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        checksum_issues.extend(eb_class(ec).check_checksums())
 
     return checksum_issues
 
