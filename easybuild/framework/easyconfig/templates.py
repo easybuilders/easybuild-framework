@@ -75,6 +75,7 @@ TEMPLATE_SOFTWARE_VERSIONS = [
     ('Java', 'java'),
     ('Perl', 'perl'),
     ('Python', 'py'),
+    ('Python-core', 'py'),
     ('R', 'r'),
 ]
 # constant templates that can be used in easyconfigs
