@@ -3225,22 +3225,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             options.postprocess()
             self.assertEqual(options.options.optarch, optarch_parsed)
 
-    def test_check_style(self):
-        """Test --check-style."""
+    def test_check_contrib_style(self):
+        """Test style checks performed by --check-contrib + dedicated --check-style option."""
         try:
-            import pep8
+            import pycodestyle
         except ImportError:
-            print "Skipping test_check_style, since pep8 is not available"
-            return
+            try:
+                import pep8
+            except ImportError:
+                print "Skipping test_check_contrib_style, since pycodestyle or pep8 is not available"
+                return
 
+        regex = re.compile(r"Running style check on 2 easyconfig\(s\)(.|\n)*>> All style checks PASSed!", re.M)
         args = [
             '--check-style',
             'GCC-4.9.2.eb',
             'toy-0.0.eb',
         ]
         stdout, _ = self._run_mock_eb(args, raise_error=True)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
+        # --check-contrib fails because of missing checksums, but style test passes
+        args[0] = '--check-contrib'
+        self.mock_stdout(True)
+        error_pattern = "One or more contribution checks FAILED"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        self.mock_stdout(False)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # copy toy-0.0.eb test easyconfig, fiddle with it to make style check fail
@@ -3254,21 +3265,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toytxt = toytxt.replace('description = "Toy C program, 100% toy."', 'description = "%s"' % ('toy ' * 30))
         write_file(toy, toytxt)
 
+        for check_type in ['contribution', 'style']:
+            args = [
+                '--check-%s' % check_type[:7],
+                toy,
+            ]
+            self.mock_stdout(True)
+            error_pattern = "One or more %s checks FAILED!" % check_type
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+            patterns = [
+                "toy.eb:1:5: E223 tab before operator",
+                "toy.eb:1:7: E225 missing whitespace around operator",
+                "toy.eb:1:12: W299 trailing whitespace",
+                r"toy.eb:5:121: E501 line too long \(136 > 120 characters\)",
+            ]
+            for pattern in patterns:
+                self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_check_contrib_non_style(self):
+        """Test non-style checks performed by --check-contrib."""
         args = [
-            '--check-style',
-            toy,
+            '--check-contrib',
+            'toy-0.0.eb',
         ]
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, "One or more style checks FAILED!", self.eb_main, args, raise_error=True)
-        stdout = self.get_stdout()
+        self.mock_stderr(True)
+        error_pattern = "One or more contribution checks FAILED"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
         self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+
+        # SHA256 checksum checks fail
         patterns = [
-            "toy.eb:1:5: E223 tab before operator",
-            "toy.eb:1:7: E225 missing whitespace around operator",
-            "toy.eb:1:12: W299 trailing whitespace",
-            r"toy.eb:5:121: E501 line too long \(136 > 120 characters\)",
+            r"\[FAIL\] .*/toy-0.0.eb$",
+            r"^Checksums missing for one or more sources/patches in toy-0.0.eb: "
+            r"found 1 sources \+ 2 patches vs 1 checksums$",
+            r"^>> One or more SHA256 checksums checks FAILED!",
         ]
         for pattern in patterns:
+            regex = re.compile(pattern, re.M)
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
     def test_allow_use_as_root(self):

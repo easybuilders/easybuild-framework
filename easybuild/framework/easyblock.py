@@ -71,8 +71,9 @@ from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, is_sha256_checksum, mkdir
+from easybuild.tools.filetools import move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
+from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
@@ -1677,6 +1678,59 @@ class EasyBlock(object):
                     print_warning("Ignoring failing checksum verification for %s" % fil['name'])
                 else:
                     raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
+
+    def check_checksums_for(self, ent, sub='', source_cnt=None):
+        """
+        Utility method: check whether checksums for all sources/patches are available, for given entity
+        """
+        ec_fn = os.path.basename(self.cfg.path)
+        checksum_issues = []
+
+        sources = ent.get('sources', [])
+        patches = ent.get('patches', [])
+        checksums = ent.get('checksums', [])
+
+        if source_cnt is None:
+            source_cnt = len(sources)
+        patch_cnt, checksum_cnt = len(patches), len(checksums)
+
+        if (source_cnt + patch_cnt) != checksum_cnt:
+            if sub:
+                sub = "%s in %s" % (sub, ec_fn)
+            else:
+                sub = "in %s" % ec_fn
+            msg = "Checksums missing for one or more sources/patches %s: " % sub
+            msg += "found %d sources + %d patches " % (source_cnt, patch_cnt)
+            msg += "vs %d checksums" % checksum_cnt
+            checksum_issues.append(msg)
+
+        for fn, checksum in zip(sources + patches, checksums):
+            if not is_sha256_checksum(checksum):
+                msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
+                checksum_issues.append(msg)
+
+        return checksum_issues
+
+    def check_checksums(self):
+        """
+        Check whether a SHA256 checksum is available for all sources & patches (incl. extensions).
+
+        :return: list of strings describing checksum issues (missing checksums, wrong checksum type, etc.)
+        """
+        checksum_issues = []
+
+        # check whether a checksum if available for every source + patch
+        checksum_issues.extend(self.check_checksums_for(self.cfg))
+
+        # also check checksums for extensions
+        for ext in self.cfg['exts_list']:
+            ext_name = ext[0]
+            # take into account that extension may be a 2-tuple with just name/version
+            ext_opts = ext[2] if len(ext) == 3 else {}
+            # only a single source per extension is supported (see source_tmpl)
+            checksum_issues.extend(self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1))
+
+        return checksum_issues
 
     def extract_step(self):
         """
