@@ -146,6 +146,8 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
     current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
 
     uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+    # init with "skipped"
+    subtoolchain_version = None
 
     # dummy toolchain: bottom of the hierarchy
     if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
@@ -159,19 +161,13 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
             # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
             # the module dependencies. This is only allowed for and inside optional subtoolchains.
             subtoolchain_version = current_tc_version
-        elif subtoolchain_name in optional_toolchains:
-            # skip if the subtoolchain considered now is optional
-            return None
-        else:
+        elif subtoolchain_name not in optional_toolchains:
+            # raise error if the subtoolchain considered now is not optional
             raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
                                  subtoolchain_name, current_tc_name)
     else:
         raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
                              subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
-
-    if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
-        # skip dummy if add_dummy_to_minimal_toolchains is not set
-        return None
 
     return subtoolchain_version
 
