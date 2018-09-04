@@ -185,9 +185,9 @@ def get_toolchain_hierarchy(parent_toolchain):
           gcccuda golf(*)
               \   /
                GCC
-                |
-             GCCcore
-                |
+              /  |
+      GCCcore(*) |
+              \  |
              (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
 
     :param parent_toolchain: dictionary with name/version of parent toolchain
