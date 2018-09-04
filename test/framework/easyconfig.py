@@ -2080,7 +2080,6 @@ class EasyConfigTest(EnhancedTestCase):
         # '%(name)' is not a correct template spec (missing trailing 's')
         self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
 
-
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
@@ -2124,7 +2123,6 @@ class EasyConfigTest(EnhancedTestCase):
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, ['4.9.3', ''])
-
 
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
