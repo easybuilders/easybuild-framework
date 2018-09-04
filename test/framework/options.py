@@ -3598,6 +3598,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(len(toy_tar_backups), 1)
         self.assertTrue(os.path.basename(toy_tar_backups[0]).startswith('toy-0.0.tar.gz.bak_'))
 
+    def test_enforce_checksums(self):
+        """Test effect of --enforce-checksums"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        args = [
+            test_ec,
+            '--stop=source',
+            '--enforce-checksums',
+        ]
+
+        # checksum is missing for patch of 'bar' extension, so --enforce-checksums should result in an error
+        copy_file(toy_ec, test_ec)
+        error_pattern = "Missing checksum for bar-0.0[^ ]*\.patch"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # get rid of checksums for extensions, should result in different error message
+        # because of missing checksum for source of 'bar' extension
+        regex = re.compile("^.*'checksums':.*$", re.M)
+        test_ec_txt = regex.sub('', read_file(test_ec))
+        self.assertFalse("'checksums':" in test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+        error_pattern = "Missing checksum for bar-0\.0\.tar\.gz"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # wipe both exts_list and checksums, so we can check whether missing checksum for main source is caught
+        test_ec_txt = read_file(test_ec)
+        for param in ['checksums', 'exts_list']:
+            regex = re.compile('^%s(?:.|\n)*?\]\s*$' % param, re.M)
+            test_ec_txt = regex.sub('', test_ec_txt)
+            self.assertFalse('%s = ' % param in test_ec_txt)
+
+        write_file(test_ec, test_ec_txt)
+        error_pattern = "Missing checksum for toy-0.0.tar.gz"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
 
 def suite():
     """ returns all the testcases in this module """
