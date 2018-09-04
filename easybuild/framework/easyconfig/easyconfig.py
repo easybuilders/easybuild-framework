@@ -156,12 +156,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
     elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
     elif len(uniq_subtc_versions) == 0:
-        is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
-        if is_optional_tc and robot_find_easyconfig(subtoolchain_name, current_tc_version):
-            # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
-            # the module dependencies. This is only allowed for and inside optional subtoolchains.
-            subtoolchain_version = current_tc_version
-        elif subtoolchain_name not in optional_toolchains:
+        if subtoolchain_name not in optional_toolchains:
             # raise error if the subtoolchain considered now is not optional
             raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
                                  subtoolchain_name, current_tc_name)
@@ -201,6 +196,7 @@ def get_toolchain_hierarchy(parent_toolchain):
     _, all_tc_classes = search_toolchain('')
     subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
     optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+    composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
     # the parent toolchain is at the top of the hierarchy
     toolchain_hierarchy = [parent_toolchain]
@@ -257,6 +253,15 @@ def get_toolchain_hierarchy(parent_toolchain):
 
                 cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
+
+        for dep in subtoolchain_names:
+            # try to find subtoolchains with the same version as the parent
+            # only do this for composite toolchains, not single-compiler toolchains, whose
+            # versions match those of the component instead of being e.g. "2018a".
+            if dep in composite_toolchains:
+                ecfile = robot_find_easyconfig(dep, current_tc_version)
+                if ecfile is not None:
+                    cands.append({'name': dep, 'version': current_tc_version})
 
         # only retain candidates that match subtoolchain names
         cands = [c for c in cands if c['name'] in subtoolchain_names]
