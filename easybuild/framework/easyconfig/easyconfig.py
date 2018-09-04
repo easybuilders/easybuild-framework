@@ -34,6 +34,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Alan O'Cais (Juelich Supercomputing Centre)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 import copy
@@ -55,7 +56,6 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
@@ -147,28 +147,24 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
     uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
 
-    if len(uniq_subtc_versions) == 1:
+    # dummy toolchain: bottom of the hierarchy
+    if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+        if build_option('add_dummy_to_minimal_toolchains'):
+            subtoolchain_version = ''
+    elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
     elif len(uniq_subtc_versions) == 0:
-        # dummy toolchain: bottom of the hierarchy
-        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-            subtoolchain_version = ''
+        is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
+        if is_optional_tc and robot_find_easyconfig(subtoolchain_name, current_tc_version):
+            # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
+            # the module dependencies. This is only allowed for and inside optional subtoolchains.
+            subtoolchain_version = current_tc_version
+        elif subtoolchain_name in optional_toolchains:
+            # skip if the subtoolchain considered now is optional
+            return None
         else:
-            is_optional_tc = subtoolchain_name in optional_toolchains or current_tc_name in optional_toolchains
-            if is_optional_tc and robot_find_easyconfig(subtoolchain_name, current_tc_version):
-                # special case: optionally find e.g. golf/1.4.10 for goolf/1.4.10 even if it is not in
-                # the module dependencies. This is only allowed for and inside optional subtoolchains.
-                subtoolchain_version = current_tc_version
-            elif subtoolchain_name in optional_toolchains:
-                # skip if the subtoolchain considered now is optional
-                return None
-            else:
-                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                     subtoolchain_name, current_tc_name)
-    elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-        # Don't care about multiple versions of dummy
-        _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
-        subtoolchain_version = ''
+            raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                 subtoolchain_name, current_tc_name)
     else:
         raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
                              subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
@@ -271,13 +267,6 @@ def get_toolchain_hierarchy(parent_toolchain):
 
         for subtoolchain_name in subtoolchain_names:
             subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
-            # special case: GCCcore not found: downgrade to dummy for legacy toolchains
-            if subtoolchain_version is None and subtoolchain_name == GCCcore.NAME:
-                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
-                          subtoolchain_name)
-                subtoolchain_name = GCCcore.SUBTOOLCHAIN
-                subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name,
-                                                                optional_toolchains, cands)
             # add to hierarchy and move to next
             if subtoolchain_version is not None and subtoolchain_name not in visited:
                 tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
