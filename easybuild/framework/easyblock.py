@@ -512,14 +512,15 @@ class EasyBlock(object):
                                     src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
                                     self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
 
-                                if checksums:
-                                    fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
-                                    if verify_checksum(src_fn, fn_checksum):
-                                        self.log.info('Checksum for extension source %s verified', fn)
-                                    elif build_option('ignore_checksums'):
-                                        print_warning("Ignoring failing checksum verification for %s" % fn)
-                                    else:
-                                        raise EasyBuildError('Checksum verification for extension source %s failed', fn)
+                                # verify checksum (if provided)
+                                self.log.debug('Verifying checksums for extension source...')
+                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                                if verify_checksum(src_fn, fn_checksum):
+                                    self.log.info('Checksum for extension source %s verified', fn)
+                                elif build_option('ignore_checksums'):
+                                    print_warning("Ignoring failing checksum verification for %s" % fn)
+                                else:
+                                    raise EasyBuildError('Checksum verification for extension source %s failed', fn)
 
                             ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
                             if ext_patches:
@@ -534,16 +535,16 @@ class EasyBlock(object):
                                             checksum = compute_checksum(patch, checksum_type=checksum_type)
                                             self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
 
-                                    if checksums:
-                                        self.log.debug('Verifying checksums for extension patches...')
-                                        for idx, patch in enumerate(ext_patches):
-                                            checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
-                                            if verify_checksum(patch, checksum):
-                                                self.log.info('Checksum for extension patch %s verified', patch)
-                                            elif build_option('ignore_checksums'):
-                                                print_warning("Ignoring failing checksum verification for %s" % patch)
-                                            else:
-                                                raise EasyBuildError('Checksum for extension patch %s failed', patch)
+                                    # verify checksum (if provided)
+                                    self.log.debug('Verifying checksums for extension patches...')
+                                    for idx, patch in enumerate(ext_patches):
+                                        checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
+                                        if verify_checksum(patch, checksum):
+                                            self.log.info('Checksum for extension patch %s verified', patch)
+                                        elif build_option('ignore_checksums'):
+                                            print_warning("Ignoring failing checksum verification for %s" % patch)
+                                        else:
+                                            raise EasyBuildError('Checksum for extension patch %s failed', patch)
                             else:
                                 self.log.debug('No patches found for extension %s.' % ext_name)
 
