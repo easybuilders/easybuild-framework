@@ -56,6 +56,7 @@ TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 START = 'start'
+PARSE = 'parse'
 END = 'end'
 
 PRE_PREF = 'pre_'
@@ -67,7 +68,8 @@ STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CON
               INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
-KNOWN_HOOKS = [h + HOOK_SUFF for h in [START] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]]
+HOOK_NAMES = [START, PARSE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]
+KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 
 def load_hooks(hooks_path):

@@ -113,7 +113,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, ho
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
     :param exit_on_failure: whether or not to exit on installation failure
-    :param hooks: list of defined pre- and post-step hooks
+    :param hooks: list of defined hooks
     """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
@@ -392,8 +392,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
+    # load hook implementations (if any)
+    hooks = load_hooks(options.hooks)
+
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums, hooks=hooks)
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
@@ -492,7 +495,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
-        hooks = load_hooks(options.hooks)
 
         ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
                                                   exit_on_failure=exit_on_failure, hooks=hooks)

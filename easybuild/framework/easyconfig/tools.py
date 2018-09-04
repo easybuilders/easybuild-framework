@@ -362,10 +362,11 @@ def det_easyconfig_paths(orig_paths):
     return [os.path.abspath(ec_file) for ec_file in ec_files]
 
 
-def parse_easyconfigs(paths, validate=True):
+def parse_easyconfigs(paths, validate=True, hooks=None):
     """
     Parse easyconfig files
     :param paths: paths to easyconfigs
+    :param hooks: list of defined hooks
     """
     easyconfigs = []
     generated_ecs = False
@@ -378,12 +379,16 @@ def parse_easyconfigs(paths, validate=True):
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
+                kwargs = {
+                    'hooks': hooks,
+                    'validate': validate,
+                }
                 # only pass build specs when not generating easyconfig files
-                kwargs = {'validate': validate}
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
-                ecs = process_easyconfig(ec_file, **kwargs)
-                easyconfigs.extend(ecs)
+
+                easyconfigs.extend(process_easyconfig(ec_file, **kwargs))
+
         except IOError, err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 

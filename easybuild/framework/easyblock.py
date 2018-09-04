@@ -127,6 +127,7 @@ class EasyBlock(object):
         """
         Initialize the EasyBlock instance.
         :param ec: a parsed easyconfig file (EasyConfig instance)
+        :param hooks: list of defined hooks
         """
 
         # keep track of original working directory, so we can go back there
@@ -2770,6 +2771,7 @@ def build_and_install_one(ecdict, init_env, hooks=None):
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
     :param init_env: original environment (used to reset environment)
+    :param hooks: list of defined hooks
     """
     silent = build_option('silent')
 

@@ -60,6 +60,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.hooks import PARSE, run_hook
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -244,7 +245,7 @@ class EasyConfig(object):
     """
 
     def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
-                 auto_convert_value_types=True):
+                 auto_convert_value_types=True, hooks=None):
         """
         initialize an easyconfig.
         :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -255,6 +256,7 @@ class EasyConfig(object):
         :param rawtxt: raw contents of easyconfig file
         :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
+        :param hooks: list of defined hooks
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -324,7 +326,7 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parse()
+        self.parse(hooks=hooks)
 
         # perform validations
         self.validation = build_option('validate') and validate
@@ -396,10 +398,12 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
-    def parse(self):
+    def parse(self, hooks=None):
         """
         Parse the file and set options
         mandatory requirements are checked here
+
+        :param hooks: list of defined hooks
         """
         if self.build_specs is None:
             arg_specs = {}
@@ -434,22 +438,24 @@ class EasyConfig(object):
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config
-            # do not store variables we don't need
             if key in self._config.keys():
-                if key in ['dependencies']:
-                    self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
-                elif key in ['builddependencies']:
-                    self[key] = [self._parse_dependency(dep, build_only=True) for dep in local_vars[key]]
-                elif key in ['hiddendependencies']:
-                    self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
-                else:
-                    self[key] = local_vars[key]
+                self[key] = local_vars[key]
                 self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
             elif key in REPLACED_PARAMETERS:
                 _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
+            # do not store variables we don't need
             else:
-                self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
+                self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
+
+        # trigger parse hook
+        run_hook(PARSE, hooks, args=[self])
+
+        # parse dependency specifications
+        self.log.info("Parsing dependency specifications...")
+        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
+        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
+        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
 
         # update templating dictionary
         self.generate_template_values()
@@ -1236,7 +1242,7 @@ def resolve_template(value, tmpl_dict):
     return value
 
 
-def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
+def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None, hooks=None):
     """
     Process easyconfig, returning some information for each block
     :param path: path to easyconfig file
@@ -1244,6 +1250,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     :param validate: whether or not to perform validation
     :param parse_only: only parse easyconfig superficially (faster, but results in partial info)
     :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+    :param hooks: list of defined hooks
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
@@ -1264,7 +1271,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden, hooks=hooks)
         except EasyBuildError, err:
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 
