@@ -466,6 +466,7 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
+    # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = urllib2.Request(url, headers=headers)
     used_urllib = urllib2
 
@@ -476,10 +477,10 @@ def download_file(filename, url, path, forced=False):
                 url_fd = urllib2.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
             else:
-                url_req = requests.get(url, headers=headers, stream=True, timeout=timeout)
-                status_code = url_req.status_code
-                url_req.raise_for_status()
-                url_fd = url_req.raw
+                r = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                status_code = r.status_code
+                r.raise_for_status()
+                url_fd = r.raw
                 url_fd.decode_content = True
             _log.debug('response code for given url %s: %s' % (url, status_code))
             write_file(path, url_fd.read(), forced=forced, backup=True)
