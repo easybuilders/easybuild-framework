@@ -50,8 +50,6 @@ import sys
 import tempfile
 import time
 import urllib2
-from urllib2 import HTTPError
-HAVE_REQUESTS = False
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
@@ -62,6 +60,11 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 
+try:
+    import requests
+    HAVE_REQUESTS = True
+except ImportError:
+    HAVE_REQUESTS = False
 
 _log = fancylogger.getLogger('filetools', fname=False)
 
@@ -442,7 +445,6 @@ def derive_alt_pypi_url(url):
 
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
-    global HAVE_REQUESTS, HTTPError
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
@@ -464,28 +466,28 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
-    if not HAVE_REQUESTS:
-        url_req = urllib2.Request(url, headers=headers)
+    url_req = urllib2.Request(url, headers=headers)
+    used_urllib = urllib2
 
     while not downloaded and attempt_cnt < max_attempts:
         try:
-            if HAVE_REQUESTS:
+            if used_urllib is urllib2:
+                # urllib2 does the right thing for http proxy setups, urllib does not!
+                url_fd = urllib2.urlopen(url_req, timeout=timeout)
+                status_code = url_fd.getcode()
+            else:
                 url_req = requests.get(url, headers=headers, stream=True, timeout=timeout)
                 status_code = url_req.status_code
                 url_req.raise_for_status()
                 url_fd = url_req.raw
                 url_fd.decode_content = True
-            else:
-                # urllib2 does the right thing for http proxy setups, urllib does not!
-                url_fd = urllib2.urlopen(url_req, timeout=timeout)
-                status_code = url_fd.getcode()
             _log.debug('response code for given url %s: %s' % (url, status_code))
             write_file(path, url_fd.read(), forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
-        except HTTPError as err:
-            if not HAVE_REQUESTS:
+        except used_urllib.HTTPError as err:
+            if used_urllib is urllib2:
                 status_code = err.code
             if 400 <= status_code <= 499:
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
@@ -498,14 +500,11 @@ def download_file(filename, url, path, forced=False):
             error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
                                   "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
             if error_re.match(str(err)):
-                try:
-                    import requests
-                    from requests.exceptions import HTTPError
-                    HAVE_REQUESTS = True
-                    _log.info("Downloading using requests package instead of urllib2")
-                except ImportError:
+                if not HAVE_REQUESTS:
                     raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
                                          "install the python-requests and pyOpenSSL RPM packages and try again.")
+                _log.info("Downloading using requests package instead of urllib2")
+                used_urllib = requests
             attempt_cnt += 1
         except Exception, err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
