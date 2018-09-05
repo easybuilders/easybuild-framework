@@ -449,9 +449,10 @@ class EasyConfig(object):
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
         hooks = load_hooks(build_option('hooks'))
+        prev_enable_templating = self.enable_templating
         self.enable_templating = False
         run_hook(PARSE, hooks, args=[self], msg="Running %s hook for %s..." % (PARSE, os.path.basename(self.path)))
-        self.enable_templating = True
+        self.enable_templating = prev_enable_templating
 
         # parse dependency specifications
         self.log.info("Parsing dependency specifications...")
