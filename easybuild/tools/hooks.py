@@ -170,7 +170,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None):
+def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
     """
     Run hook with specified label.
 
@@ -179,6 +179,7 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None)
     :param pre_step_hook: indicates whether hook to run is a pre-step hook
     :param post_step_hook: indicates whether hook to run is a post-step hook
     :param args: arguments to pass to hook function
+    :param msg: custom message that is printed when hook is called
     """
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     if hook:
@@ -190,6 +191,9 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None)
         elif post_step_hook:
             label = 'post-' + label
 
-        print_msg("Running %s hook..." % label)
+        if msg is None:
+            msg = "Running %s hook..." % label
+        print_msg(msg)
+
         _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
         hook(*args)

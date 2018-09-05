@@ -49,6 +49,9 @@ class HooksTest(EnhancedTestCase):
             'def start_hook():',
             '    print("this is triggered at the very beginning")',
             '',
+            'def parse_hook(ec):',
+            '   print("Parse hook with argument %s" % ec)',
+            '',
             'def foo():',
             '    print("running foo helper method")',
             '',
@@ -68,8 +71,8 @@ class HooksTest(EnhancedTestCase):
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        self.assertEqual(len(hooks), 3)
-        self.assertEqual(sorted(hooks.keys()), ['post_configure_hook', 'pre_install_hook', 'start_hook'])
+        self.assertEqual(len(hooks), 4)
+        self.assertEqual(sorted(hooks.keys()), ['parse_hook', 'post_configure_hook', 'pre_install_hook', 'start_hook'])
         self.assertTrue(all(callable(h) for h in hooks.values()))
 
         # test caching of hooks
@@ -124,6 +127,7 @@ class HooksTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.mock_stderr(True)
         run_hook('start', hooks)
+        run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
         run_hook('configure', hooks, pre_step_hook=True, args=[None])
         run_hook('configure', hooks, post_step_hook=True, args=[None])
         run_hook('build', hooks, pre_step_hook=True, args=[None])
@@ -138,6 +142,8 @@ class HooksTest(EnhancedTestCase):
         expected_stdout = '\n'.join([
             "== Running start hook...",
             "this is triggered at the very beginning",
+            "== Running parse hook for example.eb...",
+            "Parse hook with argument <EasyConfig instance>",
             "== Running post-configure hook...",
             "this is run after configure step",
             "running foo helper method",

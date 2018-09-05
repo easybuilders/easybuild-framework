@@ -1878,7 +1878,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected_output = '\n'.join([
             "== Running start hook...",
             "start hook triggered",
-            "== Running parse hook...",
+            "== Running parse hook for toy-0.0.eb...",
             "toy 0.0",
             "['%(name)s-%(version)s.tar.gz']",
             "echo toy",

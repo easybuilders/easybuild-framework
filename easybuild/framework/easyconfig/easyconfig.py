@@ -450,7 +450,7 @@ class EasyConfig(object):
         # (see also comment in resolve_template)
         hooks = load_hooks(build_option('hooks'))
         self.enable_templating = False
-        run_hook(PARSE, hooks, args=[self])
+        run_hook(PARSE, hooks, args=[self], msg="Running %s hook for %s..." % (PARSE, os.path.basename(self.path)))
         self.enable_templating = True
 
         # parse dependency specifications
