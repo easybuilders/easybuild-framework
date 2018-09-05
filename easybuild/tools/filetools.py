@@ -1683,9 +1683,8 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         change_dir(targetdir)
 
     # create an archive and delete the git repo
-    cmd = "tar cfvz %s --exclude-vcs %s" % (targetpath, repo_name)
+    cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
     run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
-    remove_file(repo_name)
 
     change_dir(cwd)
     return targetpath
