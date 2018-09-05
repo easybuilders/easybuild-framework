@@ -105,7 +105,7 @@ def load_hooks(hooks_path):
                 except ImportError as err:
                     raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
             else:
-                raise EasyBuildError("Provided path for hooks implementation should be location of a Python file (*.py)")
+                raise EasyBuildError("Provided path for hooks implementation should be path to a Python file (*.py)")
         else:
             _log.info("No location for hooks implementation provided, no hooks defined")
 
