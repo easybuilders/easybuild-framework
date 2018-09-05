@@ -31,6 +31,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 """
 
 from easybuild.toolchains.iccifort import IccIfort
+from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
@@ -42,4 +43,4 @@ class Ismkl(IccIfort, Mpich2, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'ismkl'
-    SUBTOOLCHAIN = IccIfort.NAME
+    SUBTOOLCHAIN = [IccIfort.NAME, Iimkl.NAME]

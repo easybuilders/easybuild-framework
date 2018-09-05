@@ -29,6 +29,7 @@ EasyBuild support for giolf compiler toolchain (includes GCC, IntelMPI, OpenBLAS
 """
 
 from easybuild.toolchains.gimpi import Gimpi
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -37,4 +38,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Giolf(Gimpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, IntelMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'giolf'
-    SUBTOOLCHAIN = Gimpi.NAME
+    SUBTOOLCHAIN = [Gimpi.NAME, Golf.NAME]

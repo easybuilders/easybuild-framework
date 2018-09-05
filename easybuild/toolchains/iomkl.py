@@ -31,6 +31,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 """
 
 from easybuild.toolchains.iompi import Iompi
+from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -41,4 +42,4 @@ class Iomkl(Iompi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'iomkl'
-    SUBTOOLCHAIN = Iompi.NAME
+    SUBTOOLCHAIN = [Iompi.NAME, Iimkl.NAME]
