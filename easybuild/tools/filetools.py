@@ -49,14 +49,9 @@ import stat
 import sys
 import tempfile
 import time
-try:
-    import requests
-    from requests.exceptions import HTTPError
-    HAVE_REQUESTS = True
-except ImportError:
-    import urllib2
-    from urllib2 import HTTPError
-    HAVE_REQUESTS = False
+import urllib2
+from urllib2 import HTTPError
+HAVE_REQUESTS = False
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
@@ -447,6 +442,7 @@ def derive_alt_pypi_url(url):
 
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
+    global HAVE_REQUESTS, HTTPError
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
@@ -502,8 +498,14 @@ def download_file(filename, url, path, forced=False):
             error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
                                   "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
             if error_re.match(str(err)):
-                raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
-                                     "install the python-requests and pyOpenSSL RPM packages and try again.")
+                try:
+                    import requests
+                    from requests.exceptions import HTTPError
+                    HAVE_REQUESTS = True
+                    _log.info("Downloading using requests package instead of urllib2")
+                except ImportError:
+                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
+                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
             attempt_cnt += 1
         except Exception, err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
