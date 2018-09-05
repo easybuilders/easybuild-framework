@@ -362,14 +362,14 @@ def det_easyconfig_paths(orig_paths):
     return [os.path.abspath(ec_file) for ec_file in ec_files]
 
 
-def parse_easyconfigs(paths, validate=True, hooks=None):
+def parse_easyconfigs(paths, validate=True):
     """
     Parse easyconfig files
     :param paths: paths to easyconfigs
-    :param hooks: list of defined hooks
     """
     easyconfigs = []
     generated_ecs = False
+
     for (path, generated) in paths:
         path = os.path.abspath(path)
         # keep track of whether any files were generated
@@ -379,10 +379,7 @@ def parse_easyconfigs(paths, validate=True, hooks=None):
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
-                kwargs = {
-                    'hooks': hooks,
-                    'validate': validate,
-                }
+                kwargs = {'validate': validate}
                 # only pass build specs when not generating easyconfig files
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')

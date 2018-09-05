@@ -76,7 +76,8 @@ from easybuild.tools.filetools import move_logs, read_file, remove_file, rmtree2
 from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
-from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
+from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
+from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -123,18 +124,17 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, ec, hooks=None):
+    def __init__(self, ec):
         """
         Initialize the EasyBlock instance.
         :param ec: a parsed easyconfig file (EasyConfig instance)
-        :param hooks: list of defined hooks
         """
 
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
 
         # list of pre- and post-step hooks
-        self.hooks = hooks or []
+        self.hooks = load_hooks(build_option('hooks'))
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -2766,12 +2766,11 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env, hooks=None):
+def build_and_install_one(ecdict, init_env):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
     :param init_env: original environment (used to reset environment)
-    :param hooks: list of defined hooks
     """
     silent = build_option('silent')
 
@@ -2805,7 +2804,7 @@ def build_and_install_one(ecdict, init_env, hooks=None):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
 
-        app = app_class(ecdict['ec'], hooks=hooks)
+        app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
