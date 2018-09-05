@@ -42,6 +42,7 @@ from test.framework.package import mock_fpm
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
@@ -1841,6 +1842,15 @@ class ToyBuildTest(EnhancedTestCase):
             "def start_hook():",
             "   print('start hook triggered')",
             '',
+            "def parse_hook(ec):",
+            "   print ec.name, ec.version",
+            # print sources value to check that raw untemplated strings are exposed in parse_hook
+            "   print ec['sources']",
+            # try appending to postinstallcmd to see whether the modification is actually picked up
+            # (required templating to be disabled before parse_hook is called)
+            "   ec['postinstallcmds'].append('echo toy')",
+            "   print ec['postinstallcmds'][-1]",
+            '',
             "def pre_configure_hook(self):",
             "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
             '',
@@ -1868,6 +1878,10 @@ class ToyBuildTest(EnhancedTestCase):
         expected_output = '\n'.join([
             "== Running start hook...",
             "start hook triggered",
+            "== Running parse hook for toy-0.0.eb...",
+            "toy 0.0",
+            "['%(name)s-%(version)s.tar.gz']",
+            "echo toy",
             "== Running pre-configure hook...",
             "pre-configure: toy.source: True",
             "== Running post-configure hook...",
