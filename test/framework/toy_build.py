@@ -1876,12 +1876,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
         expected_output = '\n'.join([
+            "== Running start hook...",
+            "start hook triggered",
             "== Running parse hook...",
             "toy 0.0",
             "['%(name)s-%(version)s.tar.gz']",
             "echo toy",
-            "== Running start hook...",
-            "start hook triggered",
             "== Running pre-configure hook...",
             "pre-configure: toy.source: True",
             "== Running post-configure hook...",

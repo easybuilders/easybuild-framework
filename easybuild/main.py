@@ -119,11 +119,6 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
-    # load hook implementations (if any)
-    hooks = load_hooks(build_option('hooks'))
-
-    run_hook(START, hooks)
-
     res = []
     for ec in ecs:
         ec_res = {}
@@ -166,8 +161,6 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
-
-    run_hook(END, hooks)
 
     return res
 
@@ -285,6 +278,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
+
+    # load hook implementations (if any)
+    hooks = load_hooks(options.hooks)
+
+    run_hook(START, hooks)
 
     if modtool is None:
         modtool = modules_tool(testing=testing)
@@ -517,6 +515,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     for ec in easyconfigs:
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
+
+    run_hook(END, hooks)
 
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
