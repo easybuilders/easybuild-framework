@@ -1629,7 +1629,7 @@ def copy(paths, target_path, force_in_dry_run=False):
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
-def get_source_from_git(filename, targetdir, git_config):
+def get_source_tarball_from_git(filename, targetdir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
 
@@ -1639,7 +1639,7 @@ def get_source_from_git(filename, targetdir, git_config):
     """
     # if a non-empty dictionary was provided, download from git and archive
     if not isinstance(git_config, dict):
-        raise EasyBuildError("Found a non null git_config in 'sources', but value is not a dictionary")
+        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
 
     # Making a copy to avoid modifying the object with pops
     git_config = git_config.copy()
@@ -1648,6 +1648,8 @@ def get_source_from_git(filename, targetdir, git_config):
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
     recursive = git_config.pop('recursive', False)
+
+    # input validation of git_config dict
     if git_config:
         raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
     if not repo_name:
@@ -1658,8 +1660,8 @@ def get_source_from_git(filename, targetdir, git_config):
         raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
-    if '.tar.gz' not in filename:
-        raise EasyBuildError("git_config only supports filename ending in .tar.gz")
+    if not filename.endswith('.tar.gz'):
+        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
 
     mkdir(targetdir, parents=True)
     targetpath = os.path.join(targetdir, filename)
@@ -1670,19 +1672,20 @@ def get_source_from_git(filename, targetdir, git_config):
         cmd = "git clone --branch %s %s %s/%s.git " % (tag, recursive, url, repo_name)
     else:
         cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
-    (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
         change_dir(os.path.join(targetdir, repo_name))
         recursive = " && git submodule update " if recursive else ""
         cmd = "git checkout %s %s " % (commit, recursive)
-        (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+        run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
         change_dir(targetdir)
 
     # create an archive and delete the git repo
-    cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
-    (cmdstdouterr, ec) = run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+    cmd = "tar cfvz %s --exclude-vcs %s" % (targetpath, repo_name)
+    run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+    remove_file(repo_name)
 
     change_dir(cwd)
     return targetpath
