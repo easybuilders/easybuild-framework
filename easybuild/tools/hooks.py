@@ -72,36 +72,47 @@ HOOK_NAMES = [START, PARSE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POS
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 
+# cached version of hooks, to avoid having to load them from file multiple times
+_cached_hooks = {}
+
+
 def load_hooks(hooks_path):
     """Load defined hooks (if any)."""
-    hooks = {}
 
-    if hooks_path:
-        if not os.path.exists(hooks_path):
-            raise EasyBuildError("Specified path for hooks implementation does not exist: %s", hooks_path)
+    if hooks_path in _cached_hooks:
+        hooks = _cached_hooks[hooks_path]
 
-        (hooks_filename, hooks_file_ext) = os.path.splitext(os.path.split(hooks_path)[1])
-        if hooks_file_ext == '.py':
-            _log.info("Importing hooks implementation from %s...", hooks_path)
-            try:
-                # import module that defines hooks, and collect all functions of which name ends with '_hook'
-                imported_hooks = imp.load_source(hooks_filename, hooks_path)
-                for attr in dir(imported_hooks):
-                    if attr.endswith(HOOK_SUFF):
-                        hook = getattr(imported_hooks, attr)
-                        if callable(hook):
-                            hooks.update({attr: hook})
-                        else:
-                            _log.debug("Skipping non-callable attribute '%s' when loading hooks", attr)
-                _log.info("Found hooks: %s", sorted(hooks.keys()))
-            except ImportError as err:
-                raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
-        else:
-            raise EasyBuildError("Provided path for hooks implementation should be location of a Python file (*.py)")
     else:
-        _log.info("No location for hooks implementation provided, no hooks defined")
+        hooks = {}
+        if hooks_path:
+            if not os.path.exists(hooks_path):
+                raise EasyBuildError("Specified path for hooks implementation does not exist: %s", hooks_path)
 
-    verify_hooks(hooks)
+            (hooks_filename, hooks_file_ext) = os.path.splitext(os.path.split(hooks_path)[1])
+            if hooks_file_ext == '.py':
+                _log.info("Importing hooks implementation from %s...", hooks_path)
+                try:
+                    # import module that defines hooks, and collect all functions of which name ends with '_hook'
+                    imported_hooks = imp.load_source(hooks_filename, hooks_path)
+                    for attr in dir(imported_hooks):
+                        if attr.endswith(HOOK_SUFF):
+                            hook = getattr(imported_hooks, attr)
+                            if callable(hook):
+                                hooks.update({attr: hook})
+                            else:
+                                _log.debug("Skipping non-callable attribute '%s' when loading hooks", attr)
+                    _log.info("Found hooks: %s", sorted(hooks.keys()))
+                except ImportError as err:
+                    raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
+            else:
+                raise EasyBuildError("Provided path for hooks implementation should be location of a Python file (*.py)")
+        else:
+            _log.info("No location for hooks implementation provided, no hooks defined")
+
+        verify_hooks(hooks)
+
+        # cache loaded hooks, so we don't need to load them from file again
+        _cached_hooks[hooks_path] = hooks
 
     return hooks
 

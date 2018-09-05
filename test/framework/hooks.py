@@ -32,8 +32,9 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
+import easybuild.tools.hooks
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import remove_file, write_file
 from easybuild.tools.hooks import find_hook, load_hooks, run_hook, verify_hooks
 
 
@@ -70,6 +71,25 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(len(hooks), 3)
         self.assertEqual(sorted(hooks.keys()), ['post_configure_hook', 'pre_install_hook', 'start_hook'])
         self.assertTrue(all(callable(h) for h in hooks.values()))
+
+        # test caching of hooks
+        remove_file(self.test_hooks_pymod)
+        cached_hooks = load_hooks(self.test_hooks_pymod)
+        self.assertTrue(cached_hooks is hooks)
+
+        # hooks file can be empty
+        empty_hooks_path = os.path.join(self.test_prefix, 'empty_hooks.py')
+        write_file(empty_hooks_path, '')
+        empty_hooks = load_hooks(empty_hooks_path)
+        self.assertEqual(empty_hooks, {})
+
+        # loading another hooks file doesn't affect cached hooks
+        prev_hooks = load_hooks(self.test_hooks_pymod)
+        self.assertTrue(prev_hooks is hooks)
+
+        # clearing cached hooks results in error because hooks file is not found
+        easybuild.tools.hooks._cached_hooks = {}
+        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, self.test_hooks_pymod)
 
     def test_find_hook(self):
         """Test for find_hook function."""
