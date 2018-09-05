@@ -498,14 +498,13 @@ def download_file(filename, url, path, forced=False):
                 _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
                 attempt_cnt += 1
         except IOError as err:
+            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
             error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
                                   "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
             if error_re.match(str(err)):
-                raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please\n"
+                raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
                                      "install the python-requests and pyOpenSSL RPM packages and try again.")
-            else:
-                _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
-                attempt_cnt += 1
+            attempt_cnt += 1
         except Exception, err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
 
