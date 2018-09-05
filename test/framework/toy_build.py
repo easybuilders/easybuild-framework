@@ -1842,6 +1842,15 @@ class ToyBuildTest(EnhancedTestCase):
             "def start_hook():",
             "   print('start hook triggered')",
             '',
+            "def parse_hook(ec):",
+            "   print ec.name, ec.version",
+            # print sources value to check that raw untemplated strings are exposed in parse_hook
+            "   print ec['sources']",
+            # try appending to postinstallcmd to see whether the modification is actually picked up
+            # (required templating to be disabled before parse_hook is called)
+            "   ec['postinstallcmds'].append('echo toy')",
+            "   print ec['postinstallcmds'][-1]",
+            '',
             "def pre_configure_hook(self):",
             "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
             '',
@@ -1867,6 +1876,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
         expected_output = '\n'.join([
+            "== Running parse hook...",
+            "toy 0.0",
+            "['%(name)s-%(version)s.tar.gz']",
+            "echo toy",
             "== Running start hook...",
             "start hook triggered",
             "== Running pre-configure hook...",

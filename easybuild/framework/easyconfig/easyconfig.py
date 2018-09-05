@@ -446,8 +446,12 @@ class EasyConfig(object):
                 self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
 
         # trigger parse hook
+        # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
+        # (see also comment in resolve_template)
         hooks = load_hooks(build_option('hooks'))
+        self.enable_templating = False
         run_hook(PARSE, hooks, args=[self])
+        self.enable_templating = True
 
         # parse dependency specifications
         self.log.info("Parsing dependency specifications...")
