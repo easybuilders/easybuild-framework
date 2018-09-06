@@ -218,6 +218,7 @@ class EasyBuildOptions(GeneralOption):
         """Constructor."""
 
         self.with_include = kwargs.pop('with_include', True)
+        self.single_cfg_level = kwargs.pop('single_cfg_level', False)
 
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
@@ -771,36 +772,10 @@ class EasyBuildOptions(GeneralOption):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
-        # fail early if required dependencies for functionality requiring using GitHub API are not available:
-        if self.options.from_pr or self.options.upload_test_report:
-            if not HAVE_GITHUB_API:
-                raise EasyBuildError("Required support for using GitHub API is not available (see warnings).")
-
-        if self.options.module_syntax == ModuleGeneratorLua.SYNTAX and self.options.modules_tool != Lmod.__name__:
-            error_msg = "Generating Lua module files requires Lmod as modules tool; "
-            mod_syntaxes = ', '.join(sorted(avail_module_generators().keys()))
-            error_msg += "use --module-syntax to specify a different module syntax to use (%s)" % mod_syntaxes
-            raise EasyBuildError(error_msg)
-
-        # check whether specified action --detect-loaded-modules is valid
-        if self.options.detect_loaded_modules not in LOADED_MODULES_ACTIONS:
-            raise EasyBuildError("Unknown action specified to --detect-loaded-modules: %s (known values: %s)",
-                                 self.options.detect_loaded_modules, ', '.join(LOADED_MODULES_ACTIONS))
-
-        # make sure a GitHub token is available when it's required
-        if self.options.upload_test_report:
-            if not HAVE_KEYRING:
-                raise EasyBuildError("Python 'keyring' module required for obtaining GitHub token is not available.")
-            if self.options.github_user is None:
-                raise EasyBuildError("No GitHub user name provided, required for fetching GitHub token.")
-            token = fetch_github_token(self.options.github_user)
-            if token is None:
-                raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
-
-        # make sure autopep8 is available when it needs to be
-        if self.options.dump_autopep8:
-            if not HAVE_AUTOPEP8:
-                raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
+        # run configuration checks, unless only a single configuration level is being processed
+        # (this should only happen during --show-config)
+        if not self.single_cfg_level:
+            self._postprocess_checks()
 
         # imply --terse for --last-log to avoid extra output that gets in the way
         if self.options.last_log:
@@ -860,6 +835,48 @@ class EasyBuildOptions(GeneralOption):
 
         if self.options.include_toolchains:
             include_toolchains(self.tmpdir, self.options.include_toolchains)
+
+    def _postprocess_checks(self):
+        """Check whether (combination of) configuration options make sense."""
+
+        # innocent until proven guilty
+        error_msg = None
+
+        # fail early if required dependencies for functionality requiring using GitHub API are not available:
+        if self.options.from_pr or self.options.upload_test_report:
+            if not HAVE_GITHUB_API:
+                error_msg = "Required support for using GitHub API is not available (see warnings)"
+
+        # using Lua module syntax only makes sense when modules tool being used is Lmod
+        if self.options.module_syntax == ModuleGeneratorLua.SYNTAX and self.options.modules_tool != Lmod.__name__:
+            error_msg = "Generating Lua module files requires Lmod as modules tool; "
+            mod_syntaxes = ', '.join(sorted(avail_module_generators().keys()))
+            error_msg += "use --module-syntax to specify a different module syntax to use (%s)" % mod_syntaxes
+
+        # check whether specified action --detect-loaded-modules is valid
+        if self.options.detect_loaded_modules not in LOADED_MODULES_ACTIONS:
+            error_msg = "Unknown action specified to --detect-loaded-modules: %s (known values: %s)"
+            error_msg = error_msg % (self.options.detect_loaded_modules, ', '.join(LOADED_MODULES_ACTIONS))
+
+        # make sure a GitHub token is available when it's required
+        if self.options.upload_test_report:
+            if not HAVE_KEYRING:
+                error_msg = "Python 'keyring' module required for obtaining GitHub token is not available"
+            if self.options.github_user is None:
+                error_msg = "No GitHub user name provided, required for fetching GitHub token"
+            token = fetch_github_token(self.options.github_user)
+            if token is None:
+                error_msg = "Failed to obtain required GitHub token for user '%s'" % self.options.github_user
+
+        # make sure autopep8 is available when it needs to be
+        if self.options.dump_autopep8:
+            if not HAVE_AUTOPEP8:
+                error_msg = "Python 'autopep8' module required to reformat dumped easyconfigs as requested"
+
+        if error_msg:
+            raise EasyBuildError(error_msg)
+        else:
+            self.log.info("Checks on configuration options passed")
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
@@ -1044,7 +1061,7 @@ class EasyBuildOptions(GeneralOption):
             if args is None:
                 args = []
             cfg = EasyBuildOptions(go_args=args, go_useconfigfiles=withcfg, envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                   with_include=False)
+                                   with_include=False, single_cfg_level=True)
 
             return cfg.dict_by_prefix()
 
