@@ -2944,13 +2944,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         # set init_config to False to avoid that eb_main (called by _run_mock_eb) re-initialises configuration
         # this fails because $EASYBUILD_MODULES_TOOL=EnvironmentModulesC conflicts with default module syntax (Lua)
-        stdout, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True, init_config=False)
+        stdout, _ = self._run_mock_eb(args, raise_error=True, redo_init_config=False)
 
         patterns = [
             "^# Current EasyBuild configuration",
             "^module-syntax\s*\(C\) = Tcl",
             "^modules-tool\s*\(E\) = EnvironmentModulesC",
         ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_modules_tool_vs_syntax_check(self):
+        """Verify that check for modules tool vs syntax works."""
+
+        # using EnvironmentModulesC modules tool with default module syntax (Lua) is a problem
+        os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
+        args = ['--show-full-config']
+        error_pattern = "Generating Lua module files requires Lmod as modules tool"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+
+        patterns = [
+            "^# Current EasyBuild configuration",
+            "^module-syntax\s*\(C\) = Tcl",
+            "^modules-tool\s*\(E\) = EnvironmentModulesC",
+        ]
+
+        # EnvironmentModulesC modules tool + Tcl module syntax is fine
+        args.append('--module-syntax=Tcl')
+        stdout, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, redo_init_config=False)
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # default modules tool (Lmod) with Tcl module syntax is also fine
+        del os.environ['EASYBUILD_MODULES_TOOL']
+        patterns[-1] = "^modules-tool\s*\(D\) = Lmod"
+        stdout, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, redo_init_config=False)
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
