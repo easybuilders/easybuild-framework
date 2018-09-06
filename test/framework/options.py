@@ -2935,6 +2935,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_show_config_cfg_levels(self):
         """Test --show-config in relation to how configuring across multiple configuration levels interacts with it."""
+
+        # make sure default module syntax is used
+        if 'EASYBUILD_MODULE_SYNTAX' in os.environ:
+            del os.environ['EASYBUILD_MODULE_SYNTAX']
+
         # configuring --modules-tool and --module-syntax on different levels should NOT cause problems
         # cfr. bug report https://github.com/easybuilders/easybuild-framework/issues/2564
         os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
@@ -2957,6 +2962,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_modules_tool_vs_syntax_check(self):
         """Verify that check for modules tool vs syntax works."""
+
+        # make sure default module syntax is used
+        if 'EASYBUILD_MODULE_SYNTAX' in os.environ:
+            del os.environ['EASYBUILD_MODULE_SYNTAX']
 
         # using EnvironmentModulesC modules tool with default module syntax (Lua) is a problem
         os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
