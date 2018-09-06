@@ -205,26 +205,46 @@ class EasyConfigTest(EnhancedTestCase):
             'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
+            'versionsuffix = "-test"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
-            'builddependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
+            'dependencies = ['
+            '   ("first", "1.1"),'
+            '   {"name": "second", "version": "2.2"},',
+            # funky way of referring to version(suffix), but should work!
+            '   ("foo", "%(version)s", versionsuffix),',
+            '   ("bar", "1.2.3", "%(versionsuffix)s-123"),',
+            ']',
+            'builddependencies = [',
+            '   ("first", "1.1"),',
+            '   {"name": "second", "version": "2.2"},',
+            ']',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
         # should include builddependencies
-        self.assertEqual(len(eb.dependencies()), 4)
+        self.assertEqual(len(eb.dependencies()), 6)
         self.assertEqual(len(eb.builddependencies()), 2)
 
         first = eb.dependencies()[0]
         second = eb.dependencies()[1]
 
         self.assertEqual(first['name'], "first")
-        self.assertEqual(second['name'], "second")
-
         self.assertEqual(first['version'], "1.1")
+        self.assertEqual(first['versionsuffix'], '')
+
+        self.assertEqual(second['name'], "second")
         self.assertEqual(second['version'], "2.2")
+        self.assertEqual(second['versionsuffix'], '')
+
+        self.assertEqual(eb['dependencies'][2]['name'], 'foo')
+        self.assertEqual(eb['dependencies'][2]['version'], '3.14')
+        self.assertEqual(eb['dependencies'][2]['versionsuffix'], '-test')
+
+        self.assertEqual(eb['dependencies'][3]['name'], 'bar')
+        self.assertEqual(eb['dependencies'][3]['version'], '1.2.3')
+        self.assertEqual(eb['dependencies'][3]['versionsuffix'], '-test-123')
 
         self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
         self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
