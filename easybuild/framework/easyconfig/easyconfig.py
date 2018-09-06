@@ -498,13 +498,16 @@ class EasyConfig(object):
             parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
 
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
-        self.enable_templating = prev_enable_templating
 
         # parse dependency specifications
+        # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
         self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
         self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
         self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+
+        # restore templating
+        self.enable_templating = prev_enable_templating
 
         # update templating dictionary
         self.generate_template_values()
