@@ -2464,11 +2464,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             else:
                 self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
 
-    def _run_mock_eb(self, args, do_build=False, raise_error=False, verbose=False, testing=True, strip=False):
+    def _run_mock_eb(self, args, strip=False, **kwargs):
         """Helper function to mock easybuild runs"""
         self.mock_stdout(True)
         self.mock_stderr(True)
-        self.eb_main(args, do_build=do_build, raise_error=raise_error, verbose=verbose, testing=testing)
+        self.eb_main(args, **kwargs)
         stdout_txt = self.get_stdout()
         stderr_txt = self.get_stderr()
         self.mock_stdout(False)
@@ -2932,6 +2932,28 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
         regex = re.compile(r'^include-easyblocks \(E\) = .*/testeasyblocktoinclude.py$', re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_show_config_cfg_levels(self):
+        """Test --show-config in relation to how configuring across multiple configuration levels interacts with it."""
+        # configuring --modules-tool and --module-syntax on different levels should NOT cause problems
+        # cfr. bug report https://github.com/easybuilders/easybuild-framework/issues/2564
+        os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
+        args = [
+            '--module-syntax=Tcl',
+            '--show-config',
+        ]
+        # set init_config to False to avoid that eb_main (called by _run_mock_eb) re-initialises configuration
+        # this fails because $EASYBUILD_MODULES_TOOL=EnvironmentModulesC conflicts with default module syntax (Lua)
+        stdout, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True, init_config=False)
+
+        patterns = [
+            "^# Current EasyBuild configuration",
+            "^module-syntax\s*\(C\) = Tcl",
+            "^modules-tool\s*\(E\) = EnvironmentModulesC",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
     def test_prefix(self):
         """Test which configuration settings are affected by --prefix."""
