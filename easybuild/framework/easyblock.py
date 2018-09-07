@@ -490,7 +490,7 @@ class EasyBlock(object):
                         'options': ext_options,
                     }
 
-                    checksums = ext_options.get('checksums', None)
+                    checksums = ext_options.get('checksums', [])
 
                     if ext_options.get('source_tmpl', None):
                         fn = resolve_template(ext_options['source_tmpl'], ext_src)
