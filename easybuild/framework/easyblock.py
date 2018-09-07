@@ -84,7 +84,7 @@ from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name
+from easybuild.tools.modules import get_software_version_env_var_name, reset_module_caches
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -2774,6 +2774,10 @@ def build_and_install_one(ecdict, init_env):
     :param init_env: original environment (used to reset environment)
     """
     silent = build_option('silent')
+
+    # reset module caches before every build
+    # this is important if multiple builds are done in the same session
+    reset_module_caches()
 
     spec = ecdict['spec']
     rawtxt = ecdict['ec'].rawtxt
