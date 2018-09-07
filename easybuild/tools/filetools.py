@@ -477,10 +477,10 @@ def download_file(filename, url, path, forced=False):
                 url_fd = urllib2.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
             else:
-                r = requests.get(url, headers=headers, stream=True, timeout=timeout)
-                status_code = r.status_code
-                r.raise_for_status()
-                url_fd = r.raw
+                response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                status_code = response.status_code
+                response.raise_for_status()
+                url_fd = response.raw
                 url_fd.decode_content = True
             _log.debug('response code for given url %s: %s' % (url, status_code))
             write_file(path, url_fd.read(), forced=forced, backup=True)
