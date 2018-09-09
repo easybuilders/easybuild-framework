@@ -220,9 +220,6 @@ class GC3Pie(JobBackend):
         # some sites may not be happy with flooding the cluster with build jobs...
         self._engine.max_in_flight = build_option('job_max_jobs')
 
-        # prepare for .counts() in _print_status_report
-        self._engine.init_counts_for(Application)
-
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
