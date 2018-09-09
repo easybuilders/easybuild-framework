@@ -84,7 +84,7 @@ from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name, reset_module_caches
+from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -2393,6 +2393,17 @@ class EasyBlock(object):
 
         self.restore_iterate_opts()
 
+    def invalidate_module_caches(self, modpath):
+        """Helper method to invalidate module caches for specified module path."""
+        # invalidate relevant 'module avail'/'module show' cache entries
+        # consider both paths: for short module name, and subdir indicated by long module name
+        paths = [modpath]
+        if self.mod_subdir:
+            paths.append(os.path.join(modpath, self.mod_subdir))
+
+        for path in paths:
+            invalidate_module_caches_for(path)
+
     def make_module_step(self, fake=False):
         """
         Generate module file
@@ -2442,14 +2453,7 @@ class EasyBlock(object):
                 self.log.info(diff_msg)
                 print_msg(diff_msg, log=self.log)
 
-            # invalidate relevant 'module avail'/'module show' cache entries
-            # consider both paths: for short module name, and subdir indicated by long module name
-            paths = [modpath]
-            if self.mod_subdir:
-                paths.append(os.path.join(modpath, self.mod_subdir))
-
-            for path in paths:
-                invalidate_module_caches_for(path)
+            self.invalidate_module_caches(modpath)
 
             # only update after generating final module file
             if not fake:
@@ -2774,10 +2778,6 @@ def build_and_install_one(ecdict, init_env):
     :param init_env: original environment (used to reset environment)
     """
     silent = build_option('silent')
-
-    # reset module caches before every build
-    # this is important if multiple builds are done in the same session
-    reset_module_caches()
 
     spec = ecdict['spec']
     rawtxt = ecdict['ec'].rawtxt
