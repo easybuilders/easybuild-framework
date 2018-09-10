@@ -220,15 +220,6 @@ class GC3Pie(JobBackend):
         # some sites may not be happy with flooding the cluster with build jobs...
         self._engine.max_in_flight = build_option('job_max_jobs')
 
-        # `Engine.stats()` (which is used later on in `_print_status_report()`)
-        # changed between 2.4.2 and 2.5.0.dev -- make sure we stay compatible
-        # with both
-        try:
-            self._engine.init_stats_for(Application)
-        except AttributeError:
-            _log.debug("No `init_stats_for` method in the Engine class;"
-                       " assuming pre-2.5.0 GC3Pie and ignoring error.")
-
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
@@ -263,10 +254,10 @@ class GC3Pie(JobBackend):
         Print a job status report to STDOUT and the log file.
 
         The number of jobs in each state is reported; the
-        figures are extracted from the `stats()` method of the
+        figures are extracted from the `counts()` method of the
         currently-running GC3Pie engine.
         """
-        stats = self._engine.stats(only=Application)
+        stats = self._engine.counts(only=Application)
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
