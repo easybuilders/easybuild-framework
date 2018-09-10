@@ -172,9 +172,12 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
     """
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
+
     The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
     build option is enabled.
+
     The most complex hierarchy we have now is goolfc which works as follows:
+
         goolfc
         /     \
      gompic    golfc(*)
@@ -186,6 +189,7 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
       GCCcore(*) |
               \  |
              (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
+
     :param parent_toolchain: dictionary with name/version of parent toolchain
     """
     # obtain list of all possible subtoolchains
