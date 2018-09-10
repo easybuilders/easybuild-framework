@@ -323,9 +323,19 @@ class ModuleGeneratorTest(EnhancedTestCase):
         error_pattern = "Incorrect module_version spec, expected keys"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
 
-        res = self.modgen.modulerc({'modname': 'Java/1.8.0_181', 'version': '1.8'})
-        expected = '\n'.join(['#%Module', 'module-version Java/1.8.0_181 1.8'])
-        self.assertEqual(res, expected)
+        modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'version': '1.2.3'})
+        expected = '\n'.join([
+            '#%Module',
+            'module-version test/1.2.3.4.5 1.2.3',
+        ])
+        self.assertEqual(modulerc, expected)
+
+        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
+        write_file(os.path.join(self.test_prefix, '.modulerc'), modulerc)
+
+        self.modtool.use(self.test_prefix)
+        self.assertEqual(self.modtool.available('test'), ['test/1.2.3.4.5'])
+        self.assertEqual(self.modtool.exist(['test/1.2.3.4.5', 'test/1.2.3.4', 'test/1.2.3']), [True, False, True])
 
     def test_unload(self):
         """Test unload part in generated module file."""
