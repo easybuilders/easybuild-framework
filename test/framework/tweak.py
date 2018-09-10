@@ -163,9 +163,9 @@ class TweakTest(EnhancedTestCase):
 
         # Hierarchies are returned with top-level toolchain last, goolf has 3 elements here, intel has 2
         # goolf <-> iimpi (should return False)
-        self.assertFalse(compare_toolchain_specs(goolf_hierarchy[2], iimpi_hierarchy[1]), "goolf requires math libs")
+        self.assertFalse(compare_toolchain_specs(goolf_hierarchy[1], iimpi_hierarchy[1]), "golf requires math libs")
         # gompi <-> iimpi
-        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[1], iimpi_hierarchy[1]))
+        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[2], iimpi_hierarchy[1]))
         # GCC <-> iimpi
         self.assertTrue(compare_toolchain_specs(goolf_hierarchy[0], iimpi_hierarchy[1]))
         # GCC <-> iccifort
