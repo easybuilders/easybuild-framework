@@ -199,10 +199,10 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
     composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
     # the parent toolchain is at the top of the hierarchy
-    toolchain_hierarchy = [parent_toolchain]
+    toolchain_hierarchy = [dict(parent_toolchain)]
     # use a queue to handle a breadth-first-search of the hierarchy,
     # which is required to take into account the potential for multiple subtoolchains
-    bfs_queue = [dict(parent_toolchain)]
+    bfs_queue = [parent_toolchain]
     visited = set()
 
     while bfs_queue:

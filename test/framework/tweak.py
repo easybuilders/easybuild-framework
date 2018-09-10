@@ -182,20 +182,19 @@ class TweakTest(EnhancedTestCase):
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
                                                   require_capabilities=True)
-
         # Compiler first
         self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[0], goolf_hierarchy),
                          {'name': 'GCC', 'version': '4.7.2'})
         # Then MPI
         self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[1], goolf_hierarchy),
                          {'name': 'gompi', 'version': '1.4.10'})
-        # Check against itself for math
-        self.assertEqual(match_minimum_tc_specs(goolf_hierarchy[2], goolf_hierarchy),
-                         {'name': 'goolf', 'version': '1.4.10'})
+        # Check against own math only subtoolchain for math
+        self.assertEqual(match_minimum_tc_specs(goolf_hierarchy[1], goolf_hierarchy),
+                         {'name': 'golf', 'version': '1.4.10'})
         # Make sure there's an error when we can't do the mapping
         error_msg = "No possible mapping from source toolchain spec .*"
         self.assertErrorRegex(EasyBuildError, error_msg, match_minimum_tc_specs,
-                              goolf_hierarchy[2], iimpi_hierarchy)
+                              goolf_hierarchy[3], iimpi_hierarchy)
 
     def test_map_toolchain_hierarchies(self):
         """Test mapping between two toolchain hierarchies"""
