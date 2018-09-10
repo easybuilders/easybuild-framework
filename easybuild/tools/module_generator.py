@@ -197,6 +197,26 @@ class ModuleGenerator(object):
         """
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
+    def modulerc(self, module_version=None):
+        """
+        Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod)
+
+        :param module_version: module name & version to use in module-version statement
+        """
+        modulerc = [ModuleGeneratorTcl.MODULE_SHEBANG]
+
+        if module_version:
+            if isinstance(module_version, dict):
+                expected_keys = ['modname', 'version']
+                if sorted(module_version.keys()) == expected_keys:
+                    modulerc.append("module-version %(modname)s %(version)s" % module_version)
+                else:
+                    raise EasyBuildError("Incorrect module_version spec, expected keys: %s", expected_keys)
+            else:
+                raise EasyBuildError("Incorrect module_version value type: %s", type(module_version))
+
+        return '\n'.join(modulerc)
+
     # From this point on just not implemented methods
 
     def check_group(self, group, error_msg=None):
