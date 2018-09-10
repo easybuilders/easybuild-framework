@@ -29,6 +29,7 @@ EasyBuild support for fosscuda compiler toolchain (includes GCC+CUDA, OpenMPI, O
 """
 
 from easybuild.toolchains.gompic import Gompic
+from easybuild.toolchains.golfc import Golfc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -37,4 +38,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Fosscuda(Gompic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'fosscuda'
-    SUBTOOLCHAIN = Gompic.NAME
+    SUBTOOLCHAIN = [Gompic.NAME, Golfc.NAME]

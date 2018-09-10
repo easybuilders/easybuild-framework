@@ -1415,12 +1415,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(all(os.path.exists(p) for p in hits))
         self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
         self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
         self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
-                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb'])
+                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb', 'hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1430,7 +1431,7 @@ class FileToolsTest(EnhancedTestCase):
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
         self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
-                                '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb'])
+                                '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb', '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
@@ -1439,6 +1440,7 @@ class FileToolsTest(EnhancedTestCase):
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
         ]
         self.assertEqual(hits, expected)
 
@@ -1446,7 +1448,7 @@ class FileToolsTest(EnhancedTestCase):
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
         self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
-                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb'])
+                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb', 'hwloc-1.8-gcccuda-2.6.10.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
@@ -1565,6 +1567,22 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
         regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
+
+    def test_is_sha256_checksum(self):
+        """Test for is_sha256_checksum function."""
+        a_sha256_checksum = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+        self.assertTrue(ft.is_sha256_checksum(a_sha256_checksum))
+
+        for not_a_sha256_checksum in [
+            'be662daa971a640e40be5c804d9d7d10',  # MD5 != SHA256
+            [a_sha256_checksum],  # False for a list of whatever, even with only a single SHA256 in it
+            True,
+            12345,
+            '',
+            (a_sha256_checksum, ),
+            [],
+        ]:
+            self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
 
 
 def suite():

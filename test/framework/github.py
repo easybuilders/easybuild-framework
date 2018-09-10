@@ -120,9 +120,9 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
 
-        tmpdir = tempfile.mkdtemp()
-        # PR for rename of ffmpeg to FFmpeg, see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
-        all_ecs = [
+        # PR for rename of ffmpeg to FFmpeg,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
+        all_ecs_pr2481 = [
             'FFmpeg-2.4-intel-2014.06.eb',
             'FFmpeg-2.4-intel-2014b.eb',
             'FFmpeg-2.8-intel-2015b.eb',
@@ -130,19 +130,32 @@ class GithubTest(EnhancedTestCase):
             'OpenCV-2.4.9-intel-2014b.eb',
             'animation-2.4-intel-2015b-R-3.2.1.eb',
         ]
-        try:
-            ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
-            self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
+        # PR where also files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
+        all_ecs_pr6587 = [
+            'WIEN2k-18.1-foss-2018a.eb',
+            'WIEN2k-18.1-gimkl-2017a.eb',
+            'WIEN2k-18.1-intel-2018a.eb',
+            'libxc-4.2.3-foss-2018a.eb',
+            'libxc-4.2.3-gimkl-2017a.eb',
+            'libxc-4.2.3-intel-2018a.eb',
+        ]
 
+        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587)]:
+            try:
+                tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
+                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
+            except URLError, err:
+                print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
+
+        try:
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
             self.assertErrorRegex(EasyBuildError, err_msg, gh.fetch_easyconfigs_from_pr, 897,
                                   github_user=GITHUB_TEST_ACCOUNT)
-
         except URLError, err:
             print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
-
-        shutil.rmtree(tmpdir)
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""

@@ -240,11 +240,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         topdir = os.path.abspath(os.path.dirname(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
-            eb_file,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -266,7 +266,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for non-existing module
         args = [
-            eb_file,
+            toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -286,6 +286,31 @@ class CommandLineOptionsTest(EnhancedTestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
+        toy_mod_glob = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '*')
+        for toy_mod in glob.glob(toy_mod_glob):
+            remove_file(toy_mod)
+        self.assertFalse(glob.glob(toy_mod_glob))
+
+        # make sure that sanity check is *NOT* skipped under --skip
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        regex = re.compile("sanity_check_paths = \{(.|\n)*\}", re.M)
+        test_ec_txt = regex.sub("sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}", test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+        args = [
+            test_ec,
+            '--skip',
+            '--force',
+        ]
+        error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # check use of skipsteps to skip sanity check
+        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
     def test_job(self):
         """Test submitting build as a job."""
@@ -825,8 +850,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # GCC/OpenMPI dependencies are there, but part of toolchain => 'x'
             ("GCC-4.6.4.eb", "GCC/4.6.4", 'x'),
             ("OpenMPI-1.6.4-GCC-4.6.4.eb", "OpenMPI/1.6.4-GCC-4.6.4", 'x'),
-            # OpenBLAS dependency is there, but not listed => 'x'
-            ("OpenBLAS-0.2.6-gompi-1.3.12-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-gompi-1.3.12-LAPACK-3.4.2", 'x'),
+            # OpenBLAS dependency is listed, but not there => ' '
+            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2", ' '),
             # both FFTW and ScaLAPACK are listed => 'F'
             ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
             ("FFTW-3.3.3-gompi-1.3.12.eb", "FFTW/3.3.3-gompi-1.3.12", 'F'),
@@ -858,8 +883,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "hwloc/1.6.2", 'x'),
             ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
             ("gompi-1.4.10.eb", "Core", "gompi/1.4.10", 'x'),
-            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
-             "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
+            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "Compiler/GCC/4.7.2",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2", ' '),
             ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "FFTW/3.3.3", 'x'),
             ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
              "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
@@ -897,8 +922,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/system", "hwloc/1.6.2", 'x'),
             ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/mpi", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
             ("gompi-1.4.10.eb", "Core/toolchain", "gompi/1.4.10", 'x'),
-            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
-             "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
+            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "Compiler/GCC/4.7.2/numlib",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2", ' '),
             ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib", "FFTW/3.3.3", 'x'),
             ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
              "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
@@ -1587,7 +1612,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
         self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', outtxt))
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         # zlib is not a dep at all
@@ -1601,7 +1626,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
         self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', outtxt))
         self.assertFalse(re.search(r'module: FFTW/3\.3\.3-gompi', outtxt))
         self.assertTrue(re.search(r'module: FFTW/\.3\.3\.3-gompi', outtxt))
         self.assertFalse(re.search(r'module: ScaLAPACK/2\.0\.2-gompi', outtxt))
@@ -3199,22 +3224,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             options.postprocess()
             self.assertEqual(options.options.optarch, optarch_parsed)
 
-    def test_check_style(self):
-        """Test --check-style."""
+    def test_check_contrib_style(self):
+        """Test style checks performed by --check-contrib + dedicated --check-style option."""
         try:
-            import pep8
+            import pycodestyle
         except ImportError:
-            print "Skipping test_check_style, since pep8 is not available"
-            return
+            try:
+                import pep8
+            except ImportError:
+                print "Skipping test_check_contrib_style, since pycodestyle or pep8 is not available"
+                return
 
+        regex = re.compile(r"Running style check on 2 easyconfig\(s\)(.|\n)*>> All style checks PASSed!", re.M)
         args = [
             '--check-style',
             'GCC-4.9.2.eb',
             'toy-0.0.eb',
         ]
         stdout, _ = self._run_mock_eb(args, raise_error=True)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
+        # --check-contrib fails because of missing checksums, but style test passes
+        args[0] = '--check-contrib'
+        self.mock_stdout(True)
+        error_pattern = "One or more contribution checks FAILED"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        self.mock_stdout(False)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # copy toy-0.0.eb test easyconfig, fiddle with it to make style check fail
@@ -3228,21 +3264,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toytxt = toytxt.replace('description = "Toy C program, 100% toy."', 'description = "%s"' % ('toy ' * 30))
         write_file(toy, toytxt)
 
+        for check_type in ['contribution', 'style']:
+            args = [
+                '--check-%s' % check_type[:7],
+                toy,
+            ]
+            self.mock_stdout(True)
+            error_pattern = "One or more %s checks FAILED!" % check_type
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+            patterns = [
+                "toy.eb:1:5: E223 tab before operator",
+                "toy.eb:1:7: E225 missing whitespace around operator",
+                "toy.eb:1:12: W299 trailing whitespace",
+                r"toy.eb:5:121: E501 line too long \(136 > 120 characters\)",
+            ]
+            for pattern in patterns:
+                self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_check_contrib_non_style(self):
+        """Test non-style checks performed by --check-contrib."""
         args = [
-            '--check-style',
-            toy,
+            '--check-contrib',
+            'toy-0.0.eb',
         ]
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, "One or more style checks FAILED!", self.eb_main, args, raise_error=True)
-        stdout = self.get_stdout()
+        self.mock_stderr(True)
+        error_pattern = "One or more contribution checks FAILED"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
         self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+
+        # SHA256 checksum checks fail
         patterns = [
-            "toy.eb:1:5: E223 tab before operator",
-            "toy.eb:1:7: E225 missing whitespace around operator",
-            "toy.eb:1:12: W299 trailing whitespace",
-            r"toy.eb:5:121: E501 line too long \(136 > 120 characters\)",
+            r"\[FAIL\] .*/toy-0.0.eb$",
+            r"^Checksums missing for one or more sources/patches in toy-0.0.eb: "
+            r"found 1 sources \+ 2 patches vs 1 checksums$",
+            r"^>> One or more SHA256 checksums checks FAILED!",
         ]
         for pattern in patterns:
+            regex = re.compile(pattern, re.M)
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
     def test_allow_use_as_root(self):
@@ -3531,6 +3596,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_tar_backups = glob.glob(os.path.join(self.test_prefix, 't', 'toy', '*.bak_*'))
         self.assertEqual(len(toy_tar_backups), 1)
         self.assertTrue(os.path.basename(toy_tar_backups[0]).startswith('toy-0.0.tar.gz.bak_'))
+
+    def test_enforce_checksums(self):
+        """Test effect of --enforce-checksums"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        args = [
+            test_ec,
+            '--stop=source',
+            '--enforce-checksums',
+        ]
+
+        # checksum is missing for patch of 'bar' extension, so --enforce-checksums should result in an error
+        copy_file(toy_ec, test_ec)
+        error_pattern = "Missing checksum for bar-0.0[^ ]*\.patch"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # get rid of checksums for extensions, should result in different error message
+        # because of missing checksum for source of 'bar' extension
+        regex = re.compile("^.*'checksums':.*$", re.M)
+        test_ec_txt = regex.sub('', read_file(test_ec))
+        self.assertFalse("'checksums':" in test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+        error_pattern = "Missing checksum for bar-0\.0\.tar\.gz"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # wipe both exts_list and checksums, so we can check whether missing checksum for main source is caught
+        test_ec_txt = read_file(test_ec)
+        for param in ['checksums', 'exts_list']:
+            regex = re.compile('^%s(?:.|\n)*?\]\s*$' % param, re.M)
+            test_ec_txt = regex.sub('', test_ec_txt)
+            self.assertFalse('%s = ' % param in test_ec_txt)
+
+        write_file(test_ec, test_ec_txt)
+        error_pattern = "Missing checksum for toy-0.0.tar.gz"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
 
 def suite():

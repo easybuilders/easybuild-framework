@@ -34,6 +34,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Alan O'Cais (Juelich Supercomputing Centre)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 import copy
@@ -55,7 +56,6 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
@@ -134,28 +134,83 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
+def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, require_capabilities=False):
+    """
+    Returns unique version for subtoolchain, in tc dict.
+    If there is no unique version:
+    * use '' for dummy, if dummy is not skipped.
+    * return None for skipped subtoolchains, that is,
+      optional toolchains or dummy without add_dummy_to_minimal_toolchains.
+    * in all other cases, raises an exception.
+    """
+    current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
+
+    uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+    # init with "skipped"
+    subtoolchain_version = None
+
+    # dummy toolchain: bottom of the hierarchy
+    if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+        if build_option('add_dummy_to_minimal_toolchains') and not require_capabilities:
+            subtoolchain_version = ''
+    elif len(uniq_subtc_versions) == 1:
+        subtoolchain_version = list(uniq_subtc_versions)[0]
+    elif len(uniq_subtc_versions) == 0:
+        if subtoolchain_name not in optional_toolchains:
+            # raise error if the subtoolchain considered now is not optional
+            raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                 subtoolchain_name, current_tc_name)
+    else:
+        raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                             subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
+
+    return subtoolchain_version
+
+
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
     """
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
-
     The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
     build option is enabled.
-
+    The most complex hierarchy we have now is goolfc which works as follows:
+        goolfc
+        /     \
+     gompic    golfc(*)
+          \    /   \      (*) optional toolchains, not compulsory for backwards compatibility
+          gcccuda golf(*)
+              \   /
+               GCC
+              /  |
+      GCCcore(*) |
+              \  |
+             (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
     :param parent_toolchain: dictionary with name/version of parent toolchain
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
     subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
-
-    current_tc_name, current_tc_version = parent_toolchain['name'], parent_toolchain['version']
-    subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+    optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+    composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
     # the parent toolchain is at the top of the hierarchy
-    toolchain_hierarchy = [dict(parent_toolchain)]
+    toolchain_hierarchy = [parent_toolchain]
+    # use a queue to handle a breadth-first-search of the hierarchy,
+    # which is required to take into account the potential for multiple subtoolchains
+    bfs_queue = [dict(parent_toolchain)]
+    visited = set()
 
-    while subtoolchain_name:
+    while bfs_queue:
+        current_tc = bfs_queue.pop()
+        current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
+        subtoolchain_names = subtoolchains[current_tc_name]
+        # if current toolchain has no subtoolchains, consider next toolchain in queue
+        if subtoolchain_names is None:
+            continue
+        # make sure we always have a list of subtoolchains, even if there's only one
+        if not isinstance(subtoolchain_names, list):
+            subtoolchain_names = [subtoolchain_names]
         # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
         path = robot_find_easyconfig(current_tc_name, current_tc_version)
         if path is None:
@@ -195,45 +250,27 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
                 cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
 
-        # only retain candidates that match subtoolchain name
-        cands = [c for c in cands if c['name'] == subtoolchain_name]
+        for dep in subtoolchain_names:
+            # try to find subtoolchains with the same version as the parent
+            # only do this for composite toolchains, not single-compiler toolchains, whose
+            # versions match those of the component instead of being e.g. "2018a".
+            if dep in composite_toolchains:
+                ecfile = robot_find_easyconfig(dep, current_tc_version)
+                if ecfile is not None:
+                    cands.append({'name': dep, 'version': current_tc_version})
 
-        uniq_subtc_versions = set([subtc['version'] for subtc in cands])
+        # only retain candidates that match subtoolchain names
+        cands = [c for c in cands if c['name'] in subtoolchain_names]
 
-        if len(uniq_subtc_versions) == 1:
-            subtoolchain_version = cands[0]['version']
-
-        elif len(uniq_subtc_versions) == 0:
-            # only retain GCCcore as subtoolchain if version was found
-            if subtoolchain_name == GCCcore.NAME:
-                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
-                          subtoolchain_name)
-                subtoolchain_name = GCCcore.SUBTOOLCHAIN
-                subtoolchain_version = ''
-            # dummy toolchain: end of the line
-            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                subtoolchain_version = ''
-            else:
-                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                     subtoolchain_name, current_tc_name)
-        else:
-            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                # Don't care about multiple versions of dummy
-                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
-                subtoolchain_version = ''
-            else:
-                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                     subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
-
-        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and (not build_option('add_dummy_to_minimal_toolchains')
-                                                          or require_capabilities):
-            # we're done
-            break
-
-        # add to hierarchy and move to next
-        current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
-        subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
-        toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
+        for subtoolchain_name in subtoolchain_names:
+            subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands,
+                                                            require_capabilities=require_capabilities)
+            # add to hierarchy and move to next
+            if subtoolchain_version is not None and subtoolchain_name not in visited:
+                tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
+                toolchain_hierarchy.insert(0, tc)
+                bfs_queue.insert(0, tc)
+                visited.add(subtoolchain_name)
 
     # also add toolchain capabilities
     if require_capabilities:

@@ -48,12 +48,13 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, letter_dir_for
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, resolve_template, verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, resolve_template
+from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, get_paths_for
-from easybuild.framework.easyconfig.tools import find_related_easyconfigs, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
+from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -66,6 +67,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
@@ -2078,6 +2080,50 @@ class EasyConfigTest(EnhancedTestCase):
         # '%(name)' is not a correct template spec (missing trailing 's')
         self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
 
+    def test_det_subtoolchain_version(self):
+        """Test det_subtoolchain_version function"""
+        _, all_tc_classes = search_toolchain('')
+        subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+        optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+
+        current_tc = {'name': 'goolfc', 'version': '2.6.10'}
+        # missing gompic and double golfc should both give exceptions
+        cands = [{'name': 'golfc', 'version': '2.6.10'},
+                 {'name': 'golfc', 'version': '2.6.11'}]
+        self.assertErrorRegex(EasyBuildError,
+                              "No version found for subtoolchain gompic in dependencies of goolfc",
+                              det_subtoolchain_version, current_tc, 'gompic', optional_toolchains, cands)
+        self.assertErrorRegex(EasyBuildError,
+                              "Multiple versions of golfc found in dependencies of toolchain goolfc: 2.6.10, 2.6.11",
+                              det_subtoolchain_version, current_tc, 'golfc', optional_toolchains, cands)
+
+        # missing candidate for golfc, ok for optional
+        cands = [{'name': 'gompic', 'version': '2.6.10'}]
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        self.assertEqual(versions, ['2.6.10', None])
+
+        # 'dummy', 'dummy' should be ok: return None for GCCcore, and None or '' for 'dummy'.
+        current_tc = {'name': 'GCC', 'version': '4.8.2'}
+        cands = [{'name': 'dummy', 'version': 'dummy'}]
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        self.assertEqual(versions, [None, None])
+
+        init_config(build_options={
+            'add_dummy_to_minimal_toolchains': True})
+
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        self.assertEqual(versions, [None, ''])
+
+        # and GCCcore if existing too
+        current_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
+        cands = [{'name': 'GCCcore', 'version': '4.9.3'}]
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        self.assertEqual(versions, ['4.9.3', ''])
+
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -2182,6 +2228,68 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = "Parsing easyconfig file failed: invalid syntax"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
+
+    def test_check_sha256_checksums(self):
+        """Test for check_sha256_checksums function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        checksums_regex = re.compile('^checksums = \[\[(.|\n)*\]\]', re.M)
+
+        # wipe out specified checksums, to make check fail
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-fail.eb')
+        write_file(test_ec, checksums_regex.sub('checksums = []', toy_ec_txt))
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+
+        # result is non-empty list with strings describing checksum issues
+        res = check_sha256_checksums(ecs)
+        # result should be non-empty, i.e. contain a list of messages highlighting checksum issues
+        self.assertTrue(res)
+        self.assertTrue(res[0].startswith('Checksums missing for one or more sources/patches in toy-0.0-fail.eb'))
+
+        # test use of whitelist regex patterns: check passes because easyconfig is whitelisted by filename
+        for regex in ['toy-.*', '.*-0\.0-fail\.eb']:
+            res = check_sha256_checksums(ecs, whitelist=[regex])
+            self.assertFalse(res)
+
+        # re-test with MD5 checksum to make test fail
+        toy_md5 = 'be662daa971a640e40be5c804d9d7d10'
+        test_ec_txt = checksums_regex.sub('checksums = ["%s"]' % toy_md5, toy_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-md5.eb')
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+
+        res = check_sha256_checksums(ecs)
+        self.assertTrue(res)
+        self.assertTrue(res[-1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz"))
+
+        # re-test with right checksum in place
+        toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+        test_ec_txt = checksums_regex.sub('checksums = ["%s"]' % toy_sha256, toy_ec_txt)
+        test_ec_txt = re.sub('patches = \[(.|\n)*\]', '', test_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-ok.eb')
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+
+        # if no checksum issues are found, result is an empty list
+        self.assertEqual(check_sha256_checksums(ecs), [])
+
+        # also test toy easyconfig with extensions, for which some checksums are missing
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        ecs, _ = parse_easyconfigs([(toy_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+
+        # checksum issues found, so result is non-empty
+        res = check_sha256_checksums(ecs)
+        self.assertTrue(res)
+        # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
+        self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz: "))
 
 
 def suite():

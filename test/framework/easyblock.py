@@ -1375,6 +1375,36 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(stdout, '')
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
 
+    def test_check_checksums(self):
+        """Test for check_checksums_for and check_checksums methods."""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+
+        ec = process_easyconfig(toy_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        def run_checks():
+            expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-1.3.12-test.eb: "
+            expected += "found 1 sources + 1 patches vs 1 checksums"
+            self.assertEqual(res[0], expected)
+            self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz:"))
+
+        # check for main sources/patches should reveal two issues with checksums
+        res = eb.check_checksums_for(eb.cfg)
+        self.assertEqual(len(res), 2)
+        run_checks()
+
+        # full check also catches checksum issues with extensions
+        res = eb.check_checksums()
+        self.assertEqual(len(res), 5)
+        run_checks()
+
+        idx = 2
+        for ext in ['bar', 'barbar', 'toy']:
+            expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
+            self.assertTrue(res[idx].startswith(expected))
+            idx += 1
+
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
         # make sure both return a non-Unicode string
