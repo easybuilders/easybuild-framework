@@ -60,6 +60,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -502,22 +503,38 @@ class EasyConfig(object):
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config
-            # do not store variables we don't need
             if key in self._config.keys():
-                if key in ['dependencies']:
-                    self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
-                elif key in ['builddependencies']:
-                    self[key] = [self._parse_dependency(dep, build_only=True) for dep in local_vars[key]]
-                elif key in ['hiddendependencies']:
-                    self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
-                else:
-                    self[key] = local_vars[key]
+                self[key] = local_vars[key]
                 self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
             elif key in REPLACED_PARAMETERS:
                 _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
+            # do not store variables we don't need
             else:
-                self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
+                self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
+
+        # trigger parse hook
+        # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
+        # (see also comment in resolve_template)
+        hooks = load_hooks(build_option('hooks'))
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
+        parse_hook_msg = None
+        if self.path:
+            parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
+
+        run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
+
+        # parse dependency specifications
+        # it's important that templating is still disabled at this stage!
+        self.log.info("Parsing dependency specifications...")
+        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
+        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
+        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+
+        # restore templating
+        self.enable_templating = prev_enable_templating
 
         # update templating dictionary
         self.generate_template_values()

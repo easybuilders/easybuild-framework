@@ -369,6 +369,7 @@ def parse_easyconfigs(paths, validate=True):
     """
     easyconfigs = []
     generated_ecs = False
+
     for (path, generated) in paths:
         path = os.path.abspath(path)
         # keep track of whether any files were generated
@@ -378,12 +379,13 @@ def parse_easyconfigs(paths, validate=True):
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
-                # only pass build specs when not generating easyconfig files
                 kwargs = {'validate': validate}
+                # only pass build specs when not generating easyconfig files
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
-                ecs = process_easyconfig(ec_file, **kwargs)
-                easyconfigs.extend(ecs)
+
+                easyconfigs.extend(process_easyconfig(ec_file, **kwargs))
+
         except IOError, err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
