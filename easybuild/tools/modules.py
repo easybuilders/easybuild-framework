@@ -111,6 +111,7 @@ OUTPUT_MATCHES = {
             [^\s\(]*[^:/]             # module name must not have '(' or whitespace in it, must not end with ':' or '/'
         )                             # end named group for module name
         (?P<default>\(default\))?     # optional '(default)' that's not part of module name
+        (\([^()]+\))?                 # ignore '(...)' that is not part of module name (e.g. for symbolic versions)
         \s*$                          # ignore whitespace at the end of the line
         """, re.VERBOSE),
 }
