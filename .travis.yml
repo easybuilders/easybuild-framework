@@ -3,8 +3,8 @@ python: 2.6
 env:
   matrix:
     # purposely specifying slowest builds first, to gain time overall
-    - LMOD_VERSION=5.8
-    - LMOD_VERSION=5.8 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - LMOD_VERSION=6.6.3
+    - LMOD_VERSION=6.6.3 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - LMOD_VERSION=7.7.16
     - LMOD_VERSION=7.7.16 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
@@ -19,7 +19,7 @@ matrix:
   include:
     # also test default configuration with Python 2.7
     - python: 2.7
-      env: LMOD_VERSION=5.8
+      env: LMOD_VERSION=6.6.3
 addons:
   apt:
     packages:
