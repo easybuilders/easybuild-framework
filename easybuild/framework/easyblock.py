@@ -2866,13 +2866,11 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            if build_option("minimal_toolchains"):
-                # for reproducability we dump out the parsed easyconfig since the contents are affected when
-                # --minimal-toolchains (and --use-existing-modules) is used
-                # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
-                reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-                app.cfg.dump(reprod_spec)
-                _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
+            # for reproducability we dump out the fully parsed easyconfig since the contents can be affected by
+            # subtoolchain resolution (and related options) and/or hooks
+            reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+            app.cfg.dump(reprod_spec)
+            log.debug("Dumped fully parsed easyconfig to %s", reprod_spec)
 
             try:
                 # upload easyconfig (and patch files) to central repository
