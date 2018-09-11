@@ -161,8 +161,15 @@ class TweakTest(EnhancedTestCase):
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
                                                   require_capabilities=True)
 
-        # Hierarchies are returned with top-level toolchain last, goolf has 3 elements here, intel has 2
-        # goolf <-> iimpi (should return False)
+        # Hierarchies are returned with top-level toolchain last, goolf has 4 elements here, intel has 2
+        self.assertEqual(goolf_hierarchy[0]['name'], 'GCC')
+        self.assertEqual(goolf_hierarchy[1]['name'], 'golf')
+        self.assertEqual(goolf_hierarchy[2]['name'], 'gompi')
+        self.assertEqual(goolf_hierarchy[3]['name'], 'goolf')
+        self.assertEqual(iimpi_hierarchy[0]['name'], 'iccifort')
+        self.assertEqual(iimpi_hierarchy[1]['name'], 'iimpi')
+
+        # golf <-> iimpi (should return False)
         self.assertFalse(compare_toolchain_specs(goolf_hierarchy[1], iimpi_hierarchy[1]), "golf requires math libs")
         # gompi <-> iimpi
         self.assertTrue(compare_toolchain_specs(goolf_hierarchy[2], iimpi_hierarchy[1]))
@@ -182,6 +189,14 @@ class TweakTest(EnhancedTestCase):
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
                                                   require_capabilities=True)
+        # Hierarchies are returned with top-level toolchain last, goolf has 4 elements here, intel has 2
+        self.assertEqual(goolf_hierarchy[0]['name'], 'GCC')
+        self.assertEqual(goolf_hierarchy[1]['name'], 'golf')
+        self.assertEqual(goolf_hierarchy[2]['name'], 'gompi')
+        self.assertEqual(goolf_hierarchy[3]['name'], 'goolf')
+        self.assertEqual(iimpi_hierarchy[0]['name'], 'iccifort')
+        self.assertEqual(iimpi_hierarchy[1]['name'], 'iimpi')
+
         # Compiler first
         self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[0], goolf_hierarchy),
                          {'name': 'GCC', 'version': '4.7.2'})
@@ -208,12 +223,20 @@ class TweakTest(EnhancedTestCase):
         gompi_tc = {'name': 'gompi', 'version': '1.4.10'}
         iimpi_tc = {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}
 
-        self.assertEqual(map_toolchain_hierarchies(iimpi_tc, goolf_tc, self.modtool),
-                         {'iccifort': {'name': 'GCC', 'version': '4.7.2'},
-                          'iimpi': {'name': 'gompi', 'version': '1.4.10'}})
-        self.assertEqual(map_toolchain_hierarchies(gompi_tc, iimpi_tc, self.modtool),
-                         {'GCC': {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
-                          'gompi': {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}})
+        # iccifort is mapped to GCC, iimpi is mapped to gompi
+        expected = {
+            'iccifort': {'name': 'GCC', 'version': '4.7.2'},
+            'iimpi': {'name': 'gompi', 'version': '1.4.10'},
+        }
+        self.assertEqual(map_toolchain_hierarchies(iimpi_tc, goolf_tc, self.modtool), expected)
+
+        # GCC is mapped to iccifort, gompi is mapped to iimpi
+        expected = {
+            'GCC': {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
+            'gompi': {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}
+        }
+        self.assertEqual(map_toolchain_hierarchies(gompi_tc, iimpi_tc, self.modtool), expected)
+
         # Expect an error when there is no possible mapping
         error_msg = "No possible mapping from source toolchain spec .*"
         self.assertErrorRegex(EasyBuildError, error_msg, map_toolchain_hierarchies,
@@ -222,10 +245,13 @@ class TweakTest(EnhancedTestCase):
         # Test that we correctly include GCCcore binutils when it is there
         gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
-        self.assertEqual(map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool),
-                         {'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
-                          'GCCcore': {'name': 'GCCcore', 'version': '4.9.3'},
-                          'binutils': {'version': '2.25', 'versionsuffix': ''}})
+        # Should see a binutils in the mapping (2.26 will get mapped to 2.25)
+        expected = {
+            'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+            'GCCcore': {'name': 'GCCcore', 'version': '4.9.3'},
+            'binutils': {'version': '2.25', 'versionsuffix': ''}
+        }
+        self.assertEqual(map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool), expected)
 
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""
@@ -235,18 +261,22 @@ class TweakTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
         get_toolchain_hierarchy.clear()
+
         gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
+        # The below mapping includes a binutils mapping (2.26 to 2.25)
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
         ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
         tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping)
         tweaked_ec = process_easyconfig(tweaked_spec)[0]
         tweaked_dict = tweaked_ec['ec'].asdict()
+        # First check the mapped toolchain
         key, value = 'toolchain', iccifort_binutils_tc
         self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
-        key, value = 'version', '2.25'
-        self.assertTrue(key in tweaked_dict['builddependencies'][0] and
-                        value == tweaked_dict['builddependencies'][0][key])
+        # Also check that binutils has been mapped
+        for key, value in {'name': 'binutils', 'version': '2.25'}.items():
+            self.assertTrue(key in tweaked_dict['builddependencies'][0] and
+                            value == tweaked_dict['builddependencies'][0][key])
 
 def suite():
     """ return all the tests in this file """

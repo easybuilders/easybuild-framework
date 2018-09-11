@@ -82,6 +82,9 @@ ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', '
 # name of easyconfigs archive subdirectory
 EASYCONFIGS_ARCHIVE_DIR = '__archive__'
 
+# Available capabilities of toolchains
+CAPABILITIES = ['comp_family', 'mpi_family', 'blas_family', 'lapack_family', 'cuda']
+
 
 try:
     import autopep8
@@ -199,8 +202,9 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
     optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
     composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
-    # the parent toolchain is at the top of the hierarchy
-    toolchain_hierarchy = [dict(parent_toolchain)]
+    # the parent toolchain is at the top of the hierarchy, we need a copy so that adding capabilities (below) doesn't
+    # affect the original object
+    toolchain_hierarchy = [copy.copy(parent_toolchain)]
     # use a queue to handle a breadth-first-search of the hierarchy,
     # which is required to take into account the potential for multiple subtoolchains
     bfs_queue = [parent_toolchain]
@@ -282,26 +286,15 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
         for toolchain in toolchain_hierarchy:
             toolchain_class, _ = search_toolchain(toolchain['name'])
             tc = toolchain_class(version=toolchain['version'])
-            try:
-                toolchain['compiler_family'] = tc.comp_family()
-            except EasyBuildError:
-                toolchain['compiler_family'] = None
-            try:
-                toolchain['mpi_family'] = tc.mpi_family()
-            except EasyBuildError:
-                toolchain['mpi_family'] = None
-            try:
-                toolchain['blas_family'] = tc.blas_family()
-            except EasyBuildError:
-                toolchain['blas_family'] = None
-            try:
-                toolchain['lapack_family'] = tc.lapack_family()
-            except EasyBuildError:
-                toolchain['lapack_family'] = None
-            if 'CUDA_CC' in tc.variables:
-                toolchain['cuda'] = True
-            else:
-                toolchain['cuda'] = None  # Useful to have it consistent with the rest
+            for capability in CAPABILITIES:
+                # cuda is the special case which doesn't have a family attribute
+                if capability == 'cuda':
+                    # use None rather than False, useful to have it consistent with the rest
+                    toolchain['cuda'] = ('CUDA_CC' in tc.variables) or None
+                else:
+                    if hasattr(tc, capability):
+                        toolchain[capability] = getattr(tc, capability)()
+
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy

@@ -721,25 +721,69 @@ class RobotTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
 
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
-        self.assertEqual(goolf_hierarchy, [
-            {'name': 'GCC', 'version': '4.7.2', 'compiler_family': 'GCC', 'mpi_family': None,
-             'lapack_family': None, 'blas_family': None, 'cuda': None},
-            {'name': 'golf', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': None,
-             'lapack_family': 'OpenBLAS', 'blas_family': 'OpenBLAS', 'cuda': None},
-            {'name': 'gompi', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
-             'lapack_family': None, 'blas_family': None, 'cuda': None},
-            {'name': 'goolf', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
-             'lapack_family': 'OpenBLAS', 'blas_family': 'OpenBLAS', 'cuda': None},
-        ])
+        expected = [
+            {
+                'name': 'GCC',
+                'version': '4.7.2',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'golf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+            {
+                'name': 'gompi',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'goolf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+        ]
+        self.assertEqual(goolf_hierarchy, expected)
 
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
                                                   require_capabilities=True)
-        self.assertEqual(iimpi_hierarchy, [
-            {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3', 'compiler_family': 'Intel', 'mpi_family': None,
-             'lapack_family': None, 'blas_family': None, 'cuda': None},
-            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3', 'compiler_family': 'Intel', 'mpi_family': 'IntelMPI',
-             'lapack_family': None, 'blas_family': None, 'cuda': None},
-        ])
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'iimpi',
+                'version': '5.5.3-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': 'IntelMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+        ]
+        self.assertEqual(iimpi_hierarchy, expected)
 
         # test also including dummy
         init_config(build_options={

@@ -318,6 +318,8 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                         entry['dependencies'].remove(cand_dep)
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
+                        # build specs should not be passed down to resolved dependencies,
+                        # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
                         hidden = cand_dep.get('hidden', False)
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 

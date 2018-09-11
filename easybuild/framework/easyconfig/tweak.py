@@ -44,7 +44,7 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS, CAPABILITIES
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
@@ -681,14 +681,16 @@ def obtain_ec_for(specs, paths, fp=None):
 
 def compare_toolchain_specs(source_tc_spec, target_tc_spec):
     """
-    Compare whether a source and target toolchain have compatible characteristics
+    Compare whether a source toolchain is mappable to a target toolchain
 
     :param source_tc_spec: specs of source toolchain
     :param target_tc_spec: specs of target toolchain
+
+    :return: boolean indicating whether or not source toolchain is compatible with target toolchain
     """
     can_map = True
     # Check they have same capabilities
-    for key in ['compiler_family', 'mpi_family', 'blas_family', 'lapack_family', 'cuda']:
+    for key in CAPABILITIES:
         if target_tc_spec[key] is None and source_tc_spec[key] is not None:
             can_map = False
             break
@@ -705,25 +707,26 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     """
     minimal_matching_toolchain = {}
     target_compiler_family = ''
-    # Do a complete loop so we always end up with the minimal value in the hierarchy
-    # hierarchy is given from lowest to highest, so need to reverse the order in the list
-    for target_tc_spec in reversed(target_tc_hierarchy):
+
+    # break out once we've found the first match since the hierarchy is ordered low to high in terms of capabilities
+    for target_tc_spec in target_tc_hierarchy:
         if compare_toolchain_specs(source_tc_spec, target_tc_spec):
             # GCCcore has compiler capabilities but should only be used in the target if the original toolchain was also
             # GCCcore
             if target_tc_spec['name'] != GCCcore.NAME or \
                     (source_tc_spec['name'] == GCCcore.NAME and target_tc_spec['name'] == GCCcore.NAME):
                 minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
-                target_compiler_family = target_tc_spec['compiler_family']
+                target_compiler_family = target_tc_spec['comp_family']
+                break
 
     if not minimal_matching_toolchain:
         raise EasyBuildError("No possible mapping from source toolchain spec %s to target toolchain hierarchy specs %s",
                              source_tc_spec, target_tc_hierarchy)
 
     # Warn if we are changing compiler families, this is very likely to cause problems
-    if target_compiler_family != source_tc_spec['compiler_family']:
-        print_warning("Your request will results in a compiler family switch (%s to %s). Here be dragons!" %
-                      (source_tc_spec['compiler_family'], target_compiler_family))
+    if target_compiler_family != source_tc_spec['comp_family']:
+        print_warning("Your request will result in a compiler family switch (%s to %s). Here be dragons!" %
+                      (source_tc_spec['comp_family'], target_compiler_family))
 
     return minimal_matching_toolchain
 
@@ -733,6 +736,8 @@ def get_dep_tree_of_toolchain(toolchain_spec, modtool):
     Get the dependency tree of a toolchain
 
     :param toolchain_spec: toolchain spec to get the dependencies of
+    :param modtool: module tool used
+
     :return: The dependency tree of the toolchain spec
     """
     path = robot_find_easyconfig(toolchain_spec['name'], toolchain_spec['version'])
@@ -750,6 +755,9 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
 
     :param source_toolchain: initial toolchain of the easyconfig(s)
     :param target_toolchain: target toolchain for tweaked easyconfig(s)
+    :param modtool: module tool used
+
+    :return: mapping from source hierarchy to target hierarchy
     """
     tc_mapping = {}
     initial_tc_hierarchy = get_toolchain_hierarchy(source_toolchain, require_capabilities=True)

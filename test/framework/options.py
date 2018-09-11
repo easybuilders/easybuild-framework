@@ -1446,14 +1446,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_cases = [
             ([], 'toy/0.0'),
-            # --try-toolchain* has a different branch to all other try options, combining defaults back to regex
+            # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
+            # to doing a simple regex substitution on the toolchain
             (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
             # --try-toolchain is overridden by --toolchain
             (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
-            # --try-toolchain* has a different branch to all other try options, combining defaults back to regex
+            # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
+            # to doing a simple regex substitution on the toolchain
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
@@ -1510,10 +1512,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
-            # toolchain GCC/4.7.2 (subtoochain of gompi/1.4.10) should be listed (and present)
-            mark = 'x'
+            # toolchain GCC/4.7.2 (subtoolchain of gompi/1.4.10) should be listed (and present)
 
-            tc_regex = re.compile("^ \* \[%s\] .*/GCC-4.7.2.eb \(module: .*GCC/4.7.2\)$" % mark, re.M)
+            tc_regex = re.compile("^ \* \[x\] .*/GCC-4.7.2.eb \(module: .*GCC/4.7.2\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
             # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain

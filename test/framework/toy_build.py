@@ -664,7 +664,8 @@ class ToyBuildTest(EnhancedTestCase):
         # test module paths/contents with goolf build
         extra_args = [
             '--try-toolchain=goolf,1.4.10',
-            # Force using the regex method so try uses the full toolchain
+            # This test was created for the regex substitution of toolchains, to trigger this (rather than subtoolchain
+            # resolution) we must add an additional build option
             '--try-amend=parallel=1',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
