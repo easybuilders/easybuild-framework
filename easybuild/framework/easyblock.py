@@ -2393,6 +2393,17 @@ class EasyBlock(object):
 
         self.restore_iterate_opts()
 
+    def invalidate_module_caches(self, modpath):
+        """Helper method to invalidate module caches for specified module path."""
+        # invalidate relevant 'module avail'/'module show' cache entries
+        # consider both paths: for short module name, and subdir indicated by long module name
+        paths = [modpath]
+        if self.mod_subdir:
+            paths.append(os.path.join(modpath, self.mod_subdir))
+
+        for path in paths:
+            invalidate_module_caches_for(path)
+
     def make_module_step(self, fake=False):
         """
         Generate module file
@@ -2442,14 +2453,7 @@ class EasyBlock(object):
                 self.log.info(diff_msg)
                 print_msg(diff_msg, log=self.log)
 
-            # invalidate relevant 'module avail'/'module show' cache entries
-            # consider both paths: for short module name, and subdir indicated by long module name
-            paths = [modpath]
-            if self.mod_subdir:
-                paths.append(os.path.join(modpath, self.mod_subdir))
-
-            for path in paths:
-                invalidate_module_caches_for(path)
+            self.invalidate_module_caches(modpath)
 
             # only update after generating final module file
             if not fake:

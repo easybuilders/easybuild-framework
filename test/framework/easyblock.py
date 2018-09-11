@@ -45,6 +45,8 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.module_generator import module_generator
+from easybuild.tools.modules import reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
@@ -1410,6 +1412,59 @@ class EasyBlockTest(EnhancedTestCase):
         # make sure both return a non-Unicode string
         self.assertTrue(isinstance(get_git_revision(), str))
         self.assertTrue(isinstance(this_is_easybuild(), str))
+
+    def test_stale_module_caches(self):
+        """Test whether module caches are reset between builds."""
+
+        ec1 = os.path.join(self.test_prefix, 'one.eb')
+        ec1_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'one'",
+            "version = '1.0.2'",
+            "homepage = 'https://example.com'",
+            "description = '1st test easyconfig'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+        ])
+        write_file(ec1, ec1_txt)
+
+        # key aspect here is that two/2.0 depends on one/1.0 (which is an alias for one/1.0.2)
+        ec2 = os.path.join(self.test_prefix, 'two.eb')
+        ec2_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'two'",
+            "version = '2.0'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+            "homepage = 'https://example.com'",
+            "description = '2nd test easyconfig'",
+            "dependencies = [('one', '1.0')]",
+        ])
+        write_file(ec2, ec2_txt)
+
+        # populate modules avail/show cache with result for "show one/1.0" when it doesn't exist yet
+        # need to make sure we use same $MODULEPATH value as the one that is in place during build
+        moddir = os.path.join(self.test_installpath, 'modules', 'all')
+        self.modtool.use(moddir)
+        self.assertFalse(self.modtool.exist(['one/1.0'])[0])
+
+        # add .modulerc to install version alias one/1.0 for one/1.0.2
+        # this makes cached result for "show one/1.0" incorrect as soon as one/1.0.2 is installed via one.eb
+        modgen = module_generator(None)
+        module_version_spec = {'modname': 'one/1.0.2', 'sym_version': '1.0', 'version': '1.0.2'}
+        modulerc_txt = modgen.modulerc(module_version=module_version_spec)
+        one_moddir = os.path.join(self.test_installpath, 'modules', 'all', 'one')
+        write_file(os.path.join(one_moddir, '.modulerc'), modulerc_txt)
+
+        # check again, this just grabs the cached results for 'avail one/1.0' & 'show one/1.0'
+        self.assertFalse(self.modtool.exist(['one/1.0'])[0])
+
+        # one/1.0 still doesn't exist yet (because underlying one/1.0.2 doesn't exist yet), even after clearing cache
+        reset_module_caches()
+        self.assertFalse(self.modtool.exist(['one/1.0'])[0])
+
+        # installing both one.eb and two.eb in one go should work
+        # this verifies whether the "module show" cache is cleared in between builds,
+        # since one/1.0 is required for ec2, and the underlying one/1.0.2 is installed via ec1 in the same session
+        self.eb_main([ec1, ec2], raise_error=True, do_build=True, verbose=True)
 
 
 def suite():
