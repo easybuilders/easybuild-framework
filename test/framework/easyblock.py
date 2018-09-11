@@ -46,6 +46,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.module_generator import module_generator
+from easybuild.tools.modules import reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
@@ -1453,8 +1454,16 @@ class EasyBlockTest(EnhancedTestCase):
         one_moddir = os.path.join(self.test_installpath, 'modules', 'all', 'one')
         write_file(os.path.join(one_moddir, '.modulerc'), modulerc_txt)
 
+        # check again, this just grabs the cached results for 'avail one/1.0' & 'show one/1.0'
+        self.assertFalse(self.modtool.exist(['one/1.0'])[0])
+
+        # one/1.0 still doesn't exist yet (because underlying one/1.0.2 doesn't exist yet), even after clearing cache
+        reset_module_caches()
+        self.assertFalse(self.modtool.exist(['one/1.0'])[0])
+
         # installing both one.eb and two.eb in one go should work
-        # this verifies whether the "module show" cache is cleared in between builds
+        # this verifies whether the "module show" cache is cleared in between builds,
+        # since one/1.0 is required for ec2, and the underlying one/1.0.2 is installed via ec1 in the same session
         self.eb_main([ec1, ec2], raise_error=True, do_build=True, verbose=True)
 
 
