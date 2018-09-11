@@ -724,6 +724,8 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(goolf_hierarchy, [
             {'name': 'GCC', 'version': '4.7.2', 'compiler_family': 'GCC', 'mpi_family': None,
              'lapack_family': None, 'blas_family': None, 'cuda': None},
+            {'name': 'golf', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': None,
+             'lapack_family': 'OpenBLAS', 'blas_family': 'OpenBLAS', 'cuda': None},
             {'name': 'gompi', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
              'lapack_family': None, 'blas_family': None, 'cuda': None},
             {'name': 'goolf', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',

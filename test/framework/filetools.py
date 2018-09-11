@@ -1411,11 +1411,12 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 3)
+        self.assertEqual(len(hits), 4)
         self.assertTrue(all(os.path.exists(p) for p in hits))
         self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
         self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
-        self.assertTrue(hits[2].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
+        self.assertTrue(hits[3].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
