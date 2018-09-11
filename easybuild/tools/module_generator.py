@@ -33,6 +33,7 @@ Generating module files.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+import copy
 import os
 import re
 import sys
@@ -45,7 +46,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, modules_tool
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -201,15 +202,40 @@ class ModuleGenerator(object):
         """
         Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod)
 
-        :param module_version: module name & version to use in module-version statement
+        :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
         """
         modulerc = [ModuleGeneratorTcl.MODULE_SHEBANG]
 
         if module_version:
             if isinstance(module_version, dict):
-                expected_keys = ['modname', 'version']
+                expected_keys = ['modname', 'sym_version', 'version']
                 if sorted(module_version.keys()) == expected_keys:
-                    modulerc.append("module-version %(modname)s %(version)s" % module_version)
+
+                    module_version_statement = "module-version %(modname)s %(sym_version)s"
+
+                    # for Environment Modules we need to guard the module-version statement,
+                    # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
+                    # which occur because the .modulerc is parsed twice
+                    # cfr. https://sourceforge.net/p/modules/mailman/message/33399425/
+                    if modules_tool().__class__ == EnvironmentModulesC:
+
+                        modname, sym_version, version = [module_version[key] for key in expected_keys]
+
+                        # determine module name with symbolic version
+                        if version in modname:
+                            # take a copy so we don't modify original value
+                            module_version = copy.copy(module_version)
+                            module_version['sym_modname'] = modname.replace(version, sym_version)
+                        else:
+                            raise EasyBuildError("Version '%s' does not appear in module name '%s'", version, modname)
+
+                        module_version_statement = '\n'.join([
+                            'if {"%(sym_modname)s" eq [module-info version %(sym_modname)s]} {',
+                            ' ' * 4 + module_version_statement,
+                            "}",
+                        ])
+
+                    modulerc.append(module_version_statement % module_version)
                 else:
                     raise EasyBuildError("Incorrect module_version spec, expected keys: %s", expected_keys)
             else:

@@ -45,7 +45,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModulesC, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -323,19 +323,44 @@ class ModuleGeneratorTest(EnhancedTestCase):
         error_pattern = "Incorrect module_version spec, expected keys"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
 
-        modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'version': '1.2.3'})
-        expected = '\n'.join([
-            '#%Module',
-            'module-version test/1.2.3.4.5 1.2.3',
-        ])
+        modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'})
+
+        if self.modtool.__class__ == EnvironmentModulesC:
+            expected = '\n'.join([
+                '#%Module',
+                'if {"test/1.2.3" eq [module-info version test/1.2.3]} {',
+                '    module-version test/1.2.3.4.5 1.2.3',
+                '}',
+            ])
+        else:
+            expected = '\n'.join([
+                '#%Module',
+                "module-version test/1.2.3.4.5 1.2.3",
+            ])
+
         self.assertEqual(modulerc, expected)
 
         write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
-        write_file(os.path.join(self.test_prefix, '.modulerc'), modulerc)
+        write_file(os.path.join(self.test_prefix, 'test', '.modulerc'), modulerc)
 
         self.modtool.use(self.test_prefix)
-        self.assertEqual(self.modtool.available('test'), ['test/1.2.3.4.5'])
+
+        # Lmod 'avail' output lists symbolic version as separate entry
+        if self.modtool.__class__ == Lmod:
+            expected = ['test/1.2.3', 'test/1.2.3.4.5']
+        else:
+            expected = ['test/1.2.3.4.5']
+        self.assertEqual(self.modtool.available('test'), expected)
+
+        # 'show' picks up on symbolic versions, regardless of modules tool being used
         self.assertEqual(self.modtool.exist(['test/1.2.3.4.5', 'test/1.2.3.4', 'test/1.2.3']), [True, False, True])
+
+        # loading of module with symbolic version works
+        self.modtool.load(['test/1.2.3'])
+        # test/1.2.3.4.5 is actually loaded (rather than test/1.2.3)
+        res = self.modtool.list()
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
 
     def test_unload(self):
         """Test unload part in generated module file."""
