@@ -2870,7 +2870,7 @@ def build_and_install_one(ecdict, init_env):
             # subtoolchain resolution (and related options) and/or hooks
             reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
             app.cfg.dump(reprod_spec)
-            log.debug("Dumped fully parsed easyconfig to %s", reprod_spec)
+            _log.debug("Dumped fully parsed easyconfig to %s", reprod_spec)
 
             try:
                 # upload easyconfig (and patch files) to central repository
