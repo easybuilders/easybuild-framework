@@ -851,7 +851,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("GCC-4.6.4.eb", "GCC/4.6.4", 'x'),
             ("OpenMPI-1.6.4-GCC-4.6.4.eb", "OpenMPI/1.6.4-GCC-4.6.4", 'x'),
             # OpenBLAS dependency is listed, but not there => ' '
-            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2", ' '),
+            ("OpenBLAS-0.2.6-GCC-4.6.4-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.6.4-LAPACK-3.4.2", ' '),
             # both FFTW and ScaLAPACK are listed => 'F'
             ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
             ("FFTW-3.3.3-gompi-1.3.12.eb", "FFTW/3.3.3-gompi-1.3.12", 'F'),
