@@ -216,6 +216,8 @@ class ModuleGenerator(object):
                     # for Environment Modules we need to guard the module-version statement,
                     # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
                     # which occur because the .modulerc is parsed twice
+                    # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
+                    # and returns the corresponding real version in case the argument is an existing symbolic version
                     # cfr. https://sourceforge.net/p/modules/mailman/message/33399425/
                     if modules_tool().__class__ == EnvironmentModulesC:
 
