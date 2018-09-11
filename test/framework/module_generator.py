@@ -345,13 +345,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.modtool.use(self.test_prefix)
 
-        # Lmod 'avail' output lists symbolic version as separate entry
-        if self.modtool.__class__ == Lmod:
-            expected = ['test/1.2.3', 'test/1.2.3.4.5']
-        else:
-            expected = ['test/1.2.3.4.5']
-        self.assertEqual(self.modtool.available('test'), expected)
-
         # 'show' picks up on symbolic versions, regardless of modules tool being used
         self.assertEqual(self.modtool.exist(['test/1.2.3.4.5', 'test/1.2.3.4', 'test/1.2.3']), [True, False, True])
 
