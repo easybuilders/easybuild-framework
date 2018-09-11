@@ -45,6 +45,7 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.module_generator import module_generator
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
@@ -1446,10 +1447,9 @@ class EasyBlockTest(EnhancedTestCase):
 
         # add .modulerc to install version alias one/1.0 for one/1.0.2
         # this makes cached result for "show one/1.0" incorrect as soon as one/1.0.2 is installed via one.eb
-        modulerc_txt = '\n'.join([
-            '#%Module',
-            "module-version one/1.0.2 1.0",
-        ])
+        modgen = module_generator(None)
+        module_version_spec = {'modname': 'one/1.0.2', 'sym_version': '1.0', 'version': '1.0.2'}
+        modulerc_txt = modgen.modulerc(module_version=module_version_spec)
         one_moddir = os.path.join(self.test_installpath, 'modules', 'all', 'one')
         write_file(os.path.join(one_moddir, '.modulerc'), modulerc_txt)
 
