@@ -174,7 +174,6 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             else:
                 new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_path)
             if new_ec_file:
-                # Need to update the toolchain the build_specs to match the toolchain mapping
                 new_ecs = process_easyconfig(new_ec_file, build_specs=verification_build_specs)
                 tweaked_easyconfigs.extend(new_ecs)
         else:
