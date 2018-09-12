@@ -865,9 +865,9 @@ class ToyBuildTest(EnhancedTestCase):
         toy_modtxt = read_file(toy_mod)
 
         # No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
-        # for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
-        #     regex = re.compile('load.*' + modname, re.M)
-        #     self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+        for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
+            regex = re.compile('load.*' + modname, re.M)
+            self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
         for modname in ['GCC', 'OpenMPI']:
             regex = re.compile('load.*' + modname, re.M)
@@ -915,10 +915,9 @@ class ToyBuildTest(EnhancedTestCase):
             toy_modtxt = read_file(toy_mod)
 
             # No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
-
-            # for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
-            #     regex = re.compile('load.*' + modname, re.M)
-            #     self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+            for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
+                regex = re.compile('load.*' + modname, re.M)
+                self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
             for modname in ['GCC', 'OpenMPI']:
                 regex = re.compile('load.*' + modname, re.M)

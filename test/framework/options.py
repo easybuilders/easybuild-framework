@@ -1519,7 +1519,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             tc_regex = re.compile("^ \* \[x\] .*/GCC-4.7.2.eb \(module: .*GCC/4.7.2\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
-            # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
+            # both toy and gzip dependency should be listed with new toolchains
+            # in this case we map original toolchain `dummy` to the compiler-only GCC subtoolchain of gompi/1.4.10
+            # since this subtoolchain already has sufficient capabilities (we do not map higher than necessary)
             for ec_name in ['gzip-1.4', 'toy-0.0']:
                 ec = '%s-GCC-4.7.2.eb' % ec_name
                 if extra_args:
