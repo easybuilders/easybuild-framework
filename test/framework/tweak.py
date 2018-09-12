@@ -218,6 +218,7 @@ class TweakTest(EnhancedTestCase):
         init_config(build_options={
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
+            'check_osdeps': False,
         })
         toolchain_spec = {'name': 'goolf', 'version': '1.4.10'}
         list_of_deps = get_dep_tree_of_toolchain(toolchain_spec, self.modtool)
