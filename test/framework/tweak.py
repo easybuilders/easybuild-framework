@@ -35,7 +35,7 @@ from unittest import TextTestRunner
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
-from easybuild.framework.easyconfig.tweak import compare_toolchain_specs, match_minimum_tc_specs
+from easybuild.framework.easyconfig.tweak import check_capability_mapping, match_minimum_tc_specs
 from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain
 from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies, map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
@@ -150,7 +150,7 @@ class TweakTest(EnhancedTestCase):
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
 
-    def test_compare_toolchain_specs(self):
+    def test_check_capability_mapping(self):
         """Test comparing the functionality of two toolchains"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
@@ -171,13 +171,13 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(iimpi_hierarchy[1]['name'], 'iimpi')
 
         # golf <-> iimpi (should return False)
-        self.assertFalse(compare_toolchain_specs(goolf_hierarchy[1], iimpi_hierarchy[1]), "golf requires math libs")
+        self.assertFalse(check_capability_mapping(goolf_hierarchy[1], iimpi_hierarchy[1]), "golf requires math libs")
         # gompi <-> iimpi
-        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[2], iimpi_hierarchy[1]))
+        self.assertTrue(check_capability_mapping(goolf_hierarchy[2], iimpi_hierarchy[1]))
         # GCC <-> iimpi
-        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[0], iimpi_hierarchy[1]))
+        self.assertTrue(check_capability_mapping(goolf_hierarchy[0], iimpi_hierarchy[1]))
         # GCC <-> iccifort
-        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[0], iimpi_hierarchy[0]))
+        self.assertTrue(check_capability_mapping(goolf_hierarchy[0], iimpi_hierarchy[0]))
 
     def test_match_minimum_tc_specs(self):
         """Test matching a toolchain to lowest possible in a hierarchy"""

@@ -680,9 +680,9 @@ def obtain_ec_for(specs, paths, fp=None):
         raise EasyBuildError("No easyconfig found for requested software, and also failed to generate one.")
 
 
-def compare_toolchain_specs(source_tc_spec, target_tc_spec):
+def check_capability_mapping(source_tc_spec, target_tc_spec):
     """
-    Compare whether a source toolchain is mappable to a target toolchain
+    Compare whether the capabilities of a source toolchain are all present in a target toolchain
 
     :param source_tc_spec: specs of source toolchain
     :param target_tc_spec: specs of target toolchain
@@ -711,7 +711,7 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
 
     # break out once we've found the first match since the hierarchy is ordered low to high in terms of capabilities
     for target_tc_spec in target_tc_hierarchy:
-        if compare_toolchain_specs(source_tc_spec, target_tc_spec):
+        if check_capability_mapping(source_tc_spec, target_tc_spec):
             # GCCcore has compiler capabilities but should only be used in the target if the original toolchain was also
             # GCCcore
             if target_tc_spec['name'] != GCCcore.NAME or source_tc_spec['name'] == GCCcore.NAME:
