@@ -2869,8 +2869,11 @@ def build_and_install_one(ecdict, init_env):
             # for reproducability we dump out the fully parsed easyconfig since the contents can be affected by
             # subtoolchain resolution (and related options) and/or hooks
             reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-            app.cfg.dump(reprod_spec)
-            _log.debug("Dumped fully parsed easyconfig to %s", reprod_spec)
+            try:
+                app.cfg.dump(reprod_spec)
+                _log.debug("Dumped fully parsed easyconfig to %s", reprod_spec)
+            except NotImplementedError, err:
+                _log.warn("Unable to dumped fully parsed easyconfig to %s: %s", reprod_spec, err)
 
             try:
                 # upload easyconfig (and patch files) to central repository
