@@ -720,7 +720,7 @@ class RobotTest(EnhancedTestCase):
 
         get_toolchain_hierarchy.clear()
 
-        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
         expected = [
             {
                 'name': 'GCC',
@@ -762,7 +762,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(goolf_hierarchy, expected)
 
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
-                                                  require_capabilities=True)
+                                                  incl_capabilities=True)
         expected = [
             {
                 'name': 'iccifort',

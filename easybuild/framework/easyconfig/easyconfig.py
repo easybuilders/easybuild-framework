@@ -119,16 +119,16 @@ def toolchain_hierarchy_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(toolchain, require_capabilities=False):
+    def cache_aware_func(toolchain, incl_capabilities=False):
         """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
-        cache_key = (toolchain['name'], toolchain['version'], require_capabilities)
+        cache_key = (toolchain['name'], toolchain['version'], incl_capabilities)
 
         # fetch from cache if available, cache it if it's not
         if cache_key in cache:
             _log.debug("Using cache to return hierarchy for toolchain %s: %s", str(toolchain), cache[cache_key])
             return cache[cache_key]
         else:
-            toolchain_hierarchy = func(toolchain, require_capabilities)
+            toolchain_hierarchy = func(toolchain, incl_capabilities)
             cache[cache_key] = toolchain_hierarchy
             return cache[cache_key]
 
@@ -138,7 +138,7 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
-def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, require_capabilities=False):
+def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, incl_capabilities=False):
     """
     Returns unique version for subtoolchain, in tc dict.
     If there is no unique version:
@@ -155,7 +155,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
     # dummy toolchain: bottom of the hierarchy
     if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-        if build_option('add_dummy_to_minimal_toolchains') and not require_capabilities:
+        if build_option('add_dummy_to_minimal_toolchains') and not incl_capabilities:
             subtoolchain_version = ''
     elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
@@ -172,7 +172,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
 
 @toolchain_hierarchy_cache
-def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
+def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     """
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
@@ -273,7 +273,7 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
 
         for subtoolchain_name in subtoolchain_names:
             subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands,
-                                                            require_capabilities=require_capabilities)
+                                                            incl_capabilities=incl_capabilities)
             # add to hierarchy and move to next
             if subtoolchain_version is not None and subtoolchain_name not in visited:
                 tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
@@ -282,7 +282,7 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
                 visited.add(subtoolchain_name)
 
     # also add toolchain capabilities
-    if require_capabilities:
+    if incl_capabilities:
         for toolchain in toolchain_hierarchy:
             toolchain_class, _ = search_toolchain(toolchain['name'])
             tc = toolchain_class(version=toolchain['version'])

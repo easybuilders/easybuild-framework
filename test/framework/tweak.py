@@ -36,6 +36,7 @@ from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, p
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 from easybuild.framework.easyconfig.tweak import compare_toolchain_specs, match_minimum_tc_specs
+from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain
 from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies, map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -157,9 +158,9 @@ class TweakTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
         get_toolchain_hierarchy.clear()
-        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
-                                                  require_capabilities=True)
+                                                  incl_capabilities=True)
 
         # Hierarchies are returned with top-level toolchain last, goolf has 4 elements here, intel has 2
         self.assertEqual(goolf_hierarchy[0]['name'], 'GCC')
@@ -186,9 +187,9 @@ class TweakTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
         get_toolchain_hierarchy.clear()
-        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
-                                                  require_capabilities=True)
+                                                  incl_capabilities=True)
         # Hierarchies are returned with top-level toolchain last, goolf has 4 elements here, intel has 2
         self.assertEqual(goolf_hierarchy[0]['name'], 'GCC')
         self.assertEqual(goolf_hierarchy[1]['name'], 'golf')
@@ -210,6 +211,27 @@ class TweakTest(EnhancedTestCase):
         error_msg = "No possible mapping from source toolchain spec .*"
         self.assertErrorRegex(EasyBuildError, error_msg, match_minimum_tc_specs,
                               goolf_hierarchy[3], iimpi_hierarchy)
+
+    def test_dep_tree_of_toolchain(self):
+        """Test getting list of dependencies of a toolchain (as EasyConfig objects)"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        toolchain_spec = {'name': 'goolf', 'version': '1.4.10'}
+        list_of_deps = get_dep_tree_of_toolchain(toolchain_spec, self.modtool)
+        expected_deps = [
+            ['OpenBLAS', '0.2.6'],
+            ['hwloc', '1.6.2'],
+            ['OpenMPI', '1.6.4'],
+            ['gompi', '1.4.10'],
+            ['FFTW', '3.3.3'],
+            ['ScaLAPACK', '2.0.2'],
+            ['goolf', '1.4.10']
+        ]
+        actual_deps = [[dep['name'], dep['version']] for dep in list_of_deps]
+        self.assertItemsEqual(expected_deps, actual_deps)
 
     def test_map_toolchain_hierarchies(self):
         """Test mapping between two toolchain hierarchies"""
