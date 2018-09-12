@@ -232,7 +232,7 @@ class TweakTest(EnhancedTestCase):
             ['goolf', '1.4.10']
         ]
         actual_deps = [[dep['name'], dep['version']] for dep in list_of_deps]
-        self.assertItemsEqual(expected_deps, actual_deps)
+        self.assertEqual(expected_deps, actual_deps)
 
     def test_map_toolchain_hierarchies(self):
         """Test mapping between two toolchain hierarchies"""
