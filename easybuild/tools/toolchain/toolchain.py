@@ -60,6 +60,8 @@ F90CACHE = 'f90cache'
 
 RPATH_WRAPPERS_SUBDIR = 'rpath_wrappers'
 
+# Available capabilities of toolchains
+CAPABILITIES = ['comp_family', 'mpi_family', 'blas_family', 'lapack_family', 'cuda']
 
 class Toolchain(object):
     """General toolchain class"""

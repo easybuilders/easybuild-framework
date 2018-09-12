@@ -44,7 +44,7 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS, CAPABILITIES
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
@@ -53,6 +53,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import CAPABILITIES
 from easybuild.tools.utilities import quote_str
 
 
