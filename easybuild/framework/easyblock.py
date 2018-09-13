@@ -2871,9 +2871,9 @@ def build_and_install_one(ecdict, init_env):
             reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
             try:
                 app.cfg.dump(reprod_spec)
-                _log.debug("Dumped fully parsed easyconfig to %s", reprod_spec)
-            except NotImplementedError, err:
-                _log.warn("Unable to dumped fully parsed easyconfig to %s: %s", reprod_spec, err)
+                _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
+            except NotImplementedError as err:
+                _log.warn("Unable to dumped fully processed easyconfig to %s: %s", reprod_spec, err)
 
             try:
                 # upload easyconfig (and patch files) to central repository
