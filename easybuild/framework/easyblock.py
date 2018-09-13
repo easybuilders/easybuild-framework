@@ -2866,8 +2866,8 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # for reproducability we dump out the fully parsed easyconfig since the contents can be affected by
-            # subtoolchain resolution (and related options) and/or hooks
+            # for reproducability we dump out the fully processed easyconfig since the contents can be affected
+            # by subtoolchain resolution (and related options) and/or hooks
             reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
             try:
                 app.cfg.dump(reprod_spec)
