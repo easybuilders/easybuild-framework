@@ -1726,11 +1726,15 @@ class EasyBlock(object):
 
         # also check checksums for extensions
         for ext in self.cfg['exts_list']:
-            ext_name = ext[0]
-            # take into account that extension may be a 2-tuple with just name/version
-            ext_opts = ext[2] if len(ext) == 3 else {}
-            # only a single source per extension is supported (see source_tmpl)
-            checksum_issues.extend(self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1))
+            # just skip extensions for which only a name is specified
+            # those are just there to check for things that are in the "standard library"
+            if not isinstance(ext, basestring):
+                ext_name = ext[0]
+                # take into account that extension may be a 2-tuple with just name/version
+                ext_opts = ext[2] if len(ext) == 3 else {}
+                # only a single source per extension is supported (see source_tmpl)
+                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1)
+                checksum_issues.extend(res)
 
         return checksum_issues
 
