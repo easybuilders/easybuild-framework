@@ -3535,7 +3535,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], ['toy-0.0_fix-silly-typo-in-printf-statement.patch'])
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
-        self.assertEqual(ec['exts_list'][0], ('bar', '0.0', {
+        self.assertEqual(ec['exts_list'][0], 'ls')
+        self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
                 bar_tar_gz_sha256,
@@ -3546,7 +3547,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
         }))
-        self.assertEqual(ec['exts_list'][1], ('barbar', '0.0', {
+        self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
             'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
         }))
 
@@ -3562,7 +3563,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # if any checksums are present already, it doesn't matter if they're wrong (since they will be replaced)
         ectxt = read_file(test_ec)
-        for chksum in ec['checksums'] + [c for e in ec['exts_list'] for c in e[2]['checksums']]:
+        for chksum in ec['checksums'] + [c for e in ec['exts_list'][1:] for c in e[2]['checksums']]:
             ectxt = ectxt.replace(chksum, chksum[::-1])
         write_file(test_ec, ectxt)
 
