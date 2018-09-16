@@ -32,7 +32,8 @@ import re
 import sys
 from vsc.utils import fancylogger
 
-from easybuild.tools.build_log import print_msg
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
@@ -144,16 +145,25 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     return result.total_errors
 
 
-def cmdline_easyconfigs_style_check(paths):
+def cmdline_easyconfigs_style_check(ecs):
     """
-    Run easyconfigs style check of each of the specified paths, triggered from 'eb' command line
+    Run easyconfigs style check of each of the specified easyconfigs, triggered from 'eb' command line
 
-    :param paths: list of paths to easyconfig files to check
+    :param ecs: list of easyconfigs to check, could be either file paths or EasyConfig instances
     :return: True when style check passed on all easyconfig files, False otherwise
     """
-    print_msg("Running style check on %d easyconfig(s)..." % len(paths), prefix=False)
+    print_msg("\nRunning style check on %d easyconfig(s)...\n" % len(ecs), prefix=False)
     style_check_passed = True
-    for path in paths:
+    for ec in ecs:
+        # if an EasyConfig instance is provided, just grab the corresponding file path
+        if isinstance(ec, EasyConfig):
+            path = ec.path
+        elif isinstance(ec, basestring):
+            path = ec
+        else:
+            raise EasyBuildError("Value of unknown type encountered in cmdline_easyconfigs_style_check: %s (type: %s)",
+                                 ec, type(ec))
+
         if check_easyconfigs_style([path]) == 0:
             res = 'PASS'
         else:

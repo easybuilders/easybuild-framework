@@ -47,22 +47,25 @@ class Toy_Extension(ExtensionEasyBlock):
 
     def run(self):
         """Build toy extension."""
-        super(Toy_Extension, self).run(unpack_src=True)
-        EB_toy.configure_step(self.master, name=self.name)
-        EB_toy.build_step(self.master, name=self.name, buildopts=self.cfg['buildopts'])
+        if self.src:
+            super(Toy_Extension, self).run(unpack_src=True)
+            EB_toy.configure_step(self.master, name=self.name)
+            EB_toy.build_step(self.master, name=self.name, buildopts=self.cfg['buildopts'])
 
-        if self.cfg['toy_ext_param']:
-            run_cmd(self.cfg['toy_ext_param'])
+            if self.cfg['toy_ext_param']:
+                run_cmd(self.cfg['toy_ext_param'])
 
-        EB_toy.install_step(self.master, name=self.name)
+            EB_toy.install_step(self.master, name=self.name)
 
-        return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper(), self.name)
+            return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper(), self.name)
 
     def sanity_check_step(self, *args, **kwargs):
         """Custom sanity check for toy extensions."""
         self.log.info("Loaded modules: %s", self.modules_tool.list())
         custom_paths = {
-            'files': ['bin/%s' % self.name, 'lib/lib%s.a' % self.name],
-            'dirs': [],
+            'files': [],
+            'dirs': ['.'],  # minor hack to make sure there's always a non-empty list
         }
+        if self.src:
+            custom_paths['files'].extend(['bin/%s' % self.name, 'lib/lib%s.a' % self.name])
         return super(Toy_Extension, self).sanity_check_step(custom_paths=custom_paths)

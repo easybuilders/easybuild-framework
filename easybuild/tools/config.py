@@ -142,6 +142,7 @@ BUILD_OPTIONS_CMDLINE = {
         'github_user',
         'github_org',
         'group',
+        'hooks',
         'ignore_dirs',
         'job_backend_config',
         'job_cores',
