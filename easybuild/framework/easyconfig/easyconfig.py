@@ -701,9 +701,15 @@ class EasyConfig(object):
         self.generate_template_values()
         templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
-        # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
-        keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
-        templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
+        # create reverse map of templates, to inject template values where possible
+        # longer template values are considered first, shorter template keys get preference over longer ones
+        sorted_keys = sorted(self.template_values, key=lambda k: (len(self.template_values[k]), -len(k)), reverse=True)
+        templ_val = OrderedDict([])
+        for key in sorted_keys:
+            # shortest template 'key' is retained in case of duplicates ('namelower' is preferred over 'github_account')
+            # only template values longer than 2 characters are retained
+            if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
+                templ_val[self.template_values[key]] = key
 
         ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
         self.log.debug("Dumped easyconfig: %s", ectxt)
