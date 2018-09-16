@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20170808.01'
+EB_BOOTSTRAP_VERSION = '20180916.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -503,7 +503,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
             cmd.append(source_tarballs[VSC_BASE])
     else:
         # install meta-package easybuild from PyPI
-        if forcedversion is not None:
+        if forcedversion:
             cmd.append('easybuild==%s' % forcedversion)
         else:
             cmd.append('easybuild')
@@ -772,7 +772,7 @@ def main():
         info("Fetching sources from %s..." % sourcepath)
 
     forcedversion = EASYBUILD_BOOTSTRAP_FORCE_VERSION
-    if EASYBUILD_BOOTSTRAP_FORCE_VERSION is not None:
+    if forcedversion:
         info("Forcing specified version %s..." % forcedversion)
 
     # create temporary dir for temporary installations
