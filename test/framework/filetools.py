@@ -59,6 +59,18 @@ class FileToolsTest(EnhancedTestCase):
         ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
     ]
 
+    def setUp(self):
+        """Test setup."""
+        super(FileToolsTest, self).setUp()
+
+        self.orig_filetools_urllib2_urlopen = ft.urllib2.urlopen
+
+    def tearDown(self):
+        """Cleanup."""
+        super(FileToolsTest, self).tearDown()
+
+        ft.urllib2.urlopen = self.orig_filetools_urllib2_urlopen
+
     def test_extract_cmd(self):
         """Test various extract commands."""
         tests = [
@@ -317,7 +329,7 @@ class FileToolsTest(EnhancedTestCase):
         opts = init_config(args=['--download-timeout=5.3'])
         init_config(build_options={'download_timeout': opts.download_timeout})
         target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
-        url = 'https://jenkins1.ugent.be/robots.txt'
+        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
             urllib2.urlopen(url)
             res = ft.download_file(fn, url, target_location)
@@ -348,6 +360,30 @@ class FileToolsTest(EnhancedTestCase):
         ft.download_file(fn, source_url, target_location, forced=True)
         self.assertTrue(os.path.exists(target_location))
         self.assertTrue(os.path.samefile(path, target_location))
+
+    def test_download_file_requests_fallback(self):
+        """Test fallback to requests in download_file function."""
+        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
+        fn = 'README.rst'
+        target = os.path.join(self.test_prefix, fn)
+
+        # replace urllib2.urlopen with function that raises SSL error
+        def fake_urllib2_open(*args, **kwargs):
+            error_msg = "<urlopen error [Errno 1] _ssl.c:510: error:12345:"
+            error_msg += "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
+            raise IOError(error_msg)
+
+        ft.urllib2.urlopen = fake_urllib2_open
+
+        # if requests is available, file is downloaded
+        if ft.HAVE_REQUESTS:
+            res = ft.download_file(fn, url, target)
+            self.assertTrue(res and os.path.exists(res))
+            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+
+        # without requests being available, error is raised
+        ft.HAVE_REQUESTS = False
+        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
 
     def test_mkdir(self):
         """Test mkdir function."""
@@ -535,7 +571,8 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
-        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', toy_patch_fn)
         self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
         self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
 
@@ -566,10 +603,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), known_files)
 
         # Test simple file backup
-        ft.back_up_file(fp)
+        res = ft.back_up_file(fp)
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 2)
         new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(os.path.samefile(res, os.path.join(self.test_prefix, 'sandbox', new_file)))
         self.assertTrue(new_file.startswith('test.txt.bak_'))
         first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
@@ -678,6 +716,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(first_hidden_bck_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
         self.assertEqual(ft.read_file(fp), new_txt)
+
+        # check whether strip_fn works as expected
+        fp2 = fp + '.lua'
+        ft.copy_file(fp, fp2)
+        res = ft.back_up_file(fp2)
+        self.assertTrue(fp2.endswith('.lua'))
+        self.assertTrue('.lua' in os.path.basename(res))
+
+        res = ft.back_up_file(fp2, strip_fn='.lua')
+        self.assertFalse('.lua' in os.path.basename(res))
 
     def test_move_logs(self):
         """Test move_logs function."""
@@ -1083,7 +1131,8 @@ class FileToolsTest(EnhancedTestCase):
         """Test for is_patch_file() function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')))
-        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)))
 
     def test_is_alt_pypi_url(self):
         """Test is_alt_pypi_url() function."""
@@ -1101,10 +1150,14 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
         self.assertTrue(eb340_url, res)
         pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern += 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
-        regex = re.compile(pattern)
+        pattern_md5 = pattern + 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
+        pattern_sha256 = pattern + 'easybuild-[0-9rc.]+.tar.gz#sha256=[a-f0-9]{64}$'
+        regex_md5 = re.compile(pattern_md5)
+        regex_sha256 = re.compile(pattern_sha256)
         for url in res:
-            self.assertTrue(regex.match(url), "Pattern '%s' matches for '%s'" % (regex.pattern, url))
+            error_msg = "Pattern '%s' or '%s' matches for '%s'" % (regex_md5.pattern, regex_sha256.pattern, url)
+            self.assertTrue(regex_md5.match(url) or regex_sha256.match(url), error_msg)
+
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
 
@@ -1133,7 +1186,8 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
         path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
-        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
         self.assertTrue(ft.apply_patch(toy_patch, path))
         patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
@@ -1251,13 +1305,14 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         toy_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         gcc_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
 
         ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
 
         self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'GCC')))
-        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', 'toy-0.0_typo.patch']:
+        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', toy_patch_fn]:
             self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, filepath)))
 
         # test copying of a single file, to a non-existing directory
@@ -1391,15 +1446,17 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 2)
+        self.assertEqual(len(hits), 3)
         self.assertTrue(all(os.path.exists(p) for p in hits))
         self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
         self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1408,7 +1465,8 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
@@ -1416,13 +1474,15 @@ class FileToolsTest(EnhancedTestCase):
         expected = [
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
@@ -1541,6 +1601,22 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
         regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
+
+    def test_is_sha256_checksum(self):
+        """Test for is_sha256_checksum function."""
+        a_sha256_checksum = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+        self.assertTrue(ft.is_sha256_checksum(a_sha256_checksum))
+
+        for not_a_sha256_checksum in [
+            'be662daa971a640e40be5c804d9d7d10',  # MD5 != SHA256
+            [a_sha256_checksum],  # False for a list of whatever, even with only a single SHA256 in it
+            True,
+            12345,
+            '',
+            (a_sha256_checksum, ),
+            [],
+        ]:
+            self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
 
 
 def suite():

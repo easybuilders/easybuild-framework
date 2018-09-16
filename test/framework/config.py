@@ -359,7 +359,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
-        self.assertErrorRegex(TypeError, '.*item assignment.*', lambda x: bo.update(x), {'debug': True})
+        self.assertErrorRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
         self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set

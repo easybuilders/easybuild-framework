@@ -45,7 +45,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModulesC, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -258,6 +258,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends-on
+            if self.modtool.supports_depends_on:
+                expected = '\n'.join([
+                    '',
+                    "depends-on mod_name",
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
+            else:
+                expected = "depends-on statements in generated module are not supported by modules tool"
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -282,6 +298,62 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends_on
+            if self.modtool.supports_depends_on:
+                expected = '\n'.join([
+                    '',
+                    'depends_on("mod_name")',
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
+            else:
+                expected = "depends_on statements in generated module are not supported by modules tool"
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
+
+    def test_modulerc(self):
+        """Test modulerc method."""
+        self.assertErrorRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
+
+        arg = {'foo': 'bar'}
+        error_pattern = "Incorrect module_version spec, expected keys"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
+
+        modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'})
+
+        if self.modtool.__class__ == EnvironmentModulesC:
+            expected = '\n'.join([
+                '#%Module',
+                'if {"test/1.2.3" eq [module-info version test/1.2.3]} {',
+                '    module-version test/1.2.3.4.5 1.2.3',
+                '}',
+            ])
+        else:
+            expected = '\n'.join([
+                '#%Module',
+                "module-version test/1.2.3.4.5 1.2.3",
+            ])
+
+        self.assertEqual(modulerc, expected)
+
+        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
+        write_file(os.path.join(self.test_prefix, 'test', '.modulerc'), modulerc)
+
+        self.modtool.use(self.test_prefix)
+
+        # 'show' picks up on symbolic versions, regardless of modules tool being used
+        self.assertEqual(self.modtool.exist(['test/1.2.3.4.5', 'test/1.2.3.4', 'test/1.2.3']), [True, False, True])
+
+        # loading of module with symbolic version works
+        self.modtool.load(['test/1.2.3'])
+        # test/1.2.3.4.5 is actually loaded (rather than test/1.2.3)
+        res = self.modtool.list()
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
 
     def test_unload(self):
         """Test unload part in generated module file."""
@@ -439,6 +511,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
+    def test_det_user_modpath(self):
+        """Test for generic det_user_modpath method."""
+        # None by default
+        self.assertEqual(self.modgen.det_user_modpath(None), None)
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules" "all"')
+        else:
+            self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules", "all"')
+
+        # result is affected by --suffix-modules-path
+        # {RUNTIME_ENV::FOO} gets translated into Tcl/Lua syntax for resolving $FOO at runtime
+        init_config(build_options={'suffix_modules_path': ''})
+        user_modpath = 'my/{RUNTIME_ENV::TEST123}/modules'
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
+        else:
+            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", os.getenv("TEST123"), "modules"')
+
     def test_use(self):
         """Test generating module use statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
@@ -486,8 +577,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual('$env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
-            self.assertEqual('$env(HOME)', self.modgen.getenv_cmd('HOME'))
+            self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
+            self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
         else:
             self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))

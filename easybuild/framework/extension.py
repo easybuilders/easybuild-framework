@@ -133,6 +133,7 @@ class Extension(object):
         """
         Sanity check to run after installing extension
         """
+        res = (True, '')
 
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
@@ -146,7 +147,7 @@ class Extension(object):
             cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
-            return True
+            cmd = None
 
         if 'modulename' in self.options:
             modname = self.options['modulename']
@@ -155,10 +156,10 @@ class Extension(object):
             modname = self.name
             self.log.debug("self.name: %s", modname)
 
-        if modname == False:
-            # allow skipping of sanity check by setting module name to False
-            return True
-        else:
+        # allow skipping of sanity check by setting module name to False
+        if modname is False:
+            self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
+        elif cmd:
             template = {
                         'ext_name': modname,
                         'ext_version': self.version,
@@ -178,9 +179,15 @@ class Extension(object):
             (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
 
             if ec:
-                msg = "%s failed to install, cmd '%s' (stdin: %s) output: %s" % (self.name, cmd, stdin, output)
-                self.log.warn("Extension: %s" % msg)
-                self.sanity_check_fail_msgs.append(msg)
-                return False
-            else:
-                return True
+                if stdin:
+                    fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
+                else:
+                    fail_msg = 'command "%s" failed' % cmd
+                fail_msg += "; output:\n%s" % output.strip()
+                self.log.warning("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
+                res = (False, fail_msg)
+                # keep track of all reasons of failure
+                # (only relevant when this extension is installed stand-alone via ExtensionEasyBlock)
+                self.sanity_check_fail_msgs.append(fail_msg)
+
+        return res

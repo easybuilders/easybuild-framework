@@ -42,6 +42,7 @@ from test.framework.package import mock_fpm
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
@@ -939,6 +940,28 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
 
+    def test_toy_advanced_filter_deps(self):
+        """Test toy build with extensions, and filtered build dependency."""
+        # test case for bug https://github.com/easybuilders/easybuild-framework/pull/2515
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        toy_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+
+        toy_ec_txt = read_file(toy_ec)
+        # add FFTW as build dependency, just to filter it out again
+        toy_ec_txt += "\nbuilddependencies = [('FFTW', '3.3.3')]"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test', extra_args=["--filter-deps=FFTW"])
+
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-1.3.12-test')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module))
+
     def test_toy_hidden_cmdline(self):
         """Test installing a hidden module using the '--hidden' command line option."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -1026,10 +1049,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
-        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_typo.patch')
+        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.exists(patch_file))
 
-        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_typo.patch')
+        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
 
     def test_toy_module_fulltxt(self):
@@ -1386,8 +1409,10 @@ class ToyBuildTest(EnhancedTestCase):
         # Test also with lua syntax if Lmod is available. In particular, that the backup is not hidden
         if isinstance(self.modtool, Lmod):
             args = common_args + ['--module-syntax=Lua', '--backup-modules']
-            toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps.lua')
-            toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
+
+            toy_mod_dir = os.path.join(self.test_installpath, 'modules', 'all', 'toy')
+            toy_mod_fn = '0.0-deps'
+            toy_mod = os.path.join(toy_mod_dir, toy_mod_fn + '.lua')
 
             self.eb_main(args, do_build=True, raise_error=True)
             self.assertTrue(os.path.exists(toy_mod))
@@ -1406,10 +1431,10 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
             self.assertEqual(len(toy_mod_backups), 1)
             first_toy_lua_mod_backup = toy_mod_backups[0]
-            self.assertTrue('.lua.bak' in os.path.basename(first_toy_lua_mod_backup))
+            self.assertTrue('.bak_' in os.path.basename(first_toy_lua_mod_backup))
             self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
 
-            toy_mod_bak = ".*/toy/0\.0-deps\.lua\.bak_[0-9]*"
+            toy_mod_bak = ".*/toy/0\.0-deps\.bak_[0-9]*"
             regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
             regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
@@ -1572,6 +1597,41 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(toy_modfile))
 
+    def test_sanity_check_paths_lib64(self):
+        """Test whether fallback in sanity check for lib64/ equivalents of library files works."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec_file = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        ectxt = read_file(ec_file)
+
+        # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
+        postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
+        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
+        write_file(test_ec, ectxt)
+
+        # sanity check fails if lib64 fallback in sanity check is disabled
+        error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        # all is fine is lib64 fallback check is enabled (which it is by default)
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        # also check other way around (lib64 -> lib)
+        ectxt = read_file(ec_file)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
+        error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
         filename = 'toy-0.0'
@@ -1647,7 +1707,7 @@ class ToyBuildTest(EnhancedTestCase):
         def grab_gcc_rpath_wrapper_filter_arg():
             """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
             rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
-            gcc_rpath_wrapper_txt = read_file(os.path.join(rpath_wrappers_dir, 'gcc'))
+            gcc_rpath_wrapper_txt = read_file(glob.glob(os.path.join(rpath_wrappers_dir, '*', 'gcc'))[0])
 
             rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '([^ ]*)'.*", re.M)
             res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
@@ -1759,7 +1819,7 @@ class ToyBuildTest(EnhancedTestCase):
         patterns = [
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
-            "^  >> applying patch toy-0\.0_typo\.patch$",
+            "^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
             "  >> command completed: exit 0, ran in .*",
             '^' + '\n'.join([
@@ -1781,6 +1841,15 @@ class ToyBuildTest(EnhancedTestCase):
             '',
             "def start_hook():",
             "   print('start hook triggered')",
+            '',
+            "def parse_hook(ec):",
+            "   print ec.name, ec.version",
+            # print sources value to check that raw untemplated strings are exposed in parse_hook
+            "   print ec['sources']",
+            # try appending to postinstallcmd to see whether the modification is actually picked up
+            # (required templating to be disabled before parse_hook is called)
+            "   ec['postinstallcmds'].append('echo toy')",
+            "   print ec['postinstallcmds'][-1]",
             '',
             "def pre_configure_hook(self):",
             "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
@@ -1807,11 +1876,20 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
         expected_output = '\n'.join([
+            "== Running start hook...",
             "start hook triggered",
+            "== Running parse hook for toy-0.0.eb...",
+            "toy 0.0",
+            "['%(name)s-%(version)s.tar.gz']",
+            "echo toy",
+            "== Running pre-configure hook...",
             "pre-configure: toy.source: True",
+            "== Running post-configure hook...",
             "post-configure: toy.source: False",
+            "== Running post-install hook...",
             "in post-install hook for toy v0.0",
             "bin, lib",
+            "== Running end hook...",
             "end hook triggered, all done!",
         ])
         self.assertEqual(stdout.strip(), expected_output)

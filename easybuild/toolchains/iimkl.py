@@ -43,3 +43,4 @@ class Iimkl(IccIfort, IntelMKL, IntelFFTW):
     """
     NAME = 'iimkl'
     SUBTOOLCHAIN = IccIfort.NAME
+    OPTIONAL = True

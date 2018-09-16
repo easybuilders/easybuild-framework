@@ -88,6 +88,7 @@ class Compiler(Toolchain):
         'static': (False, "Build static library"),
         '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
+        'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
     }
@@ -245,8 +246,19 @@ class Compiler(Toolchain):
                                  (default_opt_level, self.COMPILER_OPT_FLAGS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
-        optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                   [self.options.option(default_opt_level)]
+        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
+                    [self.options.option(default_opt_level)])[:1]
+
+        # only apply if the vectorize toolchainopt is explicitly set
+        # otherwise the individual compiler toolchain file should make sure that
+        # vectorization is disabled for noopt and lowopt, and enabled otherwise.
+        if self.options.get('vectorize') is not None:
+            vectoptions = self.options.option('vectorize')
+            vectflags = vectoptions[self.options['vectorize']]
+            # avoid double use of such flags, or e.g. -fno-tree-vectorize followed by -ftree-vectorize
+            if isinstance(optflags[0], list):
+                optflags[0] = [flag for flag in optflags[0] if flag not in vectoptions.values()]
+            optflags.append(vectflags)
 
         optarchflags = []
         if build_option('optarch') == OPTARCH_GENERIC:
@@ -259,7 +271,7 @@ class Compiler(Toolchain):
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
+        self.variables.nextend('OPTFLAGS', optflags + optarchflags)
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
@@ -280,28 +292,29 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        use_generic = False
         optarch = build_option('optarch') 
         # --optarch is specified with flags to use
+        if optarch is not None and isinstance(optarch, dict):
+            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
+            # first try module names, then the family in optarch
+            current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
+                                      [getattr(self, 'COMPILER_FAMILY', None)])
+            for current_compiler in current_compiler_names:
+                if current_compiler in optarch:
+                    optarch = optarch[current_compiler]
+                    break
+            # still a dict: no option for this compiler
+            if isinstance(optarch, dict):
+                optarch = None
+                self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
+                              current_compiler)
+
+        use_generic = False
         if optarch is not None:
             # optarch has been parsed as a simple string
             if isinstance(optarch, basestring):
                 if optarch == OPTARCH_GENERIC:
                     use_generic = True
-
-            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
-            elif isinstance(optarch, dict):
-                current_compiler = getattr(self, 'COMPILER_FAMILY', None)
-                if current_compiler in optarch:
-                    if optarch[current_compiler] == OPTARCH_GENERIC:
-                        use_generic = True
-                    else:
-                        optarch = optarch[current_compiler]
-                # no option for this compiler
-                else:
-                    optarch = None
-                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", 
-                            current_compiler)
             else:
                 raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 

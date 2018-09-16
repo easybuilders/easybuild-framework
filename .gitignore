@@ -8,3 +8,7 @@ build/
 dist/
 *egg-info/
 *.swp
+
+Dockerfile.*
+Singularity.*
+test-reports/
