@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180531.01'
+EB_BOOTSTRAP_VERSION = '20180916.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -87,6 +87,7 @@ os.environ['PYTHONPATH'] = ''
 
 EASYBUILD_BOOTSTRAP_SOURCEPATH = os.environ.pop('EASYBUILD_BOOTSTRAP_SOURCEPATH', None)
 EASYBUILD_BOOTSTRAP_SKIP_STAGE0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
+EASYBUILD_BOOTSTRAP_FORCE_VERSION = os.environ.pop('EASYBUILD_BOOTSTRAP_FORCE_VERSION', None)
 
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
@@ -474,7 +475,7 @@ def stage0(tmpdir):
     return distribute_egg_dir
 
 
-def stage1(tmpdir, sourcepath, distribute_egg_dir):
+def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
     """STAGE 1: temporary install EasyBuild using distribute's easy_install."""
 
     print('\n')
@@ -523,7 +524,10 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
             cmd.append(source_tarballs[VSC_BASE])
     else:
         # install meta-package easybuild from PyPI
-        cmd.append('easybuild')
+        if forcedversion:
+            cmd.append('easybuild==%s' % forcedversion)
+        else:
+            cmd.append('easybuild')
 
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
         post_vsc_base = cmd[:]
@@ -823,6 +827,10 @@ def main():
     if sourcepath is not None:
         info("Fetching sources from %s..." % sourcepath)
 
+    forcedversion = EASYBUILD_BOOTSTRAP_FORCE_VERSION
+    if forcedversion:
+        info("Forcing specified version %s..." % forcedversion)
+
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
     debug("Going to use %s as temporary directory" % tmpdir)
@@ -869,7 +877,7 @@ def main():
             distribute_egg_dir = stage0(tmpdir)
 
     # STAGE 1: install EasyBuild using easy_install to tmp dir
-    templates = stage1(tmpdir, sourcepath, distribute_egg_dir)
+    templates = stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion)
 
     # add location to easy_install provided through stage0 to $PATH
     # this must be done *after* stage1, since $PATH is reset during stage1
