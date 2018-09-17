@@ -37,3 +37,6 @@ class GCCcore(Gcc):
     # Replace the default compiler module name with our own
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    # GCCcore is only guaranteed to be present in recent toolchains
+    # for old versions of some toolchains (GCC, intel) it is not part of the hierarchy and hence optional
+    OPTIONAL = True

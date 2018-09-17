@@ -137,7 +137,7 @@ class EasyConfigParserTest(EnhancedTestCase):
             # name, version, versionsuffix, toolchain
             ('GCC', '4.7.2', None, None),
             ('OpenMPI', '1.6.4', None, {'name': 'GCC', 'version': '4.7.2'}),
-            ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2', {'name': 'gompi', 'version': '1.4.10'}),
+            ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2', {'name': 'GCC', 'version': '4.7.2'}),
             ('FFTW', '3.3.3', None, {'name': 'gompi', 'version': '1.4.10'}),
             ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2', {'name': 'gompi', 'version': '1.4.10'}),
         ]

@@ -43,3 +43,4 @@ class Gmkl(GccToolchain, IntelMKL, IntelFFTW):
     """
     NAME = 'gmkl'
     SUBTOOLCHAIN = GccToolchain.NAME
+    OPTIONAL = True

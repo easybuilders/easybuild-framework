@@ -49,6 +49,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
+from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -368,6 +369,7 @@ def parse_easyconfigs(paths, validate=True):
     """
     easyconfigs = []
     generated_ecs = False
+
     for (path, generated) in paths:
         path = os.path.abspath(path)
         # keep track of whether any files were generated
@@ -377,12 +379,13 @@ def parse_easyconfigs(paths, validate=True):
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
-                # only pass build specs when not generating easyconfig files
                 kwargs = {'validate': validate}
+                # only pass build specs when not generating easyconfig files
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
-                ecs = process_easyconfig(ec_file, **kwargs)
-                easyconfigs.extend(ecs)
+
+                easyconfigs.extend(process_easyconfig(ec_file, **kwargs))
+
         except IOError, err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
@@ -594,3 +597,59 @@ def categorize_files_by_type(paths):
             res['easyconfigs'].append(path)
 
     return res
+
+
+def check_sha256_checksums(ecs, whitelist=None):
+    """
+    Check whether all provided (parsed) easyconfigs have SHA256 checksums for sources & patches.
+
+    :param whitelist: list of regex patterns on easyconfig filenames; check is skipped for matching easyconfigs
+    :return: list of strings describing checksum issues (missing checksums, wrong checksum type, etc.)
+    """
+    checksum_issues = []
+
+    if whitelist is None:
+        whitelist = []
+
+    for ec in ecs:
+        # skip whitelisted software
+        ec_fn = os.path.basename(ec.path)
+        if any(re.match(regex, ec_fn) for regex in whitelist):
+            _log.info("Skipping SHA256 checksum check for %s because of whitelist (%s)", ec.path, whitelist)
+            continue
+
+        eb_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        checksum_issues.extend(eb_class(ec).check_checksums())
+
+    return checksum_issues
+
+
+def run_contrib_checks(ecs):
+    """Run contribution check on specified easyconfigs."""
+
+    def print_result(checks_passed, label):
+        """Helper function to print result of last group of checks."""
+        if checks_passed:
+            print_msg("\n>> All %s checks PASSed!" % label, prefix=False)
+        else:
+            print_msg("\n>> One or more %s checks FAILED!" % label, prefix=False)
+
+    # start by running style checks
+    style_check_ok = cmdline_easyconfigs_style_check(ecs)
+    print_result(style_check_ok, "style")
+
+    # check whether SHA256 checksums are in place
+    print_msg("\nChecking for SHA256 checksums in %d easyconfig(s)...\n" % len(ecs), prefix=False)
+    sha256_checksums_ok = True
+    for ec in ecs:
+        sha256_checksum_fails = check_sha256_checksums([ec])
+        if sha256_checksum_fails:
+            sha256_checksums_ok = False
+            msgs = ['[FAIL] %s' % ec.path] + sha256_checksum_fails
+        else:
+            msgs = ['[PASS] %s' % ec.path]
+        print_msg('\n'.join(msgs), prefix=False)
+
+    print_result(sha256_checksums_ok, "SHA256 checksums")
+
+    return style_check_ok and sha256_checksums_ok

@@ -30,6 +30,7 @@ EasyBuild support for gsolf compiler toolchain (includes GCC, SpectrumMPI, OpenB
 """
 
 from easybuild.toolchains.gsmpi import Gsmpi
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -37,4 +38,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Gsolf(Gsmpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, SpectrumMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gsolf'
-    SUBTOOLCHAIN = Gsmpi.NAME
+    SUBTOOLCHAIN = [Gsmpi.NAME, Golf.NAME]
