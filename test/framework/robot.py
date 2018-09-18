@@ -1126,6 +1126,31 @@ class RobotTest(EnhancedTestCase):
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
 
+    def test_check_conflicts_wrapper_deps(self):
+        """Test check_conflicts when dependency 'wrappers' are involved."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        wrapper_ec_txt = '\n'.join([
+            "easyblock = 'ModuleRC'",
+            "name = 'toy'",
+            "version = '0'",
+            "homepage = 'https://example.com'",
+            "description = 'Just A Wrapper'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+            "dependencies = [('toy', '0.0')]",
+        ])
+        wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
+        write_file(wrapper_ec, wrapper_ec_txt)
+
+        ecs, _ = parse_easyconfigs([(toy_ec, False), (wrapper_ec, False)])
+        self.mock_stderr(True)
+        res = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        self.assertFalse(res)
+
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
