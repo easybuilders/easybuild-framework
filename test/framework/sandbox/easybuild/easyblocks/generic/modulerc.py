@@ -29,6 +29,7 @@ Dummy ModuleRC easyblock.
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class ModuleRC(EasyBlock):
     """Dummy implementation of generic easyblock that generates .modulerc files."""
 

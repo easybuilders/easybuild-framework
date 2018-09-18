@@ -47,7 +47,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
