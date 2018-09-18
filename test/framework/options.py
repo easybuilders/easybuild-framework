@@ -583,6 +583,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
                 r'\|   \|-- Toy_Extension',
+                r'\|-- ModuleRC',
                 r'\|-- Toolchain',
                 r'Extension',
                 r'\|-- ExtensionEasyBlock',
