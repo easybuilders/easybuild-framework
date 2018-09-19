@@ -438,7 +438,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []
-    for patched_file in patched_files:
+    for patched_file in [f for f in patched_files if not f.startswith('test/')]:
         fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
         if os.path.exists(os.path.join(path, fn)):
             ec_files.append(os.path.join(path, fn))
@@ -809,6 +809,19 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     return file_info, deleted_paths, git_repo, pr_branch, diff_stat
 
 
+def is_patch_for(patch_name, ec):
+    """Check whether specified patch matches any patch in the provided EasyConfig instance."""
+    res = False
+    for patch in ec['patches']:
+        if isinstance(patch, (tuple, list)):
+            patch = patch[0]
+        if patch == patch_name:
+            res = True
+            break
+
+    return res
+
+
 def det_patch_specs(patch_paths, file_info):
     """ Determine software names for patch files """
     print_msg("determining software names for patch files...")
@@ -819,8 +832,8 @@ def det_patch_specs(patch_paths, file_info):
 
         # consider patch lists of easyconfigs being provided
         for ec in file_info['ecs']:
-            if patch_file in ec['patches']:
-                soft_name = ec.name
+            if is_patch_for(patch_file, ec):
+                soft_name = ec['name']
                 break
 
         if soft_name:
@@ -847,17 +860,6 @@ def find_software_name_for_patch(patch_name):
     :return: name of the software that this patch file belongs to (if found)
     """
 
-    def is_patch_for(patch_name, ec):
-        """Check whether specified patch matches any patch in the provided EasyConfig instance."""
-        res = False
-        for patch in ec['patches']:
-            if isinstance(patch, (tuple, list)):
-                patch = patch[0]
-            if patch == patch_name:
-                res = True
-                break
-
-        return res
 
     robot_paths = build_option('robot_path')
     soft_name = None

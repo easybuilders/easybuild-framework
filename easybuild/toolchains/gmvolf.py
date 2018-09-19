@@ -32,6 +32,7 @@ EasyBuild support for gmvolf compiler toolchain (includes GCC, MVAPICH2, OpenBLA
 """
 
 from easybuild.toolchains.gmvapich2 import Gmvapich2
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -40,4 +41,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Gmvolf(Gmvapich2, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmvolf'
-    SUBTOOLCHAIN = Gmvapich2.NAME
+    SUBTOOLCHAIN = [Gmvapich2.NAME, Golf.NAME]
