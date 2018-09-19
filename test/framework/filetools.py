@@ -1724,7 +1724,6 @@ class FileToolsTest(EnhancedTestCase):
         ])
         run_check()
 
-
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
         a_sha256_checksum = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
