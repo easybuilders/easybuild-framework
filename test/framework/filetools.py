@@ -59,6 +59,18 @@ class FileToolsTest(EnhancedTestCase):
         ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
     ]
 
+    def setUp(self):
+        """Test setup."""
+        super(FileToolsTest, self).setUp()
+
+        self.orig_filetools_urllib2_urlopen = ft.urllib2.urlopen
+
+    def tearDown(self):
+        """Cleanup."""
+        super(FileToolsTest, self).tearDown()
+
+        ft.urllib2.urlopen = self.orig_filetools_urllib2_urlopen
+
     def test_extract_cmd(self):
         """Test various extract commands."""
         tests = [
@@ -317,7 +329,7 @@ class FileToolsTest(EnhancedTestCase):
         opts = init_config(args=['--download-timeout=5.3'])
         init_config(build_options={'download_timeout': opts.download_timeout})
         target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
-        url = 'https://jenkins1.ugent.be/robots.txt'
+        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
             urllib2.urlopen(url)
             res = ft.download_file(fn, url, target_location)
@@ -348,6 +360,30 @@ class FileToolsTest(EnhancedTestCase):
         ft.download_file(fn, source_url, target_location, forced=True)
         self.assertTrue(os.path.exists(target_location))
         self.assertTrue(os.path.samefile(path, target_location))
+
+    def test_download_file_requests_fallback(self):
+        """Test fallback to requests in download_file function."""
+        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
+        fn = 'README.rst'
+        target = os.path.join(self.test_prefix, fn)
+
+        # replace urllib2.urlopen with function that raises SSL error
+        def fake_urllib2_open(*args, **kwargs):
+            error_msg = "<urlopen error [Errno 1] _ssl.c:510: error:12345:"
+            error_msg += "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
+            raise IOError(error_msg)
+
+        ft.urllib2.urlopen = fake_urllib2_open
+
+        # if requests is available, file is downloaded
+        if ft.HAVE_REQUESTS:
+            res = ft.download_file(fn, url, target)
+            self.assertTrue(res and os.path.exists(res))
+            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+
+        # without requests being available, error is raised
+        ft.HAVE_REQUESTS = False
+        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
 
     def test_mkdir(self):
         """Test mkdir function."""
@@ -1446,15 +1482,17 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 2)
+        self.assertEqual(len(hits), 3)
         self.assertTrue(all(os.path.exists(p) for p in hits))
         self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
         self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1463,7 +1501,8 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
@@ -1471,13 +1510,15 @@ class FileToolsTest(EnhancedTestCase):
         expected = [
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""

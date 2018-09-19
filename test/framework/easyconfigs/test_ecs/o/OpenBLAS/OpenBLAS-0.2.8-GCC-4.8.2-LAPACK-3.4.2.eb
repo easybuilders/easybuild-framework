@@ -1,7 +1,7 @@
 easyblock = 'ConfigureMake'
 
 name = 'OpenBLAS'
-version = '0.2.6'
+version = '0.2.8'
 
 lapackver = '3.4.2'
 versionsuffix = '-LAPACK-%s' % lapackver
@@ -9,7 +9,7 @@ versionsuffix = '-LAPACK-%s' % lapackver
 homepage = 'http://xianyi.github.com/OpenBLAS/'
 description = """OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 BSD version."""
 
-toolchain = {'name': 'gompi', 'version': '1.4.10'}
+toolchain = {'name': 'GCC', 'version': '4.8.2'}
 
 lapack_src = 'lapack-%s.tgz' % lapackver
 large_src = 'large.tgz'
@@ -28,7 +28,7 @@ source_urls = [
 ]
 
 patches = [
-    'OpenBLAS-%(version)s_Makefile-LAPACK-sources.patch',
+    # 'OpenBLAS-%s_Makefile-LAPACK-sources.patch' % version,
     (lapack_src, '.'),  # copy LAPACK tarball to unpacked OpenBLAS dir
     (large_src, '.'),
     (timing_src, '.'),
@@ -41,7 +41,7 @@ buildopts = 'BINARY=64 ' + threading + ' CC="$CC" FC="$F77"'
 installopts = threading + " PREFIX=%(installdir)s"
 
 # extensive testing can be enabled by uncommenting the line below
-# runtest = 'PATH=.:$PATH lapack-timing'
+#runtest = 'PATH=.:$PATH lapack-timing'
 
 sanity_check_paths = {
     'files': ['include/cblas.h', 'include/f77blas.h', 'include/lapacke_config.h', 'include/lapacke.h',

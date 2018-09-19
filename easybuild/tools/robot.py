@@ -48,7 +48,9 @@ from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
+
 _log = fancylogger.getLogger('tools.robot', fname=False)
+
 
 def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
     """Determine robot path."""
@@ -91,14 +93,35 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
         return (spec['name'], det_full_ec_version(spec))
 
+    # determine whether any 'wrappers' are involved
+    wrapper_deps = {}
+    for ec in ordered_ecs:
+        # easyconfigs using ModuleRC install a 'wrapper' for their dependency
+        # these need to be filtered out to avoid reporting false conflicts...
+        if ec['ec']['easyblock'] == 'ModuleRC':
+            wrapper_deps[mk_key(ec)] = mk_key(ec['ec']['dependencies'][0])
+
+    def mk_dep_keys(deps):
+        """Create keys for given list of dependencies."""
+        res = []
+        for dep in deps:
+            # filter out dependencies marked as external module
+            if not dep.get('external_module', False):
+                key = mk_key(dep)
+                # replace 'wrapper' dependencies with the dependency they're wrapping
+                if key in wrapper_deps:
+                    key = wrapper_deps[key]
+                res.append(key)
+        return res
+
     # construct a dictionary: (name, installver) tuple to (build) dependencies
     deps_for, dep_of = {}, {}
     for node in ordered_ecs:
         node_key = mk_key(node)
 
         # exclude external modules, since we can't check conflicts on them (we don't even know the software name)
-        build_deps = [mk_key(d) for d in node['builddependencies'] if not d.get('external_module', False)]
-        deps = [mk_key(d) for d in node['ec'].all_dependencies if not d.get('external_module', False)]
+        build_deps = mk_dep_keys(node['builddependencies'])
+        deps = mk_dep_keys(node['ec'].all_dependencies)
 
         # separate runtime deps from build deps
         runtime_deps = [d for d in deps if d not in build_deps]
@@ -111,8 +134,10 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
     if check_inter_ec_conflicts:
         # add ghost entry that depends on each of the specified easyconfigs,
-        # since we want to check for conflicts between specified easyconfigs too
-        deps_for[(None, None)] = ([], [mk_key(e) for e in easyconfigs])
+        # since we want to check for conflicts between specified easyconfigs too;
+        # 'wrapper' easyconfigs are not included to avoid false conflicts being reported
+        ec_keys = [k for k in [mk_key(e) for e in easyconfigs] if k not in wrapper_deps]
+        deps_for[(None, None)] = ([], ec_keys)
 
     # iteratively expand list of dependencies
     last_deps_for = None

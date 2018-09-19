@@ -111,6 +111,7 @@ OUTPUT_MATCHES = {
             [^\s\(]*[^:/]             # module name must not have '(' or whitespace in it, must not end with ':' or '/'
         )                             # end named group for module name
         (?P<default>\(default\))?     # optional '(default)' that's not part of module name
+        (\([^()]+\))?                 # ignore '(...)' that is not part of module name (e.g. for symbolic versions)
         \s*$                          # ignore whitespace at the end of the line
         """, re.VERBOSE),
 }
@@ -241,16 +242,16 @@ class ModulesTool(object):
         if self.REQ_VERSION is not None:
             self.log.debug("Required minimum version defined.")
             if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
-                raise EasyBuildError("EasyBuild requires v%s >= v%s, found v%s",
-                                     self.__class__.__name__, self.version, self.REQ_VERSION)
+                raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
+                                     self.__class__.__name__, self.REQ_VERSION, self.version)
             else:
                 self.log.debug('Version %s matches requirement >= %s', self.version, self.REQ_VERSION)
 
         if self.MAX_VERSION is not None:
             self.log.debug("Maximum allowed version defined.")
             if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
-                raise EasyBuildError("EasyBuild requires v%s <= v%s, found v%s",
-                                     self.__class__.__name__, self.version, self.MAX_VERSION)
+                raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
+                                     self.__class__.__name__, self.MAX_VERSION, self.version)
             else:
                 self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
 
@@ -1106,7 +1107,7 @@ class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    REQ_VERSION = '5.8'
+    REQ_VERSION = '6.6.3'
     REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
