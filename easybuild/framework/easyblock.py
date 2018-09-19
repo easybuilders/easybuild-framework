@@ -339,7 +339,7 @@ class EasyBlock(object):
             checksums = self.cfg['checksums']
 
         for index, source in enumerate(sources):
-            extract_cmd, download_filename, source_urls, git_config = None, None, None, {}
+            extract_cmd, download_filename, source_urls, git_config = None, None, None, None
 
             if isinstance(source, basestring):
                 filename = source
@@ -351,7 +351,7 @@ class EasyBlock(object):
                 extract_cmd = source.pop('extract_cmd', None)
                 download_filename = source.pop('download_filename', None)
                 source_urls = source.pop('source_urls', None)
-                git_config = source.pop('git_config', {})
+                git_config = source.pop('git_config', None)
                 if source:
                     raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
@@ -573,8 +573,8 @@ class EasyBlock(object):
         :param extension: indicates whether locations for extension sources should also be considered
         :param urls: list of source URLs where this file may be available
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
-        :param git_config: dictionary to define how to download the repository
-        :force_download: always try to download file, even if it's already available in source path
+        :param force_download: always try to download file, even if it's already available in source path
+        :param git_config: dictionary to define how to download a git repository
         """
         srcpaths = source_paths()
 
