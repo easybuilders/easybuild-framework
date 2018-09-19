@@ -262,7 +262,41 @@ def remove_file(path):
         if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
-        raise EasyBuildError("Failed to remove %s: %s", path, err)
+        raise EasyBuildError("Failed to remove file %s: %s", path, err)
+
+
+def remove_dir(path):
+    """Remove directory at specified path."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        return
+
+    try:
+        if os.path.exists(path):
+            rmtree2(path)
+    except OSError, err:
+        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+
+
+def remove(paths):
+    """
+    Remove single file/directory or list of files and directories
+
+    :param paths: path(s) to remove
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Removing %d files & directories", len(paths))
+
+    for path in paths:
+        if os.path.isfile(path):
+            remove_file(path)
+        elif os.path.isdir(path):
+            remove_dir(path)
+        else:
+            raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
 def change_dir(path):
@@ -1637,7 +1671,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     :param targetdir: target directory where to save the archive to
     :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
     """
-    # if a non-empty dictionary was provided, download from git and archive
+    # sanity check on git_config value being passed
     if not isinstance(git_config, dict):
         raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
 
@@ -1652,41 +1686,57 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # input validation of git_config dict
     if git_config:
         raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
+
     if not repo_name:
         raise EasyBuildError("repo_name not specified in git_config parameter")
+
     if not tag and not commit:
         raise EasyBuildError("Neither tag nor commit found in git_config parameter")
+
     if tag and commit:
         raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
+
     if not filename.endswith('.tar.gz'):
         raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
 
+    # prepare target directory and clone repository
     mkdir(targetdir, parents=True)
     targetpath = os.path.join(targetdir, filename)
 
-    cwd = change_dir(targetdir)
-    recursive = " --recursive " if recursive else ""
+    # compose 'git clone' command, and run it
+    clone_cmd = ['git', 'clone']
+
     if tag:
-        cmd = "git clone --branch %s %s %s/%s.git " % (tag, recursive, url, repo_name)
-    else:
-        cmd = "git clone %s %s/%s.git" % (recursive, url, repo_name)
-    run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+        clone_cmd.extend(['--branch', tag])
+
+    if recursive:
+        clone_cmd.append('--recursive')
+
+    clone_cmd.append('%s/%s.git' % (url, repo_name))
+
+    tmpdir = tempfile.mkdtemp()
+    cwd = change_dir(tmpdir)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
-        change_dir(os.path.join(targetdir, repo_name))
-        recursive = " && git submodule update " if recursive else ""
-        cmd = "git checkout %s %s " % (commit, recursive)
-        run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
-        change_dir(targetdir)
+        checkout_cmd = ['git', 'checkout', commit]
+        if recursive:
+            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
 
-    # create an archive and delete the git repo
-    cmd = "tar cfvz %s --exclude-vcs %s && rm -rf %s" % (targetpath, repo_name, repo_name)
-    run.run_cmd(cmd, log_all=True, log_ok=False, simple=False, regexp=False)
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
+    # create an archive and delete the git repo directory
+    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)
+    remove(tmpdir)
+
     return targetpath
 
 
