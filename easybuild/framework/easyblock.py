@@ -72,9 +72,9 @@ from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
-from easybuild.tools.filetools import get_source_tarball_from_git
+from easybuild.tools.filetools import encode_class_name, extract_file, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import mkdir, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
+from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
