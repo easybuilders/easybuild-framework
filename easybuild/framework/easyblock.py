@@ -35,6 +35,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 
 import copy
@@ -71,9 +72,9 @@ from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, is_sha256_checksum, mkdir
-from easybuild.tools.filetools import move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import encode_class_name, extract_file, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_logs, read_file, remove_file, rmtree2
+from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -339,17 +340,19 @@ class EasyBlock(object):
             checksums = self.cfg['checksums']
 
         for index, source in enumerate(sources):
-            extract_cmd, download_filename, source_urls = None, None, None
+            extract_cmd, download_filename, source_urls, git_config = None, None, None, None
 
             if isinstance(source, basestring):
                 filename = source
 
             elif isinstance(source, dict):
+                # Making a copy to avoid modifying the object with pops
                 source = source.copy()
                 filename = source.pop('filename', None)
                 extract_cmd = source.pop('extract_cmd', None)
                 download_filename = source.pop('download_filename', None)
                 source_urls = source.pop('source_urls', None)
+                git_config = source.pop('git_config', None)
                 if source:
                     raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
@@ -363,7 +366,7 @@ class EasyBlock(object):
             # check if the sources can be located
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
             path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download,
-                                    urls=source_urls)
+                                    urls=source_urls, git_config=git_config)
             if path:
                 self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
@@ -562,7 +565,8 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
+                    git_config=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -571,7 +575,8 @@ class EasyBlock(object):
         :param extension: indicates whether locations for extension sources should also be considered
         :param urls: list of source URLs where this file may be available
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
-        :force_download: always try to download file, even if it's already available in source path
+        :param force_download: always try to download file, even if it's already available in source path
+        :param git_config: dictionary to define how to download a git repository
         """
         srcpaths = source_paths()
 
@@ -662,10 +667,14 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
+            targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+
             if foundfile:
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
+            elif git_config:
+                return get_source_tarball_from_git(filename, targetdir, git_config)
             else:
                 # try and download source files from specified source URLs
                 if urls:
@@ -674,7 +683,6 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
                 mkdir(targetdir, parents=True)
 
                 for url in source_urls:

@@ -36,6 +36,7 @@ Set of file tools.
 :author: Sotiris Fragkiskos (NTUA, CERN)
 :author: Davide Vanzo (ACCRE, Vanderbilt University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import datetime
 import difflib
@@ -266,7 +267,41 @@ def remove_file(path):
         if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
-        raise EasyBuildError("Failed to remove %s: %s", path, err)
+        raise EasyBuildError("Failed to remove file %s: %s", path, err)
+
+
+def remove_dir(path):
+    """Remove directory at specified path."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        return
+
+    try:
+        if os.path.exists(path):
+            rmtree2(path)
+    except OSError, err:
+        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+
+
+def remove(paths):
+    """
+    Remove single file/directory or list of files and directories
+
+    :param paths: path(s) to remove
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Removing %d files & directories", len(paths))
+
+    for path in paths:
+        if os.path.isfile(path):
+            remove_file(path)
+        elif os.path.isdir(path):
+            remove_dir(path)
+        else:
+            raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
 def change_dir(path):
@@ -1667,6 +1702,83 @@ def copy(paths, target_path, force_in_dry_run=False):
             copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
         else:
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
+
+
+def get_source_tarball_from_git(filename, targetdir, git_config):
+    """
+    Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
+
+    :param filename: name of the archive to save the code to (must be .tar.gz)
+    :param targetdir: target directory where to save the archive to
+    :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
+    """
+    # sanity check on git_config value being passed
+    if not isinstance(git_config, dict):
+        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
+
+    # Making a copy to avoid modifying the object with pops
+    git_config = git_config.copy()
+    tag = git_config.pop('tag', None)
+    url = git_config.pop('url', None)
+    repo_name = git_config.pop('repo_name', None)
+    commit = git_config.pop('commit', None)
+    recursive = git_config.pop('recursive', False)
+
+    # input validation of git_config dict
+    if git_config:
+        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
+
+    if not repo_name:
+        raise EasyBuildError("repo_name not specified in git_config parameter")
+
+    if not tag and not commit:
+        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
+
+    if tag and commit:
+        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+
+    if not url:
+        raise EasyBuildError("url not specified in git_config parameter")
+
+    if not filename.endswith('.tar.gz'):
+        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
+
+    # prepare target directory and clone repository
+    mkdir(targetdir, parents=True)
+    targetpath = os.path.join(targetdir, filename)
+
+    # compose 'git clone' command, and run it
+    clone_cmd = ['git', 'clone']
+
+    if tag:
+        clone_cmd.extend(['--branch', tag])
+
+    if recursive:
+        clone_cmd.append('--recursive')
+
+    clone_cmd.append('%s/%s.git' % (url, repo_name))
+
+    tmpdir = tempfile.mkdtemp()
+    cwd = change_dir(tmpdir)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # if a specific commit is asked for, check it out
+    if commit:
+        checkout_cmd = ['git', 'checkout', commit]
+        if recursive:
+            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
+
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+
+    # create an archive and delete the git repo directory
+    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # cleanup (repo_name dir does not exist in dry run mode)
+    change_dir(cwd)
+    remove(tmpdir)
+
+    return targetpath
 
 
 def move_file(path, target_path, force_in_dry_run=False):

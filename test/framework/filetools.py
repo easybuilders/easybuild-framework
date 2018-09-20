@@ -1413,31 +1413,67 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
 
-    def test_remove_file(self):
-        """Test remove_file"""
+    def test_remove(self):
+        """Test remove_file, remove_dir and join remove functions."""
         testfile = os.path.join(self.test_prefix, 'foo')
-        ft.write_file(testfile, 'bar')
+        test_dir = os.path.join(self.test_prefix, 'test123')
 
+        for remove_file_function in (ft.remove_file, ft.remove):
+            ft.write_file(testfile, 'bar')
+            self.assertTrue(os.path.exists(testfile))
+            remove_file_function(testfile)
+            self.assertFalse(os.path.exists(testfile))
+
+        for remove_dir_function in (ft.remove_dir, ft.remove):
+            ft.mkdir(test_dir)
+            self.assertTrue(os.path.exists(test_dir) and os.path.isdir(test_dir))
+            remove_dir_function(test_dir)
+            self.assertFalse(os.path.exists(test_dir) or os.path.isdir(test_dir))
+
+        # remove also takes a list of paths
+        ft.write_file(testfile, 'bar')
+        ft.mkdir(test_dir)
         self.assertTrue(os.path.exists(testfile))
-        ft.remove_file(testfile)
+        self.assertTrue(os.path.exists(test_dir) and os.path.isdir(test_dir))
+        ft.remove([testfile, test_dir])
+        self.assertFalse(os.path.exists(testfile))
+        self.assertFalse(os.path.exists(test_dir) or os.path.isdir(test_dir))
 
+        # check error handling (after creating a permission problem with removing files/dirs)
         ft.write_file(testfile, 'bar')
+        ft.mkdir(test_dir)
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR|stat.S_IWGRP|stat.S_IWOTH, add=False)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_file, testfile)
+        self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove, testfile)
+        self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_dir, test_dir)
+        self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove, test_dir)
 
-        # also test behaviour of remove_file under --dry-run
+        # also test behaviour under --dry-run
         build_options = {
             'extended_dry_run': True,
             'silent': False,
         }
         init_config(build_options=build_options)
-        self.mock_stdout(True)
-        ft.remove_file(testfile)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
 
-        regex = re.compile("^file [^ ]* removed$")
-        self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        for remove_file_function in (ft.remove_file, ft.remove):
+            self.mock_stdout(True)
+            remove_file_function(testfile)
+            txt = self.get_stdout()
+            self.mock_stdout(False)
+
+            regex = re.compile("^file [^ ]* removed$")
+            self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        for remove_dir_function in (ft.remove_dir, ft.remove):
+            self.mock_stdout(True)
+            remove_dir_function(test_dir)
+            txt = self.get_stdout()
+            self.mock_stdout(False)
+
+            regex = re.compile("^directory [^ ]* removed$")
+            self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
     def test_search_file(self):
         """Test search_file function."""
@@ -1601,6 +1637,133 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
         regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
+
+    def test_get_source_tarball_from_git(self):
+        """Test get_source_tarball_from_git function."""
+
+        git_config = {
+            'repo_name': 'testrepository',
+            'url': 'https://github.com/hpcugent',
+            'tag': 'master',
+        }
+        target_dir = os.path.join(self.test_prefix, 'target')
+
+        try:
+            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            # (only) tarball is created in specified target dir
+            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test.tar.gz')))
+            self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
+
+            del git_config['tag']
+            git_config['commit'] = '8456f86'
+            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
+            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test2.tar.gz')))
+            self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
+
+        except EasyBuildError as err:
+            if "Network is down" in str(err):
+                print "Ignoring download error in test_get_source_tarball_from_git, working offline?"
+            else:
+                raise err
+
+        git_config = {
+            'repo_name': 'testrepository',
+            'url': 'git@github.com:hpcugent',
+            'tag': 'master',
+        }
+        args = ['test.tar.gz', self.test_prefix, git_config]
+
+        for key in ['repo_name', 'url', 'tag']:
+            orig_value = git_config.pop(key)
+            if key == 'tag':
+                error_pattern = "Neither tag nor commit found in git_config parameter"
+            else:
+                error_pattern = "%s not specified in git_config parameter" % key
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+            git_config[key] = orig_value
+
+        git_config['commit'] = '8456f86'
+        error_pattern = "Tag and commit are mutually exclusive in git_config parameter"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+        del git_config['commit']
+
+        git_config['unknown'] = 'foobar'
+        error_pattern = "Found one or more unexpected keys in 'git_config' specification"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+        del git_config['unknown']
+
+        args[0] = 'test.txt'
+        error_pattern = "git_config currently only supports filename ending in .tar.gz"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+        args[0] = 'test.tar.gz'
+
+        # only test in dry run mode, i.e. check which commands would be executed without actually running them
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        def run_check():
+            """Helper function to run get_source_tarball_from_git & check dry run output"""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stderr, '')
+            regex = re.compile(expected)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+            self.assertEqual(os.path.dirname(res), target_dir)
+            self.assertEqual(os.path.basename(res), 'test.tar.gz')
+
+        git_config = {
+            'repo_name': 'testrepository',
+            'url': 'git@github.com:hpcugent',
+            'tag': 'master',
+        }
+        expected = '\n'.join([
+            '  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
+            "  \(in .*/tmp.*\)",
+            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            "  \(in .*/tmp.*\)",
+        ])
+        run_check()
+
+        git_config['recursive'] = True
+        expected = '\n'.join([
+            '  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
+            "  \(in .*/tmp.*\)",
+            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            "  \(in .*/tmp.*\)",
+        ])
+        run_check()
+
+        del git_config['tag']
+        git_config['commit'] = '8456f86'
+        expected = '\n'.join([
+            '  running command "git clone --recursive git@github.com:hpcugent/testrepository.git"',
+            "  \(in .*/tmp.*\)",
+            '  running command "git checkout 8456f86 && git submodule update"',
+            "  \(in testrepository\)",
+            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            "  \(in .*/tmp.*\)",
+        ])
+        run_check()
+
+        del git_config['recursive']
+        expected = '\n'.join([
+            '  running command "git clone git@github.com:hpcugent/testrepository.git"',
+            "  \(in .*/tmp.*\)",
+            '  running command "git checkout 8456f86"',
+            "  \(in testrepository\)",
+            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            "  \(in .*/tmp.*\)",
+        ])
+        run_check()
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
