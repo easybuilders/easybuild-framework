@@ -1643,7 +1643,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'git@github.com:hpcugent',
+            'url': 'https://github.com/hpcugent',
             'tag': 'master',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
