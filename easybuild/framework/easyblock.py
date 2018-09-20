@@ -1726,11 +1726,15 @@ class EasyBlock(object):
 
         # also check checksums for extensions
         for ext in self.cfg['exts_list']:
-            ext_name = ext[0]
-            # take into account that extension may be a 2-tuple with just name/version
-            ext_opts = ext[2] if len(ext) == 3 else {}
-            # only a single source per extension is supported (see source_tmpl)
-            checksum_issues.extend(self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1))
+            # just skip extensions for which only a name is specified
+            # those are just there to check for things that are in the "standard library"
+            if not isinstance(ext, basestring):
+                ext_name = ext[0]
+                # take into account that extension may be a 2-tuple with just name/version
+                ext_opts = ext[2] if len(ext) == 3 else {}
+                # only a single source per extension is supported (see source_tmpl)
+                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1)
+                checksum_issues.extend(res)
 
         return checksum_issues
 
@@ -2393,6 +2397,17 @@ class EasyBlock(object):
 
         self.restore_iterate_opts()
 
+    def invalidate_module_caches(self, modpath):
+        """Helper method to invalidate module caches for specified module path."""
+        # invalidate relevant 'module avail'/'module show' cache entries
+        # consider both paths: for short module name, and subdir indicated by long module name
+        paths = [modpath]
+        if self.mod_subdir:
+            paths.append(os.path.join(modpath, self.mod_subdir))
+
+        for path in paths:
+            invalidate_module_caches_for(path)
+
     def make_module_step(self, fake=False):
         """
         Generate module file
@@ -2442,14 +2457,7 @@ class EasyBlock(object):
                 self.log.info(diff_msg)
                 print_msg(diff_msg, log=self.log)
 
-            # invalidate relevant 'module avail'/'module show' cache entries
-            # consider both paths: for short module name, and subdir indicated by long module name
-            paths = [modpath]
-            if self.mod_subdir:
-                paths.append(os.path.join(modpath, self.mod_subdir))
-
-            for path in paths:
-                invalidate_module_caches_for(path)
+            self.invalidate_module_caches(modpath)
 
             # only update after generating final module file
             if not fake:
@@ -2866,13 +2874,14 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            if build_option("minimal_toolchains"):
-                # for reproducability we dump out the parsed easyconfig since the contents are affected when
-                # --minimal-toolchains (and --use-existing-modules) is used
-                # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
-                reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+            # for reproducability we dump out the fully processed easyconfig since the contents can be affected
+            # by subtoolchain resolution (and related options) and/or hooks
+            reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+            try:
                 app.cfg.dump(reprod_spec)
-                _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
+                _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
+            except NotImplementedError as err:
+                _log.warn("Unable to dumped fully processed easyconfig to %s: %s", reprod_spec, err)
 
             try:
                 # upload easyconfig (and patch files) to central repository
