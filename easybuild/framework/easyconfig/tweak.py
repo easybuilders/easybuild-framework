@@ -32,6 +32,7 @@ Easyconfig module that provides functionality for tweaking existing eaysconfig (
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Alan O'Cais (Juelich Supercomputing Centre)
 """
 import copy
 import glob
