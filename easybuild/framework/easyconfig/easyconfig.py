@@ -68,7 +68,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
-from easybuild.tools.toolchain.toolchain import CAPABILITIES
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
 
@@ -145,8 +145,6 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
       optional toolchains or dummy without add_dummy_to_minimal_toolchains.
     * in all other cases, raises an exception.
     """
-    current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
-
     uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
     # init with "skipped"
     subtoolchain_version = None
@@ -161,10 +159,10 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
         if subtoolchain_name not in optional_toolchains:
             # raise error if the subtoolchain considered now is not optional
             raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                 subtoolchain_name, current_tc_name)
+                                 subtoolchain_name, current_tc['name'])
     else:
         raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                             subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
+                             subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
 
     return subtoolchain_version
 
@@ -284,14 +282,13 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
         for toolchain in toolchain_hierarchy:
             toolchain_class, _ = search_toolchain(toolchain['name'])
             tc = toolchain_class(version=toolchain['version'])
-            for capability in CAPABILITIES:
+            for capability in TOOLCHAIN_CAPABILITIES:
                 # cuda is the special case which doesn't have a family attribute
-                if capability == 'cuda':
+                if capability == TOOLCHAIN_CAPABILITY_CUDA:
                     # use None rather than False, useful to have it consistent with the rest
-                    toolchain['cuda'] = ('CUDA_CC' in tc.variables) or None
+                    toolchain[capability] = ('CUDA_CC' in tc.variables) or None
                 elif hasattr(tc, capability):
                     toolchain[capability] = getattr(tc, capability)()
-
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
