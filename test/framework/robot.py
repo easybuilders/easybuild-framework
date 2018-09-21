@@ -712,6 +712,79 @@ class RobotTest(EnhancedTestCase):
             {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
         ])
 
+        # test also --try-toolchain* case, where we want more detailed information
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        get_toolchain_hierarchy.clear()
+
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
+        expected = [
+            {
+                'name': 'GCC',
+                'version': '4.7.2',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'golf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+            {
+                'name': 'gompi',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'goolf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+        ]
+        self.assertEqual(goolf_hierarchy, expected)
+
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'iimpi',
+                'version': '5.5.3-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': 'IntelMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+        ]
+        self.assertEqual(iimpi_hierarchy, expected)
+
         # test also including dummy
         init_config(build_options={
             'add_dummy_to_minimal_toolchains': True,

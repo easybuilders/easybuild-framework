@@ -852,7 +852,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("GCC-4.6.4.eb", "GCC/4.6.4", 'x'),
             ("OpenMPI-1.6.4-GCC-4.6.4.eb", "OpenMPI/1.6.4-GCC-4.6.4", 'x'),
             # OpenBLAS dependency is listed, but not there => ' '
-            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2", ' '),
+            # toolchain used for OpenBLAS is mapped to GCC/4.6.4 subtoolchain in gompi/1.3.12
+            # (rather than the original GCC/4.7.2 as subtoolchain of gompi/1.4.10)
+            ("OpenBLAS-0.2.6-GCC-4.6.4-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.6.4-LAPACK-3.4.2", ' '),
             # both FFTW and ScaLAPACK are listed => 'F'
             ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
             ("FFTW-3.3.3-gompi-1.3.12.eb", "FFTW/3.3.3-gompi-1.3.12", 'F'),
@@ -1447,12 +1449,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_cases = [
             ([], 'toy/0.0'),
+            # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
+            # to doing a simple regex substitution on the toolchain
             (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
-            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
             # --try-toolchain is overridden by --toolchain
             (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
-            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
+            # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
+            # to doing a simple regex substitution on the toolchain
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
@@ -1467,6 +1473,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # define extra list-typed parameter
             (['--try-amend=versionsuffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
             # only --try causes other build specs to be included too
+            # --try-toolchain* has a different branch to all other try options, combining defaults back to regex
             (['--try-software=foo,1.2.3', '--toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--software=foo,1.2.3', '--try-amend=versionsuffix=-test'], 'foo/1.2.3-test'),
@@ -1507,24 +1514,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
-
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            # toolchain GCC/4.7.2 (subtoolchain of gompi/1.4.10) should be listed (and present)
 
-            # toolchain gompi/1.4.10 should be listed (but not present yet)
-            if extra_args:
-                mark = 'x'
-            else:
-                mark = ' '
-            tc_regex = re.compile("^ \* \[%s\] .*/gompi-1.4.10.eb \(module: .*gompi/1.4.10\)$" % mark, re.M)
+            tc_regex = re.compile("^ \* \[x\] .*/GCC-4.7.2.eb \(module: .*GCC/4.7.2\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
-            # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
+            # both toy and gzip dependency should be listed with new toolchains
+            # in this case we map original toolchain `dummy` to the compiler-only GCC subtoolchain of gompi/1.4.10
+            # since this subtoolchain already has sufficient capabilities (we do not map higher than necessary)
             for ec_name in ['gzip-1.4', 'toy-0.0']:
-                ec = '%s-gompi-1.4.10.eb' % ec_name
+                ec = '%s-GCC-4.7.2.eb' % ec_name
                 if extra_args:
                     mod = ec_name.replace('-', '/')
                 else:
-                    mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
+                    mod = '%s-GCC-4.7.2' % ec_name.replace('-', '/')
                 mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
@@ -1556,7 +1560,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, verbose=True)
 
         # make sure build directory is properly cleaned up after a successful build (default behavior)
-        self.assertFalse(os.path.exists(toy_buildpath), "Build dir %s removed after succesful build" % toy_buildpath)
+        self.assertFalse(os.path.exists(toy_buildpath), "Build dir %s removed after successful build" % toy_buildpath)
         # make sure --disable-cleanup-builddir works
         args.append('--disable-cleanup-builddir')
         self.eb_main(args, do_build=True, verbose=True)

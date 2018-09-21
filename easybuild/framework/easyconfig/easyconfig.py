@@ -68,6 +68,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
 
@@ -116,16 +117,16 @@ def toolchain_hierarchy_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(toolchain):
+    def cache_aware_func(toolchain, incl_capabilities=False):
         """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
-        cache_key = (toolchain['name'], toolchain['version'])
+        cache_key = (toolchain['name'], toolchain['version'], incl_capabilities)
 
         # fetch from cache if available, cache it if it's not
         if cache_key in cache:
             _log.debug("Using cache to return hierarchy for toolchain %s: %s", str(toolchain), cache[cache_key])
             return cache[cache_key]
         else:
-            toolchain_hierarchy = func(toolchain)
+            toolchain_hierarchy = func(toolchain, incl_capabilities)
             cache[cache_key] = toolchain_hierarchy
             return cache[cache_key]
 
@@ -135,7 +136,7 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
-def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands):
+def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, incl_capabilities=False):
     """
     Returns unique version for subtoolchain, in tc dict.
     If there is no unique version:
@@ -144,15 +145,13 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
       optional toolchains or dummy without add_dummy_to_minimal_toolchains.
     * in all other cases, raises an exception.
     """
-    current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
-
     uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
     # init with "skipped"
     subtoolchain_version = None
 
     # dummy toolchain: bottom of the hierarchy
     if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-        if build_option('add_dummy_to_minimal_toolchains'):
+        if build_option('add_dummy_to_minimal_toolchains') and not incl_capabilities:
             subtoolchain_version = ''
     elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
@@ -160,16 +159,16 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
         if subtoolchain_name not in optional_toolchains:
             # raise error if the subtoolchain considered now is not optional
             raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                 subtoolchain_name, current_tc_name)
+                                 subtoolchain_name, current_tc['name'])
     else:
         raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                             subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
+                             subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
 
     return subtoolchain_version
 
 
 @toolchain_hierarchy_cache
-def get_toolchain_hierarchy(parent_toolchain):
+def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     """
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
@@ -199,8 +198,9 @@ def get_toolchain_hierarchy(parent_toolchain):
     optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
     composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
-    # the parent toolchain is at the top of the hierarchy
-    toolchain_hierarchy = [parent_toolchain]
+    # the parent toolchain is at the top of the hierarchy,
+    # we need a copy so that adding capabilities (below) doesn't affect the original object
+    toolchain_hierarchy = [copy.copy(parent_toolchain)]
     # use a queue to handle a breadth-first-search of the hierarchy,
     # which is required to take into account the potential for multiple subtoolchains
     bfs_queue = [parent_toolchain]
@@ -268,13 +268,27 @@ def get_toolchain_hierarchy(parent_toolchain):
         cands = [c for c in cands if c['name'] in subtoolchain_names]
 
         for subtoolchain_name in subtoolchain_names:
-            subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+            subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands,
+                                                            incl_capabilities=incl_capabilities)
             # add to hierarchy and move to next
             if subtoolchain_version is not None and subtoolchain_name not in visited:
                 tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
                 toolchain_hierarchy.insert(0, tc)
                 bfs_queue.insert(0, tc)
                 visited.add(subtoolchain_name)
+
+    # also add toolchain capabilities
+    if incl_capabilities:
+        for toolchain in toolchain_hierarchy:
+            toolchain_class, _ = search_toolchain(toolchain['name'])
+            tc = toolchain_class(version=toolchain['version'])
+            for capability in TOOLCHAIN_CAPABILITIES:
+                # cuda is the special case which doesn't have a family attribute
+                if capability == TOOLCHAIN_CAPABILITY_CUDA:
+                    # use None rather than False, useful to have it consistent with the rest
+                    toolchain[capability] = ('CUDA_CC' in tc.variables) or None
+                elif hasattr(tc, capability):
+                    toolchain[capability] = getattr(tc, capability)()
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy

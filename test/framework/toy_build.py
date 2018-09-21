@@ -661,9 +661,12 @@ class ToyBuildTest(EnhancedTestCase):
             '--module-naming-scheme=HierarchicalMNS',
         ]
 
-        # test module paths/contents with gompi build
+        # test module paths/contents with goolf build
         extra_args = [
             '--try-toolchain=goolf,1.4.10',
+            # This test was created for the regex substitution of toolchains, to trigger this (rather than subtoolchain
+            # resolution) we must add an additional build option
+            '--try-amend=parallel=1',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -708,7 +711,6 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
         os.remove(toy_module_path)
-
         # test module path with GCC/4.7.2 build, pretend to be an MPI lib by setting moduleclass
         extra_args = [
             '--try-toolchain=GCC,4.7.2',
@@ -844,7 +846,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(openmpi_mod, extra_modtxt, append=True)
 
         args = [
-            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % home,
@@ -862,9 +864,10 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod = os.path.join(home, 'modules', 'all', openmpi_mod_subdir, 'toy', '0.0' + mod_ext)
         toy_modtxt = read_file(toy_mod)
 
+        # No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
         for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
             regex = re.compile('load.*' + modname, re.M)
-            self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+            self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
         for modname in ['GCC', 'OpenMPI']:
             regex = re.compile('load.*' + modname, re.M)
@@ -911,9 +914,11 @@ class ToyBuildTest(EnhancedTestCase):
             self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
             toy_modtxt = read_file(toy_mod)
 
+            # No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
             for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
                 regex = re.compile('load.*' + modname, re.M)
-                self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+                self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern,
+                                                                                              toy_modtxt))
 
             for modname in ['GCC', 'OpenMPI']:
                 regex = re.compile('load.*' + modname, re.M)

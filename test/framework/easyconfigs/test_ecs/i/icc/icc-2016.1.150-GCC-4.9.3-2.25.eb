@@ -19,7 +19,7 @@ versionsuffix = '-GCC-%s-%s' % (gccver, binutilsver)
 
 dependencies = [
     ('GCCcore', gccver),
-    # ('binutils', binutilsver, '', ('GCCcore', gccver)),
+    ('binutils', binutilsver, '', ('GCCcore', gccver)),
 ]
 
 # full list of components can be obtained from pset/mediaconfig.xml in unpacked sources
