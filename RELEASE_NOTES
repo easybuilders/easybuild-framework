@@ -7,6 +7,7 @@ v3.7.0 (September 25th 2018)
 ----------------------------
 
 feature release
+- minimal Lmod version requirement bumped to 6.6.3 (#2575)
 - various enhancements, including:
   - add support to bootstrap script to force install specific EasyBuild version (#2382, #2580)
   - consider potential of multiple subtoolchains when resolving dependencies (#2464, #2465, #2466, #2585)
