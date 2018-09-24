@@ -3,6 +3,44 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.7.0 (September 25th 2018)
+----------------------------
+
+feature release
+- various enhancements, including:
+  - increase functionality of try_toolchain (#2539)
+  - add support for BLIS and goblf toolchain that uses BLIS for BLAS. (#2540)
+  - allow skipping sanity check (#2549)
+  - add --check-contrib CLI option (#2551)
+  - added support to 'download' sources from git (#2555)
+  - add 'parse' hook to add support for tweaking 'raw' easyconfig (#2562)
+  - add goolfc-2.6.10 toolchain for test_get_toolchain_hierarchy robot test. (#2464)
+  - consider potential of multiple subtoolchains in get_toolchain_hierarchy (#2466)
+  - lift invalidating of module caches into helper method that can be used by easyblocks (#2571)
+  - dump a fully parsed easyconfig to the reproducibility dir in all cases (#2574)
+  - add modulerc method to ModuleGenerator class (#2575)
+  - add support to bootstrap script to force install specific EasyBuild version (#2580)
+- various bug fixes, including:
+  - make GC3Pie stop build process if a dependency failed (fix for #1441) (#2474)
+  - fall back to downloading using the requests Python package (if installed) when urllib2 fails due to SSL error (#2538)
+  - filter out patched files in test/ in fetch_easyconfigs_from_pr (#2547)
+  - check gc3pie version using the `pkg_resources` API. (#2554)
+  - fix enforcing of checksums for extensions (#2561)
+  - templating must be disabled when parsing dependencies in EasyConfig.parse (#2566)
+  - skip running of configuration checks while only a single configuration level is taken into account during --show-config (#2567)
+  - fix default value for extension checksums to avoid TypeError when indexing a None (#2570)
+  - correct error statements in module checks (#2576)
+  - fix det_patch_specs function in github.py by leveraging is_patch_for after fleshing it out from find_software_name_for_patch (#2577)
+  - skip checksum check for extensions that are specified only by name (#2579)
+  - take into account dependency 'wrappers' in check_conflicts (#2583)
+  - stick to pycparser < 2.19 with Python 2.6 in Travis config (#2584)
+  - fix SUBTOOLCHAINS spec for intel-para toolchain (#2585)
+- other changes:
+  - use GCC instead of gompi for OpenBLAS in goolf-1.4.10 test toolchain. (#2465)
+  - use namelower as default for github_account (#2528)
+  - use .counts() rather than deprecated .stats() for GC3Pie (#2573)
+
+
 v3.6.2 (July 11th 2018)
 -----------------------
 
