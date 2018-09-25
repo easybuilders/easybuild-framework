@@ -36,6 +36,7 @@ Set of file tools.
 :author: Sotiris Fragkiskos (NTUA, CERN)
 :author: Davide Vanzo (ACCRE, Vanderbilt University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import datetime
 import difflib
@@ -60,6 +61,11 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 
+try:
+    import requests
+    HAVE_REQUESTS = True
+except ImportError:
+    HAVE_REQUESTS = False
 
 _log = fancylogger.getLogger('filetools', fname=False)
 
@@ -261,7 +267,41 @@ def remove_file(path):
         if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
-        raise EasyBuildError("Failed to remove %s: %s", path, err)
+        raise EasyBuildError("Failed to remove file %s: %s", path, err)
+
+
+def remove_dir(path):
+    """Remove directory at specified path."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        return
+
+    try:
+        if os.path.exists(path):
+            rmtree2(path)
+    except OSError, err:
+        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+
+
+def remove(paths):
+    """
+    Remove single file/directory or list of files and directories
+
+    :param paths: path(s) to remove
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Removing %d files & directories", len(paths))
+
+    for path in paths:
+        if os.path.isfile(path):
+            remove_file(path)
+        elif os.path.isdir(path):
+            remove_dir(path)
+        else:
+            raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
 def change_dir(path):
@@ -460,26 +500,47 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild',  "Accept" : "*/*"})
+    headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
+    # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
+    url_req = urllib2.Request(url, headers=headers)
+    used_urllib = urllib2
 
     while not downloaded and attempt_cnt < max_attempts:
         try:
-            # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url_req, timeout=timeout)
-            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
+            if used_urllib is urllib2:
+                # urllib2 does the right thing for http proxy setups, urllib does not!
+                url_fd = urllib2.urlopen(url_req, timeout=timeout)
+                status_code = url_fd.getcode()
+            else:
+                response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                status_code = response.status_code
+                response.raise_for_status()
+                url_fd = response.raw
+                url_fd.decode_content = True
+            _log.debug('response code for given url %s: %s' % (url, status_code))
             write_file(path, url_fd.read(), forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
-        except urllib2.HTTPError as err:
-            if 400 <= err.code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+        except used_urllib.HTTPError as err:
+            if used_urllib is urllib2:
+                status_code = err.code
+            if 400 <= status_code <= 499:
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
             else:
                 _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
                 attempt_cnt += 1
         except IOError as err:
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
+            error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
+                                  "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
+            if error_re.match(str(err)):
+                if not HAVE_REQUESTS:
+                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
+                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
+                _log.info("Downloading using requests package instead of urllib2")
+                used_urllib = requests
             attempt_cnt += 1
         except Exception, err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
@@ -705,6 +766,21 @@ def verify_checksum(path, checksums):
 
     # if we land here, all checksums have been verified to be correct
     return True
+
+
+def is_sha256_checksum(value):
+    """Check whether provided string is a SHA256 checksum."""
+    res = False
+    if isinstance(value, basestring):
+        if re.match('^[0-9a-f]{64}$', value):
+            res = True
+            _log.debug("String value '%s' has the correct format to be a SHA256 checksum", value)
+        else:
+            _log.debug("String value '%s' does NOT have the correct format to be a SHA256 checksum", value)
+    else:
+        _log.debug("Non-string value %s is not a SHA256 checksum", value)
+
+    return res
 
 
 def find_base_dir():
@@ -1626,6 +1702,83 @@ def copy(paths, target_path, force_in_dry_run=False):
             copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
         else:
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
+
+
+def get_source_tarball_from_git(filename, targetdir, git_config):
+    """
+    Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
+
+    :param filename: name of the archive to save the code to (must be .tar.gz)
+    :param targetdir: target directory where to save the archive to
+    :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
+    """
+    # sanity check on git_config value being passed
+    if not isinstance(git_config, dict):
+        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
+
+    # Making a copy to avoid modifying the object with pops
+    git_config = git_config.copy()
+    tag = git_config.pop('tag', None)
+    url = git_config.pop('url', None)
+    repo_name = git_config.pop('repo_name', None)
+    commit = git_config.pop('commit', None)
+    recursive = git_config.pop('recursive', False)
+
+    # input validation of git_config dict
+    if git_config:
+        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
+
+    if not repo_name:
+        raise EasyBuildError("repo_name not specified in git_config parameter")
+
+    if not tag and not commit:
+        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
+
+    if tag and commit:
+        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+
+    if not url:
+        raise EasyBuildError("url not specified in git_config parameter")
+
+    if not filename.endswith('.tar.gz'):
+        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
+
+    # prepare target directory and clone repository
+    mkdir(targetdir, parents=True)
+    targetpath = os.path.join(targetdir, filename)
+
+    # compose 'git clone' command, and run it
+    clone_cmd = ['git', 'clone']
+
+    if tag:
+        clone_cmd.extend(['--branch', tag])
+
+    if recursive:
+        clone_cmd.append('--recursive')
+
+    clone_cmd.append('%s/%s.git' % (url, repo_name))
+
+    tmpdir = tempfile.mkdtemp()
+    cwd = change_dir(tmpdir)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # if a specific commit is asked for, check it out
+    if commit:
+        checkout_cmd = ['git', 'checkout', commit]
+        if recursive:
+            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
+
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+
+    # create an archive and delete the git repo directory
+    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # cleanup (repo_name dir does not exist in dry run mode)
+    change_dir(cwd)
+    remove(tmpdir)
+
+    return targetpath
 
 
 def move_file(path, target_path, force_in_dry_run=False):

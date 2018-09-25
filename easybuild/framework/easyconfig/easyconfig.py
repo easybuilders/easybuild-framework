@@ -34,6 +34,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Alan O'Cais (Juelich Supercomputing Centre)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 import copy
@@ -55,11 +56,11 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -67,6 +68,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
 
@@ -115,16 +117,16 @@ def toolchain_hierarchy_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(toolchain):
+    def cache_aware_func(toolchain, incl_capabilities=False):
         """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
-        cache_key = (toolchain['name'], toolchain['version'])
+        cache_key = (toolchain['name'], toolchain['version'], incl_capabilities)
 
         # fetch from cache if available, cache it if it's not
         if cache_key in cache:
             _log.debug("Using cache to return hierarchy for toolchain %s: %s", str(toolchain), cache[cache_key])
             return cache[cache_key]
         else:
-            toolchain_hierarchy = func(toolchain)
+            toolchain_hierarchy = func(toolchain, incl_capabilities)
             cache[cache_key] = toolchain_hierarchy
             return cache[cache_key]
 
@@ -134,8 +136,39 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
+def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, incl_capabilities=False):
+    """
+    Returns unique version for subtoolchain, in tc dict.
+    If there is no unique version:
+    * use '' for dummy, if dummy is not skipped.
+    * return None for skipped subtoolchains, that is,
+      optional toolchains or dummy without add_dummy_to_minimal_toolchains.
+    * in all other cases, raises an exception.
+    """
+    uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+    # init with "skipped"
+    subtoolchain_version = None
+
+    # dummy toolchain: bottom of the hierarchy
+    if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+        if build_option('add_dummy_to_minimal_toolchains') and not incl_capabilities:
+            subtoolchain_version = ''
+    elif len(uniq_subtc_versions) == 1:
+        subtoolchain_version = list(uniq_subtc_versions)[0]
+    elif len(uniq_subtc_versions) == 0:
+        if subtoolchain_name not in optional_toolchains:
+            # raise error if the subtoolchain considered now is not optional
+            raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                 subtoolchain_name, current_tc['name'])
+    else:
+        raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                             subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
+
+    return subtoolchain_version
+
+
 @toolchain_hierarchy_cache
-def get_toolchain_hierarchy(parent_toolchain):
+def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     """
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
@@ -143,19 +176,46 @@ def get_toolchain_hierarchy(parent_toolchain):
     The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
     build option is enabled.
 
+    The most complex hierarchy we have now is goolfc which works as follows:
+
+        goolfc
+        /     \
+     gompic    golfc(*)
+          \    /   \      (*) optional toolchains, not compulsory for backwards compatibility
+          gcccuda golf(*)
+              \   /
+               GCC
+              /  |
+      GCCcore(*) |
+              \  |
+             (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
+
     :param parent_toolchain: dictionary with name/version of parent toolchain
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
     subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+    optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+    composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
-    current_tc_name, current_tc_version = parent_toolchain['name'], parent_toolchain['version']
-    subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+    # the parent toolchain is at the top of the hierarchy,
+    # we need a copy so that adding capabilities (below) doesn't affect the original object
+    toolchain_hierarchy = [copy.copy(parent_toolchain)]
+    # use a queue to handle a breadth-first-search of the hierarchy,
+    # which is required to take into account the potential for multiple subtoolchains
+    bfs_queue = [parent_toolchain]
+    visited = set()
 
-    # the parent toolchain is at the top of the hierarchy
-    toolchain_hierarchy = [parent_toolchain]
-
-    while subtoolchain_name:
+    while bfs_queue:
+        current_tc = bfs_queue.pop()
+        current_tc_name, current_tc_version = current_tc['name'], current_tc['version']
+        subtoolchain_names = subtoolchains[current_tc_name]
+        # if current toolchain has no subtoolchains, consider next toolchain in queue
+        if subtoolchain_names is None:
+            continue
+        # make sure we always have a list of subtoolchains, even if there's only one
+        if not isinstance(subtoolchain_names, list):
+            subtoolchain_names = [subtoolchain_names]
         # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
         path = robot_find_easyconfig(current_tc_name, current_tc_version)
         if path is None:
@@ -195,44 +255,40 @@ def get_toolchain_hierarchy(parent_toolchain):
                 cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
 
-        # only retain candidates that match subtoolchain name
-        cands = [c for c in cands if c['name'] == subtoolchain_name]
+        for dep in subtoolchain_names:
+            # try to find subtoolchains with the same version as the parent
+            # only do this for composite toolchains, not single-compiler toolchains, whose
+            # versions match those of the component instead of being e.g. "2018a".
+            if dep in composite_toolchains:
+                ecfile = robot_find_easyconfig(dep, current_tc_version)
+                if ecfile is not None:
+                    cands.append({'name': dep, 'version': current_tc_version})
 
-        uniq_subtc_versions = set([subtc['version'] for subtc in cands])
+        # only retain candidates that match subtoolchain names
+        cands = [c for c in cands if c['name'] in subtoolchain_names]
 
-        if len(uniq_subtc_versions) == 1:
-            subtoolchain_version = cands[0]['version']
+        for subtoolchain_name in subtoolchain_names:
+            subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands,
+                                                            incl_capabilities=incl_capabilities)
+            # add to hierarchy and move to next
+            if subtoolchain_version is not None and subtoolchain_name not in visited:
+                tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
+                toolchain_hierarchy.insert(0, tc)
+                bfs_queue.insert(0, tc)
+                visited.add(subtoolchain_name)
 
-        elif len(uniq_subtc_versions) == 0:
-            # only retain GCCcore as subtoolchain if version was found
-            if subtoolchain_name == GCCcore.NAME:
-                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
-                          subtoolchain_name)
-                subtoolchain_name = GCCcore.SUBTOOLCHAIN
-                subtoolchain_version = ''
-            # dummy toolchain: end of the line
-            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                subtoolchain_version = ''
-            else:
-                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                     subtoolchain_name, current_tc_name)
-        else:
-            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                # Don't care about multiple versions of dummy
-                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
-                subtoolchain_version = ''
-            else:
-                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                     subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
-
-        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
-            # we're done
-            break
-
-        # add to hierarchy and move to next
-        current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
-        subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
-        toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
+    # also add toolchain capabilities
+    if incl_capabilities:
+        for toolchain in toolchain_hierarchy:
+            toolchain_class, _ = search_toolchain(toolchain['name'])
+            tc = toolchain_class(version=toolchain['version'])
+            for capability in TOOLCHAIN_CAPABILITIES:
+                # cuda is the special case which doesn't have a family attribute
+                if capability == TOOLCHAIN_CAPABILITY_CUDA:
+                    # use None rather than False, useful to have it consistent with the rest
+                    toolchain[capability] = ('CUDA_CC' in tc.variables) or None
+                elif hasattr(tc, capability):
+                    toolchain[capability] = getattr(tc, capability)()
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
@@ -434,22 +490,38 @@ class EasyConfig(object):
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config
-            # do not store variables we don't need
             if key in self._config.keys():
-                if key in ['dependencies']:
-                    self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
-                elif key in ['builddependencies']:
-                    self[key] = [self._parse_dependency(dep, build_only=True) for dep in local_vars[key]]
-                elif key in ['hiddendependencies']:
-                    self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
-                else:
-                    self[key] = local_vars[key]
+                self[key] = local_vars[key]
                 self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
             elif key in REPLACED_PARAMETERS:
                 _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
+            # do not store variables we don't need
             else:
-                self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
+                self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
+
+        # trigger parse hook
+        # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
+        # (see also comment in resolve_template)
+        hooks = load_hooks(build_option('hooks'))
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
+        parse_hook_msg = None
+        if self.path:
+            parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
+
+        run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
+
+        # parse dependency specifications
+        # it's important that templating is still disabled at this stage!
+        self.log.info("Parsing dependency specifications...")
+        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
+        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
+        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+
+        # restore templating
+        self.enable_templating = prev_enable_templating
 
         # update templating dictionary
         self.generate_template_values()
@@ -701,9 +773,15 @@ class EasyConfig(object):
         self.generate_template_values()
         templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
-        # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
-        keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
-        templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
+        # create reverse map of templates, to inject template values where possible
+        # longer template values are considered first, shorter template keys get preference over longer ones
+        sorted_keys = sorted(self.template_values, key=lambda k: (len(self.template_values[k]), -len(k)), reverse=True)
+        templ_val = OrderedDict([])
+        for key in sorted_keys:
+            # shortest template 'key' is retained in case of duplicates ('namelower' is preferred over 'github_account')
+            # only template values longer than 2 characters are retained
+            if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
+                templ_val[self.template_values[key]] = key
 
         ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
         self.log.debug("Dumped easyconfig: %s", ectxt)
