@@ -14,8 +14,8 @@ easyblock = 'ConfigureMake'
 name = 'gzip'
 version = '1.5'
 
-homepage = "http://www.gzip.org/"
-description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+homepage = "http://www.%(name)s.org/"
+description = "%(namelower)s (GNU zip) is a popular data compression program as a replacement for compress"
 
 toolchain = {'name': 'ictce', 'version': '4.1.13'}
 
