@@ -33,14 +33,16 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers, and CUDA).
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA
+from easybuild.toolchains.gmkl import Gmkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Gmklc(GccCUDA, IntelMKL, IntelFFTW):
+class Gmklc(GccCUDA, Gmkl, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with GCC, Intel Math Kernel Library (MKL)
     and Intel FFTW wrappers and CUDA.
     """
     NAME = 'gmklc'
-    SUBTOOLCHAIN = GccCUDA.NAME
+    SUBTOOLCHAIN = [GccCUDA.NAME, Gmkl.NAME]
+    OPTIONAL = True

@@ -1,9 +1,6 @@
 ##
 # Copyright 2013-2018 Ghent University
 #
-# This file is triple-licensed under GPLv2 (see below), MIT, and
-# BSD three-clause licenses.
-#
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
@@ -26,18 +23,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gmpolf compiler toolchain (includes GCC, Parastation MPICH, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+Support for BLIS as toolchain linear algebra library.
 
+:author: Kenneth Hoste (Ghent University)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
-from easybuild.toolchains.gpsmpi import Gpsmpi
-from easybuild.toolchains.golf import Golf
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.openblas import OpenBLAS
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.tools.toolchain.linalg import LinAlg
 
 
-class Gpsolf(Gpsmpi, OpenBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, Parastation MPICH, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'gpsolf'
-    SUBTOOLCHAIN = [Gpsmpi.NAME, Golf.NAME]
+TC_CONSTANT_BLIS = 'BLIS'
+
+
+class Blis(LinAlg):
+    """
+    Trivial class, provides BLIS support.
+    """
+    BLAS_MODULE_NAME = ['BLIS']
+    BLAS_LIB = ['blis']
+    BLAS_FAMILY = TC_CONSTANT_BLIS

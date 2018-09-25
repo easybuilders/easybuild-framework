@@ -3,6 +3,43 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.7.0 (September 25th 2018)
+----------------------------
+
+feature release
+- minimal Lmod version requirement bumped to 6.6.3 (#2575)
+- various enhancements, including:
+  - add support to bootstrap script to force install specific EasyBuild version (#2382, #2580)
+  - consider potential of multiple subtoolchains when resolving dependencies (#2464, #2465, #2466, #2585)
+  - fall back to downloading using the requests Python package (if installed) when urllib2 fails due to SSL error (#2538)
+  - make --try-toolchain more aware of subtoolchains (#2539)
+    - subtoolchain of original toolchains are now mapped to subtoolchains of target toolchain
+  - add support for BLIS and goblf toolchain that uses BLIS for BLAS (#2540)
+  - allow skipping of sanity check step via 'skipsteps' easyconfig parameter (#2549)
+  - add support for --check-contrib (#2551)
+    - equivalent with --check-style, but also verifies presence of SHA256 checksums (+ more checks in the future)
+  - added support to 'download' sources from git (#2555)
+    - see https://easybuild.readthedocs.io/en/latest/Writing_easyconfig_files.html#downloading-from-a-git-repository
+  - add 'parse' hook to add support for applying site-specific customisations to the 'raw' easyconfig (#2562, #2566)
+    - see https://easybuild.readthedocs.io/en/develop/Hooks.html
+  - lift invalidating of module caches into helper method that can be used by easyblocks (#2571)
+  - always dump a fully parsed easyconfig to the 'reprod' subdir of the installation directory (#2574)
+  - add 'modulerc' method to ModuleGenerator class (#2575)
+- various bug fixes, including:
+  - make GC3Pie stop build process if a dependency failed (#2474)
+  - filter out patched files in test/ in fetch_easyconfigs_from_pr (#2547)
+  - check GC3pie version using the `pkg_resources` API rather than using __version__ (which was removed in GC3Pie 2.5.0) (#2554)
+  - fix enforcing of checksums for extensions (#2561, #2570, #2579)
+  - skip running of configuration checks while only a single configuration level is taken into account during --show-config (#2567)
+  - fix error statements in modules tool version checks (#2576)
+  - fix finding of software subdirectory for specified patch file in --new-pr/--update-pr (#2577)
+  - take into account dependency 'wrappers' in check_conflicts (#2583)
+  - stick to pycparser < 2.19 with Python 2.6 in Travis config (#2584)
+- other changes:
+  - use namelower as default for 'github_account' easyconfig parameter (#2528)
+  - use .counts() rather than deprecated .stats() for GC3Pie (#2573)
+
+
 v3.6.2 (July 11th 2018)
 -----------------------
 

@@ -32,6 +32,7 @@ CUDA, Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 """
 
 from easybuild.toolchains.iompic import Iompic
+from easybuild.toolchains.iimklc import Iimklc
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -42,4 +43,4 @@ class Iomklc(Iompic, IntelMKL, IntelFFTW):
     CUDA, Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'iomklc'
-    SUBTOOLCHAIN = Iompic.NAME
+    SUBTOOLCHAIN = [Iompic.NAME, Iimklc.NAME]

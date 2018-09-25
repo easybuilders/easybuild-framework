@@ -25,6 +25,7 @@ exts_default_options = {
 }
 
 exts_list = [
+    'ls',  # extension that is part of "standard library"
     ('bar', '0.0', {
         'buildopts': " && gcc bar.c -o anotherbar",
         'checksums': ['f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'],  # checksum for 

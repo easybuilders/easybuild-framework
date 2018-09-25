@@ -38,11 +38,10 @@ import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-import easybuild.tools.toolchain
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, find_eb_script, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -59,6 +58,21 @@ CCACHE = 'ccache'
 F90CACHE = 'f90cache'
 
 RPATH_WRAPPERS_SUBDIR = 'rpath_wrappers'
+
+# available capabilities of toolchains
+# values match method names supported by Toolchain class (except for 'cuda')
+TOOLCHAIN_CAPABILITY_BLAS_FAMILY = 'blas_family'
+TOOLCHAIN_CAPABILITY_COMP_FAMILY = 'comp_family'
+TOOLCHAIN_CAPABILITY_CUDA = 'cuda'
+TOOLCHAIN_CAPABILITY_LAPACK_FAMILY = 'lapack_family'
+TOOLCHAIN_CAPABILITY_MPI_FAMILY = 'mpi_family'
+TOOLCHAIN_CAPABILITIES = [
+    TOOLCHAIN_CAPABILITY_BLAS_FAMILY,
+    TOOLCHAIN_CAPABILITY_COMP_FAMILY,
+    TOOLCHAIN_CAPABILITY_CUDA,
+    TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
+    TOOLCHAIN_CAPABILITY_MPI_FAMILY,
+]
 
 
 class Toolchain(object):
@@ -649,7 +663,7 @@ class Toolchain(object):
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             c_comps = ['gcc', 'g++']
-            fortran_comps =  ['gfortran']
+            fortran_comps = ['gfortran']
         else:
             c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
             fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
@@ -685,7 +699,7 @@ class Toolchain(object):
 
             # set the variables
             # onlymod can be comma-separated string of variables not to be set
-            if onlymod == True:
+            if onlymod is True:
                 self.log.debug("prepare: do not set additional variables onlymod=%s", onlymod)
                 self.generate_vars()
             else:
@@ -853,11 +867,11 @@ class Toolchain(object):
 
         if cpp is not None:
             for p in cpp:
-                if not p in cpp_paths:
+                if p not in cpp_paths:
                     cpp_paths.append(p)
         if ld is not None:
             for p in ld:
-                if not p in ld_paths:
+                if p not in ld_paths:
                     ld_paths.append(p)
 
         if not names:

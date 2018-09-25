@@ -32,6 +32,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 """
 
 from easybuild.toolchains.pompi import Pompi
+from easybuild.toolchains.pmkl import Pmkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -42,4 +43,4 @@ class Pomkl(Pompi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'pomkl'
-    SUBTOOLCHAIN = Pompi.NAME
+    SUBTOOLCHAIN = [Pompi.NAME, Pmkl.NAME]

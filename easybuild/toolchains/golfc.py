@@ -36,7 +36,7 @@ from easybuild.toolchains.linalg.openblas import OpenBLAS
 
 
 class Golfc(GccCUDA, Golf, OpenBLAS, Fftw):
-    """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, and FFTW."""
+    """Compiler toolchain with GCC+CUDA, OpenBLAS, and FFTW."""
     NAME = 'golfc'
     SUBTOOLCHAIN = [GccCUDA.NAME, Golf.NAME]
     OPTIONAL = True

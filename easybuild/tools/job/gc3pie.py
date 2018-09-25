@@ -34,6 +34,7 @@ from time import gmtime, strftime
 import re
 import time
 
+from pkg_resources import get_distribution, DistributionNotFound
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -51,7 +52,7 @@ try:
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
-    from gc3libs.workflow import DependentTaskCollection
+    from gc3libs.workflow import AbortOnError, DependentTaskCollection
 
     # inject EasyBuild logger into GC3Pie
     gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
@@ -60,6 +61,16 @@ try:
 
     # instruct GC3Pie to not ignore errors, but raise exceptions instead
     gc3libs.UNIGNORE_ALL_ERRORS = True
+
+    # note: order of class inheritance is important!
+    class _BuildTaskCollection(AbortOnError, DependentTaskCollection):
+        """
+        A `DependentTaskCollection`:class: that aborts execution upon error.
+
+        This is used to stop the build process in case some dependency
+        fails.  See also `<https://github.com/easybuilders/easybuild-framework/issues/1441>`_
+        """
+        pass
 
 except ImportError as err:
     _log.debug("Failed to import gc3libs from GC3Pie."
@@ -78,8 +89,7 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
-    REQ_VERSION = '2.4.0'
-    VERSION_REGEX = re.compile(r'^(?P<version>\S*) version')
+    REQ_VERSION = '2.5.0'
 
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def __init__(self, *args, **kwargs):
@@ -90,24 +100,15 @@ class GC3Pie(JobBackend):
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
-        # location of __version__ to use may change, depending on the minimal required SVN revision for development versions
-        version_str = gc3libs.core.__version__
+        try:
+            pkg = get_distribution('gc3pie')
+        except DistributionNotFound as err:
+            raise EasyBuildError(
+                "Cannot load GC3Pie package: %s" % err)
 
-        match = self.VERSION_REGEX.search(version_str)
-        if match:
-            version = match.group('version')
-            self.log.debug("Parsed GC3Pie version info: '%s'", version)
-
-            if version == 'development':
-                # presume it's OK -- there's no way to check since GC3Pie switched to git
-                return True
-
-            if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
-                raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
-                                     version, self.REQ_VERSION)
-        else:
-            raise EasyBuildError("Failed to parse GC3Pie version string '%s' using pattern %s",
-                                 version_str, self.VERSION_REGEX.pattern)
+        if LooseVersion(pkg.version) < LooseVersion(self.REQ_VERSION):
+            raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
+                                 pkg.version, self.REQ_VERSION)
 
     def init(self):
         """
@@ -124,7 +125,7 @@ class GC3Pie(JobBackend):
             self.config_files.append(cfgfile)
 
         self.output_dir = build_option('job_output_dir')
-        self.jobs = DependentTaskCollection(output_dir=self.output_dir)
+        self.jobs = _BuildTaskCollection(output_dir=self.output_dir)
         self.job_cnt = 0
 
         # after polling for job status, sleep for this time duration
@@ -135,23 +136,20 @@ class GC3Pie(JobBackend):
         """
         Create and return a job object with the given parameters.
 
-        First argument `server` is an instance of the corresponding
-        `JobBackend` class, i.e., a `GC3Pie`:class: instance in this case.
-
-        Second argument `script` is the content of the job script
+        Argument *script* is the content of the job script
         itself, i.e., the sequence of shell commands that will be
         executed.
 
-        Third argument `name` sets the job human-readable name.
+        Argument *name* sets the job's human-readable name.
 
-        Fourth (optional) argument `env_vars` is a dictionary with
+        Optional argument *env_vars* is a dictionary with
         key-value pairs of environment variables that should be passed
         on to the job.
 
-        Fifth and sixth (optional) arguments `hours` and `cores` should be
+        Optional arguments *hours* and *cores* should be
         integer values:
-        * hours must be in the range 1 .. MAX_WALLTIME;
-        * cores depends on which cluster the job is being run.
+        - *hours* must be in the range 1 .. ``MAX_WALLTIME``;
+        - *cores* depends on which cluster the job is being run.
         """
         named_args = {
             'jobname': name, # job name in GC3Pie
@@ -222,21 +220,12 @@ class GC3Pie(JobBackend):
         # some sites may not be happy with flooding the cluster with build jobs...
         self._engine.max_in_flight = build_option('job_max_jobs')
 
-        # `Engine.stats()` (which is used later on in `_print_status_report()`)
-        # changed between 2.4.2 and 2.5.0.dev -- make sure we stay compatible
-        # with both
-        try:
-            self._engine.init_stats_for(Application)
-        except AttributeError:
-            _log.debug("No `init_stats_for` method in the Engine class;"
-                       " assuming pre-2.5.0 GC3Pie and ignoring error.")
-
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
         self._engine.add(self.jobs)
 
-        # in case you want to select a specific resource, call
+        # select a specific execution resource?
         target_resource = build_option('job_target_resource')
         if target_resource:
             res = self._engine.select_resource(target_resource)
@@ -265,10 +254,10 @@ class GC3Pie(JobBackend):
         Print a job status report to STDOUT and the log file.
 
         The number of jobs in each state is reported; the
-        figures are extracted from the `stats()` method of the
+        figures are extracted from the `counts()` method of the
         currently-running GC3Pie engine.
         """
-        stats = self._engine.stats(only=Application)
+        stats = self._engine.counts(only=Application)
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))

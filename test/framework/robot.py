@@ -712,6 +712,79 @@ class RobotTest(EnhancedTestCase):
             {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
         ])
 
+        # test also --try-toolchain* case, where we want more detailed information
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        get_toolchain_hierarchy.clear()
+
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
+        expected = [
+            {
+                'name': 'GCC',
+                'version': '4.7.2',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'golf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+            {
+                'name': 'gompi',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'goolf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+        ]
+        self.assertEqual(goolf_hierarchy, expected)
+
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'iimpi',
+                'version': '5.5.3-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': 'IntelMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+        ]
+        self.assertEqual(iimpi_hierarchy, expected)
+
         # test also including dummy
         init_config(build_options={
             'add_dummy_to_minimal_toolchains': True,
@@ -1125,6 +1198,31 @@ class RobotTest(EnhancedTestCase):
 
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
+
+    def test_check_conflicts_wrapper_deps(self):
+        """Test check_conflicts when dependency 'wrappers' are involved."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        wrapper_ec_txt = '\n'.join([
+            "easyblock = 'ModuleRC'",
+            "name = 'toy'",
+            "version = '0'",
+            "homepage = 'https://example.com'",
+            "description = 'Just A Wrapper'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+            "dependencies = [('toy', '0.0')]",
+        ])
+        wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
+        write_file(wrapper_ec, wrapper_ec_txt)
+
+        ecs, _ = parse_easyconfigs([(toy_ec, False), (wrapper_ec, False)])
+        self.mock_stderr(True)
+        res = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        self.assertFalse(res)
 
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""

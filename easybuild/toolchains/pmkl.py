@@ -43,3 +43,4 @@ class Pmkl(PgiToolchain, IntelMKL, IntelFFTW):
     """
     NAME = 'pmkl'
     SUBTOOLCHAIN = PgiToolchain.NAME
+    OPTIONAL = True

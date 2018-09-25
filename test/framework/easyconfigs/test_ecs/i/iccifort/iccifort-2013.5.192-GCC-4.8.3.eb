@@ -10,8 +10,9 @@ description = """Intel C, C++ and Fortran compilers"""
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 dependencies = [
-    ('icc', version, versionsuffix),
-    ('ifort', version, versionsuffix),
+    # use of %(version)s & %(versionsuffix)s is a bit silly here, but it should work too...
+    ('icc', version, '%(versionsuffix)s'),
+    ('ifort', '%(version)s', versionsuffix),
 ]
 
 moduleclass = 'toolchain'
