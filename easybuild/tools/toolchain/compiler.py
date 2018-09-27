@@ -302,7 +302,7 @@ class Compiler(Toolchain):
             else:
                 optarch = ec_optarch
         else:
-            optarch = build_option('optarch') 
+            optarch = build_option('optarch')
         # --optarch is specified with flags to use
         if optarch is not None and isinstance(optarch, dict):
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
