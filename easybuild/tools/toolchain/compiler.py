@@ -292,7 +292,17 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        optarch = build_option('optarch') 
+        ec_optarch = self.options.get('optarch', False)
+        if isinstance(ec_optarch, basestring):
+            if ':' in ec_optarch:
+                error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
+                error_msg += "the <compiler:flags> syntax is not allowed. "
+                error_msg += "Use <flags> (omitting the first dash) for the specific compiler."
+                raise EasyBuildError(error_msg)
+            else:
+                optarch = ec_optarch
+        else:
+            optarch = build_option('optarch') 
         # --optarch is specified with flags to use
         if optarch is not None and isinstance(optarch, dict):
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
