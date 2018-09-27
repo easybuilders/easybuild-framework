@@ -1107,7 +1107,7 @@ class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    REQ_VERSION = '6.6.3'
+    REQ_VERSION = '6.5.1'
     REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
