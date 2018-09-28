@@ -33,7 +33,6 @@ import re
 import shutil
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -47,7 +46,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import Lmod, modules_tool, reset_module_caches
+from easybuild.tools.modules import reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
@@ -1454,15 +1453,7 @@ class EasyBlockTest(EnhancedTestCase):
         modulerc_txt = modgen.modulerc(module_version=module_version_spec)
         one_moddir = os.path.join(self.test_installpath, 'modules', 'all', 'one')
 
-        modulerc = '.modulerc'
-
-        # with Lmod 7.8 & newer + Lua module syntax, the modulerc file is in Lua syntax, and must be named modulerc.lua
-        modtool = modules_tool()
-        lmod78 = isinstance(modtool, Lmod) and LooseVersion(modtool.version) >= LooseVersion('7.8')
-        if get_module_syntax() == 'Lua' and lmod78:
-            modulerc += '.lua'
-
-        write_file(os.path.join(one_moddir, modulerc), modulerc_txt)
+        write_file(os.path.join(one_moddir, modgen.DOT_MODULERC), modulerc_txt)
 
         # check again, this just grabs the cached results for 'avail one/1.0' & 'show one/1.0'
         self.assertFalse(self.modtool.exist(['one/1.0'])[0])

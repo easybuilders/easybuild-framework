@@ -123,6 +123,7 @@ class ModuleGenerator(object):
 
     MODULE_FILE_EXTENSION = None
     MODULE_SHEBANG = None
+    DOT_MODULERC = '.modulerc'
 
     # a single level of indentation
     INDENTATION = ' ' * 4
@@ -809,6 +810,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         if not isinstance(self.modules_tool, Lmod):
             raise EasyBuildError("Can't use Lua module syntax if modules tool is not Lmod")
 
+        if LooseVersion(self.modules_tool.version) >= LooseVersion('7.8'):
+            self.DOT_MODULERC = '.modulerc.lua'
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -971,7 +975,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         min_ver = '7.8'
 
         if LooseVersion(lmod_ver) >= LooseVersion(min_ver):
-            self.log.info("Found Lmod v%s >= v%s, so will generate .modulerc in Lua syntax", lmod_ver, min_ver)
+            self.log.info("Found Lmod v%s >= v%s, so will generate .modulerc.lua in Lua syntax", lmod_ver, min_ver)
 
             modulerc = []
 
