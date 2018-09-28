@@ -32,6 +32,7 @@ import glob
 import os
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import nub
@@ -325,6 +326,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'})
 
+        expected = '\n'.join([
+            '#%Module',
+            "module-version test/1.2.3.4.5 1.2.3",
+        ])
+
+        # two exceptions: EnvironmentModulesC, or Lmod 7.8 (or newer) and Lua syntax
         if self.modtool.__class__ == EnvironmentModulesC:
             expected = '\n'.join([
                 '#%Module',
@@ -332,16 +339,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '    module-version test/1.2.3.4.5 1.2.3',
                 '}',
             ])
-        else:
-            expected = '\n'.join([
-                '#%Module',
-                "module-version test/1.2.3.4.5 1.2.3",
-            ])
+        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) >= LooseVersion('7.8'):
+                expected = 'module_version("test/1.2.3.4.5", "1.2.3")'
 
         self.assertEqual(modulerc, expected)
 
         write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
-        write_file(os.path.join(self.test_prefix, 'test', '.modulerc'), modulerc)
+        write_file(os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC), modulerc)
 
         self.modtool.use(self.test_prefix)
 
