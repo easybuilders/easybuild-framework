@@ -46,7 +46,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, modules_tool
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -106,7 +106,7 @@ def dependencies_for(mod_name, modtool, depth=sys.maxint):
     # add dependencies of dependency modules only if they're not there yet
     for moddepdeps in moddeps:
         for dep in moddepdeps:
-            if not dep in mods:
+            if dep not in mods:
                 mods.append(dep)
 
     return mods
@@ -132,6 +132,8 @@ class ModuleGenerator(object):
         self.app = application
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.fake_mod_path = tempfile.mkdtemp()
+
+        self.modules_tool = modules_tool()
 
     def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -198,50 +200,64 @@ class ModuleGenerator(object):
         """
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
+    def _modulerc_check_module_version(self, module_version):
+        """
+        Check value type & contents of specified module-version spec.
+
+        :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
+        :return: True if spec is OK
+        """
+        res = False
+        if module_version:
+            if isinstance(module_version, dict):
+                expected_keys = ['modname', 'sym_version', 'version']
+                if sorted(module_version.keys()) == expected_keys:
+                    res = True
+                else:
+                    raise EasyBuildError("Incorrect module_version spec, expected keys: %s", expected_keys)
+            else:
+                raise EasyBuildError("Incorrect module_version value type: %s", type(module_version))
+
+        return res
+
     def modulerc(self, module_version=None):
         """
         Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod)
 
         :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
         """
+        self.log.info("Generating .modulerc contents in Tcl syntax (args: module_version: %s", module_version)
         modulerc = [ModuleGeneratorTcl.MODULE_SHEBANG]
 
-        if module_version:
-            if isinstance(module_version, dict):
-                expected_keys = ['modname', 'sym_version', 'version']
-                if sorted(module_version.keys()) == expected_keys:
+        if self._modulerc_check_module_version(module_version):
 
-                    module_version_statement = "module-version %(modname)s %(sym_version)s"
+            module_version_statement = "module-version %(modname)s %(sym_version)s"
 
-                    # for Environment Modules we need to guard the module-version statement,
-                    # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
-                    # which occur because the .modulerc is parsed twice
-                    # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
-                    # and returns the corresponding real version in case the argument is an existing symbolic version
-                    # cfr. https://sourceforge.net/p/modules/mailman/message/33399425/
-                    if modules_tool().__class__ == EnvironmentModulesC:
+            # for Environment Modules we need to guard the module-version statement,
+            # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
+            # which occur because the .modulerc is parsed twice
+            # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
+            # and returns the corresponding real version in case the argument is an existing symbolic version
+            # cfr. https://sourceforge.net/p/modules/mailman/message/33399425/
+            if self.modules_tool.__class__ == EnvironmentModulesC:
 
-                        modname, sym_version, version = [module_version[key] for key in expected_keys]
+                modname, sym_version, version = [module_version[key] for key in sorted(module_version.keys())]
 
-                        # determine module name with symbolic version
-                        if version in modname:
-                            # take a copy so we don't modify original value
-                            module_version = copy.copy(module_version)
-                            module_version['sym_modname'] = modname.replace(version, sym_version)
-                        else:
-                            raise EasyBuildError("Version '%s' does not appear in module name '%s'", version, modname)
-
-                        module_version_statement = '\n'.join([
-                            'if {"%(sym_modname)s" eq [module-info version %(sym_modname)s]} {',
-                            ' ' * 4 + module_version_statement,
-                            "}",
-                        ])
-
-                    modulerc.append(module_version_statement % module_version)
+                # determine module name with symbolic version
+                if version in modname:
+                    # take a copy so we don't modify original value
+                    module_version = copy.copy(module_version)
+                    module_version['sym_modname'] = modname.replace(version, sym_version)
                 else:
-                    raise EasyBuildError("Incorrect module_version spec, expected keys: %s", expected_keys)
-            else:
-                raise EasyBuildError("Incorrect module_version value type: %s", type(module_version))
+                    raise EasyBuildError("Version '%s' does not appear in module name '%s'", version, modname)
+
+                module_version_statement = '\n'.join([
+                    'if {"%(sym_modname)s" eq [module-info version %(sym_modname)s]} {',
+                    ' ' * 4 + module_version_statement,
+                    "}",
+                ])
+
+            modulerc.append(module_version_statement % module_version)
 
         return '\n'.join(modulerc)
 
@@ -594,7 +610,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
         if build_option('mod_depends_on') or depends_on:
-            if not modules_tool().supports_depends_on:
+            if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
@@ -614,7 +630,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Add a message that should be printed when loading the module.
         """
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
-        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
+        msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         print_cmd = "puts stderr %s" % quote_str(msg)
         return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd)])
 
@@ -784,6 +800,15 @@ class ModuleGeneratorLua(ModuleGenerator):
     START_STR = '[==['
     END_STR = ']==]'
 
+    def __init__(self, *args, **kwargs):
+        """ModuleGeneratorLua constructor."""
+        super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
+
+        # make very sure modules tool is Lmod, otherwise it's pointless to use Lua syntax
+        # this is also checked in postprocess check of EasyBuild configuration, but it doesn't hurt to check it here too
+        if not isinstance(self.modules_tool, Lmod):
+            raise EasyBuildError("Can't use Lua module syntax if modules tool is not Lmod")
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -792,10 +817,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
+        lmod_version = self.modules_tool.version
         min_lmod_version = '6.0.8'
 
-        if lmod_version != 'NOT_FOUND' and LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
+        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
             if error_msg is None:
                 error_msg = "You are not part of '%s' group of users that have access to this software; " % group
                 error_msg += "Please consult with user support how to become a member of this group"
@@ -906,7 +931,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
         if build_option('mod_depends_on') or depends_on:
-            if not modules_tool().supports_depends_on:
+            if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
@@ -935,6 +960,32 @@ class ModuleGeneratorLua(ModuleGenerator):
         # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
         stmt = 'io.stderr:write(%s%s%s)' % (self.START_STR, self.check_str(msg), self.END_STR)
         return '\n' + self.conditional_statement('mode() == "load"', stmt)
+
+    def modulerc(self, module_version=None):
+        """
+        Generate contents of .modulerc file, in Lua syntax (but only if Lmod is recent enough, i.e. >= 7.8)
+
+        :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
+        """
+        lmod_ver = self.modules_tool.version
+        min_ver = '7.8'
+
+        if LooseVersion(lmod_ver) >= LooseVersion(min_ver):
+            self.log.info("Found Lmod v%s >= v%s, so will generate .modulerc in Lua syntax", lmod_ver, min_ver)
+
+            modulerc = []
+
+            if self._modulerc_check_module_version(module_version):
+                module_version_statement = 'module_version("%(modname)s", "%(sym_version)s")'
+                modulerc.append(module_version_statement % module_version)
+
+            modulerc = '\n'.join(modulerc)
+
+        else:
+            self.log.info("Lmod v%s < v%s, need to stick to Tcl syntax for .modulerc", lmod_ver, min_ver)
+            modulerc = super(ModuleGeneratorLua, self).modulerc(module_version=module_version)
+
+        return modulerc
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
