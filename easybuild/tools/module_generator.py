@@ -805,13 +805,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         """ModuleGeneratorLua constructor."""
         super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
 
-        # make very sure modules tool is Lmod, otherwise it's pointless to use Lua syntax
-        # this is also checked in postprocess check of EasyBuild configuration, but it doesn't hurt to check it here too
-        if not isinstance(self.modules_tool, Lmod):
-            raise EasyBuildError("Can't use Lua module syntax if modules tool is not Lmod")
+        if self.modules_tool:
 
-        if LooseVersion(self.modules_tool.version) >= LooseVersion('7.8'):
-            self.DOT_MODULERC = '.modulerc.lua'
+            if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.8'):
+                self.DOT_MODULERC = '.modulerc.lua'
 
     def check_group(self, group, error_msg=None):
         """

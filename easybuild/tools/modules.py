@@ -1407,8 +1407,9 @@ class Modules(EnvironmentModulesC):
 
 class NoModulesTool(ModulesTool):
     """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
+
     def __init__(self, *args, **kwargs):
-        pass
+        self.version = None
 
     def exist(self, mod_names, *args, **kwargs):
         """No modules, so nothing exists"""
