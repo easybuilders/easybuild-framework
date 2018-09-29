@@ -1457,7 +1457,7 @@ def robot_find_easyconfig(name, version, all_paths=False):
             candidate_paths += easyconfigs_paths
         else:
             for easyconfig_path in easyconfigs_paths:
-                log.debug("Checking easyconfig path %s" % easyconfig_path)
+                _log.debug("Checking easyconfig path %s" % easyconfig_path)
                 if os.path.isfile(easyconfig_path):
                     _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                     _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
