@@ -839,7 +839,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 toolchain_hierarchy = get_toolchain_hierarchy(orig_dep['toolchain'])
                 potential_version_matches = []
                 for toolchain in toolchain_hierarchy:
-                    candidate_ver= '*'
+                    candidate_ver = '*'
                     # determine main install version based on toolchain
                     if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
                         toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
@@ -857,7 +857,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                         except AttributeError:
                             raise EasyBuildError("Somethings wrong, could not extract version from %s", filename)
                         potential_version_matches += [{'version': version, 'path': path, 'toolchain': toolchain}]
-                _log.info("Found possible dependency upgrades: %s\n",potential_version_matches)
+                _log.info("Found possible dependency upgrades: %s\n", potential_version_matches)
 
                 # Compare this version to the original versions and replace if appropriate (upgrades only)
                 highest_version = orig_dep['version']
