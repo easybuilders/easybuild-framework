@@ -1428,9 +1428,10 @@ def create_paths(path, name, version):
     return ['%s.eb' % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
-def robot_find_easyconfig(name, version):
+def robot_find_easyconfig(name, version, all_paths=False):
     """
-    Find an easyconfig for module in path, returns (absolute) path to easyconfig file (or None, if none is found).
+    Find an easyconfig (or easyconfigs) in available paths, returns (absolute) path to easyconfig file or list of all
+    matches (since version may contain a glob value), returns None if none is found.
     """
     key = (name, version)
     if key in _easyconfig_files_cache:
@@ -1447,18 +1448,33 @@ def robot_find_easyconfig(name, version):
     if build_option('consider_archived_easyconfigs'):
         paths = paths + [os.path.join(p, EASYCONFIGS_ARCHIVE_DIR) for p in paths]
 
+
     res = None
+    candidate_paths = []
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
-        for easyconfig_path in easyconfigs_paths:
-            _log.debug("Checking easyconfig path %s" % easyconfig_path)
-            if os.path.isfile(easyconfig_path):
-                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
-                _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
-                res = _easyconfig_files_cache[key]
+        if all_paths:
+            candidate_paths += easyconfigs_paths
+        else:
+            for easyconfig_path in easyconfigs_paths:
+                log.debug("Checking easyconfig path %s" % easyconfig_path)
+                if os.path.isfile(easyconfig_path):
+                    _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
+                    _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
+                    res = _easyconfig_files_cache[key]
+                    break
+            if res:
                 break
-        if res:
-            break
+    if all_paths:
+        full_cand_paths = []
+        for easyconfig_path in candidate_paths:
+            log.debug("Checking easyconfig path %s" % easyconfig_path)
+            if os.path.isfile(easyconfig_path):
+                _log.debug("Found easyconfig file for name %s  at %s" % (name, easyconfig_path))
+                full_cand_paths += [os.path.abspath(easyconfig_path)]
+        _easyconfig_files_cache[key] = full_cand_paths
+        if _easyconfig_files_cache[key]:
+            res = _easyconfig_files_cache[key]
 
     return res
 

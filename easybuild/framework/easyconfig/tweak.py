@@ -795,7 +795,7 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
     return tc_mapping
 
 
-def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None):
+def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None, update_dep_versions=False):
     """
     Take an easyconfig spec, parse it, map it to a target toolchain and dump it out
 
@@ -833,6 +833,48 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 # set module names
                 orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
                 orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
+            elif update_dep_versions:
+                # Search for available updates for this dependency:
+                # First get all candidate paths for this (include search through subtoolchains)
+                toolchain_hierarchy = get_toolchain_hierarchy(orig_dep['toolchain'])
+                potential_version_matches = []
+                for toolchain in toolchain_hierarchy:
+                    candidate_ver= '*'
+                    # determine main install version based on toolchain
+                    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+                        toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
+                    # prepend/append version prefix/suffix
+                    ecver = ''.join([x for x in [parsed_ec.get('versionprefix', ''), candidate_ver, toolchain_suffix,
+                                                 ec.get('versionsuffix', '')] if x])
+                    cand_paths = robot_find_easyconfig(orig_dep['name'], ecver, all_paths=True)
+                    # Add them to the possibilities
+                    for path in cand_paths:
+                        # Get the version from the path
+                        filename = os.path.basename(path)
+                        # Find the version sandwiched between our known values
+                        try:
+                            version = re.search('%s(.+?)%s' % (orig_dep['name'] + '-', toolchain_suffix), text).group(1)
+                        except AttributeError:
+                            raise EasyBuildError("Somethings wrong, could not extract version from %s", filename)
+                        potential_version_matches += [{'version': version, 'path': path, 'toolchain': toolchain}]
+                _log.info("Found possible dependency upgrades: %s\n",potential_version_matches)
+
+                # Compare this version to the original versions and replace if appropriate (upgrades only)
+                highest_version = orig_dep['version']
+                highest_version_paths = []
+                for candidate in potential_version_matches:
+                    if LooseVersion(candidate['version']) >= LooseVersion(highest_version):
+                        highest_version = candidate['version']
+                        highest_version_paths += [candidate_ver['path']]
+                if highest_version_paths:
+                    _log.info("Increasing version to %s for dependency %s.", highest_version, orig_dep['name'])
+                    _log.info("Depending on your configuration, this will be resolved with one of the following "
+                              "easyconfigs: %s", highest_version_paths)
+                    orig_dep['version'] = highest_version
+                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
+                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
+
+
     # Determine the name of the modified easyconfig and dump it to target_dir
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
