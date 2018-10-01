@@ -1175,7 +1175,7 @@ def process_software_build_specs(options):
         'version': options.try_software_version,
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
-        'upgrade_deps': options.try_upgrade_dependencies
+        'upgrade_deps': options.try_upgrade_deps
     }
 
     # process easy options

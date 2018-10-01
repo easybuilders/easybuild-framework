@@ -103,7 +103,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
 
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
         # supported
-        if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'upgrade_dependencies'] for key in keys):
+        if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'upgrade_deps'] for key in keys):
             print_warning("Combining --try-toolchain* with other build options is not fully supported: using regex")
             revert_to_regex = True
 
