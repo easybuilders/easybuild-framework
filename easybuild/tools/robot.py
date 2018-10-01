@@ -380,7 +380,17 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
 
 
 def search_easyconfigs(query, short=False, filename_only=False, terse=False, return_robot_list=False):
-    """Search for easyconfigs, if a query is provided."""
+    """
+    Search for easyconfigs, if a query is provided.
+
+    :param query: regex query string
+    :param short: figure out common prefix of hits, use variable to factor it out
+    :param filename_only: only print filenames, not paths
+    :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
+    :param return_robot_list: return the list rather than print it out
+
+    :return: return a list of paths for the query iff return_robot_list else no return value
+    """
     search_path = build_option('robot_path')
     if not search_path:
         search_path = [os.getcwd()]
