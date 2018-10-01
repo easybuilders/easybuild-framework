@@ -846,28 +846,27 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 potential_version_matches = []
                 for toolchain in toolchain_hierarchy:
                     candidate_ver = '.*'  # using regex for *
+                    if 'versionsuffix' in dep:
+                        versionsuffix = dep['versionsuffix']
+                    if 'versionprefix' in dep:
+                        versionprefix = dep['versionprefix']
                     # determine main install version based on toolchain
-                    if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
-                        version_suffix = ''.join([x for x in [parsed_ec.get('versionsuffix', '')] if x])
-                    else:
+                    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
                         toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
-                        version_suffix = ''.join([x for x in [toolchain_suffix,
-                                                              parsed_ec.get('versionsuffix', '')] if x])
+                        versionsuffix = ''.join([x for x in [toolchain_suffix, versionsuffix] if x])
                     # prepend/append version prefix/suffix
-                    ecver = ''.join([x for x in [parsed_ec.get('versionprefix', ''),
-                                                 candidate_ver, version_suffix] if x])
-                    cand_paths = search_easyconfigs(dep['name'] + '-' + ecver, return_robot_list=True)
+                    depver = ''.join([x for x in [versionprefix, candidate_ver, versionsuffix] if x])
+                    cand_paths = search_easyconfigs(dep['name'] + '-' + depver, return_robot_list=True)
                     # Add them to the possibilities
                     for path in cand_paths:
                         # Get the version from the path
                         filename = os.path.basename(path)
                         # Find the version sandwiched between our known values
                         try:
-                            version_prefix = ''.join([x for x in [dep['name'] + '-',
-                                                                  parsed_ec.get('versionprefix', '')] if x])
-                            if not version_suffix:
-                                version_suffix = EB_FORMAT_EXTENSION
-                            version = re.search('%s(.+?)%s' % (version_prefix, version_suffix), filename).group(1)
+                            versionprefix = ''.join([x for x in [dep['name'] + '-', versionprefix] if x])
+                            if not versionsuffix:
+                                versionsuffix = EB_FORMAT_EXTENSION
+                            version = re.search('%s(.+?)%s' % (versionprefix, versionsuffix), filename).group(1)
                         except AttributeError:
                             raise EasyBuildError("Somethings wrong, could not extract version from %s", filename)
                         potential_version_matches.append({'version': version, 'path': path, 'toolchain': toolchain})
