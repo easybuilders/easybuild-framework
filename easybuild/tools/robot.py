@@ -379,13 +379,14 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False, filename_only=False, terse=False, return_list=False):
+def search_easyconfigs(query, short=False, filename_only=False, terse=False, return_robot_list=False):
     """Search for easyconfigs, if a query is provided."""
     search_path = build_option('robot_path')
     if not search_path:
         search_path = [os.getcwd()]
     extra_search_paths = build_option('search_paths')
-    if extra_search_paths:
+    # If we're returning a list of possible resolutions by the robot, don't include the extra_search_paths
+    if extra_search_paths and not return_robot_list:
         search_path.extend(extra_search_paths)
 
     ignore_dirs = build_option('ignore_dirs')
@@ -403,7 +404,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, ret
             hits.append(hit)
 
     # if requested return the matches as a list
-    if return_list:
+    if return_robot_list:
         if build_option('consider_archived_easyconfigs'):
             return hits + archived_hits
         else:
