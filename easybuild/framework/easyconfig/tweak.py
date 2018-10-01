@@ -89,12 +89,16 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                              toolchains)
     # Toolchain is unique, let's store it
     source_toolchain = easyconfigs[-1]['ec']['toolchain']
-    modifying_toolchains = False
+    modifying_toolchains_or_deps = False
     target_toolchain = {}
     src_to_dst_tc_mapping = {}
     revert_to_regex = False
+    if build_specs['upgrade_dependencies']:
+        upgrade_dependencies = build_specs['upgrade_dependencies']
+    else:
+        upgrade_dependencies = False
 
-    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs:
+    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs or upgrade_dependencies:
         keys = build_specs.keys()
 
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
@@ -108,7 +112,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             # so build specifications should be applied to whole dependency graph;
             # obtain full dependency graph for specified easyconfigs;
             # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
-            modifying_toolchains = True
+            modifying_toolchains_or_deps = True
 
             if 'toolchain_name' in keys:
                 target_toolchain['name'] = build_specs['toolchain_name']
@@ -162,10 +166,11 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         new_ec_file = None
         verification_build_specs = copy.copy(build_specs)
         if orig_ec['spec'] in listed_ec_paths:
-            if modifying_toolchains:
+            if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
-                                                                        tweaked_ecs_path)
+                                                                        tweaked_ecs_path,
+                                                                        update_dep_versions=upgrade_dependencies)
                     # Need to update the toolchain in the build_specs to match the toolchain mapping
                     keys = verification_build_specs.keys()
                     if 'toolchain_name' in keys:
@@ -182,7 +187,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 tweaked_easyconfigs.extend(new_ecs)
         else:
             # Place all tweaked dependency easyconfigs in the directory appended to the robot path
-            if modifying_toolchains:
+            if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         targetdir=tweaked_ecs_deps_path)
