@@ -93,8 +93,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     target_toolchain = {}
     src_to_dst_tc_mapping = {}
     revert_to_regex = False
-    if 'upgrade_dependencies' in build_specs:
-        upgrade_dependencies = build_specs['upgrade_dependencies']
+    if 'upgrade_deps' in build_specs:
+        upgrade_dependencies = build_specs['upgrade_deps']
     else:
         upgrade_dependencies = False
 

@@ -307,7 +307,7 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store', None, {'metavar': 'NAME'}),
             'toolchain-version': ("Search and build with given toolchain version",
                                   None, 'store', None, {'metavar': 'VERSION'}),
-            'upgrade-dependencies': ("Try to upgrade versions of the dependencies of an easyconfig based on what is "
+            'upgrade-deps': ("Try to upgrade versions of the dependencies of an easyconfig based on what is "
                                      "available in the robot path",
                                      None, 'store_true', False),
         })
@@ -1175,7 +1175,7 @@ def process_software_build_specs(options):
         'version': options.try_software_version,
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
-        'upgrade_dependencies': options.try_upgrade_dependencies
+        'upgrade_deps': options.try_upgrade_dependencies
     }
 
     # process easy options
