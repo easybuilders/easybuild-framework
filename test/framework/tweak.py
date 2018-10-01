@@ -281,7 +281,7 @@ class TweakTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
+            'robot_path': [test_easyconfigs],
         })
         get_toolchain_hierarchy.clear()
 
@@ -300,6 +300,27 @@ class TweakTest(EnhancedTestCase):
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
             self.assertTrue(key in tweaked_dict['builddependencies'][0] and
                             value == tweaked_dict['builddependencies'][0][key])
+
+        # Now test the case where we try to update the dependencies
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+        })
+        get_toolchain_hierarchy.clear()
+        tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping, update_dep_versions=True)
+        tweaked_ec = process_easyconfig(tweaked_spec)[0]
+        tweaked_dict = tweaked_ec['ec'].asdict()
+        # First check the mapped toolchain
+        key, value = 'toolchain', iccifort_binutils_tc
+        self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
+        # Also check that binutils has been mapped
+        for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
+            self.assertTrue(key in tweaked_dict['builddependencies'][0] and
+                            value == tweaked_dict['builddependencies'][0][key])
+        # Also check that the gzip dependency was upgraded
+        for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
+            self.assertTrue(key in tweaked_dict['dependencies'][0] and
+                            value == tweaked_dict['dependencies'][0][key])
 
 def suite():
     """ return all the tests in this file """
