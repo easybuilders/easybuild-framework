@@ -46,13 +46,14 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
+from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig, search_easyconfigs
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
 from easybuild.tools.utilities import quote_str
@@ -841,39 +842,45 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 for toolchain in toolchain_hierarchy:
                     candidate_ver = '*'
                     # determine main install version based on toolchain
-                    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+                    if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
+                        version_suffix = ''.join([x for x in [parsed_ec.get('versionsuffix', '')] if x])
+                    else:
                         toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
+                        version_suffix = ''.join([x for x in [toolchain_suffix,
+                                                              parsed_ec.get('versionsuffix', '')] if x])
                     # prepend/append version prefix/suffix
-                    ecver = ''.join([x for x in [parsed_ec.get('versionprefix', ''), candidate_ver, toolchain_suffix,
-                                                 ec.get('versionsuffix', '')] if x])
-                    cand_paths = robot_find_easyconfig(orig_dep['name'], ecver, all_paths=True)
+                    ecver = ''.join([x for x in [parsed_ec.get('versionprefix', ''),
+                                                 candidate_ver, version_suffix] if x])
+                    cand_paths = search_easyconfigs(dep['name'] + '-' + ecver, return_list=True)
                     # Add them to the possibilities
                     for path in cand_paths:
                         # Get the version from the path
                         filename = os.path.basename(path)
                         # Find the version sandwiched between our known values
                         try:
-                            version = re.search('%s(.+?)%s' % (orig_dep['name'] + '-', toolchain_suffix), text).group(1)
+                            version_prefix = ''.join([x for x in [dep['name'] + '-',
+                                                                  parsed_ec.get('versionprefix', '')] if x])
+                            if not version_suffix:
+                                version_suffix = EB_FORMAT_EXTENSION
+                            version = re.search('%s(.+?)%s' % (version_prefix, version_suffix), filename).group(1)
                         except AttributeError:
                             raise EasyBuildError("Somethings wrong, could not extract version from %s", filename)
-                        potential_version_matches += [{'version': version, 'path': path, 'toolchain': toolchain}]
-                _log.info("Found possible dependency upgrades: %s\n", potential_version_matches)
+                        potential_version_matches.append({'version': version, 'path': path, 'toolchain': toolchain})
+                _log.debug("Found possible dependency upgrades: %s\n", potential_version_matches)
 
                 # Compare this version to the original versions and replace if appropriate (upgrades only)
-                highest_version = orig_dep['version']
-                highest_version_paths = []
+                highest_version = dep['version']
                 for candidate in potential_version_matches:
                     if LooseVersion(candidate['version']) >= LooseVersion(highest_version):
                         highest_version = candidate['version']
-                        highest_version_paths += [candidate_ver['path']]
-                if highest_version_paths:
+                if highest_version != dep['version']:
                     _log.info("Increasing version to %s for dependency %s.", highest_version, orig_dep['name'])
                     _log.info("Depending on your configuration, this will be resolved with one of the following "
-                              "easyconfigs: %s", highest_version_paths)
+                              "easyconfigs: %s", '\n'.join(cand['path'] for cand in potential_version_matches
+                                                           if cand['version'] == highest_version))
                     orig_dep['version'] = highest_version
                     orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
                     orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
-
 
     # Determine the name of the modified easyconfig and dump it to target_dir
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))

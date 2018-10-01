@@ -1454,7 +1454,7 @@ def robot_find_easyconfig(name, version, all_paths=False):
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
         if all_paths:
-            candidate_paths += easyconfigs_paths
+            candidate_paths.append(easyconfigs_paths)
         else:
             for easyconfig_path in easyconfigs_paths:
                 _log.debug("Checking easyconfig path %s" % easyconfig_path)
@@ -1465,13 +1465,15 @@ def robot_find_easyconfig(name, version, all_paths=False):
                     break
             if res:
                 break
+
     if all_paths:
         full_cand_paths = []
+        print candidate_paths
         for easyconfig_path in candidate_paths:
-            log.debug("Checking easyconfig path %s" % easyconfig_path)
+            _log.debug("Checking easyconfig path %s" % easyconfig_path)
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s  at %s" % (name, easyconfig_path))
-                full_cand_paths += [os.path.abspath(easyconfig_path)]
+                full_cand_paths.append(os.path.abspath(easyconfig_path))
         _easyconfig_files_cache[key] = full_cand_paths
         if _easyconfig_files_cache[key]:
             res = _easyconfig_files_cache[key]
