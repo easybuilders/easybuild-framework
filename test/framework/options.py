@@ -2340,12 +2340,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-GCC-4.7.2')))
         self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-gompi-1.4.10')))
         self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-GCC-4.7.2')))
-        # test when we include glob values that we get a list back
-        paths = robot_find_easyconfig('binutils', '*-GCCcore-4.9.3', all_paths=True)
-        print paths
-        self.assertTrue(paths)
-        for path in paths:
-            self.assertTrue(os.path.exists(path))
 
         args = [
             ec_file,

@@ -129,7 +129,7 @@ class FormatYeb(EasyConfigFormat):
 
 def is_yeb_format(filename, rawcontent):
     """
-    Determine whether easyconfig is in .dep['name'] format.
+    Determine whether easyconfig is in .yeb format.
     If filename is None, rawcontent will be used to check the format.
     """
     isyeb = False
