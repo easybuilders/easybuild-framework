@@ -1256,8 +1256,10 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'robot_path': [test_ecs],
         })
-        paths = search_easyconfigs('binutils-*-GCCcore-4.9.3', return_robot_list=True)
-        print paths
+        paths = search_easyconfigs('binutils-.*-GCCcore-4.9.3', return_robot_list=True)
+        ref_paths = [os.path.join(test_ecs, 'b', 'binutils', x) for x in ['binutils-2.25-GCCcore-4.9.3.eb',
+                                                                          'binutils-2.26-GCCcore-4.9.3.eb']]
+        self.assertEqual(paths, ref_paths)
 
 
 def suite():
