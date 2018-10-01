@@ -55,7 +55,7 @@ from easybuild.tools.filetools import copy_file, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
-from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies
+from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies, search_easyconfigs
 from test.framework.utilities import find_full_path
 
 
@@ -1249,6 +1249,15 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual([ec['full_mod_name'] for ec in res], ['ictce/3.2.2.u3', 'gzip/1.5-ictce-3.2.2.u3'])
         expected = os.path.join(test_ecs, '__archive__', 'i', 'ictce', 'ictce-3.2.2.u3.eb')
         self.assertTrue(os.path.samefile(res[0]['spec'], expected))
+
+    def test_search_easyconfigs(self):
+        """Test search_easyconfigs function."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'robot_path': [test_ecs],
+        })
+        paths = search_easyconfigs('binutils-*-GCCcore-4.9.3', return_robot_list=True)
+        print paths
 
 
 def suite():
