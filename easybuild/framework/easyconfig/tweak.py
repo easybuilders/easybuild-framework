@@ -848,8 +848,12 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                     candidate_ver = '.*'  # using regex for *
                     if 'versionprefix' in dep:
                         versionprefix = dep['versionprefix']
+                    else:
+                        versionprefix = ''
                     if 'versionsuffix' in dep:
                         versionsuffix = dep['versionsuffix']
+                    else:
+                        versionsuffix = ''
                     # determine main install version based on toolchain
                     if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
                         toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
