@@ -1615,11 +1615,13 @@ def clean_up_easyconfigs(paths):
 
 def det_file_info(paths, target_dir):
     """
-    Determine useful information on easyconfig files relative to a target directory, before any actual operation (e.g. copying) is performed
+    Determine useful information on easyconfig files relative to a target directory,
+    before any actual operation (e.g. copying) is performed
 
     :param paths: list of paths to easyconfig files
     :param target_dir: target directory
-    :return: dict with useful information on easyconfig files (corresponding EasyConfig instances, paths, status) relative to a target directory
+    :return: dict with useful information on easyconfig files (corresponding EasyConfig instances, paths, status)
+             relative to a target directory
     """
     file_info = {
         'ecs': [],
