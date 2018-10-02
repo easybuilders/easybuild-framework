@@ -800,6 +800,7 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
 
     return tc_mapping
 
+
 # This really needs a cache
 def map_common_versionsuffixes(original_toolchain, toolchain_mapping):
     """
