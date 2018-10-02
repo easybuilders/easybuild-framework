@@ -947,7 +947,8 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                         toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
                     else:
                         toolchain_suffix = ''
-                    full_versionsuffix = ''.join([x for x in [toolchain_suffix, versionsuffix, EB_FORMAT_EXTENSION] if x])
+                    full_versionsuffix = ''.join([x for x in [toolchain_suffix, versionsuffix, EB_FORMAT_EXTENSION]
+                                                  if x])
 
                     # prepend/append version prefix/suffix
                     depver = ''.join([x for x in ['^', versionprefix, candidate_ver, full_versionsuffix] if x])
