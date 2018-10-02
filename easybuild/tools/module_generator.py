@@ -46,7 +46,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -221,11 +221,25 @@ class ModuleGenerator(object):
 
         return res
 
-    def modulerc(self, module_version=None):
+    def _write_modulerc_file(self, modulerc_path, modulerc_txt):
         """
-        Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod)
+        Write modulerc file with specified contents.
+        """
+        if os.path.exists(modulerc_path) and not build_option('force'):
+            raise EasyBuildError("Found existing .modulerc at %s, not overwriting without --force", modulerc_path)
+
+        # FIXME Lmod 6.x requires that module being wrapped is in same location as .modulerc file...
+
+        write_file(modulerc_path, modulerc_txt, backup=True)
+
+    def modulerc(self, module_version=None, filepath=None):
+        """
+        Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod).
+        If 'filepath' is specfiied, the .modulerc file will be written as well.
 
         :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
+        :param filepath: location where .modulerc file should be written to
+        :return: contents of .modulerc file
         """
         self.log.info("Generating .modulerc contents in Tcl syntax (args: module_version: %s", module_version)
         modulerc = [ModuleGeneratorTcl.MODULE_SHEBANG]
@@ -260,7 +274,13 @@ class ModuleGenerator(object):
 
             modulerc.append(module_version_statement % module_version)
 
-        return '\n'.join(modulerc)
+        modulerc_txt = '\n'.join(modulerc)
+
+        if filepath:
+            self.log.info("Writing %s with contents:\n%s", filepath, modulerc_txt)
+            self._write_modulerc_file(filepath, modulerc_txt)
+
+        return modulerc_txt
 
     # From this point on just not implemented methods
 
