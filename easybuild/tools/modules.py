@@ -458,6 +458,23 @@ class ModulesTool(object):
 
         return ans
 
+    def module_wrapper_exists(self, mod_name):
+        """
+        Determine whether a module wrapper with specified name exists.
+        Only .modulerc file in Tcl syntax is considered here.
+        """
+        mod_dir = os.path.dirname(mod_name)
+        wrapper_regex = re.compile("^module-version [^ ]* %s$" % os.path.basename(mod_name), re.M)
+        res = False
+        for mod_path in curr_module_paths():
+            modulerc_cand = os.path.join(mod_path, mod_dir, '.modulerc')
+            if os.path.exists(modulerc_cand):
+                if wrapper_regex.search(read_file(modulerc_cand)):
+                    res = True
+                    break
+
+        return res
+
     def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
         """
         Check if modules with specified names exists.
@@ -491,11 +508,18 @@ class ModulesTool(object):
         for (mod_name, visible) in mod_names:
             if visible:
                 # module name may be partial, so also check via 'module show' as fallback
-                mods_exist.append(mod_name in avail_mod_names or mod_exists_via_show(mod_name))
+                mod_exists = mod_name in avail_mod_names or mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
-                mods_exist.append(mod_exists_via_show(mod_name))
+                mod_exists = mod_exists_via_show(mod_name)
+
+            # if no module file was found, check whether specified module name can be a 'wrapper' module...
+            if not mod_exists:
+                self.log.debug("Module %s not found via module avail/show, checking whether it's an existing wrapper")
+                mod_exists = self.module_wrapper_exists(mod_name)
+
+            mods_exist.append(mod_exists)
 
         return mods_exist
 
@@ -1240,6 +1264,26 @@ class Lmod(ModulesTool):
             self.use(path, priority=priority)
             if set_mod_paths:
                 self.set_mod_paths()
+
+    def module_wrapper_exists(self, mod_name):
+        """
+        Determine whether a module wrapper with specified name exists.
+        First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
+        """
+        mod_dir = os.path.dirname(mod_name)
+        wrapper_regex = re.compile('^module_version\(".*", "%s"\)$' % os.path.basename(mod_name), re.M)
+        res = False
+        for mod_path in curr_module_paths():
+            modulerc_cand = os.path.join(mod_path, mod_dir, '.modulerc.lua')
+            if os.path.exists(modulerc_cand):
+                if wrapper_regex.search(read_file(modulerc_cand)):
+                    res = True
+                    break
+
+        if not res:
+            res = super(Lmod, self).module_wrapper_exists(mod_name)
+
+        return res
 
     def exist(self, mod_names, skip_avail=False):
         """
