@@ -1637,6 +1637,15 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+        # check whether fallback works for files that's more than 1 subdir deep
+        ectxt = read_file(ec_file)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
+        postinstallcmd = "mkdir -p %(installdir)s/lib64/test && "
+        postinstallcmd += "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/test/libtoy.a"
+        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+        write_file(test_ec, ectxt)
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
         filename = 'toy-0.0'
