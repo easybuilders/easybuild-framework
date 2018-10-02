@@ -35,6 +35,7 @@ Easyconfig module that provides functionality for tweaking existing eaysconfig (
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 """
 import copy
+import functools
 import glob
 import os
 import re
@@ -801,7 +802,33 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
     return tc_mapping
 
 
-# This really needs a cache
+def map_versionsuffixes_cache(func):
+    """Function decorator to cache (and retrieve cached) versionsuffixes mapping between toolchains."""
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(original_toolchain, toolchain_mapping):
+        """Look up original_toolchain in cache first, determine and cache it if not available yet."""
+        # No need for toolchain_mapping to change to be part of the key, it is unique in this context
+        cache_key = (original_toolchain['name'], original_toolchain['version'])
+
+        # fetch from cache if available, cache it if it's not
+        if cache_key in cache:
+            _log.debug("Using cache to return version suffix mapping for toolchain %s: %s", str(original_toolchain),
+                       cache[cache_key])
+            return cache[cache_key]
+        else:
+            versionsuffix_mappings = func(original_toolchain, toolchain_mapping)
+            cache[cache_key] = versionsuffix_mappings
+            return cache[cache_key]
+
+    # Expose clear method of cache to wrapped function
+    cache_aware_func.clear = cache.clear
+
+    return cache_aware_func
+
+
+@map_versionsuffixes_cache
 def map_common_versionsuffixes(original_toolchain, toolchain_mapping):
     """
     Create a mapping of common versionssuffixes (like `-Python-%(pyvers)`) between toolchains
