@@ -125,7 +125,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                     raise EasyBuildError("Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
                                          "Use --force if you are sure.",
                                          target_toolchain['name'], source_toolchain['name'])
-                print_warning("Combining --try-toolchain with --force for toolchains with unequal capabilities: using regex.")
+                print_warning("Combining --try-toolchain with --force for toolchains with unequal capabilities: "
+                              "using regex.")
                 revert_to_regex = True
                 modifying_toolchains = False
 
