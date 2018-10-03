@@ -258,7 +258,7 @@ class ModulesTool(object):
                 else:
                     self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
         else:
-            self.log.debug("Skipping check to see whether modules tool version '%s' meets requirements", self.version)
+            self.log.debug("Skipping modules tool version '%s' requirements check", self.version)
 
         MODULE_VERSION_CACHE[self.COMMAND] = self.version
 
