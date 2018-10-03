@@ -969,6 +969,14 @@ def check_pr_eligible_to_merge(pr_data):
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
+    # check whether all mentioned easyconfig PR dependencies have been merged
+    msg_tmpl = "* PR dependencies: %s"
+    if not pr_data.get('unmerged_pr_deps', False):
+        print_msg(msg_tmpl % 'OK (no unmerged easyconfig PR dependencies found)', prefix=False)
+    else:
+        unmerged_pr_deps = ', '.join(['#' + pr_dep for pr_dep in pr_data['unmerged_pr_deps']])
+        res = not_eligible(msg_tmpl % 'FAILED (%s not yet merged)' % unmerged_pr_deps)
+
     return res
 
 
@@ -1019,6 +1027,21 @@ def merge_pr(pr):
         raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, reviews_data)
     pr_data['reviews'] = reviews_data
+
+    # check for required easyconfig PRs mentioned in the body 
+    match = re.search('[Rr]equires ((?:~~)?#.*)', pr_data['body'])
+    if match:
+        pr_deps = re.findall('(?:#)(\d+)', match.group())
+        unmerged_pr_deps = []
+        for pr_dep in pr_deps:
+            pr_dep_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr_dep]
+            status, pr_dep_data = github_api_get_request(pr_dep_url, github_user)
+            if status != HTTP_STATUS_OK:
+                print_msg("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                          pr_dep, pr_target_account, pr_target_repo, status, pr_dep_data)
+            if not pr_dep_data.get('merged', False):
+                unmerged_pr_deps.append(pr_dep)
+        pr_data['unmerged_pr_deps'] = unmerged_pr_deps
 
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
