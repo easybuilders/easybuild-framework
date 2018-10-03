@@ -36,7 +36,7 @@ from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, p
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 from easybuild.framework.easyconfig.tweak import check_capability_mapping, match_minimum_tc_specs
-from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain
+from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain, map_common_versionsuffixes
 from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies, map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -275,6 +275,22 @@ class TweakTest(EnhancedTestCase):
             'binutils': {'version': '2.25', 'versionsuffix': ''}
         }
         self.assertEqual(map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool), expected)
+
+    def test_map_common_versionsuffixes(self):
+        """Test mapping between two toolchain hierarchies"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+        })
+        get_toolchain_hierarchy.clear()
+        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
+        iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
+        toolchain_mapping = map_toolchain_hierarchies(iccifort_binutils_tc, gcc_binutils_tc, self.modtool)
+        possible_mappings = map_common_versionsuffixes('binutils', '2', iccifort_binutils_tc, toolchain_mapping)
+        expected_mappings = {'-binutils-2.25': '-binutils-2.26',
+                             '-binutils-2.26': '-binutils-2.26'}
+        self.assertEqual(possible_mappings, expected_mappings)
 
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""

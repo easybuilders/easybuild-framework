@@ -807,18 +807,18 @@ def map_versionsuffixes_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(original_toolchain, toolchain_mapping):
+    def cache_aware_func(software_name, software_version_stub, original_toolchain, toolchain_mapping):
         """Look up original_toolchain in cache first, determine and cache it if not available yet."""
         # No need for toolchain_mapping to change to be part of the key, it is unique in this context
-        cache_key = (original_toolchain['name'], original_toolchain['version'])
+        cache_key = (software_name, software_version_stub, original_toolchain['name'], original_toolchain['version'])
 
         # fetch from cache if available, cache it if it's not
         if cache_key in cache:
-            _log.debug("Using cache to return version suffix mapping for toolchain %s: %s", str(original_toolchain),
+            _log.debug("Using cache to return version suffix mapping for toolchain %s: %s", str(cache_key),
                        cache[cache_key])
             return cache[cache_key]
         else:
-            versionsuffix_mappings = func(original_toolchain, toolchain_mapping)
+            versionsuffix_mappings = func(software_name, software_version_stub, original_toolchain, toolchain_mapping)
             cache[cache_key] = versionsuffix_mappings
             return cache[cache_key]
 
@@ -829,29 +829,55 @@ def map_versionsuffixes_cache(func):
 
 
 @map_versionsuffixes_cache
-def map_common_versionsuffixes(original_toolchain, toolchain_mapping):
+def map_common_versionsuffixes(software_name, software_version_stub, original_toolchain, toolchain_mapping):
     """
     Create a mapping of common versionssuffixes (like `-Python-%(pyvers)`) between toolchains
 
-    :param toolchain_mapping:
+    :param software_name: Name of software
+    :param software_version_stub: initial characters of version
+    :param original_toolchain: original toolchain
+    :param toolchain_mapping: toolchain mapping from that containing original to target
     :return: dictionary of possible mappings
     """
     orig_toolchain_hierarchy = get_toolchain_hierarchy(original_toolchain)
     target_toolchain_hierarchy = get_toolchain_hierarchy(toolchain_mapping[original_toolchain['name']])
 
     versionsuffix_mappings = {}
-    for required_mappings in [['Python', '2'], ['Python', '3'], ['Java', '']]:
-        software = required_mappings[0]
-        versionstub = required_mappings[1]
-        # Find highest value in the target
-        target_version = '0'
-        for toolchain in target_toolchain_hierarchy:
+
+    # Find highest value in the target
+    target_version = '0'
+    for toolchain in target_toolchain_hierarchy:
+        if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
+            toolchain_suffix = EB_FORMAT_EXTENSION
+        else:
+            toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
+        regex_search_query = '^%s-%s.*' % (software_name, software_version_stub) + toolchain_suffix
+        versionprefix_name = '%s-' % software_name
+
+        cand_paths = search_easyconfigs(regex_search_query, return_robot_list=True)
+        for path in cand_paths:
+            # Get the version from the path
+            filename = os.path.basename(path)
+            # Find the version sandwiched between our known values
+            try:
+                regex = '%s(.*)%s' % (versionprefix_name, toolchain_suffix)
+                version = re.search(regex, filename).group(1)
+                if LooseVersion(version) > LooseVersion(target_version):
+                    target_version = version
+            except AttributeError:
+                raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
+                                     regex)
+
+    # Now map all matching versions in the source toolchain to this target
+    if target_version > 0:
+        source_versions = set()
+        for toolchain in orig_toolchain_hierarchy:
             if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
                 toolchain_suffix = EB_FORMAT_EXTENSION
             else:
                 toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
-            regex_search_query = '^%s-%s.*' % (software, versionstub) + toolchain_suffix
-            versionprefix_name = '%s-' % software
+            regex_search_query = '^%s-%s.*' % (software_name, software_version_stub) + toolchain_suffix
+            versionprefix_name = '%s-' % software_name
 
             cand_paths = search_easyconfigs(regex_search_query, return_robot_list=True)
             for path in cand_paths:
@@ -861,39 +887,15 @@ def map_common_versionsuffixes(original_toolchain, toolchain_mapping):
                 try:
                     regex = '%s(.*)%s' % (versionprefix_name, toolchain_suffix)
                     version = re.search(regex, filename).group(1)
-                    if LooseVersion(version) > LooseVersion(target_version):
-                        target_version = version
+                    source_versions.add(version)
                 except AttributeError:
                     raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
                                          regex)
 
-        # Now map all matching versions in the source toolchain to this target
-        if target_version > 0:
-            source_versions = set()
-            for toolchain in orig_toolchain_hierarchy:
-                if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
-                    toolchain_suffix = EB_FORMAT_EXTENSION
-                else:
-                    toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
-                regex_search_query = '^%s-%s.*' % (software, versionstub) + toolchain_suffix
-                versionprefix_name = '%s-' % software
-
-                cand_paths = search_easyconfigs(regex_search_query, return_robot_list=True)
-                for path in cand_paths:
-                    # Get the version from the path
-                    filename = os.path.basename(path)
-                    # Find the version sandwiched between our known values
-                    try:
-                        regex = '%s(.*)%s' % (versionprefix_name, toolchain_suffix)
-                        version = re.search(regex, filename).group(1)
-                        source_versions.add(version)
-                    except AttributeError:
-                        raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
-                                             regex)
-
-            # Finally we add to the mapping
-            for source_version in source_versions:
-                versionsuffix_mappings['-%s-%s' % (software, source_version)] = '-%s-%s' % (software, target_version)
+        # Finally we add to the mapping
+        for source_version in source_versions:
+            versionsuffix_mappings['-%s-%s' % (software_name, source_version)] = '-%s-%s' % (software_name,
+                                                                                             target_version)
 
     _log.info("Identified version suffix mappings: %s", versionsuffix_mappings)
     return versionsuffix_mappings
@@ -913,7 +915,9 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
 
     # There are some common versionsuffixes (like '-Python-(%pyver)s') that also need dynamic searching/updating
-    versonsuffix_mapping = map_common_versionsuffixes(parsed_ec['ec']['toolchain'], toolchain_mapping)
+    versonsuffix_mapping = map_common_versionsuffixes('Python', '2', parsed_ec['ec']['toolchain'], toolchain_mapping)
+    versonsuffix_mapping.update(map_common_versionsuffixes('Python', '3', parsed_ec['ec']['toolchain'],
+                                                           toolchain_mapping))
     if update_dep_versions:
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         if parsed_ec['ec']['versionsuffix'] in versonsuffix_mapping:
