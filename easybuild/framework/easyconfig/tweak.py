@@ -887,7 +887,8 @@ def map_common_versionsuffixes(software_name, software_version_stub, original_to
                 try:
                     regex = '%s(.*)%s' % (versionprefix_name, toolchain_suffix)
                     version = re.search(regex, filename).group(1)
-                    source_versions.add(version)
+                    if LooseVersion(version) < LooseVersion(target_version):
+                        source_versions.add(version)
                 except AttributeError:
                     raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
                                          regex)

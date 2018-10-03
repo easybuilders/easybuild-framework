@@ -288,8 +288,16 @@ class TweakTest(EnhancedTestCase):
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
         toolchain_mapping = map_toolchain_hierarchies(iccifort_binutils_tc, gcc_binutils_tc, self.modtool)
         possible_mappings = map_common_versionsuffixes('binutils', '2', iccifort_binutils_tc, toolchain_mapping)
-        expected_mappings = {'-binutils-2.25': '-binutils-2.26',
-                             '-binutils-2.26': '-binutils-2.26'}
+        expected_mappings = {'-binutils-2.25': '-binutils-2.26'}
+        self.assertEqual(possible_mappings, expected_mappings)
+
+        # Make sure we only map upwards, here it's gzip 1.4 in gcc and 1.6 in iccifort
+        possible_mappings = map_common_versionsuffixes('gzip', '', iccifort_binutils_tc, toolchain_mapping)
+        expected_mappings = {}
+        self.assertEqual(possible_mappings, expected_mappings)
+        toolchain_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
+        possible_mappings = map_common_versionsuffixes('gzip', '', gcc_binutils_tc, toolchain_mapping)
+        expected_mappings = {'-gzip-1.4': '-gzip-1.6'}
         self.assertEqual(possible_mappings, expected_mappings)
 
     def test_map_easyconfig_to_target_tc_hierarchy(self):
