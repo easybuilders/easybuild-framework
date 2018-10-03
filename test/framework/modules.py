@@ -163,9 +163,11 @@ class ModulesTest(EnhancedTestCase):
         write_file(os.path.join(java_mod_dir, '1.8.0_181'), '#%Module')
         write_file(os.path.join(java_mod_dir, '.modulerc'), '#%Module\nmodule-version Java/1.8.0_181 1.8')
 
-        java_expected = ['Java/1.8', 'Java/1.8.0_181']
-        self.assertEqual(sorted(self.modtool.available()), java_expected)
-        self.assertEqual(self.modtool.exist(java_expected), [True, True])
+        avail_mods = self.modtool.available()
+        self.assertTrue('Java/1.8.0_181' in avail_mods)
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+            self.assertTrue('Java/1.8' in avail_mods)
+        self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
         reset_module_caches()
 
@@ -186,8 +188,10 @@ class ModulesTest(EnhancedTestCase):
             remove_file(os.path.join(java_mod_dir, '.modulerc'))
             write_file(os.path.join(java_mod_dir, '.modulerc.lua'), 'module_version("Java/1.8.0_181", "1.8")')
 
-            self.assertEqual(sorted(self.modtool.available()), java_expected)
-            self.assertEqual(self.modtool.exist(java_expected), [True, True])
+            avail_mods = self.modtool.available()
+            self.assertTrue('Java/1.8.0_181' in avail_mods)
+            self.assertTrue('Java/1.8' in avail_mods)
+            self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
             reset_module_caches()
 
