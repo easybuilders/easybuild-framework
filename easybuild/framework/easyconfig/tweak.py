@@ -119,12 +119,13 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             else:
                 target_toolchain['version'] = source_toolchain['version']
 
-            src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
-            if src_to_dst_tc_mapping is None:
+            try:
+                src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+            except EasyBuildError as err:
                 if not build_option('force'):
-                    raise EasyBuildError("Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
+                    raise EasyBuildError("%s:\nToolchain %s is not equivalent to toolchain %s in terms of capabilities. "
                                          "Use --force if you are sure.",
-                                         target_toolchain['name'], source_toolchain['name'])
+                                         err.msg, target_toolchain['name'], source_toolchain['name'])
                 print_warning("Combining --try-toolchain with --force for toolchains with unequal capabilities: "
                               "using regex.")
                 revert_to_regex = True
@@ -732,8 +733,12 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
                 target_compiler_family = target_tc_spec['comp_family']
                 break
 
+    if not minimal_matching_toolchain:
+        raise EasyBuildError("No possible mapping from source toolchain spec %s to target toolchain hierarchy specs %s",
+                             source_tc_spec, target_tc_hierarchy)
+
     # Warn if we are changing compiler families, this is very likely to cause problems
-    if minimal_matching_toolchain and target_compiler_family != source_tc_spec['comp_family']:
+    if target_compiler_family != source_tc_spec['comp_family']:
         print_warning("Your request will result in a compiler family switch (%s to %s). Here be dragons!" %
                       (source_tc_spec['comp_family'], target_compiler_family))
 
@@ -773,10 +778,7 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
     target_tc_hierarchy = get_toolchain_hierarchy(target_toolchain, incl_capabilities=True)
 
     for toolchain_spec in source_tc_hierarchy:
-        minimal_matching_toolchain = match_minimum_tc_specs(toolchain_spec, target_tc_hierarchy)
-        if not minimal_matching_toolchain:
-            return None
-        tc_mapping[toolchain_spec['name']] = minimal_matching_toolchain
+        tc_mapping[toolchain_spec['name']] = match_minimum_tc_specs(toolchain_spec, target_tc_hierarchy)
 
     # Check for presence of binutils in source and target toolchain dependency trees
     # (only do this when GCCcore is present in both and GCCcore is not the top of the tree)
