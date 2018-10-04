@@ -464,7 +464,7 @@ class ModulesTool(object):
         Only .modulerc file in Tcl syntax is considered here.
         """
         if mod_wrapper_regex_template is None:
-            mod_wrapper_regex_template = "^module-version (?P<wrapped_mod>[^ ]*) %s$"
+            mod_wrapper_regex_template = "^[ ]*module-version (?P<wrapped_mod>[^ ]*) %s$"
 
         wrapped_mod = None
 
