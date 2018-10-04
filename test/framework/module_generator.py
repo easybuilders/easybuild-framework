@@ -324,8 +324,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
         error_pattern = "Incorrect module_version spec, expected keys"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
 
-        modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'})
+        mod_ver_spec = {'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'}
+        modulerc_path = os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC)
 
+        # with Lmod 6.x, both .modulerc and wrapper module must be in the same location
+        if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) < LooseVersion('7.0'):
+            error = "Expected module file .* not found; "
+            error += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory"
+            self.assertErrorRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        # if the wrapped module file is in place, everything should be fine
+        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+
+        # first, check raw contents of generated .modulerc file
         expected = '\n'.join([
             '#%Module',
             "module-version test/1.2.3.4.5 1.2.3",
@@ -344,9 +356,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 expected = 'module_version("test/1.2.3.4.5", "1.2.3")'
 
         self.assertEqual(modulerc, expected)
-
-        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
-        write_file(os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC), modulerc)
+        self.assertEqual(read_file(modulerc_path), expected)
 
         self.modtool.use(self.test_prefix)
 
