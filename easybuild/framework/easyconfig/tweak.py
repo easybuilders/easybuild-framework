@@ -122,14 +122,17 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             try:
                 src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
             except EasyBuildError as err:
-                if not build_option('force'):
-                    raise EasyBuildError("%s:\nToolchain %s is not equivalent to toolchain %s in terms of capabilities. "
-                                         "Use --force if you are sure.",
-                                         err.msg, target_toolchain['name'], source_toolchain['name'])
-                print_warning("Combining --try-toolchain with --force for toolchains with unequal capabilities: "
-                              "using regex.")
-                revert_to_regex = True
-                modifying_toolchains = False
+                if build_option('force'):
+                    print_warning(
+                        "Combining --try-toolchain with --force for toolchains with unequal capabilities: "
+                        "disabling recursion and not changing (sub)toolchains for dependencies.")
+                    revert_to_regex = True
+                    modifying_toolchains = False
+                else:
+                    raise EasyBuildError(
+                        "%s:\nToolchain %s is not equivalent to toolchain %s in terms of capabilities. "
+                        "Use --force if you are sure.",
+                        err.msg, target_toolchain['name'], source_toolchain['name'])
 
         if not revert_to_regex:
             _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
