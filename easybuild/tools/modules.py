@@ -1304,6 +1304,8 @@ class Lmod(ModulesTool):
         Determine whether a module wrapper with specified name exists.
         First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
+        res = None
+
         # first consider .modulerc.lua with Lmod 7.8 (or newer)
         if StrictVersion(self.version) >= StrictVersion('7.8'):
             mod_wrapper_regex_template = '^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
@@ -1311,7 +1313,7 @@ class Lmod(ModulesTool):
                                                           mod_wrapper_regex_template=mod_wrapper_regex_template)
 
         # fall back to checking for .modulerc in Tcl syntax
-        if not res:
+        if res is None:
             res = super(Lmod, self).module_wrapper_exists(mod_name)
 
         return res
