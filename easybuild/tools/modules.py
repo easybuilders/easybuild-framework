@@ -466,20 +466,42 @@ class ModulesTool(object):
         if mod_wrapper_regex_template is None:
             mod_wrapper_regex_template = "^module-version (?P<wrapped_mod>[^ ]*) %s$"
 
+        wrapped_mod = None
+
         mod_dir = os.path.dirname(mod_name)
         wrapper_regex = re.compile(mod_wrapper_regex_template % os.path.basename(mod_name), re.M)
-        res = None
         for mod_path in curr_module_paths():
             modulerc_cand = os.path.join(mod_path, mod_dir, modulerc_fn)
             if os.path.exists(modulerc_cand):
                 self.log.debug("Found %s that may define %s as a wrapper for a module file", modulerc_cand, mod_name)
                 res = wrapper_regex.search(read_file(modulerc_cand))
                 if res:
-                    res = res.group('wrapped_mod')
-                    self.log.debug("Confirmed that %s is a module wrapper for %s", mod_name, res)
+                    wrapped_mod = res.group('wrapped_mod')
+                    self.log.debug("Confirmed that %s is a module wrapper for %s", mod_name, wrapped_mod)
                     break
 
-        return res
+        mod_dir = os.path.dirname(mod_name)
+        if wrapped_mod is not None and not wrapped_mod.startswith(mod_dir):
+            # module wrapper uses 'short' module name of module being wrapped,
+            # so we need to correct it in case a hierarchical module naming scheme is used...
+            # e.g. 'Java/1.8.0_181' should become 'Core/Java/1.8.0_181' for wrapper 'Core/Java/1.8'
+            self.log.debug("Full module name prefix mismatch between module wrapper '%s' and wrapped module '%s'",
+                           mod_name, wrapped_mod)
+
+            mod_name_parts = mod_name.split(os.path.sep)
+            wrapped_mod_subdir = ''
+            while not os.path.join(wrapped_mod_subdir, wrapped_mod).startswith(mod_dir) and mod_name_parts:
+                wrapped_mod_subdir = os.path.join(wrapped_mod_subdir, mod_name_parts.pop(0))
+
+            full_wrapped_mod_name = os.path.join(wrapped_mod_subdir, wrapped_mod)
+            if full_wrapped_mod_name.startswith(mod_dir):
+                self.log.debug("Full module name for wrapped module %s: %s", wrapped_mod, full_wrapped_mod_name)
+                wrapped_mod = full_wrapped_mod_name
+            else:
+                raise EasyBuildError("Failed to determine full module name for module wrapped by %s: %s | %s",
+                                     mod_name, wrapped_mod_subdir, wrapped_mod)
+
+        return wrapped_mod
 
     def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
         """
@@ -526,7 +548,6 @@ class ModulesTool(object):
                 wrapped_mod = self.module_wrapper_exists(mod_name)
                 if wrapped_mod is not None:
                     # module wrapper only really exists if the wrapped module file is also available
-                    # FIXME: wrapped module is only known by short module name in HMNS setting...
                     mod_exists = wrapped_mod in avail_mod_names or mod_exists_via_show(wrapped_mod)
                     self.log.debug("Result for existence check of wrapped module %s: %s", wrapped_mod, mod_exists)
 
