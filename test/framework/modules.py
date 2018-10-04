@@ -162,7 +162,7 @@ class ModulesTest(EnhancedTestCase):
         java_mod_dir = os.path.join(self.test_prefix, 'Java')
         write_file(os.path.join(java_mod_dir, '1.8.0_181'), '#%Module')
 
-        if self.modules_tool.__class__ == EnvironmentModulesC:
+        if self.modtool.__class__ == EnvironmentModulesC:
             modulerc_tcl_txt = '\n'.join([
                 '#%Module',
                 'if {"Java/1.8" eq [module-info version Java/1.8]} {',
@@ -170,7 +170,10 @@ class ModulesTest(EnhancedTestCase):
                 '}',
             ])
         else:
-            modulerc_tcl_txt = 'module-version Java/1.8.0_181 1.8'
+            modulerc_tcl_txt = '\n'.join([
+                '#%Module',
+                'module-version Java/1.8.0_181 1.8',
+            ])
 
         write_file(os.path.join(java_mod_dir, '.modulerc'), modulerc_tcl_txt)
 
