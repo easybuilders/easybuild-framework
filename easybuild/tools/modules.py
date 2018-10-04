@@ -239,21 +239,26 @@ class ModulesTool(object):
         if self.REQ_VERSION is None and self.MAX_VERSION is None:
             self.log.debug("No version requirement defined.")
 
-        if self.REQ_VERSION is not None:
-            self.log.debug("Required minimum version defined.")
-            if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
-                raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
-                                     self.__class__.__name__, self.REQ_VERSION, self.version)
-            else:
-                self.log.debug('Version %s matches requirement >= %s', self.version, self.REQ_VERSION)
+        elif build_option('modules_tool_version_check'):
+            self.log.debug("Checking whether modules tool version '%s' meets requirements", self.version)
 
-        if self.MAX_VERSION is not None:
-            self.log.debug("Maximum allowed version defined.")
-            if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
-                raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
-                                     self.__class__.__name__, self.MAX_VERSION, self.version)
-            else:
-                self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
+            if self.REQ_VERSION is not None:
+                self.log.debug("Required minimum version defined.")
+                if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
+                    raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
+                                         self.__class__.__name__, self.REQ_VERSION, self.version)
+                else:
+                    self.log.debug('Version %s matches requirement >= %s', self.version, self.REQ_VERSION)
+
+            if self.MAX_VERSION is not None:
+                self.log.debug("Maximum allowed version defined.")
+                if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
+                    raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
+                                         self.__class__.__name__, self.MAX_VERSION, self.version)
+                else:
+                    self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
+        else:
+            self.log.debug("Skipping modules tool version '%s' requirements check", self.version)
 
         MODULE_VERSION_CACHE[self.COMMAND] = self.version
 
