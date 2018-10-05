@@ -122,17 +122,23 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             try:
                 src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
             except EasyBuildError as err:
-                if build_option('force'):
-                    print_warning(
-                        "Combining --try-toolchain with --force for toolchains with unequal capabilities: "
-                        "disabling recursion and not changing (sub)toolchains for dependencies.")
-                    revert_to_regex = True
-                    modifying_toolchains = False
+                # make sure exception was raised by match_minimum_tc_specs because toolchain mapping could not be done
+                if "No possible mapping from source toolchain" in err.msg:
+
+                    if build_option('force'):
+                        warning_msg = "Combining --try-toolchain with --force for toolchains with unequal capabilities:"
+                        warning_msg += " disabling recursion and not changing (sub)toolchains for dependencies."
+                        print_warning(warning_msg)
+                        revert_to_regex = True
+                        modifying_toolchains = False
+                    else:
+                        error_msg = err.msg + '\n'
+                        error_msg += "Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
+                        error_msg += "(If you know what you are doing, you can use --force to proceed anyway.)"
+                        raise EasyBuildError(error_msg, target_toolchain['name'], source_toolchain['name'])
                 else:
-                    raise EasyBuildError(
-                        "%s:\nToolchain %s is not equivalent to toolchain %s in terms of capabilities. "
-                        "Use --force if you are sure.",
-                        err.msg, target_toolchain['name'], source_toolchain['name'])
+                    # simply re-raise the exception if something else went wrong
+                    raise err
 
         if not revert_to_regex:
             _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
