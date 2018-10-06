@@ -1077,12 +1077,14 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_module)
 
         modloadmsg_tcl = [
-            r'    puts stderr "THANKS FOR LOADING ME',
-            r'    I AM toy v0.0"',
+            r'puts stderr "THANKS FOR LOADING ME',
+            r'I AM toy v0.0',
+            '"',
         ]
         modloadmsg_lua = [
-            r'    io.stderr:write\(\[==\[THANKS FOR LOADING ME',
-            r'    I AM toy v0.0\]==\]\)',
+            r'io.stderr:write\(\[==\[THANKS FOR LOADING ME',
+            r'I AM toy v0.0',
+            '\]==\]\)',
         ]
 
         help_txt = '\n'.join([

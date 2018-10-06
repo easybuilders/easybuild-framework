@@ -695,28 +695,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_load_msg(self):
         """Test including a load message in the module file."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = "\nif { [ module-info mode load ] } {\n    puts stderr \"test\"\n}\n"
+            expected = "\nif { [ module-info mode load ] } {\nputs stderr \"test\"\n}\n"
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
             tcl_load_msg = '\n'.join([
                 '',
                 "if { [ module-info mode load ] } {",
-                "    puts stderr \"test \\$test \\$test",
-                "    test \\$foo \\$bar\"",
+                "puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
                 "}",
                 '',
             ])
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
         else:
-            expected = '\nif mode() == "load" then\n    io.stderr:write([==[test]==])\nend\n'
+            expected = '\nif mode() == "load" then\nio.stderr:write([==[test]==])\nend\n'
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
             lua_load_msg = '\n'.join([
                 '',
                 'if mode() == "load" then',
-                '    io.stderr:write([==[test $test \\$test',
-                '    test $foo \\$bar]==])',
+                'io.stderr:write([==[test $test \\$test',
+                'test $foo \\$bar]==])',
                 'end',
                 '',
             ])
