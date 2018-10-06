@@ -229,8 +229,9 @@ class ModuleGenerator(object):
         :param modulerc_txt: contents of .modulerc file
         :param wrapped_mod_name: name of module file for which a wrapper is defined in the .modulerc file (if any)
         """
-        if os.path.exists(modulerc_path) and not build_option('force'):
-            raise EasyBuildError("Found existing .modulerc at %s, not overwriting without --force", modulerc_path)
+        if os.path.exists(modulerc_path) and not (build_option('force') or build_option('rebuild')):
+            raise EasyBuildError("Found existing .modulerc at %s, not overwriting without --force or --rebuild",
+                                 modulerc_path)
 
         # Lmod 6.x requires that module being wrapped is in same location as .modulerc file...
         if wrapped_mod_name is not None:

@@ -370,6 +370,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
 
+        # overwriting existing .modulerc requires --force or --rebuild
+        error_msg = "Found existing .modulerc at .*, not overwriting without --force or --rebuild"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        init_config(build_options={'force': True})
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
+
+        init_config(build_options={})
+        self.assertErrorRegex(EasyBuildError, error_msg, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        init_config(build_options={'rebuild': True})
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
+
     def test_unload(self):
         """Test unload part in generated module file."""
 
