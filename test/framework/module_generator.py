@@ -602,7 +602,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_conditional_statement(self):
         """Test formatting of conditional statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            simple_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar")
+            cond = "is-loaded foo"
+            load = "module load bar"
+
+            simple_cond = self.modgen.conditional_statement(cond, load)
             expected = '\n'.join([
                 "if { [ is-loaded foo ] } {",
                 "    module load bar",
@@ -611,7 +614,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(simple_cond, expected)
 
-            neg_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", negative=True)
+            neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
                 "if { ![ is-loaded foo ] } {",
                 "    module load bar",
@@ -620,7 +623,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(neg_cond, expected)
 
-            if_else_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", else_body='puts "foo"')
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='puts "foo"')
             expected = '\n'.join([
                 "if { [ is-loaded foo ] } {",
                 "    module load bar",
@@ -631,8 +634,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(if_else_cond, expected)
 
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='puts "foo"', indent=False)
+            expected = '\n'.join([
+                "if { [ is-loaded foo ] } {",
+                "module load bar",
+                "} else {",
+                'puts "foo"',
+                '}',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
         elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            simple_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")')
+            cond = 'isloaded("foo")'
+            load = 'load("bar")'
+
+            simple_cond = self.modgen.conditional_statement(cond, load)
             expected = '\n'.join([
                 'if isloaded("foo") then',
                 '    load("bar")',
@@ -641,7 +658,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(simple_cond, expected)
 
-            neg_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', negative=True)
+            neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
                 'if not isloaded("foo") then',
                 '    load("bar")',
@@ -650,7 +667,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(neg_cond, expected)
 
-            if_else_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', else_body='load("bleh")')
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='load("bleh")')
             expected = '\n'.join([
                 'if isloaded("foo") then',
                 '    load("bar")',
@@ -660,6 +677,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
             ])
             self.assertEqual(if_else_cond, expected)
+
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='load("bleh")', indent=False)
+            expected = '\n'.join([
+                'if isloaded("foo") then',
+                'load("bar")',
+                'else',
+                'load("bleh")',
+                'end',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
         else:
             self.assertTrue(False, "Unknown module syntax")
 
