@@ -254,7 +254,7 @@ class ModuleGenerator(object):
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """
         Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod).
-        If 'filepath' is specfiied, the .modulerc file will be written as well.
+        If 'filepath' is specfied, the .modulerc file will be written as well.
 
         :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
         :param filepath: location where .modulerc file should be written to
@@ -278,7 +278,8 @@ class ModuleGenerator(object):
                 # cfr. https://sourceforge.net/p/modules/mailman/message/33399425/
                 if self.modules_tool.__class__ == EnvironmentModulesC:
 
-                    modname, sym_version, version = [module_version[key] for key in sorted(module_version.keys())]
+                    keys = ['modname', 'sym_version', 'version']
+                    modname, sym_version, version = [module_version[key] for key in keys]
 
                     # determine module name with symbolic version
                     if version in modname:
@@ -848,8 +849,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
 
         if self.modules_tool:
-
-            if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.8'):
+            if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
 
     def check_group(self, group, error_msg=None):
@@ -1006,7 +1006,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """
-        Generate contents of .modulerc(.lua) file, in Lua syntax (but only if Lmod is recent enough, i.e. >= 7.8)
+        Generate contents of .modulerc(.lua) file, in Lua syntax (but only if Lmod is recent enough, i.e. >= 7.7.38)
 
         :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
         :param filepath: location where .modulerc file should be written to
@@ -1015,7 +1015,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         if modulerc_txt is None:
             lmod_ver = self.modules_tool.version
-            min_ver = '7.8'
+            min_ver = '7.7.38'
 
             if LooseVersion(lmod_ver) >= LooseVersion(min_ver):
                 self.log.info("Found Lmod v%s >= v%s, so will generate .modulerc.lua in Lua syntax", lmod_ver, min_ver)
