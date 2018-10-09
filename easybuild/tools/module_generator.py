@@ -254,7 +254,7 @@ class ModuleGenerator(object):
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """
         Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod).
-        If 'filepath' is specfied, the .modulerc file will be written as well.
+        If 'filepath' is specified, the .modulerc file will be written as well.
 
         :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
         :param filepath: location where .modulerc file should be written to
