@@ -321,7 +321,7 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None):
+    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
         """
         Return formatted conditional statement, with given condition and body.
 
@@ -329,6 +329,7 @@ class ModuleGenerator(object):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        :param indent: indent if/else body
         """
         raise NotImplementedError
 
@@ -567,7 +568,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None):
+    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
         """
         Return formatted conditional statement, with given condition and body.
 
@@ -575,6 +576,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        :param indent: indent if/else body
         """
         if negative:
             lines = ["if { ![ %s ] } {" % condition]
@@ -582,14 +584,18 @@ class ModuleGeneratorTcl(ModuleGenerator):
             lines = ["if { [ %s ] } {" % condition]
 
         for line in body.split('\n'):
-            lines.append(self.INDENTATION + line)
+            if indent:
+                line = self.INDENTATION + line
+            lines.append(line)
 
         if else_body is None:
             lines.extend(['}', ''])
         else:
             lines.append('} else {')
             for line in else_body.split('\n'):
-                lines.append(self.INDENTATION + line)
+                if indent:
+                    line = self.INDENTATION + line
+                lines.append(line)
             lines.extend(['}', ''])
 
         return '\n'.join(lines)
@@ -676,7 +682,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
         msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         print_cmd = "puts stderr %s" % quote_str(msg)
-        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd)])
+        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd, indent=False)])
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
@@ -889,7 +895,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "-- %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None):
+    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
         """
         Return formatted conditional statement, with given condition and body.
 
@@ -897,6 +903,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        :param indent: indent if/else body
         """
         if negative:
             lines = ["if not %s then" % condition]
@@ -904,14 +911,18 @@ class ModuleGeneratorLua(ModuleGenerator):
             lines = ["if %s then" % condition]
 
         for line in body.split('\n'):
-            lines.append(self.INDENTATION + line)
+            if indent:
+                line = self.INDENTATION + line
+            lines.append(line)
 
         if else_body is None:
             lines.extend(['end', ''])
         else:
             lines.append('else')
             for line in else_body.split('\n'):
-                lines.append(self.INDENTATION + line)
+                if indent:
+                    line = self.INDENTATION + line
+                lines.append(line)
             lines.extend(['end', ''])
 
         return '\n'.join(lines)
@@ -1002,7 +1013,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
         stmt = 'io.stderr:write(%s%s%s)' % (self.START_STR, self.check_str(msg), self.END_STR)
-        return '\n' + self.conditional_statement('mode() == "load"', stmt)
+        return '\n' + self.conditional_statement('mode() == "load"', stmt, indent=False)
 
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """
