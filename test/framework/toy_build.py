@@ -270,11 +270,21 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         # newline between "I AM toy v0.0" (modloadmsg) and "oh hai!" (mod*footer) is added automatically
-        expected = "\nTHANKS FOR LOADING ME\nI AM toy v0.0\noh hai!"
+        expected = "\nTHANKS FOR LOADING ME\nI AM toy v0.0\n"
+
+        # with module files in Tcl syntax, a newline is added automatically
+        if get_module_syntax() == 'Tcl':
+            expected += "\n"
+
+        expected += "oh hai!"
+
+        # setting $LMOD_QUIET results in suppression of printed message with Lmod & module files in Tcl syntax
+        if 'LMOD_QUIET' in os.environ:
+            del os.environ['LMOD_QUIET']
 
         self.modtool.use(os.path.join(self.test_installpath, 'modules', 'all'))
         out = self.modtool.run_module('load', 'toy/0.0-tweaked', return_output=True)
-        self.assertTrue(out.endswith(expected))
+        self.assertTrue(out.strip().endswith(expected))
 
     def test_toy_buggy_easyblock(self):
         """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
