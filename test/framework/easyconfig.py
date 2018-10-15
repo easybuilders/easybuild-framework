@@ -1430,11 +1430,18 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump(self):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'robot_path': [test_ecs_dir],
+            'valid_module_classes': module_classes(),
+            'check_osdeps': False,
+        }
+        init_config(build_options=build_options)
         ecfiles = [
             't/toy/toy-0.0.eb',
             'g/goolf/goolf-1.4.10.eb',
             's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
+            'p/Python/Python-2.7.10-ictce-4.1.13.eb',
         ]
         for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
