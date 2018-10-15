@@ -288,7 +288,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
                 # cuda is the special case which doesn't have a family attribute
                 if capability == TOOLCHAIN_CAPABILITY_CUDA:
                     # use None rather than False, useful to have it consistent with the rest
-                    toolchain[capability] = isinstance(tc,Cuda) or None
+                    toolchain[capability] = isinstance(tc, Cuda) or None
                 elif hasattr(tc, capability):
                     toolchain[capability] = getattr(tc, capability)()
 
