@@ -294,9 +294,9 @@ class Compiler(Toolchain):
         """
         ec_optarch = self.options.get('optarch', False)
         if isinstance(ec_optarch, basestring):
-            if ':' in ec_optarch:
+            if OPTARCH_MAP_CHAR in ec_optarch:
                 error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
-                error_msg += "the <compiler:flags> syntax is not allowed. "
+                error_msg += "the <compiler%sflags> syntax is not allowed. " % OPTARCH_MAP_CHAR
                 error_msg += "Use <flags> (omitting the first dash) for the specific compiler."
                 raise EasyBuildError(error_msg)
             else:
