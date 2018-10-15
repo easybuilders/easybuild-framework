@@ -1446,6 +1446,7 @@ class EasyConfigTest(EnhancedTestCase):
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
             ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
+            ec.enable_templating = False
             ecdict = ec.asdict()
             ec.dump(test_ec)
             # dict representation of EasyConfig instance should not change after dump
@@ -1459,6 +1460,7 @@ class EasyConfigTest(EnhancedTestCase):
 
             # parse result again
             dumped_ec = EasyConfig(test_ec)
+            dumped_ec.enable_templating = False
 
             # check that selected parameters still have the same value
             params = [
