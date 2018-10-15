@@ -1431,7 +1431,6 @@ class EasyConfigTest(EnhancedTestCase):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
-            'robot_path': [test_ecs_dir],
             'valid_module_classes': module_classes(),
             'check_osdeps': False,
         }
@@ -1466,9 +1465,11 @@ class EasyConfigTest(EnhancedTestCase):
                 'name',
                 'toolchain',
                 'dependencies',  # checking this is important w.r.t. filtered hidden dependencies being restored in dump
+                'exts_list', # exts_lists (in Python easyconfig) use another layer of templating so shouldn't change
             ]
             for param in params:
-                self.assertEqual(ec[param], dumped_ec[param])
+                if param in ec:
+                    self.assertEqual(ec[param], dumped_ec[param])
 
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
