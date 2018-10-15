@@ -1465,7 +1465,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'name',
                 'toolchain',
                 'dependencies',  # checking this is important w.r.t. filtered hidden dependencies being restored in dump
-                'exts_list', # exts_lists (in Python easyconfig) use another layer of templating so shouldn't change
+                'exts_list',  # exts_lists (in Python easyconfig) use another layer of templating so shouldn't change
             ]
             for param in params:
                 if param in ec:
