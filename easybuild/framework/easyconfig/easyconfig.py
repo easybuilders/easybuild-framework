@@ -35,6 +35,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Ward Poelmans (Ghent University)
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 
 import copy
@@ -71,6 +72,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.toolchains.compiler.cuda import Cuda
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
@@ -286,7 +288,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
                 # cuda is the special case which doesn't have a family attribute
                 if capability == TOOLCHAIN_CAPABILITY_CUDA:
                     # use None rather than False, useful to have it consistent with the rest
-                    toolchain[capability] = ('CUDA_CC' in tc.variables) or None
+                    toolchain[capability] = isinstance(tc, Cuda) or None
                 elif hasattr(tc, capability):
                     toolchain[capability] = getattr(tc, capability)()
 
