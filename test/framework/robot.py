@@ -785,6 +785,30 @@ class RobotTest(EnhancedTestCase):
         ]
         self.assertEqual(iimpi_hierarchy, expected)
 
+        iccifortcuda_hierarchy = get_toolchain_hierarchy({'name': 'iccifortcuda', 'version': 'test'},
+                                                         incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None,
+            },
+            {
+                'name': 'iccifortcuda',
+                'version': 'test',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': True,
+            },
+        ]
+        self.assertEqual(iccifortcuda_hierarchy, expected)
+
         # test also including dummy
         init_config(build_options={
             'add_dummy_to_minimal_toolchains': True,
