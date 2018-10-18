@@ -769,7 +769,7 @@ def get_dep_tree_of_toolchain(toolchain_spec, modtool):
                              toolchain_spec['name'], toolchain_spec['version'])
     ec = process_easyconfig(path, validate=False)
 
-    return [dep['ec'] for dep in resolve_dependencies(ec, modtool)]
+    return [dep['ec'] for dep in resolve_dependencies(ec, modtool, retain_all_deps=True)]
 
 
 def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
