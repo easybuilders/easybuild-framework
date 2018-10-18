@@ -35,6 +35,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Ward Poelmans (Ghent University)
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 
 import copy
@@ -71,6 +72,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.toolchains.compiler.cuda import Cuda
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
@@ -286,7 +288,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
                 # cuda is the special case which doesn't have a family attribute
                 if capability == TOOLCHAIN_CAPABILITY_CUDA:
                     # use None rather than False, useful to have it consistent with the rest
-                    toolchain[capability] = ('CUDA_CC' in tc.variables) or None
+                    toolchain[capability] = isinstance(tc, Cuda) or None
                 elif hasattr(tc, capability):
                     toolchain[capability] = getattr(tc, capability)()
 
@@ -1613,16 +1615,19 @@ def clean_up_easyconfigs(paths):
         write_file(path, ectxt, forced=True)
 
 
-def copy_easyconfigs(paths, target_dir):
+def det_file_info(paths, target_dir):
     """
-    Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
+    Determine useful information on easyconfig files relative to a target directory,
+    before any actual operation (e.g. copying) is performed
 
-    :param paths: list of paths to copy to git working dir
+    :param paths: list of paths to easyconfig files
     :param target_dir: target directory
-    :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    :return: dict with useful information on easyconfig files (corresponding EasyConfig instances, paths, status)
+             relative to a target directory
     """
     file_info = {
         'ecs': [],
+        'paths': [],
         'paths_in_repo': [],
         'new': [],
         'new_folder': [],
@@ -1632,6 +1637,7 @@ def copy_easyconfigs(paths, target_dir):
     for path in paths:
         ecs = process_easyconfig(path, validate=False)
         if len(ecs) == 1:
+            file_info['paths'].append(path)
             file_info['ecs'].append(ecs[0]['ec'])
 
             soft_name = file_info['ecs'][-1].name
@@ -1644,13 +1650,26 @@ def copy_easyconfigs(paths, target_dir):
             file_info['new'].append(new_file)
             file_info['new_folder'].append(new_folder)
             file_info['new_file_in_existing_folder'].append(new_file and not new_folder)
-
-            copy_file(path, target_path, force_in_dry_run=True)
-
             file_info['paths_in_repo'].append(target_path)
 
         else:
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+
+    return file_info
+
+
+def copy_easyconfigs(paths, target_dir):
+    """
+    Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
+
+    :param paths: list of paths to copy to git working dir
+    :param target_dir: target directory
+    :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    """
+    file_info = det_file_info(paths, target_dir)
+
+    for path, target_path in zip(file_info['paths'], file_info['paths_in_repo']):
+        copy_file(path, target_path, force_in_dry_run=True)
 
     if build_option('cleanup_easyconfigs'):
         clean_up_easyconfigs(file_info['paths_in_repo'])

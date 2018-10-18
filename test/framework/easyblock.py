@@ -1452,7 +1452,8 @@ class EasyBlockTest(EnhancedTestCase):
         module_version_spec = {'modname': 'one/1.0.2', 'sym_version': '1.0', 'version': '1.0.2'}
         modulerc_txt = modgen.modulerc(module_version=module_version_spec)
         one_moddir = os.path.join(self.test_installpath, 'modules', 'all', 'one')
-        write_file(os.path.join(one_moddir, '.modulerc'), modulerc_txt)
+
+        write_file(os.path.join(one_moddir, modgen.DOT_MODULERC), modulerc_txt)
 
         # check again, this just grabs the cached results for 'avail one/1.0' & 'show one/1.0'
         self.assertFalse(self.modtool.exist(['one/1.0'])[0])
