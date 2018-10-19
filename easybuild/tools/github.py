@@ -380,8 +380,11 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     pr_merged = pr_data['merged']
     pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
 
+    pr_target_branch = pr_data['base']['ref']
+    _log.info("Target branch for PR #%s: %s", pr, pr_target_branch)
+
     # download target branch of PR so we can try and apply the PR patch on top of it
-    repo_target_branch = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', github_user=github_user)
+    repo_target_branch = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=pr_target_branch, github_user=github_user)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
