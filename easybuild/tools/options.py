@@ -400,6 +400,8 @@ class EasyBuildOptions(GeneralOption):
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
+            'pre-create-installdir': ("Create installation directory before submitting build jobs", 
+                                      None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",

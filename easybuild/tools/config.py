@@ -218,6 +218,7 @@ BUILD_OPTIONS_CMDLINE = {
         'extended_dry_run_ignore_errors',
         'mpi_tests',
         'modules_tool_version_check',
+        'pre_create_installdir',
     ],
     WARN: [
         'check_ebroot_env_vars',
