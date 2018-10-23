@@ -90,6 +90,7 @@ from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CH
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 
+
 try:
     from humanfriendly.terminal import terminal_supports_colors
 except ImportError:
@@ -1168,13 +1169,14 @@ def check_root_usage(allow_use_as_root=False):
                                  "so let's end this here.")
 
 
-def set_up_configuration(args=None, logfile=None, testing=False):
+def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     """
     Set up EasyBuild configuration, by parsing configuration settings & initialising build options.
 
     :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
     :param testing: enable testing mode
+    :param silent: stay silent (no printing)
     """
 
     # parse EasyBuild configuration settings
@@ -1193,7 +1195,8 @@ def set_up_configuration(args=None, logfile=None, testing=False):
 
     # initialise logging for main
     log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
-                                silent=(testing or options.terse or search_query), colorize=options.color)
+                                silent=(testing or options.terse or search_query or silent),
+                                colorize=options.color)
 
     # log startup info (must be done after setting up logger)
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
