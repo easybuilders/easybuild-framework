@@ -438,13 +438,17 @@ def init_build_options(build_options=None, cmdline_options=None):
 
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
+
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
     elif 'default' in kwargs:
         return kwargs['default']
     else:
-        raise EasyBuildError("Undefined build option: %s", key)
+        error_msg = "Undefined build option: '%s'. " % key
+        error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
+        error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
+        raise EasyBuildError(error_msg)
 
 
 def build_path():
