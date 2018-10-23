@@ -475,7 +475,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         inject_checksums(ordered_ecs, options.inject_checksums)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums, options.dump_tweaked_easyconfig]
+    stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums,
+                    options.dump_tweaked_easyconfig]
     if any(no_ec_opts) or any(stop_options):
         clean_exit(logfile, eb_tmpdir, testing)
 

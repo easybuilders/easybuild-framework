@@ -538,7 +538,7 @@ class EasyBuildOptions(GeneralOption):
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),
             'dump-tweaked-easyconfig': ("Dump the easyconfig tweaked by the --try-* options to current directory",
-                                None, 'store_true', False),
+                                        None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
