@@ -37,7 +37,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.options import parse_options
@@ -159,6 +159,31 @@ class ParallelBuildTest(EnhancedTestCase):
         regex = re.compile('toy-0.0-deps.eb\s* --hidden')
         self.assertTrue(regex.search(jobs[3].deps[0].script))
         self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
+
+        # also test use of --pre-create-installdir
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool)
+
+        # installation directory doesn't exist yet before submission
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        self.assertFalse(os.path.exists(toy_installdir))
+
+        jobs = submit_jobs(ordered_ecs, '', testing=False)
+        self.assertEqual(len(jobs), 1)
+
+        # software install dir is created (by default) as part of job submission process (fetch_step is run)
+        self.assertTrue(os.path.exists(toy_installdir))
+        remove_dir(toy_installdir)
+        remove_dir(os.path.dirname(toy_installdir))
+        self.assertFalse(os.path.exists(toy_installdir))
+
+        # installation directory does *not* get created when --pre-create-installdir is used
+        build_options['pre_create_installdir'] = False
+        init_config(args=['--job-backend=PbsPython'], build_options=build_options)
+
+        jobs = submit_jobs(ordered_ecs, '', testing=False)
+        self.assertEqual(len(jobs), 1)
+        self.assertFalse(os.path.exists(toy_installdir))
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
