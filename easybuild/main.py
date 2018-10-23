@@ -75,14 +75,14 @@ from easybuild.tools.version import this_is_easybuild
 _log = None
 
 
-def log_start(eb_command_line, eb_tmpdir):
+def log_start(log, eb_command_line, eb_tmpdir):
     """Log startup info."""
-    _log.info(this_is_easybuild())
+    log.info(this_is_easybuild())
 
     # log used command line
-    _log.info("Command line: %s" % (' '.join(eb_command_line)))
+    log.info("Command line: %s", ' '.join(eb_command_line))
 
-    _log.info("Using %s as temporary directory" % eb_tmpdir)
+    log.info("Using %s as temporary directory", eb_tmpdir)
 
 
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
@@ -210,46 +210,43 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     sys.exit(0)
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
+def set_up_configuration(args=None, logfile=None, testing=False):
     """
-    Main function: parse command line options, and act accordingly.
-    :param args: command line arguments to use
+    Set up EasyBuild configuration, by parsing configuration settings & initialising build options.
+
+    :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
-    :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     """
-    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_session_state = session_state()
 
-    # initialise options
+    # parse EasyBuild configuration settings
     eb_go = eboptions.parse_options(args=args)
     options = eb_go.options
-    orig_paths = eb_go.args
+
+    # tmpdir is set by option parser via set_tmpdir function
+    tmpdir = tempfile.gettempdir()
 
     # set umask (as early as possible)
     if options.umask is not None:
         new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
 
-    # set by option parsers via set_tmpdir
-    eb_tmpdir = tempfile.gettempdir()
-
     search_query = options.search or options.search_filename or options.search_short
 
     # initialise logging for main
-    global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
-                                 silent=(testing or options.terse or search_query), colorize=options.color)
+    log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
+                                silent=(testing or options.terse or search_query), colorize=options.color)
+
+    # log startup info (must be done after setting up logger)
+    eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
+    log_start(log, eb_cmd_line, tmpdir)
+
+    # can't log umask setting before logger is set up...
+    if options.umask is not None:
+        log.info("umask set to '%s' (used to be '%s')", oct(new_umask), oct(old_umask))
 
     # disallow running EasyBuild as root (by default)
     check_root_usage(allow_use_as_root=options.allow_use_as_root_and_accept_consequences)
-
-    # log startup info
-    eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
-    log_start(eb_cmd_line, eb_tmpdir)
-
-    if options.umask is not None:
-        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -258,10 +255,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
+    tweaked_ecs_paths, pr_path = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
     auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
-    _log.debug("Full robot path: %s" % robot_path)
+    log.debug("Full robot path: %s" % robot_path)
 
     # configure & initialize build options
     config_options_dict = eb_go.get_options_by_section('config')
@@ -278,6 +275,26 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
+
+    return eb_go, (build_specs, log, logfile, robot_path, search_query, tmpdir, try_to_generate, tweaked_ecs_paths)
+
+
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
+    """
+    Main function: parse command line options, and act accordingly.
+    :param args: command line arguments to use
+    :param logfile: log file to use
+    :param do_build: whether or not to actually perform the build
+    :param testing: enable testing mode
+    """
+    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
+    init_session_state = session_state()
+
+    eb_go, cfg_settings = set_up_configuration(args)
+    options, orig_paths = eb_go.options, eb_go.args
+
+    global _log
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
