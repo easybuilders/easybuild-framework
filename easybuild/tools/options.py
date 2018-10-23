@@ -33,6 +33,7 @@ Command line options for eb
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 import copy
 import glob
@@ -535,6 +536,8 @@ class EasyBuildOptions(GeneralOption):
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
+                                None, 'store_true', False),
+            'dump-tweaked-easyconfig': ("Dump the easyconfig tweaked by the --try-* options to current directory",
                                 None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",

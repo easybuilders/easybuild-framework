@@ -34,6 +34,7 @@ Main entry point for EasyBuild: build software from .eb input file
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 import copy
 import os
@@ -409,6 +410,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
+        if options.dump_tweaked_easyconfig:
+            tweaked_ecs_paths = [os.getcwd(), os.getcwd()]
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
     if options.containerize:
@@ -472,7 +475,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         inject_checksums(ordered_ecs, options.inject_checksums)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
+    stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums, options.dump_tweaked_easyconfig]
     if any(no_ec_opts) or any(stop_options):
         clean_exit(logfile, eb_tmpdir, testing)
 

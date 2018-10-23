@@ -33,6 +33,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 import copy
 import glob
@@ -180,6 +181,7 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'dump_tweaked_easyconfig',
         'enforce_checksums',
         'extended_dry_run',
         'experimental',
