@@ -190,7 +190,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
-    eb_go, cfg_settings = set_up_configuration(args)
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
