@@ -59,6 +59,7 @@ import test.framework.general as gen
 import test.framework.github as g
 import test.framework.hooks as h
 import test.framework.include as i
+import test.framework.lib as lib
 import test.framework.license as lic
 import test.framework.module_generator as mg
 import test.framework.modules as m
@@ -118,7 +119,7 @@ log = fancylogger.getLogger()
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c, sc,
-         tw, p, i, pkg, d, env, et, y, st, h, ct]
+         tw, p, i, pkg, d, env, et, y, st, h, ct, lib]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
