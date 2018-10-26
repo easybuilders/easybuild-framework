@@ -527,5 +527,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 if __name__ == "__main__":
     try:
         main()
-    except EasyBuildError, e:
-        print_error(e.msg)
+    except EasyBuildError as err:
+        print_error(err.msg)
+    except KeyboardInterrupt:
+        print_error("Cancelled by user (keyboard interrupt)")
