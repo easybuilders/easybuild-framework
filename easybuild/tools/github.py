@@ -366,16 +366,19 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
+    github_account = build_option('pr_target_account')
+    github_repo = GITHUB_EASYCONFIGS_REPO
+
     def pr_url(gh):
         """Utility function to fetch data for a specific PR."""
-        return gh.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
+        return gh.repos[github_account][github_repo].pulls[pr]
 
-    _log.debug("Fetching easyconfigs from PR #%s into %s", pr, path)
+    _log.debug("Fetching easyconfigs from %s/%s PR #%s into %s", github_account, github_repo, pr, path)
 
     status, pr_data = github_api_get_request(pr_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
+                             pr, github_account, github_repo, status, pr_data)
 
     pr_merged = pr_data['merged']
     pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
@@ -384,7 +387,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     _log.info("Target branch for PR #%s: %s", pr, pr_target_branch)
 
     # download target branch of PR so we can try and apply the PR patch on top of it
-    repo_target_branch = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=pr_target_branch, github_user=github_user)
+    repo_target_branch = download_repo(repo=github_repo, account=github_account, branch=pr_target_branch,
+                                       github_user=github_user)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
@@ -408,7 +412,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
                                                   per_page=GITHUB_MAX_PER_PAGE)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, commits_data)
+                             pr, github_account, github_repo, status, commits_data)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s", commits_data, last_commit['sha'])
 
@@ -439,7 +443,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
             # path to patch file, incl. subdir it is in
             fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
             sha = last_commit['sha']
-            full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
+            full_url = URL_SEPARATOR.join([GITHUB_RAW, github_account, github_repo, sha, patched_file])
             _log.info("Downloading %s from %s", fn, full_url)
             download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
 
