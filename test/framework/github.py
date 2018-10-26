@@ -120,6 +120,10 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
 
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
+
         # PR for rename of ffmpeg to FFmpeg,
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
         all_ecs_pr2481 = [
