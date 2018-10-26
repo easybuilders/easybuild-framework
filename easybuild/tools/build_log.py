@@ -41,7 +41,7 @@ from datetime import datetime
 from vsc.utils import fancylogger
 from vsc.utils.exceptions import LoggedException
 
-from easybuild.tools.version import VERSION
+from easybuild.tools.version import VERSION, this_is_easybuild
 
 
 # EasyBuild message prefix
@@ -204,19 +204,22 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
     return log, logfile
 
 
+def log_start(log, eb_command_line, eb_tmpdir):
+    """Log startup info."""
+    log.info(this_is_easybuild())
+
+    # log used command line
+    log.info("Command line: %s", ' '.join(eb_command_line))
+
+    log.info("Using %s as temporary directory", eb_tmpdir)
+
+
 def stop_logging(logfile, logtostdout=False):
     """Stop logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
     if logfile is not None:
         fancylogger.logToFile(logfile, enable=False)
-
-
-def get_log(name=None):
-    """
-    (NO LONGER SUPPORTED!) Generate logger object
-    """
-    log.nosupport("Use of get_log function", '2.0')
 
 
 def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=False):
