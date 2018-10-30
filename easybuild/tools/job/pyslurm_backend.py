@@ -64,7 +64,7 @@ class PySlurm(JobBackend):
     # _check_version is called by __init__, so guard it (too) with the decorator
     @only_if_module_is_available('pyslurm', pkgname='pyslurm')
     def _check_version(self):
-        """Check whether pbs_python version complies with required version."""
+        """Check whether PySlurm version complies with required version."""
         version = pyslurm_version()
         if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
             raise EasyBuildError("Found pyslurm version %s, but version %s or more recent is required",
@@ -72,9 +72,7 @@ class PySlurm(JobBackend):
 
     def init(self):
         """
-        Initialise the job backend.
-
-        Connect to the PBS server & reset list of submitted jobs.
+        Initialise the PySlurm job backend.
         """
         self._submitted = []
 
