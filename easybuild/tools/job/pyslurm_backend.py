@@ -148,7 +148,7 @@ class SlurmJob(object):
         if hours > max_walltime:
             self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
             hours = max_walltime
-        self.job_specs['time'] = '%s:0:0' % hours
+        self.job_specs['time_limit'] = hours * 60
 
         if cores:
             self.job_specs['nodes'] = '1'
