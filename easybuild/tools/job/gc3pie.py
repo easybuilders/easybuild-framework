@@ -31,14 +31,13 @@ Interface for submitting jobs via GC3Pie.
 """
 from distutils.version import LooseVersion
 from time import gmtime, strftime
-import re
 import time
 
 from pkg_resources import get_distribution, DistributionNotFound
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option
+from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -50,7 +49,6 @@ try:
     import gc3libs
     import gc3libs.exceptions
     from gc3libs import Application, Run, create_engine
-    from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
     from gc3libs.workflow import AbortOnError, DependentTaskCollection
 
@@ -63,7 +61,7 @@ try:
     gc3libs.UNIGNORE_ALL_ERRORS = True
 
     # note: order of class inheritance is important!
-    class _BuildTaskCollection(AbortOnError, DependentTaskCollection):
+    class AbortingDependentTaskCollection(AbortOnError, DependentTaskCollection):
         """
         A `DependentTaskCollection`:class: that aborts execution upon error.
 
@@ -125,8 +123,21 @@ class GC3Pie(JobBackend):
             self.config_files.append(cfgfile)
 
         self.output_dir = build_option('job_output_dir')
-        self.jobs = _BuildTaskCollection(output_dir=self.output_dir)
         self.job_cnt = 0
+
+        job_deps_type = build_option('job_deps_type')
+        if job_deps_type is None:
+            job_deps_type = JOB_DEPS_TYPE_ABORT_ON_ERROR
+            self.log.info("Using default job dependency type: %s", job_deps_type)
+        else:
+            self.log.info("Using specified job dependency type: %s", job_deps_type)
+
+        if job_deps_type == JOB_DEPS_TYPE_ALWAYS_RUN:
+            self.jobs = DependentTaskCollection(output_dir=self.output_dir)
+        elif job_deps_type == JOB_DEPS_TYPE_ABORT_ON_ERROR:
+            self.jobs = AbortingDependentTaskCollection(output_dir=self.output_dir)
+        else:
+            raise EasyBuildError("Unknown job dependency type specified: %s", job_deps_type)
 
         # after polling for job status, sleep for this time duration
         # before polling again (in seconds)
@@ -152,8 +163,8 @@ class GC3Pie(JobBackend):
         - *cores* depends on which cluster the job is being run.
         """
         named_args = {
-            'jobname': name, # job name in GC3Pie
-            'name':    name, # job name in EasyBuild
+            'jobname': name,  # job name in GC3Pie
+            'name':    name,  # job name in EasyBuild
         }
 
         # environment

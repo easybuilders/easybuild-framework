@@ -31,7 +31,7 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option
+from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import only_if_module_is_available
@@ -61,6 +61,20 @@ class PySlurm(JobBackend):
         """Constructor."""
         super(PySlurm, self).__init__(*args, **kwargs)
 
+        job_deps_type = build_option('job_deps_type')
+        if job_deps_type is None:
+            job_deps_type = JOB_DEPS_TYPE_ABORT_ON_ERROR
+            self.log.info("Using default job dependency type: %s", job_deps_type)
+        else:
+            self.log.info("Using specified job dependency type: %s", job_deps_type)
+
+        if job_deps_type == JOB_DEPS_TYPE_ABORT_ON_ERROR:
+            self.job_deps_type = 'afterok'
+        elif job_deps_type == JOB_DEPS_TYPE_ALWAYS_RUN:
+            self.job_deps_type = 'afterany'
+        else:
+            raise EasyBuildError("Unknown job dependency type specified: %s", job_deps_type)
+
     # _check_version is called by __init__, so guard it (too) with the decorator
     @only_if_module_is_available('pyslurm', pkgname='pyslurm')
     def _check_version(self):
@@ -83,7 +97,7 @@ class PySlurm(JobBackend):
         :param dependencies: jobs on which this job depends.
         """
         if dependencies:
-            job.job_specs['dependency'] = 'afterany:%s' % ':'.join(str(d.jobid) for d in dependencies)
+            job.job_specs['dependency'] = self.job_deps_type + ':' + ':'.join(str(d.jobid) for d in dependencies)
 
         # submit job with hold in place
         job.job_specs['hold'] = True
