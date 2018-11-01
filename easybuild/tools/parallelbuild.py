@@ -155,18 +155,6 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
 
     returns the job
     """
-    # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
-    easybuild_vars = {}
-    for name in os.environ:
-        if name.startswith("EASYBUILD"):
-            easybuild_vars[name] = os.environ[name]
-
-    for env_var in ["PYTHONPATH", "MODULEPATH"]:
-        if env_var in os.environ:
-            easybuild_vars[env_var] = os.environ[env_var]
-
-    _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
-
     # obtain unique name based on name/easyconfig version tuple
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
@@ -194,7 +182,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     if build_option('job_cores'):
         extra['cores'] = build_option('job_cores')
 
-    job = job_backend.make_job(command, name, easybuild_vars, **extra)
+    job = job_backend.make_job(command, name, **extra)
     job.module = easyconfig['ec'].full_mod_name
 
     return job
