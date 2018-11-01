@@ -34,6 +34,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
+from easybuild.tools.filetools import which
 from easybuild.tools.run import run_cmd
 
 
@@ -49,6 +50,13 @@ class Slurm(JobBackend):
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
+
+        # early check for required commands
+        for cmd in ['sbatch', 'scontrol']:
+            path = which(cmd)
+            if path is None:
+                raise EasyBuildError("Required command '%s' not found", cmd)
+
         super(Slurm, self).__init__(*args, **kwargs)
 
         job_deps_type = build_option('job_deps_type')
