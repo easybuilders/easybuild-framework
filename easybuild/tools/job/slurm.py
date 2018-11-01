@@ -159,7 +159,7 @@ class SlurmJob(object):
         self.job_specs['time'] = hours * 60
 
         if cores:
-            self.job_specs['nodes'] = '1'
+            self.job_specs['nodes'] = 1
             self.job_specs['ntasks'] = cores
             self.job_specs['ntasks-per-node'] = cores
         else:
