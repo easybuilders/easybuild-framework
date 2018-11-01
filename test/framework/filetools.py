@@ -944,15 +944,11 @@ class FileToolsTest(EnhancedTestCase):
             for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
                 self.assertFalse(perms & bit)
 
-        # broken symlinks are trouble if symlinks are not skipped
-        self.assertErrorRegex(EasyBuildError, "No such file or directory", ft.adjust_permissions, self.test_prefix,
-                              stat.S_IXUSR, skip_symlinks=False)
-
         # restore original umask
         os.umask(orig_umask)
 
-    def test_adjust_permissions_max_fail_ratio(self):
-        """Test ratio of allowed failures when adjusting permissions"""
+    def test_adjust_permissions_broken_symlinks(self):
+        """Test use of adjust_permissions with broken symlinks in place."""
         # set up symlinks in test directory that can be broken to test allowed failure ratio of adjust_permissions
         testdir = os.path.join(self.test_prefix, 'test123')
         test_files = []
@@ -961,50 +957,14 @@ class FileToolsTest(EnhancedTestCase):
             ft.write_file(test_files[-1], '')
             ft.symlink(test_files[-1], os.path.join(testdir, 'symlink%s' % idx))
 
-        # by default, 50% of failures are allowed (to be robust against broken symlinks)
-        perms = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR
+        perms = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
+        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
-        # one file remove, 1 dir + 2 files + 3 symlinks (of which 1 broken) left => 1/6 (16%) fail ratio is OK
+        # removing files result in broken symlinks, but adjust_permissions is robust against that now
         ft.remove_file(test_files[0])
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
-        # 2 files removed, 1 dir + 1 file + 3 symlinks (of which 2 broken) left => 2/5 (40%) fail ratio is OK
         ft.remove_file(test_files[1])
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
-        # 3 files removed, 1 dir + 3 broken symlinks => 75% fail ratio is too high, so error is raised
         ft.remove_file(test_files[2])
-        error_pattern = r"75.00% of permissions/owner operations failed \(more than 50.00%\), something must be wrong"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
-                              recursive=True, skip_symlinks=False, ignore_errors=True)
 
-        # reconfigure EasyBuild to allow even higher fail ratio (80%)
-        build_options = {
-            'max_fail_ratio_adjust_permissions': 0.8,
-        }
-        init_config(build_options=build_options)
-
-        # 75% < 80%, so OK
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
-
-        # reconfigure to allow less failures (10%)
-        build_options = {
-            'max_fail_ratio_adjust_permissions': 0.1,
-        }
-        init_config(build_options=build_options)
-
-        # way too many failures with 3 broken symlinks
-        error_pattern = r"75.00% of permissions/owner operations failed \(more than 10.00%\), something must be wrong"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
-                              recursive=True, skip_symlinks=False, ignore_errors=True)
-
-        # one broken symlink is still too much with max fail ratio of 10%
-        ft.write_file(test_files[0], '')
-        ft.write_file(test_files[1], '')
-        error_pattern = r"16.67% of permissions/owner operations failed \(more than 10.00%\), something must be wrong"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
-                              recursive=True, skip_symlinks=False, ignore_errors=True)
-
-        # all files restored, no more broken symlinks, so OK
-        ft.write_file(test_files[2], '')
         ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
     def test_apply_regex_substitutions(self):
