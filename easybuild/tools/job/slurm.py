@@ -132,10 +132,12 @@ class Slurm(JobBackend):
 
         Release all user holds on submitted jobs, and disconnect from server.
         """
+        job_ids = []
         for job in self._submitted:
             if job.job_specs['hold']:
                 self.log.info("releasing user hold on job %s" % job.jobid)
-                run_cmd("scontrol release %s" % job.jobid, trace=False)
+                job_ids.append(job.jobid)
+        run_cmd("scontrol release %s" % ' '.join(job_ids), trace=False)
 
         submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
         print_msg("List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs), log=self.log)
