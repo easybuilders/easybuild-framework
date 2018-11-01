@@ -956,7 +956,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch_root, apatch_file = os.path.split(apatch)
     apatch_name, apatch_extension = os.path.splitext(apatch_file)
     # Supports only bz2, gz and xz. zip can be archives which are not supported.
-    if apatch_extension in ['.gz','.bz2','.xz']:
+    if apatch_extension in ['.gz', '.bz2', '.xz']:
         # split again to get the second extension
         apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
         if apatch_subextension == ".patch":
@@ -1095,7 +1095,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
             if relative:
 
                 # relative permissions (add or remove)
-                perms = os.stat(path)[stat.ST_MODE]
+                perms = os.lstat(path)[stat.ST_MODE]
 
                 if add:
                     os.lchmod(path, perms | permissionBits)
@@ -1108,7 +1108,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
-                cur_gid = os.stat(path).st_gid
+                cur_gid = os.lstat(path).st_gid
                 if not cur_gid == group_id:
                     _log.debug("Changing group id of %s to %s" % (path, group_id))
                     os.lchown(path, -1, group_id)
