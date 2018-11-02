@@ -31,7 +31,6 @@ EasyBuild support for a PGI+CUDA compiler toolchain.
 
 from easybuild.toolchains.compiler.cuda import Cuda
 from easybuild.toolchains.pgi import PgiToolchain
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class PgiCUDA(PgiToolchain, Cuda):
