@@ -58,6 +58,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for CUDA installed with iccifort toolchain
     # need to use 'intel' here because 'iccifort' toolchain maps to 'intel' (see above)
     'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
+    'CUDA,PGI': ('PGI-CUDA', '%(PGI)s-%(CUDA)s'),
     # required for use of xlcxlf toolchain
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
