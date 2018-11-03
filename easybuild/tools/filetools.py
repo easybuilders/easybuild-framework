@@ -1098,13 +1098,13 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 perms = os.lstat(path)[stat.ST_MODE]
 
                 if add:
-                    os.lchmod(path, perms | permissionBits)
+                    os.chmod(path, perms | permissionBits)
                 else:
-                    os.lchmod(path, perms & ~permissionBits)
+                    os.chmod(path, perms & ~permissionBits)
 
             else:
                 # hard permissions bits (not relative)
-                os.lchmod(path, permissionBits)
+                os.chmod(path, permissionBits)
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
