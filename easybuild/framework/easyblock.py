@@ -2300,9 +2300,9 @@ class EasyBlock(object):
                 # for library files in lib/, also consider fallback to lib64/ equivalent (and vice versa)
                 if not found and build_option('lib64_fallback_sanity_check'):
                     xs_alt = None
-                    if all(x.startswith('lib/') for x in xs):
+                    if all(x.startswith('lib/') or x == 'lib' for x in xs):
                         xs_alt = [os.path.join('lib64', *x.split(os.path.sep)[1:]) for x in xs]
-                    elif all(x.startswith('lib64/') for x in xs):
+                    elif all(x.startswith('lib64/') or x == 'lib64' for x in xs):
                         xs_alt = [os.path.join('lib', *x.split(os.path.sep)[1:]) for x in xs]
 
                     if xs_alt:
