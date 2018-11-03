@@ -1667,7 +1667,7 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
-        # also check with 'lib' in sanity check dirs (special case)
+        # also check with 'lib64' in sanity check dirs (special case)
         ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
         ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
         write_file(test_ec, ectxt)
