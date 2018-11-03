@@ -1643,6 +1643,17 @@ class ToyBuildTest(EnhancedTestCase):
         # all is fine is lib64 fallback check is enabled (which it is by default)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+        # also check with 'lib' in sanity check dirs (special case)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
         # also check other way around (lib64 -> lib)
         ectxt = read_file(ec_file)
         ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
@@ -1654,6 +1665,17 @@ class ToyBuildTest(EnhancedTestCase):
                               extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        # also check with 'lib64' in sanity check dirs (special case)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib64' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
         # check whether fallback works for files that's more than 1 subdir deep
