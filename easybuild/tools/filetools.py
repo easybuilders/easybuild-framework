@@ -1092,19 +1092,22 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     for path in allpaths:
 
         try:
-            if relative:
+            # don't change permissions if path is a symlink, since we're not checking where the symlink points to
+            # this is done because of security concerns (symlink may point out of installation directory)
+            if not os.path.islink(path):
+                if relative:
 
-                # relative permissions (add or remove)
-                perms = os.lstat(path)[stat.ST_MODE]
+                    # relative permissions (add or remove)
+                    perms = os.lstat(path)[stat.ST_MODE]
 
-                if add:
-                    os.chmod(path, perms | permissionBits)
+                    if add:
+                        os.chmod(path, perms | permissionBits)
+                    else:
+                        os.chmod(path, perms & ~permissionBits)
+
                 else:
-                    os.chmod(path, perms & ~permissionBits)
-
-            else:
-                # hard permissions bits (not relative)
-                os.chmod(path, permissionBits)
+                    # hard permissions bits (not relative)
+                    os.chmod(path, permissionBits)
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
