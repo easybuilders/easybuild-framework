@@ -62,8 +62,9 @@ from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_FORCE_D
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS, DEFAULT_MNS
 from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
-from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS
-from easybuild.tools.config import ERROR, IGNORE, FORCE_DOWNLOAD_CHOICES, LOADED_MODULES_ACTIONS, WARN
+from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
+from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
+from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -403,7 +404,7 @@ class EasyBuildOptions(GeneralOption):
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
-            'pre-create-installdir': ("Create installation directory before submitting build jobs", 
+            'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
@@ -676,6 +677,8 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'backend-config': ("Configuration file for job backend", None, 'store', None),
             'cores': ("Number of cores to request per job", 'int', 'store', None),
+            'deps-type': ("Type of dependency to set between jobs (default depends on job backend)",
+                          'choice', 'store', None, [JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN]),
             'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
             'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),

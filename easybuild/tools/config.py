@@ -105,6 +105,9 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
+JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
+
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
 
@@ -146,6 +149,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_dirs',
         'job_backend_config',
         'job_cores',
+        'job_deps_type',
         'job_max_jobs',
         'job_max_walltime',
         'job_output_dir',

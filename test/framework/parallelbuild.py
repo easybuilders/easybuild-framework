@@ -33,8 +33,8 @@ import stat
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.job.slurm as slurm
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
@@ -62,6 +62,21 @@ override = no
 resourcedir = %(resourcedir)s
 time_cmd = %(time)s
 """
+
+
+MOCKED_SBATCH = """#!/bin/bash
+if [[ $1 == '--version' ]]; then
+    echo "slurm 17.0"
+else
+    echo "Submitted batch job $RANDOM"
+    echo "(submission args: $@)"
+fi
+"""
+
+MOCKED_SCONTROL = """#!/bin/bash
+    echo "(scontrol args: $@)"
+"""
+
 
 def mock(*args, **kwargs):
     """Function used for mocking several functions imported in parallelbuild module."""
@@ -196,7 +211,7 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""
         try:
-            import gc3libs
+            import gc3libs  # noqa (ignore unused import)
         except ImportError:
             print "GC3Pie not available, skipping test"
             return
@@ -232,7 +247,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'valid_module_classes': config.module_classes(),
             'validate': False,
         }
-        options = init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
+        init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
@@ -240,7 +255,7 @@ class ParallelBuildTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
-        jobs = build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
+        build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
 
         self.assertTrue(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0'))
         self.assertTrue(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy'))
@@ -285,12 +300,59 @@ class ParallelBuildTest(EnhancedTestCase):
             regex = re.compile(regex)
             self.assertFalse(regex.search(cmd), "Pattern '%s' *not* found in: %s" % (regex.pattern, cmd))
 
+    def test_build_easyconfigs_in_parallel_slurm(self):
+        """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""
+
+        # install mocked versions of 'sbatch' and 'scontrol' commands
+        sbatch = os.path.join(self.test_prefix, 'bin', 'sbatch')
+        write_file(sbatch, MOCKED_SBATCH)
+        adjust_permissions(sbatch, stat.S_IXUSR, add=True)
+
+        scontrol = os.path.join(self.test_prefix, 'bin', 'scontrol')
+        write_file(scontrol, MOCKED_SCONTROL)
+        adjust_permissions(scontrol, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+
+        build_options = {
+            'external_modules_metadata': {},
+            'robot_path': os.path.join(topdir, 'easyconfigs', 'test_ecs'),
+            'valid_module_classes': config.module_classes(),
+            'validate': False,
+            'job_cores': 3,
+            'job_max_walltime': 5,
+        }
+        init_config(args=['--job-backend=Slurm'], build_options=build_options)
+
+        easyconfigs = process_easyconfig(test_ec)
+        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
+        self.mock_stdout(True)
+        jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
+        self.mock_stdout(False)
+
+        self.assertEqual(len(jobs), 8)
+
+        expected = {
+            'job-name': 'gzip-1.5-goolf-1.4.10',
+            'wrap': "echo '%s'" % test_ec,
+            'nodes': 1,
+            'ntasks': 3,
+            'time': 300,  # 60*5 (unit is minutes)
+            'dependency': 'afterok:%s' % jobs[-2].jobid,
+            'hold': True,
+        }
+        for key, val in expected.items():
+            self.assertTrue(key in jobs[-1].job_specs)
+            self.assertEqual(jobs[-1].job_specs[key], expected[key])
+
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
     TextTestRunner(verbosity=1).run(suite())
