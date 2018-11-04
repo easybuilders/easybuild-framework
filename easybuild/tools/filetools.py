@@ -1054,11 +1054,16 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=True):
+                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
     """
     Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
+
+    if skip_symlinks is not None:
+        depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
+        depr_msg += "(symlinks are always skipped now)"
+        _log.deprecated(depr_msg, '4.0')
 
     name = os.path.abspath(name)
 
@@ -1068,14 +1073,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         for root, dirs, files in os.walk(name):
             paths = []
             if not onlydirs:
-                if skip_symlinks:
-                    for path in files:
-                        if os.path.islink(os.path.join(root, path)):
-                            _log.debug("Not adjusting permissions for symlink %s", path)
-                        else:
-                            paths.append(path)
-                else:
-                    paths.extend(files)
+                paths.extend(files)
             if not onlyfiles:
                 # os.walk skips symlinked dirs by default, i.e., no special handling needed here
                 paths.extend(dirs)

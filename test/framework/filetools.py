@@ -961,18 +961,15 @@ class FileToolsTest(EnhancedTestCase):
         perms = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR
 
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
         # introducing a broken symlinks doesn't cause problems
         ft.remove_file(test_files[0])
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
         # multiple/all broken symlinks is no problem either, since symlinks are always skipped
         ft.remove_file(test_files[1])
         ft.remove_file(test_files[2])
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
         # reconfigure EasyBuild to allow even higher fail ratio (80%)
         build_options = {
@@ -981,7 +978,7 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         # 75% < 80%, so OK
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
         # reconfigure to allow less failures (10%)
         build_options = {
@@ -990,13 +987,11 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
         ft.write_file(test_files[0], '')
         ft.write_file(test_files[1], '')
         ft.write_file(test_files[2], '')
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
 
     def test_apply_regex_substitutions(self):
         """Test apply_regex_substitutions function."""
