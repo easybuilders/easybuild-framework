@@ -1092,6 +1092,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         try:
             # don't change permissions if path is a symlink, since we're not checking where the symlink points to
             # this is done because of security concerns (symlink may point out of installation directory)
+            # (note: os.lchmod is not supported on Linux)
             if not os.path.islink(path):
                 if relative:
 
