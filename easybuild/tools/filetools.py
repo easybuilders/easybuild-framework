@@ -1062,7 +1062,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
 
     if skip_symlinks is not None:
         depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
-        depr_msg += "(symlinks are always skipped now)"
+        depr_msg += "(symlinks are never followed anymore)"
         _log.deprecated(depr_msg, '4.0')
 
     name = os.path.abspath(name)

@@ -966,7 +966,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_file(test_files[0])
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
-        # multiple/all broken symlinks is no problem either, since symlinks are always skipped
+        # multiple/all broken symlinks is no problem either, since symlinks are never followed
         ft.remove_file(test_files[1])
         ft.remove_file(test_files[2])
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
