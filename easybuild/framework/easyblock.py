@@ -2900,7 +2900,7 @@ def build_and_install_one(ecdict, init_env):
             except NotImplementedError as err:
                 _log.warn("Unable to dumped fully processed easyconfig to %s: %s", reprod_spec, err)
             # also archive the relevant easyblocks
-            reprod_spec = os.path.join(reprod_spec, 'easyblocks')
+            reprod_spec = os.path.join(new_log_dir, 'reprod', 'easyblocks')
             for easyblock_class in inspect.getmro(app_class):
                 easyblock_path = inspect.getsourcefile(easyblock_class)
                 easyblock_splitpath = os.path.split(easyblock_path)
