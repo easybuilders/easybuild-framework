@@ -956,7 +956,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch_root, apatch_file = os.path.split(apatch)
     apatch_name, apatch_extension = os.path.splitext(apatch_file)
     # Supports only bz2, gz and xz. zip can be archives which are not supported.
-    if apatch_extension in ['.gz','.bz2','.xz']:
+    if apatch_extension in ['.gz', '.bz2', '.xz']:
         # split again to get the second extension
         apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
         if apatch_subextension == ".patch":
@@ -1054,11 +1054,16 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=True):
+                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
     """
     Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
+
+    if skip_symlinks is not None:
+        depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
+        depr_msg += "(symlinks are never followed anymore)"
+        _log.deprecated(depr_msg, '4.0')
 
     name = os.path.abspath(name)
 
@@ -1068,14 +1073,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         for root, dirs, files in os.walk(name):
             paths = []
             if not onlydirs:
-                if skip_symlinks:
-                    for path in files:
-                        if os.path.islink(os.path.join(root, path)):
-                            _log.debug("Not adjusting permissions for symlink %s", path)
-                        else:
-                            paths.append(path)
-                else:
-                    paths.extend(files)
+                paths.extend(files)
             if not onlyfiles:
                 # os.walk skips symlinked dirs by default, i.e., no special handling needed here
                 paths.extend(dirs)
@@ -1092,26 +1090,30 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     for path in allpaths:
 
         try:
-            if relative:
+            # don't change permissions if path is a symlink, since we're not checking where the symlink points to
+            # this is done because of security concerns (symlink may point out of installation directory)
+            # (note: os.lchmod is not supported on Linux)
+            if not os.path.islink(path):
+                if relative:
 
-                # relative permissions (add or remove)
-                perms = os.stat(path)[stat.ST_MODE]
+                    # relative permissions (add or remove)
+                    perms = os.lstat(path)[stat.ST_MODE]
 
-                if add:
-                    os.chmod(path, perms | permissionBits)
+                    if add:
+                        os.chmod(path, perms | permissionBits)
+                    else:
+                        os.chmod(path, perms & ~permissionBits)
+
                 else:
-                    os.chmod(path, perms & ~permissionBits)
-
-            else:
-                # hard permissions bits (not relative)
-                os.chmod(path, permissionBits)
+                    # hard permissions bits (not relative)
+                    os.chmod(path, permissionBits)
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
-                cur_gid = os.stat(path).st_gid
+                cur_gid = os.lstat(path).st_gid
                 if not cur_gid == group_id:
                     _log.debug("Changing group id of %s to %s" % (path, group_id))
-                    os.chown(path, -1, group_id)
+                    os.lchown(path, -1, group_id)
                 else:
                     _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
 
