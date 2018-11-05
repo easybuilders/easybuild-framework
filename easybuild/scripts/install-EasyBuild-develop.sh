@@ -34,13 +34,13 @@ github_clone_branch()
 	cd "${REPO}"
 	git remote add "github_hpcugent" "git@github.com:hpcugent/${REPO}.git"
 	git fetch github_hpcugent
-	git branch --set-upstream "${BRANCH}" "github_hpcugent/${BRANCH}"
+	git branch --set-upstream-to "github_hpcugent/${BRANCH}" "${BRANCH}"
     else
 	echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
 	cd "${REPO}"
 	git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
 	git fetch github_easybuilders
-	git branch --set-upstream "${BRANCH}" "github_easybuilders/${BRANCH}"
+	git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
     fi
 }
 
