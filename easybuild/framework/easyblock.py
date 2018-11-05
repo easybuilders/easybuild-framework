@@ -2906,14 +2906,15 @@ def build_and_install_one(ecdict, init_env):
                 easyblock_splitpath = os.path.split(easyblock_path)
                 easyblock_basedir = easyblock_splitpath[0]
                 easyblock_filename = easyblock_splitpath[1]
-                framework_class_dir = os.path.join('easybuild-framework', 'easybuild', 'framework')
+                framework_class_dir = os.path.join('easybuild', 'framework')
                 if easyblock_basedir.endswith(framework_class_dir):
                     break
                 else:
                     # Check if the easyblock should be in a generic subdir
-                    if os.path.basename(easyblock_basedir) is 'generic':
+                    if os.path.basename(easyblock_basedir) == 'generic':
                         easyblock_filename = os.path.join('generic', easyblock_filename)
                     copy_file(easyblock_path, os.path.join(reprod_spec, easyblock_filename))
+            _log.info("Dumped easyblock(s) used to %s", reprod_spec)
 
             try:
                 # upload easyconfig (and patch files) to central repository
