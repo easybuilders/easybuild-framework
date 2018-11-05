@@ -320,6 +320,7 @@ class GithubTest(EnhancedTestCase):
             'milestone': None,
             'number': '1234',
             'reviews': [],
+            'unmerged_pr_deps': ['#1233'],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -392,6 +393,13 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['milestone'] = {'title': '3.3.1'}
         expected_stdout += "* milestone is set: OK (3.3.1)\n"
+
+        # no PR unmerged dependencies
+        expected_warning = "* PR dependencies: FAILED (#1233 not yet merged) => not eligible for merging!"
+        run_check()
+
+        pr_data['unmerged_pr_deps'] = []
+        expected_stdout += "* PR dependencies: OK (no unmerged PR dependencies found)\n"
 
         # all checks pass, PR is eligible for merging
         expected_warning = ''
