@@ -1536,6 +1536,10 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(reprod_ec))
 
+        reprod_easyblock = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod',
+                                        'easyblocks', 'toy.py')
+        self.assertTrue(os.path.exists(reprod_easyblock))
+
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
         topdir = os.path.dirname(os.path.abspath(__file__))
