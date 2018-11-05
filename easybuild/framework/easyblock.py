@@ -2899,6 +2899,21 @@ def build_and_install_one(ecdict, init_env):
                 _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
             except NotImplementedError as err:
                 _log.warn("Unable to dumped fully processed easyconfig to %s: %s", reprod_spec, err)
+            # also archive the relevant easyblocks
+            reprod_spec = os.path.join(reprod_spec, 'easyblocks')
+            for easyblock_class in inspect.getmro(app_class):
+                easyblock_path = inspect.getsourcefile(easyblock_class)
+                easyblock_splitpath = os.path.split(easyblock_path)
+                easyblock_basedir = easyblock_splitpath[0]
+                easyblock_filename = easyblock_splitpath[1]
+                framework_class_dir = os.path.join('easybuild-framework', 'easybuild', 'framework')
+                if easyblock_basedir.endswith(framework_class_dir):
+                    break
+                else:
+                    # Check if the easyblock should be in a generic subdir
+                    if os.path.basename(easyblock_basedir) is 'generic':
+                        easyblock_filename = os.path.join('generic', easyblock_filename)
+                    copy_file(easyblock_path, os.path.join(reprod_spec, easyblock_filename))
 
             try:
                 # upload easyconfig (and patch files) to central repository
