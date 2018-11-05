@@ -972,12 +972,32 @@ def check_pr_eligible_to_merge(pr_data):
     # check whether all mentioned easyconfig PR dependencies have been merged
     msg_tmpl = "* PR dependencies: %s"
     if not pr_data.get('unmerged_pr_deps', False):
-        print_msg(msg_tmpl % 'OK (no unmerged easyconfig PR dependencies found)', prefix=False)
+        print_msg(msg_tmpl % 'OK (no unmerged PR dependencies found)', prefix=False)
     else:
-        unmerged_pr_deps = ', '.join(['#' + pr_dep for pr_dep in pr_data['unmerged_pr_deps']])
+        unmerged_pr_deps = ', '.join(pr_data['unmerged_pr_deps'])
         res = not_eligible(msg_tmpl % 'FAILED (%s not yet merged)' % unmerged_pr_deps)
 
     return res
+
+
+def is_pr_merged(pr, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
+    """
+    Check whether PR is merged.
+
+    :param pr: ID of pull request to check
+    :param account: GitHub account
+    :param repo: GitHub repository
+    :param github_user: name of GitHub user to use when querying GitHub
+    :return: boolean value indicates whether PR is merged
+    """
+    pr_url = lambda g: g.repos[account][repo].pulls[pr]
+    status, pr_data = github_api_get_request(pr_url, github_user)
+
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, pr_data)
+
+    return pr_data.get('merged', False)
 
 
 def merge_pr(pr):
@@ -1028,19 +1048,18 @@ def merge_pr(pr):
                              pr, pr_target_account, pr_target_repo, status, reviews_data)
     pr_data['reviews'] = reviews_data
 
-    # check for required easyconfig PRs mentioned in the body 
-    match = re.search('[Rr]equires ((?:~~)?#.*)', pr_data['body'])
+    # check for required PRs mentioned in the body
+    match = re.search('[Rr]equires .*', pr_data['body'])
     if match:
-        pr_deps = re.findall('(?:#)(\d+)', match.group())
+        pr_deps = {}
+        pr_deps['framework'] = re.findall('(?:framework/pull/)(\d+)', match.group())
+        pr_deps['easyblocks'] = re.findall('(?:blocks/pull/)(\d+)', match.group())
+        pr_deps['easyconfigs'] = re.findall('(?: #|~~#)(\d+)', match.group())
         unmerged_pr_deps = []
-        for pr_dep in pr_deps:
-            pr_dep_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr_dep]
-            status, pr_dep_data = github_api_get_request(pr_dep_url, github_user)
-            if status != HTTP_STATUS_OK:
-                print_msg("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                          pr_dep, pr_target_account, pr_target_repo, status, pr_dep_data)
-            if not pr_dep_data.get('merged', False):
-                unmerged_pr_deps.append(pr_dep)
+        for repo in pr_deps.keys():
+            for pr_dep in pr_deps[repo]:
+                if not is_pr_merged(pr_dep, pr_target_account, 'easybuild-%s' % repo, github_user):
+                    unmerged_pr_deps.append('easybuild-%s#%s' % (repo, pr_dep))
         pr_data['unmerged_pr_deps'] = unmerged_pr_deps
 
     force = build_option('force')
