@@ -98,6 +98,8 @@ TEMPLATE_CONSTANTS = [
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
      'gnu.org source url'),
+    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
+     'googlecode.com source url'),
     ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
      'launchpad.net source url'),
     ('PYPI_SOURCE', 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
