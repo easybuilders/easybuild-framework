@@ -94,6 +94,7 @@ from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
+FRAMEWORK_EASYBLOCK_MODULES = ['easyblock.py', 'extensioneasyblock.py']
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 
@@ -2859,14 +2860,11 @@ def build_and_install_one(ecdict, init_env):
         errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
         _log.warning(errormsg)
         result = False
-    app.close_log()
 
     ended = 'ended'
 
     # make sure we're back in original directory before we finish up
     change_dir(cwd)
-
-    application_log = None
 
     # successful (non-dry-run) build
     if result and not dry_run:
@@ -2898,23 +2896,21 @@ def build_and_install_one(ecdict, init_env):
                 app.cfg.dump(reprod_spec)
                 _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
             except NotImplementedError as err:
-                _log.warn("Unable to dumped fully processed easyconfig to %s: %s", reprod_spec, err)
+                _log.warn("Unable to dump fully processed easyconfig to %s: %s", reprod_spec, err)
             # also archive the relevant easyblocks
             reprod_spec = os.path.join(new_log_dir, 'reprod', 'easyblocks')
             for easyblock_class in inspect.getmro(app_class):
                 easyblock_path = inspect.getsourcefile(easyblock_class)
-                easyblock_splitpath = os.path.split(easyblock_path)
-                easyblock_basedir = easyblock_splitpath[0]
-                easyblock_filename = easyblock_splitpath[1]
-                framework_class_dir = os.path.join('easybuild', 'framework')
-                if easyblock_basedir.endswith(framework_class_dir):
+                easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+                # if we reach the framework modules we are done
+                if easyblock_filename in FRAMEWORK_EASYBLOCK_MODULES:
                     break
                 else:
-                    # Check if the easyblock should be in a generic subdir
+                    # Check if the easyblock should be in the generic subdir
                     if os.path.basename(easyblock_basedir) == 'generic':
                         easyblock_filename = os.path.join('generic', easyblock_filename)
                     copy_file(easyblock_path, os.path.join(reprod_spec, easyblock_filename))
-            _log.info("Dumped easyblock(s) used to %s", reprod_spec)
+                    _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_spec)
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -2932,6 +2928,7 @@ def build_and_install_one(ecdict, init_env):
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
         # cleanup logs
+        app.close_log()
         log_fn = os.path.basename(get_log_filename(app.name, app.version))
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
