@@ -1533,13 +1533,21 @@ class ToyBuildTest(EnhancedTestCase):
         # this test doesn't check for anything specific to using minimal toolchains, only side-effects
         self.test_toy_build(extra_args=['--minimal-toolchains'])
 
+    def test_reproducability(self):
+        """Test toy build produces expected reproducability files"""
+        # use the easyblock with inheritance to fully test
+        self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
         # also check whether easyconfig is dumped to reprod/ subdir
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
         reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(reprod_ec))
 
-        reprod_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
-        self.assertTrue(os.path.exists(reprod_easyblock))
+        # Check for easyblock existence
+        child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
+        self.assertTrue(os.path.exists(child_easyblock))
+        # Check for parent easyblock existence
+        parent_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
+        self.assertTrue(os.path.exists(parent_easyblock))
 
         # Make sure framework easyblock modules are not included
         for framework_easyblock in FRAMEWORK_EASYBLOCK_MODULES:

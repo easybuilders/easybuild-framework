@@ -29,7 +29,7 @@ EasyBuild support for building and installing foofoo, implemented as an easybloc
 """
 
 from easybuild.easyblocks.toy import EB_toy
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
+from easybuild.framework.easyconfig import CUSTOM
 
 
 class EB_toytoy(EB_toy):
@@ -39,6 +39,6 @@ class EB_toytoy(EB_toy):
     def extra_options():
         """Custom easyconfig parameters for toytoy."""
         extra_vars = {
-            'toytoy_extra1': [None, "first foofoo-specific easyconfig parameter (mandatory)", MANDATORY],
+            'toytoy_extra1': [None, "first toytoy-specific easyconfig parameter", CUSTOM],
          }
         return EB_toy.extra_options(extra_vars)
