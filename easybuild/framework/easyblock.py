@@ -2825,10 +2825,11 @@ def build_and_install_one(ecdict, init_env):
 
     # load easyblock
     easyblock = build_option('easyblock')
-    if not easyblock:
-        easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
-    else:
+    if easyblock:
+        # set the value in the dict so this is included in the reproducability dump of the easyconfig
         ecdict['ec']['easyblock'] = easyblock
+    else:
+        easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
 
     try:
         app_class = get_easyblock_class(easyblock, name=name)
