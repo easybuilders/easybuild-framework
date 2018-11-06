@@ -2866,6 +2866,8 @@ def build_and_install_one(ecdict, init_env):
     # make sure we're back in original directory before we finish up
     change_dir(cwd)
 
+    application_log = None
+
     # successful (non-dry-run) build
     if result and not dry_run:
 
