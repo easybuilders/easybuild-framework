@@ -344,7 +344,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
-            '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
+            '           "f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
             '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
             '       ],',
@@ -366,7 +366,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['name'], 'ext2')
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
-            'checksums': ['6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09',
+            'checksums': ['f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156',
                           'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
             'patches': ['toy-0.0.eb'],
             'source_tmpl': 'gzip-1.4.eb',
