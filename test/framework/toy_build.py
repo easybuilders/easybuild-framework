@@ -44,6 +44,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
+from easybuild.framework.easyblock import FRAMEWORK_EASYBLOCK_MODULES
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
@@ -1533,12 +1534,17 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(extra_args=['--minimal-toolchains'])
 
         # also check whether easyconfig is dumped to reprod/ subdir
-        reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
+        reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(reprod_ec))
 
-        reprod_easyblock = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod',
-                                        'easyblocks', 'toy.py')
+        reprod_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
         self.assertTrue(os.path.exists(reprod_easyblock))
+
+        # Make sure framework easyblock modules are not included
+        for framework_easyblock in FRAMEWORK_EASYBLOCK_MODULES:
+            path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
+            self.assertFalse(os.path.exists(path))
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
