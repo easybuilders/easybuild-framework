@@ -582,6 +582,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
                 r'\|-- Toolchain',
@@ -589,6 +590,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
             ])
             regex = re.compile(expected, re.M)
