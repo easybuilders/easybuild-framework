@@ -1540,7 +1540,12 @@ class ToyBuildTest(EnhancedTestCase):
         # also check whether easyconfig is dumped to reprod/ subdir
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
         reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
+
         self.assertTrue(os.path.exists(reprod_ec))
+
+        # Check that the toytoy easyblock is recorded in the reprod easyconfig
+        ec = EasyConfig(reprod_ec)
+        self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
 
         # Check for easyblock existence
         child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
