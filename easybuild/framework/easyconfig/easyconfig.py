@@ -72,6 +72,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -384,6 +385,9 @@ class EasyConfig(object):
         self.build_specs = build_specs
         self.parse()
 
+        # check whether this easyconfig file is deprecated, and act accordingly if so
+        self.check_deprecated(self.path)
+
         # perform validations
         self.validation = build_option('validate') and validate
         if self.validation:
@@ -533,6 +537,21 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def check_deprecated(self, path):
+        """Check whether this easyconfig file is deprecated."""
+
+        depr_msgs = []
+
+        if self['deprecated']:
+            depr_msgs.append("easyconfig file '%s' is marked as deprecated" % path)
+
+        if self.toolchain.is_deprecated():
+            depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
+
+        if depr_msgs:
+            depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver)
 
     def validate(self, check_osdeps=True):
         """
