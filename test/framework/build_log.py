@@ -31,9 +31,8 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from datetime import datetime, timedelta
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
@@ -172,6 +171,21 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
+        write_file(tmplog, '')
+        logToFile(tmplog, enable=True)
+
+        # also test use of 'more_info' named argument for log.deprecated
+        self.mock_stderr(True)
+        log.deprecated("\nthis is just a test\n", newer_ver, more_info="(see URLGOESHERE for more information)")
+        self.mock_stderr(False)
+        logtxt = read_file(tmplog)
+        expected_logtxt = '\n'.join([
+            "[WARNING] :: Deprecated functionality, will no longer work in v10000001: ",
+            "this is just a test",
+            "(see URLGOESHERE for more information)",
+        ])
+        self.assertTrue(logtxt.strip().endswith(expected_logtxt))
+
     def test_log_levels(self):
         """Test whether log levels are respected"""
         fd, tmplog = tempfile.mkstemp()
@@ -273,6 +287,7 @@ class BuildLogTest(EnhancedTestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
