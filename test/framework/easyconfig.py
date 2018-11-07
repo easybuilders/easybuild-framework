@@ -2321,6 +2321,16 @@ class EasyConfigTest(EnhancedTestCase):
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
         self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz: "))
 
+    def test_deprecated(self):
+        """Test use of 'deprecated' easyconfig parameter."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_txt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt + "\ndeprecated = 'this is just a test'")
+
+        error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
 
 def suite():
     """ returns all the testcases in this module """

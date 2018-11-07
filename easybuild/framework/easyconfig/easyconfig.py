@@ -543,15 +543,20 @@ class EasyConfig(object):
 
         depr_msgs = []
 
-        if self['deprecated']:
-            depr_msgs.append("easyconfig file '%s' is marked as deprecated" % path)
+        deprecated = self['deprecated']
+        if deprecated:
+            if isinstance(deprecated, basestring):
+                depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
+            else:
+                raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
 
         if self.toolchain.is_deprecated():
             depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
-            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver)
+            more_info_depr_ec = "(see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
 
     def validate(self, check_osdeps=True):
         """

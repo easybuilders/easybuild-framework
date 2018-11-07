@@ -191,7 +191,7 @@ DEFAULT_CONFIG = {
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
-    'deprecated': [False, "Indicates whether or not this easyconfig file is deprecated "
+    'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
                           "and will be archived in the next major release of EasyBuild", OTHER],
 }
 
