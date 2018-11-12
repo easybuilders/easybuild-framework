@@ -94,7 +94,6 @@ from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
-FRAMEWORK_EASYBLOCK_MODULES = ['easyblock.py', 'extensioneasyblock.py']
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 
