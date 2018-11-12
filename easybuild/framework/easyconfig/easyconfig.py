@@ -442,12 +442,12 @@ class EasyConfig(object):
 
         return ec
 
-    def update(self, key, value, allow_duplicate = True):
+    def update(self, key, value, allow_duplicate=True):
         """
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if allow_duplicate or not value in prev_value:
+        if allow_duplicate or value not in prev_value:
             if isinstance(prev_value, basestring):
                 self[key] = '%s %s ' % (prev_value, value)
             elif isinstance(prev_value, list):
