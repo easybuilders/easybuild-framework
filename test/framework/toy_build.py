@@ -44,7 +44,6 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
-from easybuild.framework.easyblock import FRAMEWORK_EASYBLOCK_MODULES
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
