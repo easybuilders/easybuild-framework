@@ -2833,7 +2833,6 @@ def build_and_install_one(ecdict, init_env):
 
     try:
         app_class = get_easyblock_class(easyblock, name=name)
-
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
@@ -2894,28 +2893,8 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # for reproducability we dump out the fully processed easyconfig since the contents can be affected
-            # by subtoolchain resolution (and related options) and/or hooks
-            reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-            try:
-                app.cfg.dump(reprod_spec)
-                _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
-            except NotImplementedError as err:
-                _log.warn("Unable to dump fully processed easyconfig to %s: %s", reprod_spec, err)
-            # also archive the relevant easyblocks
-            reprod_spec = os.path.join(new_log_dir, 'reprod', 'easyblocks')
-            for easyblock_class in inspect.getmro(app_class):
-                easyblock_path = inspect.getsourcefile(easyblock_class)
-                easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
-                # if we reach the framework modules we are done
-                if easyblock_filename in FRAMEWORK_EASYBLOCK_MODULES:
-                    break
-                else:
-                    # Check if the easyblock should be in the generic subdir
-                    if os.path.basename(easyblock_basedir) == 'generic':
-                        easyblock_filename = os.path.join('generic', easyblock_filename)
-                    copy_file(easyblock_path, os.path.join(reprod_spec, easyblock_filename))
-                    _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_spec)
+            # Record the easyconfig and easyblocks for reproducability
+            reproduce_build(app, new_log_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -2998,6 +2977,39 @@ def build_and_install_one(ecdict, init_env):
     del app
 
     return (success, application_log, errormsg)
+
+
+def reproduce_build(app, reprod_dir_root):
+    """
+    Create reproducability files (processed easyconfig and easyblocks used) from class instance
+
+    :param app: easyblock class instance
+    :param reprod_dir_root: root directory in which to create the 'reprod' directory
+    """
+
+    ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
+    # for reproducability we dump out the fully processed easyconfig since the contents can be affected
+    # by subtoolchain resolution (and related options) and/or hooks
+    reprod_spec = os.path.join(reprod_dir_root, 'reprod', ec_filename)
+    try:
+        app.cfg.dump(reprod_spec)
+        _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
+    except NotImplementedError as err:
+        _log.warn("Unable to dump fully processed easyconfig to %s: %s", reprod_spec, err)
+
+    # also archive the relevant easyblocks
+    reprod_easyblock_dir = os.path.join(reprod_dir_root, 'reprod', 'easyblocks')
+    for easyblock_class in inspect.getmro(type(app)):
+        easyblock_path = inspect.getsourcefile(easyblock_class)
+        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+        # if we reach EasyBlock or ExtensionEasyBlock class, we are done
+        # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
+        if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+            break
+        else:
+            copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
+            _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
 
 
 def get_easyblock_instance(ecdict):
