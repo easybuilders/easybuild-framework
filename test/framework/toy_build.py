@@ -1554,7 +1554,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(parent_easyblock))
 
         # Make sure framework easyblock modules are not included
-        for framework_easyblock in FRAMEWORK_EASYBLOCK_MODULES:
+        for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
             path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
             self.assertFalse(os.path.exists(path))
 
