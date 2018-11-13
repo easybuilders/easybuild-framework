@@ -72,10 +72,10 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_logs, read_file, remove_file, rmtree2
-from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import compute_checksum, copy_dir, copy_file, derive_alt_pypi_url, diff_files
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, get_source_tarball_from_git
+from easybuild.tools.filetools import is_alt_pypi_url, is_sha256_checksum, mkdir, move_logs, read_file, remove_file
+from easybuild.tools.filetools import rmtree2, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -2855,6 +2855,9 @@ def build_and_install_one(ecdict, init_env):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        # create our reproducability files before carrying out the easyblock steps
+        reprod_dir_root = os.path.dirname(app.logfile)
+        reprod_dir = reproduce_build(app, reprod_dir_root)
         result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
         first_n = 300
@@ -2892,8 +2895,8 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # Record the easyconfig and easyblocks for reproducability
-            reproduce_build(app, new_log_dir)
+            # move the reproducability files to the final log directory
+            copy_dir(reprod_dir, os.path.join(new_log_dir, os.path.basename(reprod_dir)))
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -2984,13 +2987,16 @@ def reproduce_build(app, reprod_dir_root):
 
     :param app: easyblock class instance
     :param reprod_dir_root: root directory in which to create the 'reprod' directory
+
+    :return reprod_dir: directory containing reproducability files
     """
 
     ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
 
     # for reproducability we dump out the fully processed easyconfig since the contents can be affected
     # by subtoolchain resolution (and related options) and/or hooks
-    reprod_spec = os.path.join(reprod_dir_root, 'reprod', ec_filename)
+    reprod_dir = os.path.join(reprod_dir_root, 'reprod')
+    reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
         app.cfg.dump(reprod_spec)
         _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
@@ -2998,7 +3004,7 @@ def reproduce_build(app, reprod_dir_root):
         _log.warn("Unable to dump fully processed easyconfig to %s: %s", reprod_spec, err)
 
     # also archive the relevant easyblocks
-    reprod_easyblock_dir = os.path.join(reprod_dir_root, 'reprod', 'easyblocks')
+    reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
     for easyblock_class in inspect.getmro(type(app)):
         easyblock_path = inspect.getsourcefile(easyblock_class)
         easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
@@ -3010,6 +3016,7 @@ def reproduce_build(app, reprod_dir_root):
             copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
             _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
 
+    return reprod_dir
 
 def get_easyblock_instance(ecdict):
     """
