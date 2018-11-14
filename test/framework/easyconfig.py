@@ -1381,6 +1381,18 @@ class EasyConfigTest(EnhancedTestCase):
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
+        # for unallowed duplicates
+        ec.update('configopts', 'SOME_VALUE')
+        configopts_tmp = ec['configopts']
+        ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
+        self.assertEquals(ec['configopts'], configopts_tmp)
+
+        # for unallowed duplicates when a list is used
+        ec.update('patches', ['foo2.patch', 'bar2.patch'])
+        patches_tmp = copy.deepcopy(ec['patches'])
+        ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
+        self.assertEquals(ec['patches'], patches_tmp)
+
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
