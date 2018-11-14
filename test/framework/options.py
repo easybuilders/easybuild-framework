@@ -1343,7 +1343,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Deprecated logging should work')
 
-        stderr_regex = re.compile("^Deprecated functionality, will no longer work in")
+        stderr_regex = re.compile("^\nWARNING: Deprecated functionality, will no longer work in")
         self.assertTrue(stderr_regex.search(stderr), "Pattern '%s' found in: %s" % (stderr_regex.pattern, stderr))
 
         # force it to current version, which should result in deprecation
