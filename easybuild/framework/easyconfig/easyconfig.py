@@ -447,13 +447,18 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if allow_duplicate or value not in prev_value:
-            if isinstance(prev_value, basestring):
-                self[key] = '%s %s ' % (prev_value, value)
-            elif isinstance(prev_value, list):
+        if isinstance(prev_value, basestring) and (allow_duplicate or value not in prev_value):
+            self[key] = '%s %s ' % (prev_value, value)
+        elif isinstance(prev_value, list):
+            if allow_duplicate:
                 self[key] = prev_value + value
             else:
-                raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
+                for item in value:
+                    # add only those items that aren't already in the list
+                    if item not in prev_value:
+                        self[key] = prev_value + [item]
+        else:
+            raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
     def parse(self):
         """
