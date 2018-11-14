@@ -1382,9 +1382,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
         # for unallowed duplicates
-        ec.update('configopts','SOME_VALUE')
+        ec.update('configopts', 'SOME_VALUE')
         configopts_tmp = ec['configopts']
-        ec.update('configopts','SOME_VALUE',allow_duplicate=False)
+        ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
         self.assertEquals(ec['configopts'], configopts_tmp)
 
         # for unallowed duplicates when a list is used
