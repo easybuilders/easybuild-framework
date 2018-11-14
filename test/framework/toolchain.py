@@ -32,7 +32,6 @@ import os
 import re
 import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -193,7 +192,7 @@ class ToolchainTest(EnhancedTestCase):
         for k, v in tc.variables.items():
             for x in v:
                 idx = id(x)
-                if not idx in ids:
+                if idx not in ids:
                     ids.append(idx)
                 else:
                     pass_by_value = False
@@ -238,7 +237,7 @@ class ToolchainTest(EnhancedTestCase):
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.set_options({'lowopt': True, 'opt':True})
+        tc.set_options({'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -247,7 +246,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.set_options({'noopt': True, 'lowopt':True})
+        tc.set_options({'noopt': True, 'lowopt': True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -256,7 +255,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
+        tc.set_options({'noopt': True, 'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -345,7 +344,7 @@ class ToolchainTest(EnhancedTestCase):
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
                 'gompi': ('1.3.12', "-march=x86-64 -mtune=generic"),
-                'iccifort': ('2011.13.367', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
+                'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
             }
             for tcopt_optarch in [False, True]:
                 for tcname in tcs:
@@ -393,12 +392,22 @@ class ToolchainTest(EnhancedTestCase):
         intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
         gcc_options = [('gccflag', 'gccflag'), ('march=nocona', 'march=nocona'), ('', '')]
         gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
-        toolchains = [('iccifort', '2011.13.367'), ('GCC', '4.7.2'), ('GCCcore', '6.2.0'), ('PGI', '16.7-GCC-5.4.0-2.26')]
+        toolchains = [
+            ('iccifort', '2018.1.163'),
+            ('GCC', '4.7.2'),
+            ('GCCcore', '6.2.0'),
+            ('PGI', '16.7-GCC-5.4.0-2.26'),
+        ]
         enabled = [True, False]
 
         test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
 
-        for (intel_flags, intel_flags_exp), (gcc_flags, gcc_flags_exp), (gcccore_flags, gcccore_flags_exp), (toolchain, toolchain_ver), enable in test_cases:
+        for intel_flags, gcc_flags, gcccore_flags, (toolchain, toolchain_ver), enable in test_cases:
+
+            intel_flags, intel_flags_exp = intel_flags
+            gcc_flags, gcc_flags_exp = gcc_flags
+            gcccore_flags, gcccore_flags_exp = gcccore_flags
+
             optarch_var = {}
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
@@ -415,7 +424,7 @@ class ToolchainTest(EnhancedTestCase):
                 flags = gcc_flags_exp
             elif toolchain == 'GCCcore':
                 flags = gcccore_flags_exp
-            else: # PGI as an example of compiler not set
+            else:  # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
                 # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
                 flags = ''
@@ -433,25 +442,25 @@ class ToolchainTest(EnhancedTestCase):
                     gcc_options[1][1],
                     gcccore_options[0][1],
                     gcccore_options[1][1],
-                    'xHost', # default optimal for Intel
-                    'march=native', # default optimal for GCC
+                    'xHost',  # default optimal for Intel
+                    'march=native',  # default optimal for GCC
                 ]
             else:
                 blacklist = [flags]
 
             for var in flag_vars:
-                 set_flags = tc.get_variable(var)
+                set_flags = tc.get_variable(var)
 
-                 # Check that the correct flags are there
-                 if enable and flags != '':
-                     error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
-                     self.assertTrue(flags in set_flags, "optarch: True means '%s' in '%s'")
+                # Check that the correct flags are there
+                if enable and flags != '':
+                    error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
+                    self.assertTrue(flags in set_flags, "optarch: True means '%s' in '%s'")
 
-                 # Check that there aren't any unexpected flags
-                 else:
-                     for blacklisted_flag in blacklist:
-                         error_msg = "optarch: False means no '%s' in '%s'" % (blacklisted_flag, set_flags)
-                         self.assertFalse(blacklisted_flag in set_flags, error_msg)
+                # Check that there aren't any unexpected flags
+                else:
+                    for blacklisted_flag in blacklist:
+                        error_msg = "optarch: False means no '%s' in '%s'" % (blacklisted_flag, set_flags)
+                        self.assertFalse(blacklisted_flag in set_flags, error_msg)
 
             self.modtool.purge()
 
@@ -541,7 +550,7 @@ class ToolchainTest(EnhancedTestCase):
         # check another one
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
 
@@ -571,7 +580,7 @@ class ToolchainTest(EnhancedTestCase):
         # check another one
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
         self.assertEqual(tc.blas_family(), 'IntelMKL')
         self.assertEqual(tc.lapack_family(), 'IntelMKL')
@@ -606,7 +615,7 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def setup_sandbox_for_intel_fftw(self, moddir, imklver='10.3.12.361'):
+    def setup_sandbox_for_intel_fftw(self, moddir, imklver='2018.1.163'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # create dummy imkl module and put required lib*.a files in place
@@ -633,12 +642,12 @@ class ToolchainTest(EnhancedTestCase):
             for fftlib in fftw_libs:
                 write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
 
-    def test_ictce_toolchain(self):
-        """Test for ictce toolchain."""
+    def test_intel_toolchain(self):
+        """Test for intel toolchain."""
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
 
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'icc')
@@ -648,7 +657,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('FC'), 'ifort')
         self.modtool.purge()
 
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         opts = {'usempi': True}
         tc.set_options(opts)
         tc.prepare()
@@ -665,7 +674,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPIFC'), 'mpiifort')
         self.modtool.purge()
 
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         opts = {'usempi': True, 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -694,7 +703,7 @@ class ToolchainTest(EnhancedTestCase):
         modules.modules_tool().purge()
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
         self.modtool.prepend_module_path(self.test_prefix)
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         opts = {'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -739,13 +748,13 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
         self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
         self.modtool.purge()
 
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
 
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
@@ -833,24 +842,25 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_old_new_iccifort(self):
         """Test whether preparing for old/new Intel compilers works correctly."""
-        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.3.12.361')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2018.1.163')
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
         self.modtool.prepend_module_path(self.test_prefix)
 
         # incl. -lguide
-        libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
-        libblas_mt_ictce3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
+        libblas_mt_intel3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_intel3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
-        libblas_mt_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
-        libblas_mt_ictce4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+        libblas_mt_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_intel4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
 
         # incl. -lmkl_solver*
-        libscalack_ictce3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
-        libscalack_ictce3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalack_intel3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
+        libscalack_intel3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
 
         # no -lmkl_solver*
-        libscalack_ictce4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
+        libscalack_intel4 += "-lmkl_core"
 
         libblas_mt_goolfc = "-lopenblas -lgfortran"
         libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
@@ -862,36 +872,36 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
+        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
-        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
+        self.assertTrue(libscalack_intel3 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
+        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
-        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
+        self.assertTrue(libscalack_intel3 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        libscalack_intel4 = libscalack_intel4.replace('_lp64', '_ilp64')
+        tc = self.get_toolchain('intel', version='2018a')
         opts = {'i8': True}
         tc.set_options(opts)
         tc.prepare()
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
@@ -920,7 +930,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayGNU', '2015.06-XC'),
             ('CrayIntel', '2015.06-XC'),
             ('GCC', '4.7.2'),
-            ('iccifort', '2011.13.367'),
+            ('iccifort', '2018.1.163'),
         ]
 
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
@@ -1193,7 +1203,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # multiple -L arguments, order should be preserved
-        out, ec = run_cmd("%s ld '' '%s' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % (script, rpath_inc), simple=False)
+        cmd = "%s ld '' '%s' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % (script, rpath_inc)
+        out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
@@ -1217,7 +1228,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test specifying of custom rpath filter
-        out, ec = run_cmd("%s ld '/fo.*,/bar.*' '%s' -L/foo foo.o -L/lib64 -lfoo -L/bar -lbar" % (script, rpath_inc), simple=False)
+        cmd = "%s ld '/fo.*,/bar.*' '%s' -L/foo foo.o -L/lib64 -lfoo -L/bar -lbar" % (script, rpath_inc)
+        out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
@@ -1477,6 +1489,7 @@ class ToolchainTest(EnhancedTestCase):
 def suite():
     """ return all the tests"""
     return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

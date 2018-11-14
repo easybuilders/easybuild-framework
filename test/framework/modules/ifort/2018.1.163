@@ -7,7 +7,7 @@ proc ModulesHelp { } {
 
 module-whatis {Fortran compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/}
 
-set root    /tmp/ifort/2011.13.367
+set root    /tmp/ifort/2018.1.163
 
 conflict    ifort
 
@@ -20,8 +20,8 @@ prepend-path	PATH		$root/bin
 prepend-path	PATH		$root/bin/intel64
 
 setenv	EBROOTIFORT		"$root"
-setenv	EBVERSIONIFORT		"2011.13.367"
-setenv	EBDEVELIFORT		"$root/easybuild/ifort-2011.13.367-easybuild-devel"
+setenv	EBVERSIONIFORT		"2018.1.163"
+setenv	EBDEVELIFORT		"$root/easybuild/ifort-2018.1.163-easybuild-devel"
 
 prepend-path	INTEL_LICENSE_FILE		/tmp/license.lic
 prepend-path	NLSPATH		$root/idb/intel64/locale/%l_%t/%N
