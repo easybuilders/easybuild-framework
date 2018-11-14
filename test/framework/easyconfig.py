@@ -1389,7 +1389,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for unallowed duplicates when a list is used
         ec.update('patches', ['foo2.patch', 'bar2.patch'])
-        patches_tmp = ec['patches'].copy()
+        patches_tmp = copy.deepcopy(ec['patches'])
         ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
         self.assertEquals(ec['patches'], patches_tmp)
 
