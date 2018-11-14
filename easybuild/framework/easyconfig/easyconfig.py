@@ -447,7 +447,7 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if isinstance(prev_value, basestring)
+        if isinstance(prev_value, basestring):
             if allow_duplicate or value not in prev_value:
                 self[key] = '%s %s ' % (prev_value, value)
         elif isinstance(prev_value, list):
