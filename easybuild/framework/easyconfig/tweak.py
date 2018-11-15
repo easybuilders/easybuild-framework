@@ -358,7 +358,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         _log.debug("Generated file name for tweaked easyconfig file: %s", tweaked_ec)
 
     # write out tweaked easyconfig file
-    write_file(tweaked_ec, ectxt, backup=True, overwrite=False, verbose=True)
+    write_file(tweaked_ec, ectxt, backup=True, always_overwrite=False, verbose=True)
     _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
 
     return tweaked_ec
@@ -851,7 +851,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
-    parsed_ec['ec'].dump(tweaked_spec, overwrite=False, backup=True)
+    parsed_ec['ec'].dump(tweaked_spec, always_overwrite=False, backup=True)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
 
     return tweaked_spec

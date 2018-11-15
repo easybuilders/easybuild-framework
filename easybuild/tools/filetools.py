@@ -193,7 +193,7 @@ def read_file(path, log_error=True):
     return txt
 
 
-def write_file(path, txt, append=False, forced=False, backup=False, overwrite=True, verbose=False):
+def write_file(path, txt, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
@@ -203,7 +203,7 @@ def write_file(path, txt, append=False, forced=False, backup=False, overwrite=Tr
     :param append: append to existing file rather than overwrite
     :param forced: force actually writing file in (extended) dry run mode
     :param backup: back up existing file before overwriting or modifying it
-    :param overwrite: don't require --force to overwrite an existing file
+    :param always_overwrite: don't require --force to overwrite an existing file
     :param verbose: be verbose, i.e. inform where backup file was created
     """
     # early exit in 'dry run' mode
@@ -213,7 +213,7 @@ def write_file(path, txt, append=False, forced=False, backup=False, overwrite=Tr
 
     if os.path.exists(path):
         if not append:
-            if overwrite or build_option('force'):
+            if always_overwrite or build_option('force'):
                 _log.info("Overwriting existing file %s", path)
             else:
                 raise EasyBuildError("File exists, not overwriting it without --force: %s", path)
