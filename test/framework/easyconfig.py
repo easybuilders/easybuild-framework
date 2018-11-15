@@ -53,6 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, 
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
+from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -1465,7 +1466,12 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ecdict, ec.asdict())
             ectxt = read_file(test_ec)
 
-            patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
+            patterns = [
+                r"^name = ['\"]",
+                r"^version = ['0-9\.]",
+                r'^description = ["\']',
+                r"^toolchain = {'name': .*, 'version': .*}",
+            ]
             for pattern in patterns:
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
@@ -1508,7 +1514,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",
@@ -1518,6 +1524,7 @@ class EasyConfigTest(EnhancedTestCase):
             "]",
             '',
             "foo_extra1 = 'foobar'",
+            '',
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1528,7 +1535,10 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt = read_file(testec)
         self.assertEqual(rawtxt, ectxt)
 
-        dumped_ec = EasyConfig(testec)
+        # check parsing of dumped easyconfig
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
@@ -1595,7 +1605,9 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
         # reparsing the dumped easyconfig file should work
-        ecbis = EasyConfig(testec)
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
@@ -1653,7 +1665,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(ectxt.endswith("# trailing comment"))
 
         # reparsing the dumped easyconfig file should work
-        ecbis = EasyConfig(testec)
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_to_template_str(self):
         """ Test for to_template_str method """

@@ -828,7 +828,7 @@ class EasyConfig(object):
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
-        write_file(fp, ectxt.strip())
+        write_file(fp, ectxt)
 
         self.enable_templating = orig_enable_templating
 
