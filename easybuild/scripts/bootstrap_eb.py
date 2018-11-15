@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180916.01'
+EB_BOOTSTRAP_VERSION = '20180925.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -381,26 +381,16 @@ def check_easy_install_cmd():
     easy_install_regex = re.compile('^(setuptools|distribute) %s' % setuptools.__version__)
     debug("Pattern for 'easy_install --version': %s" % easy_install_regex.pattern)
 
-    for path in os.getenv('PATH', '').split(os.pathsep):
-        easy_install = os.path.join(path, 'easy_install')
-        debug("Checking %s..." % easy_install)
-        res = False
-        if os.path.exists(easy_install):
-            cmd = "PYTHONPATH='%s' %s %s --version" % (os.getenv('PYTHONPATH', ''), sys.executable, easy_install)
-            os.system("%s > %s 2>&1" % (cmd, outfile))
-            outtxt = open(outfile).read().strip()
-            debug("Output of '%s':\n%s" % (cmd, outtxt))
-            res = bool(easy_install_regex.match(outtxt))
-            debug("Result for %s: %s" % (easy_install, res))
-        else:
-            debug("%s does not exist" % easy_install)
-
-        if res:
-            debug("Found right 'easy_install' command in %s" % path)
-            curr_path = os.environ.get('PATH', '').split(os.pathsep)
-            os.environ['PATH'] = os.pathsep.join([path] + curr_path)
-            debug("$PATH: %s" % os.environ['PATH'])
-            return
+    pythonpath = os.getenv('PYTHONPATH', '')
+    cmd = "PYTHONPATH='%s' %s -m easy_install --version" % (pythonpath, sys.executable)
+    os.system("%s > %s 2>&1" % (cmd, outfile))
+    outtxt = open(outfile).read().strip()
+    debug("Output of '%s':\n%s" % (cmd, outtxt))
+    res = bool(easy_install_regex.match(outtxt))
+    debug("Result: %s" % res)
+    if res:
+        debug("Found right 'easy_install' command")
+        return
 
     error("Failed to find right 'easy_install' command!")
 
@@ -641,15 +631,15 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     preinstallopts = ''
 
     if distribute_egg_dir is not None:
-        # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
+        # inject path to distribute installed in stage 0 into $PYTHONPATH via preinstallopts
         # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
-        # this is required for the easy_install from stage 1 to work
+        # this is required for the easy_install from stage 0 to work
         preinstallopts += "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
 
         # ensure that (latest) setuptools is installed as well alongside EasyBuild,
         # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
         # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
-        preinstallopts += "%s $(which easy_install) -U --prefix %%(installdir)s setuptools && " % sys.executable
+        preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s setuptools && " % sys.executable
 
     # vsc-install is a runtime dependency for the EasyBuild unit test suite,
     # and is easily picked up from stage1 rather than being actually installed, so force it
@@ -658,7 +648,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
         if len(vsc_install_tarball_paths) == 1:
             vsc_install = vsc_install_tarball_paths[0]
-    preinstallopts += "%s $(which easy_install) -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
+    preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
 
     templates.update({
         'preinstallopts': preinstallopts,
@@ -704,8 +694,10 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
     handle = open(ebfile, 'w')
-    handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
+    ebfile_txt = EASYBUILD_EASYCONFIG_TEMPLATE % templates
+    handle.write(ebfile_txt)
     handle.close()
+    debug("Contents of generated easyconfig file:\n%s" % ebfile_txt)
 
     # set command line arguments for eb
     eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']

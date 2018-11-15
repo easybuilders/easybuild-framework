@@ -120,8 +120,28 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             else:
                 target_toolchain['version'] = source_toolchain['version']
 
-            src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+            try:
+                src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+            except EasyBuildError as err:
+                # make sure exception was raised by match_minimum_tc_specs because toolchain mapping could not be done
+                if "No possible mapping from source toolchain" in err.msg:
 
+                    if build_option('force'):
+                        warning_msg = "Combining --try-toolchain with --force for toolchains with unequal capabilities:"
+                        warning_msg += " disabling recursion and not changing (sub)toolchains for dependencies."
+                        print_warning(warning_msg)
+                        revert_to_regex = True
+                        modifying_toolchains = False
+                    else:
+                        error_msg = err.msg + '\n'
+                        error_msg += "Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
+                        error_msg += "(If you know what you are doing, you can use --force to proceed anyway.)"
+                        raise EasyBuildError(error_msg, target_toolchain['name'], source_toolchain['name'])
+                else:
+                    # simply re-raise the exception if something else went wrong
+                    raise err
+
+        if not revert_to_regex:
             _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
             orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
@@ -338,14 +358,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         _log.debug("Generated file name for tweaked easyconfig file: %s", tweaked_ec)
 
     # write out tweaked easyconfig file
-    if os.path.exists(tweaked_ec):
-        if build_option('force'):
-            print_warning("Overwriting existing file at %s with tweaked easyconfig file (due to --force)", tweaked_ec)
-        else:
-            raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written",
-                                 tweaked_ec)
-
-    write_file(tweaked_ec, ectxt)
+    write_file(tweaked_ec, ectxt, backup=True, overwrite=False, verbose=True)
     _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
 
     return tweaked_ec
@@ -470,17 +483,17 @@ def select_or_generate_ec(fp, paths, specs):
     # TOOLCHAIN NAME
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
-    def unique(l):
+    def unique(lst):
         """Retain unique elements in a sorted list."""
-        l = sorted(l)
-        if len(l) > 1:
-            l2 = [l[0]]
-            for x in l:
-                if not x == l2[-1]:
-                    l2.append(x)
-            return l2
+        lst = sorted(lst)
+        if len(lst) > 1:
+            res = [lst[0]]
+            for x in lst:
+                if not x == res[-1]:
+                    res.append(x)
+            return res
         else:
-            return l
+            return lst
 
     # determine list of unique toolchain names
     tcnames = unique([x[0]['toolchain']['name'] for x in ecs_and_files])
@@ -750,7 +763,7 @@ def get_dep_tree_of_toolchain(toolchain_spec, modtool):
                              toolchain_spec['name'], toolchain_spec['version'])
     ec = process_easyconfig(path, validate=False)
 
-    return [dep['ec'] for dep in resolve_dependencies(ec, modtool)]
+    return [dep['ec'] for dep in resolve_dependencies(ec, modtool, retain_all_deps=True)]
 
 
 def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
@@ -843,7 +856,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         else:
             raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written",
                                  tweaked_spec)
-    parsed_ec['ec'].dump(tweaked_spec)
+    parsed_ec['ec'].dump(tweaked_spec, overwrite=False, backup=True)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
 
     return tweaked_spec

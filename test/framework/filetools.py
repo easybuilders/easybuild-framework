@@ -547,6 +547,34 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(backup1), txt + txt2)
         self.assertEqual(ft.read_file(backup2), 'foo')
 
+        # tese use of 'verbose' to make write_file print location of backed up file
+        self.mock_stdout(True)
+        ft.write_file(fp, 'foo', backup=True, verbose=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        regex = re.compile("^== Backup of .*/test.txt created at .*/test.txt.bak_[0-9]*")
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # by default, write_file will just blindly overwrite an already existing file
+        self.assertTrue(os.path.exists(fp))
+        ft.write_file(fp, 'blah')
+        self.assertEqual(ft.read_file(fp), 'blah')
+
+        # blind overwriting can be disabled via 'overwrite'
+        error_pattern = "File exists, not overwriting it without --force: %s" % fp
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.write_file, fp, 'blah', overwrite=False)
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.write_file, fp, 'blah', overwrite=False, backup=True)
+
+        # use of --force ensuring that file gets written regardless of whether or not it exists already
+        build_options = {'force': True}
+        init_config(build_options=build_options)
+
+        ft.write_file(fp, 'overwrittenbyforce', overwrite=False)
+        self.assertEqual(ft.read_file(fp), 'overwrittenbyforce')
+
+        ft.write_file(fp, 'overwrittenbyforcewithbackup', overwrite=False, backup=True)
+        self.assertEqual(ft.read_file(fp), 'overwrittenbyforcewithbackup')
+
         # also test behaviour of write_file under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -567,7 +595,6 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
-
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -944,10 +971,6 @@ class FileToolsTest(EnhancedTestCase):
             for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
                 self.assertFalse(perms & bit)
 
-        # broken symlinks are trouble if symlinks are not skipped
-        self.assertErrorRegex(EasyBuildError, "No such file or directory", ft.adjust_permissions, self.test_prefix,
-                              stat.S_IXUSR, skip_symlinks=False)
-
         # restore original umask
         os.umask(orig_umask)
 
@@ -961,20 +984,19 @@ class FileToolsTest(EnhancedTestCase):
             ft.write_file(test_files[-1], '')
             ft.symlink(test_files[-1], os.path.join(testdir, 'symlink%s' % idx))
 
-        # by default, 50% of failures are allowed (to be robust against broken symlinks)
+        # by default, 50% of failures are allowed (to be robust against failures to change permissions)
         perms = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR
 
-        # one file remove, 1 dir + 2 files + 3 symlinks (of which 1 broken) left => 1/6 (16%) fail ratio is OK
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
+
+        # introducing a broken symlinks doesn't cause problems
         ft.remove_file(test_files[0])
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
-        # 2 files removed, 1 dir + 1 file + 3 symlinks (of which 2 broken) left => 2/5 (40%) fail ratio is OK
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
+
+        # multiple/all broken symlinks is no problem either, since symlinks are never followed
         ft.remove_file(test_files[1])
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
-        # 3 files removed, 1 dir + 3 broken symlinks => 75% fail ratio is too high, so error is raised
         ft.remove_file(test_files[2])
-        error_pattern = r"75.00% of permissions/owner operations failed \(more than 50.00%\), something must be wrong"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
-                              recursive=True, skip_symlinks=False, ignore_errors=True)
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
         # reconfigure EasyBuild to allow even higher fail ratio (80%)
         build_options = {
@@ -983,7 +1005,7 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         # 75% < 80%, so OK
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
         # reconfigure to allow less failures (10%)
         build_options = {
@@ -991,21 +1013,12 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        # way too many failures with 3 broken symlinks
-        error_pattern = r"75.00% of permissions/owner operations failed \(more than 10.00%\), something must be wrong"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
-                              recursive=True, skip_symlinks=False, ignore_errors=True)
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
-        # one broken symlink is still too much with max fail ratio of 10%
         ft.write_file(test_files[0], '')
         ft.write_file(test_files[1], '')
-        error_pattern = r"16.67% of permissions/owner operations failed \(more than 10.00%\), something must be wrong"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
-                              recursive=True, skip_symlinks=False, ignore_errors=True)
-
-        # all files restored, no more broken symlinks, so OK
         ft.write_file(test_files[2], '')
-        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+        ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
     def test_apply_regex_substitutions(self):
         """Test apply_regex_substitutions function."""

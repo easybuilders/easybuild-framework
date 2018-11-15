@@ -36,6 +36,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 :author: Maxime Boissonneault (Compute Canada)
+:author: Davide Vanzo (Vanderbilt University)
 """
 
 import copy
@@ -1122,8 +1123,12 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
-        if self.cfg['modloadmsg']:
-            lines.append(self.module_generator.msg_on_load(self.cfg['modloadmsg']))
+        modloadmsg = self.cfg['modloadmsg']
+        if modloadmsg:
+            # add trailing newline to prevent that shell prompt is 'glued' to module load message
+            if not modloadmsg.endswith('\n'):
+                modloadmsg += '\n'
+            lines.append(self.module_generator.msg_on_load(modloadmsg))
 
         if self.cfg['modtclfooter']:
             if isinstance(self.module_generator, ModuleGeneratorTcl):
@@ -1669,9 +1674,13 @@ class EasyBlock(object):
         for mod_symlink_path in mod_symlink_paths:
             pardirs.append(os.path.join(install_path('mod'), mod_symlink_path, mod_subdir))
 
-        self.log.info("Checking dirs that need to be created: %s" % pardirs)
-        for pardir in pardirs:
-            mkdir(pardir, parents=True)
+        # skip directory creation if pre-create-installdir is set to False
+        if build_option('pre_create_installdir'):
+            self.log.info("Checking dirs that need to be created: %s" % pardirs)
+            for pardir in pardirs:
+                mkdir(pardir, parents=True)
+        else:
+            self.log.info("Skipped installation dirs check per user request")
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -2291,10 +2300,10 @@ class EasyBlock(object):
                 # for library files in lib/, also consider fallback to lib64/ equivalent (and vice versa)
                 if not found and build_option('lib64_fallback_sanity_check'):
                     xs_alt = None
-                    if all(x.startswith('lib/') for x in xs):
-                        xs_alt = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
-                    elif all(x.startswith('lib64/') for x in xs):
-                        xs_alt = [os.path.join('lib', *os.path.split(x)[1:]) for x in xs]
+                    if all(x.startswith('lib/') or x == 'lib' for x in xs):
+                        xs_alt = [os.path.join('lib64', *x.split(os.path.sep)[1:]) for x in xs]
+                    elif all(x.startswith('lib64/') or x == 'lib64' for x in xs):
+                        xs_alt = [os.path.join('lib', *x.split(os.path.sep)[1:]) for x in xs]
 
                     if xs_alt:
                         self.log.info("%s not found at %s in %s, consider fallback locations: %s",

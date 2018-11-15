@@ -32,6 +32,7 @@ import glob
 import os
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import nub
@@ -323,8 +324,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
         error_pattern = "Incorrect module_version spec, expected keys"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
 
-        modulerc = self.modgen.modulerc({'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'})
+        mod_ver_spec = {'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'}
+        modulerc_path = os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC)
 
+        # with Lmod 6.x, both .modulerc and wrapper module must be in the same location
+        if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) < LooseVersion('7.0'):
+            error = "Expected module file .* not found; "
+            error += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory"
+            self.assertErrorRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        # if the wrapped module file is in place, everything should be fine
+        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+
+        # first, check raw contents of generated .modulerc file
+        expected = '\n'.join([
+            '#%Module',
+            "module-version test/1.2.3.4.5 1.2.3",
+        ])
+
+        # two exceptions: EnvironmentModulesC, or Lmod 7.8 (or newer) and Lua syntax
         if self.modtool.__class__ == EnvironmentModulesC:
             expected = '\n'.join([
                 '#%Module',
@@ -332,16 +351,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '    module-version test/1.2.3.4.5 1.2.3',
                 '}',
             ])
-        else:
-            expected = '\n'.join([
-                '#%Module',
-                "module-version test/1.2.3.4.5 1.2.3",
-            ])
+        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) >= LooseVersion('7.8'):
+                expected = 'module_version("test/1.2.3.4.5", "1.2.3")'
 
         self.assertEqual(modulerc, expected)
-
-        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
-        write_file(os.path.join(self.test_prefix, 'test', '.modulerc'), modulerc)
+        self.assertEqual(read_file(modulerc_path), expected)
 
         self.modtool.use(self.test_prefix)
 
@@ -354,6 +369,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
         res = self.modtool.list()
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
+
+        # overwriting existing .modulerc requires --force or --rebuild
+        error_msg = "Found existing .modulerc at .*, not overwriting without --force or --rebuild"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        init_config(build_options={'force': True})
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
+
+        init_config(build_options={})
+        self.assertErrorRegex(EasyBuildError, error_msg, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        init_config(build_options={'rebuild': True})
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
 
     def test_unload(self):
         """Test unload part in generated module file."""
@@ -597,7 +629,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_conditional_statement(self):
         """Test formatting of conditional statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            simple_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar")
+            cond = "is-loaded foo"
+            load = "module load bar"
+
+            simple_cond = self.modgen.conditional_statement(cond, load)
             expected = '\n'.join([
                 "if { [ is-loaded foo ] } {",
                 "    module load bar",
@@ -606,7 +641,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(simple_cond, expected)
 
-            neg_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", negative=True)
+            neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
                 "if { ![ is-loaded foo ] } {",
                 "    module load bar",
@@ -615,7 +650,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(neg_cond, expected)
 
-            if_else_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", else_body='puts "foo"')
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='puts "foo"')
             expected = '\n'.join([
                 "if { [ is-loaded foo ] } {",
                 "    module load bar",
@@ -626,8 +661,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(if_else_cond, expected)
 
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='puts "foo"', indent=False)
+            expected = '\n'.join([
+                "if { [ is-loaded foo ] } {",
+                "module load bar",
+                "} else {",
+                'puts "foo"',
+                '}',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
         elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            simple_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")')
+            cond = 'isloaded("foo")'
+            load = 'load("bar")'
+
+            simple_cond = self.modgen.conditional_statement(cond, load)
             expected = '\n'.join([
                 'if isloaded("foo") then',
                 '    load("bar")',
@@ -636,7 +685,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(simple_cond, expected)
 
-            neg_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', negative=True)
+            neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
                 'if not isloaded("foo") then',
                 '    load("bar")',
@@ -645,7 +694,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(neg_cond, expected)
 
-            if_else_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', else_body='load("bleh")')
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='load("bleh")')
             expected = '\n'.join([
                 'if isloaded("foo") then',
                 '    load("bar")',
@@ -655,34 +704,46 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
             ])
             self.assertEqual(if_else_cond, expected)
+
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='load("bleh")', indent=False)
+            expected = '\n'.join([
+                'if isloaded("foo") then',
+                'load("bar")',
+                'else',
+                'load("bleh")',
+                'end',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
         else:
             self.assertTrue(False, "Unknown module syntax")
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = "\nif { [ module-info mode load ] } {\n    puts stderr \"test\"\n}\n"
+            expected = "\nif { [ module-info mode load ] } {\nputs stderr \"test\"\n}\n"
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
             tcl_load_msg = '\n'.join([
                 '',
                 "if { [ module-info mode load ] } {",
-                "    puts stderr \"test \\$test \\$test",
-                "    test \\$foo \\$bar\"",
+                "puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
                 "}",
                 '',
             ])
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
         else:
-            expected = '\nif mode() == "load" then\n    io.stderr:write([==[test]==])\nend\n'
+            expected = '\nif mode() == "load" then\nio.stderr:write([==[test]==])\nend\n'
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
             lua_load_msg = '\n'.join([
                 '',
                 'if mode() == "load" then',
-                '    io.stderr:write([==[test $test \\$test',
-                '    test $foo \\$bar]==])',
+                'io.stderr:write([==[test $test \\$test',
+                'test $foo \\$bar]==])',
                 'end',
                 '',
             ])

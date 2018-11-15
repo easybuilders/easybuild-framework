@@ -223,6 +223,7 @@ class TweakTest(EnhancedTestCase):
         toolchain_spec = {'name': 'goolf', 'version': '1.4.10'}
         list_of_deps = get_dep_tree_of_toolchain(toolchain_spec, self.modtool)
         expected_deps = [
+            ['GCC', '4.7.2'],
             ['OpenBLAS', '0.2.6'],
             ['hwloc', '1.6.2'],
             ['OpenMPI', '1.6.4'],
