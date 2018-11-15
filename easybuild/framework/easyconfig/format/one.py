@@ -236,6 +236,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                     if key in DEPENDENCY_PARAMETERS:
                         valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                    elif key == 'toolchain':
+                        valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
                         valstr = quote_py_str(ecfg[key])
 

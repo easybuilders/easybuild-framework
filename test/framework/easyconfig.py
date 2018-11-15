@@ -1453,7 +1453,12 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ecdict, ec.asdict())
             ectxt = read_file(test_ec)
 
-            patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
+            patterns = [
+                r"^name = ['\"]",
+                r"^version = ['0-9\.]",
+                r'^description = ["\']',
+                r"^toolchain = {'name': .*, 'version': .*}",
+            ]
             for pattern in patterns:
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
@@ -1496,7 +1501,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",
@@ -1516,7 +1521,8 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt = read_file(testec)
         self.assertEqual(rawtxt, ectxt)
 
-        dumped_ec = EasyConfig(testec)
+        # check parsing of dumped easyconfig
+        EasyConfig(testec)
 
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
