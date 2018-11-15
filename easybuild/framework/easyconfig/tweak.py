@@ -338,14 +338,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         _log.debug("Generated file name for tweaked easyconfig file: %s", tweaked_ec)
 
     # write out tweaked easyconfig file
-    if os.path.exists(tweaked_ec):
-        if build_option('force'):
-            print_warning("Overwriting existing file at %s with tweaked easyconfig file (due to --force)", tweaked_ec)
-        else:
-            raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written",
-                                 tweaked_ec)
-
-    write_file(tweaked_ec, ectxt)
+    write_file(tweaked_ec, ectxt, backup=True, overwrite=False, verbose=True)
     _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
 
     return tweaked_ec
@@ -470,17 +463,17 @@ def select_or_generate_ec(fp, paths, specs):
     # TOOLCHAIN NAME
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
-    def unique(l):
+    def unique(lst):
         """Retain unique elements in a sorted list."""
-        l = sorted(l)
-        if len(l) > 1:
-            l2 = [l[0]]
-            for x in l:
-                if not x == l2[-1]:
-                    l2.append(x)
-            return l2
+        lst = sorted(lst)
+        if len(lst) > 1:
+            res = [lst[0]]
+            for x in lst:
+                if not x == res[-1]:
+                    res.append(x)
+            return res
         else:
-            return l
+            return lst
 
     # determine list of unique toolchain names
     tcnames = unique([x[0]['toolchain']['name'] for x in ecs_and_files])
@@ -843,7 +836,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         else:
             raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written",
                                  tweaked_spec)
-    parsed_ec['ec'].dump(tweaked_spec)
+    parsed_ec['ec'].dump(tweaked_spec, overwrite=False, backup=True)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
 
     return tweaked_spec
