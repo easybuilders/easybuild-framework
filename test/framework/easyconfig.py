@@ -53,6 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, 
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
+from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -1511,6 +1512,7 @@ class EasyConfigTest(EnhancedTestCase):
             "]",
             '',
             "foo_extra1 = 'foobar'",
+            '',
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1523,6 +1525,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # check parsing of dumped easyconfig
         EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
@@ -1589,7 +1593,9 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
         # reparsing the dumped easyconfig file should work
-        ecbis = EasyConfig(testec)
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
@@ -1647,7 +1653,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(ectxt.endswith("# trailing comment"))
 
         # reparsing the dumped easyconfig file should work
-        ecbis = EasyConfig(testec)
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_to_template_str(self):
         """ Test for to_template_str method """
