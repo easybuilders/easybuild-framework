@@ -1135,8 +1135,12 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
-        if self.cfg['modloadmsg']:
-            lines.append(self.module_generator.msg_on_load(self.cfg['modloadmsg']))
+        modloadmsg = self.cfg['modloadmsg']
+        if modloadmsg:
+            # add trailing newline to prevent that shell prompt is 'glued' to module load message
+            if not modloadmsg.endswith('\n'):
+                modloadmsg += '\n'
+            lines.append(self.module_generator.msg_on_load(modloadmsg))
 
         if self.cfg['modtclfooter']:
             if isinstance(self.module_generator, ModuleGeneratorTcl):
@@ -2305,9 +2309,9 @@ class EasyBlock(object):
                 if not found and build_option('lib64_fallback_sanity_check'):
                     xs_alt = None
                     if all(x.startswith('lib/') for x in xs):
-                        xs_alt = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
+                        xs_alt = [os.path.join('lib64', *x.split(os.path.sep)[1:]) for x in xs]
                     elif all(x.startswith('lib64/') for x in xs):
-                        xs_alt = [os.path.join('lib', *os.path.split(x)[1:]) for x in xs]
+                        xs_alt = [os.path.join('lib', *x.split(os.path.sep)[1:]) for x in xs]
 
                     if xs_alt:
                         self.log.info("%s not found at %s in %s, consider fallback locations: %s",

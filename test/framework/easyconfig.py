@@ -1442,16 +1442,23 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump(self):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'check_osdeps': False,
+        }
+        init_config(build_options=build_options)
         ecfiles = [
             't/toy/toy-0.0.eb',
             'g/goolf/goolf-1.4.10.eb',
             's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
+            'p/Python/Python-2.7.10-ictce-4.1.13.eb',
         ]
         for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
             ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
+            ec.enable_templating = False
             ecdict = ec.asdict()
             ec.dump(test_ec)
             # dict representation of EasyConfig instance should not change after dump
@@ -1465,15 +1472,18 @@ class EasyConfigTest(EnhancedTestCase):
 
             # parse result again
             dumped_ec = EasyConfig(test_ec)
+            dumped_ec.enable_templating = False
 
             # check that selected parameters still have the same value
             params = [
                 'name',
                 'toolchain',
                 'dependencies',  # checking this is important w.r.t. filtered hidden dependencies being restored in dump
+                'exts_list',  # exts_lists (in Python easyconfig) use another layer of templating so shouldn't change
             ]
             for param in params:
-                self.assertEqual(ec[param], dumped_ec[param])
+                if param in ec:
+                    self.assertEqual(ec[param], dumped_ec[param])
 
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
@@ -1863,7 +1873,7 @@ class EasyConfigTest(EnhancedTestCase):
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
         self.assertEqual(res, {'ecs': [], 'new': [], 'new_file_in_existing_folder': [],
-                               'new_folder': [], 'paths_in_repo': []})
+                               'new_folder': [], 'paths': [], 'paths_in_repo': []})
         self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
@@ -1880,7 +1890,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = copy_easyconfigs(ecs_to_copy, target_dir)
         self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'new_file_in_existing_folder',
-                                              'new_folder', 'paths_in_repo'])
+                                              'new_folder', 'paths', 'paths_in_repo'])
         self.assertEqual(len(res['ecs']), len(test_ecs))
         self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
         self.assertTrue(all(res['new']))
@@ -1912,7 +1922,7 @@ class EasyConfigTest(EnhancedTestCase):
         # copy single easyconfig with buildstats included for running further tests
         res = copy_easyconfigs([toy_ec], target_dir)
 
-        self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1])
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1, 1])
         self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
 
         # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore

@@ -3,6 +3,30 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.7.1 (October 18th 2018)
+--------------------------
+
+bugfix release
+- various enhancements, including:
+  - generate .modulerc.lua when Lua syntax and Lmod >= 7.8 is used (#2597)
+  - allow --force to use regex if --try-toolchain can not map intelligently (#2605)
+  - add support for disabling modules tool version check (#2610)
+  - add support to ModuleGenerator.modulerc method to also write .modulerc file (#2611)
+  - check whether module file being wrapped exists in same directory as module wrapper when using Lmod 6.x (#2611)
+- various bug fixes, including:
+  - stop relying on 'easy_install' in bootstrap script, use 'python -m easy_install' instead (#2590)
+  - fix templating of values in list_software function (#2591)
+  - fix composing of lib64 fallback paths in sanity check (#2602)
+  - determine file_info for all easyconfigs before any actual copying in copy_easyconfigs function (#2604)
+  - also check for module wrappers in 'ModulesTool.exist' method (#2606)
+  - add trailing newline to module load message if it's not there yet (#2613)
+  - retain all dependencies when determining dependency tree of a toolchain (#2617)
+  - protect exts_lists from templating in dump method (#2619)
+  - making CUDA capability detection more robust (#2621)
+- other changes:
+  - lower required Lmod version to 6.5.1 (#2593)
+
+
 v3.7.0 (September 25th 2018)
 ----------------------------
 

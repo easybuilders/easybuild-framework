@@ -215,8 +215,8 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.copy2(os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb'), ec_file)
 
         modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
-        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0"'
-        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\]==\]'
+        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0\n\s*"'
+        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
 
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
@@ -268,6 +268,23 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # newline between "I AM toy v0.0" (modloadmsg) and "oh hai!" (mod*footer) is added automatically
+        expected = "\nTHANKS FOR LOADING ME\nI AM toy v0.0\n"
+
+        # with module files in Tcl syntax, a newline is added automatically
+        if get_module_syntax() == 'Tcl':
+            expected += "\n"
+
+        expected += "oh hai!"
+
+        # setting $LMOD_QUIET results in suppression of printed message with Lmod & module files in Tcl syntax
+        if 'LMOD_QUIET' in os.environ:
+            del os.environ['LMOD_QUIET']
+
+        self.modtool.use(os.path.join(self.test_installpath, 'modules', 'all'))
+        out = self.modtool.run_module('load', 'toy/0.0-tweaked', return_output=True)
+        self.assertTrue(out.strip().endswith(expected))
 
     def test_toy_buggy_easyblock(self):
         """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
@@ -1070,12 +1087,14 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_module)
 
         modloadmsg_tcl = [
-            r'    puts stderr "THANKS FOR LOADING ME',
-            r'    I AM toy v0.0"',
+            r'puts stderr "THANKS FOR LOADING ME',
+            r'I AM toy v0.0',
+            '"',
         ]
         modloadmsg_lua = [
-            r'    io.stderr:write\(\[==\[THANKS FOR LOADING ME',
-            r'    I AM toy v0.0\]==\]\)',
+            r'io.stderr:write\(\[==\[THANKS FOR LOADING ME',
+            r'I AM toy v0.0',
+            '\]==\]\)',
         ]
 
         help_txt = '\n'.join([
@@ -1635,6 +1654,15 @@ class ToyBuildTest(EnhancedTestCase):
                               extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        # check whether fallback works for files that's more than 1 subdir deep
+        ectxt = read_file(ec_file)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
+        postinstallcmd = "mkdir -p %(installdir)s/lib64/test && "
+        postinstallcmd += "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/test/libtoy.a"
+        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+        write_file(test_ec, ectxt)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
     def test_toy_dumped_easyconfig(self):

@@ -391,6 +391,7 @@ class EasyBuildOptions(GeneralOption):
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
+            'modules-tool-version-check': ("Check version of modules tool being used", None, 'store_true', True),
             'mpi-cmd-template': ("Template for MPI commands (template keys: %(nr_ranks)s, %(cmd)s)",
                                  None, 'store', None),
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
