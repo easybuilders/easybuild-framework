@@ -2855,9 +2855,6 @@ def build_and_install_one(ecdict, init_env):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
-        # create our reproducability files before carrying out the easyblock steps
-        reprod_dir_root = os.path.dirname(app.logfile)
-        reprod_dir = reproduce_build(app, reprod_dir_root)
         result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
         first_n = 300
@@ -2895,12 +2892,10 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
-            if os.path.exists(archive_reprod_dir):
-                print_warning("Reproducability directory %s already exists, cannot overwrite", archive_reprod_dir)
-            else:
-                copy_dir(reprod_dir, archive_reprod_dir)
+            # for reproducability we dump out the fully processed easyconfig since the contents can be affected
+            # by subtoolchain resolution (and related options) and/or hooks
+            reprod_dir = reproduce_build(app, new_log_dir)
+            _log.info("Wrote files for reproducability to %s", reprod_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -2997,15 +2992,13 @@ def reproduce_build(app, reprod_dir_root):
 
     ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
 
-    # for reproducability we dump out the fully processed easyconfig since the contents can be affected
-    # by subtoolchain resolution (and related options) and/or hooks
     reprod_dir = os.path.join(reprod_dir_root, 'reprod')
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
         app.cfg.dump(reprod_spec)
-        _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
+        _log.info("Dumped easyconfig instance to %s", reprod_spec)
     except NotImplementedError as err:
-        _log.warn("Unable to dump fully processed easyconfig to %s: %s", reprod_spec, err)
+        _log.warn("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
 
     # also archive the relevant easyblocks
     reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
