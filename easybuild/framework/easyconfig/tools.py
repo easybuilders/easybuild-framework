@@ -50,12 +50,13 @@ from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, A
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, find_extension, is_patch_file, read_file, resolve_path
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -204,11 +205,12 @@ def dep_graph(filename, specs):
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
+                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
     _dep_graph_dump(dgr, filename)
 
@@ -699,3 +701,131 @@ def avail_easyblocks():
                                        easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
 
     return easyblocks
+
+
+def create_new_easyconfig(args):
+    """Create new easyconfig file based on specified information."""
+
+    specs = {}
+
+    # regular expression to recognise a version
+    version_regex = re.compile('^[0-9]')
+
+    # try and discriminate between homepage and source URL
+    http_args = [arg for arg in args if arg.startswith('http')]
+    if http_args:
+
+        # first, check and see if we have a full download URL provided as an argument
+        for arg in http_args:
+            maybe_filename = os.path.basename(arg)
+            ext = find_extension(maybe_filename, raise_error=False)
+            if ext:
+                specs['source_urls'] = [os.path.dirname(arg)]
+                # try to recognise downloading of source tarballs by commit ID
+                if re.search('^[0-9a-f]+\.', maybe_filename):
+                    specs['sources'] = [{
+                        'download_filename': maybe_filename,
+                        'filename': '%(name)s-%(version)s' + ext,
+                    }]
+                else:
+                    specs['sources'] = [maybe_filename]
+                http_args.remove(arg)
+                args.remove(arg)
+                break
+
+        for arg in http_args:
+            if specs.get('homepage') is None:
+                # homepage is more like to be of form https://example.com, i.e. top-level domain
+                if '/' not in arg.split('://')[-1] or specs.get('source_urls'):
+                    specs['homepage'] = arg
+                    args.remove(arg)
+                    # go to next iteration to avoid also using this value for 'source_urls'
+                    continue
+
+            if specs.get('source_urls') is None:
+                specs['source_urls'] = [arg]
+                args.remove(arg)
+                if specs.get('homepage') is None:
+                    specs['homepage'] = arg
+
+    # determine list of names of known easyblocks, so we can descriminate an easyblock name
+    easyblock_names = [e['class'] for e in avail_easyblocks().values()]
+
+    # iterate over provided arguments, and try to figure out what they specify
+    for arg in args:
+
+        # arguments that start with '<param_name>=' are dealt with first
+        if re.match('^[a-z_]+=', arg):
+            key = arg.split('=')[0]
+            if key in ['builddeps', 'deps']:
+                deps = []
+                for dep in arg.split('=')[-1].split(';'):
+                    deps.append(tuple(dep.split(',')))
+                specs[key.replace('deps', 'dependencies')] = deps
+            else:
+                specs[key] = '='.join(arg.split('=')[1:])
+
+        # first argument is assumed to be the software name
+        elif specs.get('name') is None:
+            specs['name'] = arg
+
+        elif version_regex.match(arg) and specs.get('version') is None:
+            specs['version'] = arg
+
+        # toolchain is usually specified as <toolchain_name>/<toolchain_version>, e.g. intel/2018a
+        elif '/' in arg and specs.get('toolchain') is None:
+            tc_name, tc_ver = arg.split('/')
+            specs['toolchain'] = {'name': tc_name, 'version': tc_ver}
+
+        elif arg in easyblock_names and specs.get('easyblock') is None:
+            specs['easyblock'] = arg
+
+        elif arg.count(' ') >= 3 and specs.get('description') is None:
+            specs['description'] = arg
+
+        elif find_extension(arg, raise_error=False):
+            specs['sources'] = [arg]
+
+        else:
+            print_warning("Unhandled argument: %s" % quote_str(arg))
+
+    # make sure that at least name, version and toolchain are known
+    missing = [p for p in ['name', 'toolchain', 'version'] if specs.get(p) is None]
+    if missing:
+        raise EasyBuildError("One or more required parameters are not specified: %s", ', '.join(missing))
+
+    # inject educated guesses for some important easyconfig parameters that are not specified
+    educated_guesses = {
+        'description': "This is an example description.",
+        'homepage': 'https://example.com',
+
+        'easyblock': 'ConfigureMake',
+        'moduleclass': 'tools',
+        'sanity_check_paths': {'files': [os.path.join('bin', specs['name'])], 'dirs': []},
+
+        'source_urls': ['%(homepage)s'],
+        'sources': ['%(name)s-%(version)s.tar.gz'],
+    }
+    for key in educated_guesses:
+        if key not in specs:
+            specs[key] = educated_guesses[key]
+            print_warning("No value found for '%s' parameter, injected dummy value: %s" % (key, quote_str(specs[key])))
+
+    # create EasyConfig instance and dump easyconfig file to current directory
+    ec_raw = '\n'.join("%s = %s" % (key, quote_str(specs[key])) for key in specs)
+
+    ec, err = None, None
+    try:
+        ec = EasyConfig(None, rawtxt=ec_raw)
+    except EasyBuildError as err:
+        print_warning("Problem occured when parsing generated easyconfig file: %s" % err)
+
+    if ec:
+        full_ec_ver = det_full_ec_version(specs)
+        fn = '%s-%s.eb' % (specs['name'], full_ec_ver)
+
+        ec.dump(fn)
+        print_msg("Easyconfig file %s created based on specified information!" % fn)
+    else:
+        print_msg(ec_raw + '\n', prefix=False)
+        raise EasyBuildError("Easyconfig file with raw contents shown above NOT created because of errors: %s", err)

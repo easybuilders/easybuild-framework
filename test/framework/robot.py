@@ -38,7 +38,6 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.framework.easyconfig.easyconfig as ecec
-import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import _easyconfig_files_cache, process_easyconfig, EasyConfig
@@ -64,7 +63,6 @@ GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 ORIG_MODULES_TOOL = modules.modules_tool
 ORIG_ECEC_MODULES_TOOL = ecec.modules_tool
-ORIG_ECTOOLS_MODULES_TOOL = ectools.modules_tool
 ORIG_MODULE_FUNCTION = os.environ.get('module', None)
 
 
@@ -102,7 +100,6 @@ class RobotTest(EnhancedTestCase):
         """Install MockModule as modules tool."""
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
-        ectools.modules_tool = mock_module
         ecec.modules_tool = mock_module
         robot.modules_tool = mock_module
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
@@ -124,7 +121,6 @@ class RobotTest(EnhancedTestCase):
 
         # restore original modules tool, it may have been tampered with
         config.modules_tool = ORIG_MODULES_TOOL
-        ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
         ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
             if 'module' in os.environ:

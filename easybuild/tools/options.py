@@ -666,6 +666,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'new': ("Create a new easyconfig file based on specified information", None, 'store_true', False),
         })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='')

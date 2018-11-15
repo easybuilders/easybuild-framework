@@ -829,16 +829,23 @@ def find_base_dir():
     return new_dir
 
 
-def find_extension(filename):
-    """Find best match for filename extension."""
+def find_extension(filename, raise_error=True):
+    """
+    Find best match for filename extension.
+
+    :param raise_error: raise an error if no known extension was found in specified filename;
+                        if False, just returns None if no known extension was found
+    """
     # sort by length, so longest file extensions get preference
     suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
     pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
         ext = res.group('ext')
-    else:
+    elif raise_error:
         raise EasyBuildError('Unknown file type for file %s', filename)
+    else:
+        ext = None
 
     return ext
 

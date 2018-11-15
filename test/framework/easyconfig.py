@@ -61,8 +61,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, remove_file, symlink
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file, remove_file, symlink
+from easybuild.tools.filetools import write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -2356,6 +2356,126 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_new_ec(self):
+        """Test creating new easyconfigs via 'eb --new'."""
+
+        def run_eb_new(args):
+            """Helper function to run 'eb --new' with specified arguments."""
+            change_dir(self.test_prefix)
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            self.eb_main(['--new'] + args, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+
+            return (stdout, stderr)
+
+        # running without any arguments results in a clean error
+        error_pattern = "One or more required parameters are not specified: %s"
+        self.assertErrorRegex(EasyBuildError, error_pattern % "name, toolchain, version", run_eb_new, [])
+
+        # partial specs also results in a clean error
+        self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain, version", run_eb_new, ['toy'])
+        self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain", run_eb_new, ['toy', '1.2.3'])
+        self.assertErrorRegex(EasyBuildError, error_pattern % "version", run_eb_new, ['toy', 'foss/2018a'])
+
+        # when just the required specs are specified, a lot of warnings are spit out
+        (stdout, stderr) = run_eb_new(['toy', '1.2.3', 'foss/2018b'])
+
+        ec_fp = os.path.join(self.test_prefix, 'toy-1.2.3-foss-2018b.eb')
+        self.assertTrue(os.path.exists(ec_fp))
+
+        expected_stdout = "== Easyconfig file %s created based on specified information!"
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec.version, '1.2.3')
+        self.assertEqual(ec['toolchain'], {'name': 'foss', 'version': '2018b'})
+        self.assertEqual(ec['easyblock'], 'ConfigureMake')  # this is the default if no easyblock is specified
+        self.assertEqual(ec['moduleclass'], 'tools')  # this is the default if no moduleclass is specified
+
+        warn_params = ['description', 'easyblock', 'homepage', 'moduleclass', 'sanity_check_paths',
+                       'sources', 'source_urls']
+        for param in warn_params:
+            self.assertTrue("WARNING: No value found for '%s' parameter, injected dummy value" % param in stderr)
+        # no unused arguments
+        self.assertFalse("WARNING: Unhandled argument" in stderr)
+
+        # warnings are printed for arguments that can't be matched to an easyconfig parameter
+        (stdout, stderr) = run_eb_new(['toy', '1.2.3', 'foss/2018b', 'this_is_a_useless_value'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        self.assertTrue('WARNING: Unhandled argument: "this_is_a_useless_value"' in stderr)
+
+        # easyblock names are recognized
+        for easyblock in ['Toolchain', 'EB_toy']:
+            (stdout, stderr) = run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', easyblock])
+
+            ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+            self.assertTrue(os.path.exists(ec_fp))
+            self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+            self.assertFalse("WARNING: Unhandled argument" in stderr)
+
+            ec = EasyConfig(ec_fp)
+            self.assertEqual(ec.name, 'bar')
+            self.assertEqual(ec.version, '3.4.5')
+            self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+            self.assertEqual(ec['easyblock'], easyblock)
+
+        # check handling of description (first arguments with 3 or more spaces)
+        (stdout, stderr) = run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', "not a description", "this is a description"])
+        ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['description'], "this is a description")
+        self.assertTrue('WARNING: Unhandled argument: "not a description"' in stderr)
+
+        # check handling of deps/builddeps
+        (stdout, stderr) = run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', 'deps=toy,0.0;GCC,4.9.2', 'builddeps=gzip,1.4'])
+        ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        self.assertFalse("WARNING: Unhandled argument" in stderr)
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['easyblock'], 'ConfigureMake')  # this is the default if no easyblock is specified
+        self.assertEqual(ec['moduleclass'], 'tools')  # this is the default if no moduleclass is specified
+        self.assertEqual(len(ec['dependencies']), 2)
+        self.assertEqual(ec['dependencies'][0]['name'], 'toy')
+        self.assertEqual(ec['dependencies'][0]['version'], '0.0')
+        self.assertEqual(ec['dependencies'][1]['name'], 'GCC')
+        self.assertEqual(ec['dependencies'][1]['version'], '4.9.2')
+        self.assertEqual(len(ec['builddependencies']), 1)
+        self.assertEqual(ec['builddependencies'][0]['name'], 'gzip')
+        self.assertEqual(ec['builddependencies'][0]['version'], '1.4')
+
+        # check handling of easyconfig parameters that are specified by <name>=, which get preference
+        (stdout, stderr) = run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', 'easyblock=EB_toy', 'Toolchain',
+                                       'moduleclass=lib', 'configopts="--enable-foo --with=bar=/location/of/bar"'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        self.assertTrue('WARNING: Unhandled argument: "Toolchain"' in stderr)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['easyblock'], 'ConfigureMake')  # this is the default if no easyblock is specified
+        self.assertEqual(ec['moduleclass'], 'tools')  # this is the default if no moduleclass is specified
+
+        # using an unknown easyblock means trouble
+        error_pattern = "Easyconfig file with raw contents shown above NOT created because of errors: "
+        error_pattern += "'Failed to obtain class for NoSuchEasyBlock easyblock .*'"
+        args = ['bar', '3.4.5', 'foss/2018a', 'easyblock=NoSuchEasyBlock']
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_eb_new, args)
 
 
 def suite():
