@@ -850,12 +850,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     # Determine the name of the modified easyconfig and dump it to target_dir
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
-    if os.path.exists(tweaked_spec):
-        if build_option('force'):
-            print_warning("Overwriting existing file at %s with tweaked easyconfig file (due to --force)", tweaked_spec)
-        else:
-            raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written",
-                                 tweaked_spec)
+
     parsed_ec['ec'].dump(tweaked_spec, overwrite=False, backup=True)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
 
