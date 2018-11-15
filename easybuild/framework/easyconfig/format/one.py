@@ -289,9 +289,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Inline comments on items of iterable values are also extracted.
         """
         self.comments = {
-            'above' : {},  # comments for a particular parameter definition
-            'header' : [],  # header comment lines
-            'inline' : {},  # inline comments
+            'above': {},  # comments for a particular parameter definition
+            'header': [],  # header comment lines
+            'inline': {},  # inline comments
             'iter': {},  # (inline) comments on elements of iterable values
             'tail': [],
          }
@@ -412,7 +412,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
 
             if 'dependencies' in block:
                 for dep in block['dependencies']:
-                    if not dep in [b['name'] for b in blocks]:
+                    if dep not in [b['name'] for b in blocks]:
                         raise EasyBuildError("Block %s depends on %s, but block was not found.", name, dep)
 
                     dep = [b for b in blocks if b['name'] == dep][0]
