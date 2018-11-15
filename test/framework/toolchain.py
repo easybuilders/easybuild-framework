@@ -950,7 +950,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CC'), 'pgcc')
         self.assertEqual(tc.get_variable('CXX'), 'pgCC')
         self.assertEqual(tc.get_variable('F77'), 'pgf77')
-        self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+        self.assertEqual(tc.get_variable('F90'), 'pgf90')
         self.assertEqual(tc.get_variable('FC'), 'pgfortran')
         self.modtool.purge()
 
@@ -961,7 +961,7 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(tc.get_variable('CC'), 'pgcc')
             self.assertEqual(tc.get_variable('CXX'), 'pgc++')
             self.assertEqual(tc.get_variable('F77'), 'pgf77')
-            self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+            self.assertEqual(tc.get_variable('F90'), 'pgf90')
             self.assertEqual(tc.get_variable('FC'), 'pgfortran')
 
     def test_pgi_imkl(self):

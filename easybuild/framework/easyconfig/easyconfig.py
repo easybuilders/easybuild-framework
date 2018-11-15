@@ -72,6 +72,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -384,6 +385,9 @@ class EasyConfig(object):
         self.build_specs = build_specs
         self.parse()
 
+        # check whether this easyconfig file is deprecated, and act accordingly if so
+        self.check_deprecated(self.path)
+
         # perform validations
         self.validation = build_option('validate') and validate
         if self.validation:
@@ -442,15 +446,22 @@ class EasyConfig(object):
 
         return ec
 
-    def update(self, key, value):
+    def update(self, key, value, allow_duplicate=True):
         """
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
         if isinstance(prev_value, basestring):
-            self[key] = '%s %s ' % (prev_value, value)
+            if allow_duplicate or value not in prev_value:
+                self[key] = '%s %s ' % (prev_value, value)
         elif isinstance(prev_value, list):
-            self[key] = prev_value + value
+            if allow_duplicate:
+                self[key] = prev_value + value
+            else:
+                for item in value:
+                    # add only those items that aren't already in the list
+                    if item not in prev_value:
+                        self[key] = prev_value + [item]
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
@@ -533,6 +544,26 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def check_deprecated(self, path):
+        """Check whether this easyconfig file is deprecated."""
+
+        depr_msgs = []
+
+        deprecated = self['deprecated']
+        if deprecated:
+            if isinstance(deprecated, basestring):
+                depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
+            else:
+                raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
+
+        if self.toolchain.is_deprecated():
+            depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
+
+        if depr_msgs:
+            depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            more_info_depr_ec = "(see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
 
     def validate(self, check_osdeps=True):
         """
@@ -1618,16 +1649,19 @@ def clean_up_easyconfigs(paths):
         write_file(path, ectxt, forced=True)
 
 
-def copy_easyconfigs(paths, target_dir):
+def det_file_info(paths, target_dir):
     """
-    Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
+    Determine useful information on easyconfig files relative to a target directory,
+    before any actual operation (e.g. copying) is performed
 
-    :param paths: list of paths to copy to git working dir
+    :param paths: list of paths to easyconfig files
     :param target_dir: target directory
-    :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    :return: dict with useful information on easyconfig files (corresponding EasyConfig instances, paths, status)
+             relative to a target directory
     """
     file_info = {
         'ecs': [],
+        'paths': [],
         'paths_in_repo': [],
         'new': [],
         'new_folder': [],
@@ -1637,6 +1671,7 @@ def copy_easyconfigs(paths, target_dir):
     for path in paths:
         ecs = process_easyconfig(path, validate=False)
         if len(ecs) == 1:
+            file_info['paths'].append(path)
             file_info['ecs'].append(ecs[0]['ec'])
 
             soft_name = file_info['ecs'][-1].name
@@ -1649,13 +1684,26 @@ def copy_easyconfigs(paths, target_dir):
             file_info['new'].append(new_file)
             file_info['new_folder'].append(new_folder)
             file_info['new_file_in_existing_folder'].append(new_file and not new_folder)
-
-            copy_file(path, target_path, force_in_dry_run=True)
-
             file_info['paths_in_repo'].append(target_path)
 
         else:
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+
+    return file_info
+
+
+def copy_easyconfigs(paths, target_dir):
+    """
+    Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
+
+    :param paths: list of paths to copy to git working dir
+    :param target_dir: target directory
+    :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    """
+    file_info = det_file_info(paths, target_dir)
+
+    for path, target_path in zip(file_info['paths'], file_info['paths_in_repo']):
+        copy_file(path, target_path, force_in_dry_run=True)
 
     if build_option('cleanup_easyconfigs'):
         clean_up_easyconfigs(file_info['paths_in_repo'])

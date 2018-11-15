@@ -42,8 +42,8 @@ from unittest import TextTestRunner
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
-from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod, NoModulesTool
+from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, remove_file, write_file
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
@@ -139,8 +139,8 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['OpenMPI/1.6.4'], skip_avail=True), [False])
 
         # exists works on hidden modules in Lua syntax (only with Lmod)
+        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
         if isinstance(self.modtool, Lmod):
-            test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
             self.assertTrue(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua')))
             self.assertFalse(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6')))
@@ -154,6 +154,69 @@ class ModulesTest(EnhancedTestCase):
                      'Compiler/GCC/4.7.2/OpenMPI/1.6.4', 'toy/.0.0-deps']
         self.assertEqual(self.modtool.exist(mod_names), [True, False, True, False, True, True, True])
         self.assertEqual(self.modtool.exist(mod_names, skip_avail=True), [True, False, True, False, True, True, True])
+
+        # verify whether checking for existence of a module wrapper works
+        self.modtool.unuse(test_modules_path)
+        self.modtool.use(self.test_prefix)
+
+        java_mod_dir = os.path.join(self.test_prefix, 'Java')
+        write_file(os.path.join(java_mod_dir, '1.8.0_181'), '#%Module')
+
+        if self.modtool.__class__ == EnvironmentModulesC:
+            modulerc_tcl_txt = '\n'.join([
+                '#%Module',
+                'if {"Java/1.8" eq [module-info version Java/1.8]} {',
+                '    module-version Java/1.8.0_181 1.8',
+                '}',
+            ])
+        else:
+            modulerc_tcl_txt = '\n'.join([
+                '#%Module',
+                'module-version Java/1.8.0_181 1.8',
+            ])
+
+        write_file(os.path.join(java_mod_dir, '.modulerc'), modulerc_tcl_txt)
+
+        avail_mods = self.modtool.available()
+        self.assertTrue('Java/1.8.0_181' in avail_mods)
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+            self.assertTrue('Java/1.8' in avail_mods)
+        self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
+        self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
+
+        reset_module_caches()
+
+        # what if we're in an HMNS setting...
+        mkdir(os.path.join(self.test_prefix, 'Core'))
+        shutil.move(java_mod_dir, os.path.join(self.test_prefix, 'Core', 'Java'))
+
+        self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
+        self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
+        self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
+        self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
+
+        # also check with .modulerc.lua for Lmod 7.8 or newer
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
+            shutil.move(os.path.join(self.test_prefix, 'Core', 'Java'), java_mod_dir)
+            reset_module_caches()
+
+            remove_file(os.path.join(java_mod_dir, '.modulerc'))
+            write_file(os.path.join(java_mod_dir, '.modulerc.lua'), 'module_version("Java/1.8.0_181", "1.8")')
+
+            avail_mods = self.modtool.available()
+            self.assertTrue('Java/1.8.0_181' in avail_mods)
+            self.assertTrue('Java/1.8' in avail_mods)
+            self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
+            self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
+
+            reset_module_caches()
+
+            # back to HMNS setup
+            shutil.move(java_mod_dir, os.path.join(self.test_prefix, 'Core', 'Java'))
+            self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
+            self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
+            self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
+            self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """

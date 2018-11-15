@@ -670,6 +670,10 @@ class Toolchain(object):
 
         return (c_comps, fortran_comps)
 
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        return False
+
     def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None, rpath_include_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain

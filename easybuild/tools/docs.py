@@ -559,20 +559,23 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
-        versionsuffix = ec.get('versionsuffix', '')
+        keys = ['description', 'homepage', 'version', 'versionsuffix']
 
-        # make sure versionsuffix gets properly templated
-        if versionsuffix and isinstance(ec, dict):
-            template_values = template_constant_dict(ec)
-            versionsuffix = versionsuffix % template_values
+        info = {'toolchain': toolchain}
+        for key in keys:
+            info[key] = ec.get(key, '')
 
-        software[ec['name']].append({
-            'description': ec['description'],
-            'homepage': ec['homepage'],
-            'toolchain': toolchain,
-            'version': ec['version'],
-            'versionsuffix': versionsuffix,
-        })
+        # make sure values like homepage & versionsuffix get properly templated
+        if isinstance(ec, dict):
+            template_values = template_constant_dict(ec, skip_lower=False)
+            for key in keys:
+                if '%(' in info[key]:
+                    try:
+                        info[key] = info[key] % template_values
+                    except (KeyError, TypeError, ValueError) as err:
+                        _log.debug("Ignoring failure to resolve templates: %s", err)
+
+        software[ec['name']].append(info)
 
         if only_installed:
             software[ec['name']][-1].update({'mod_name': ec.full_mod_name})
