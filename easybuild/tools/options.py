@@ -453,7 +453,7 @@ class EasyBuildOptions(GeneralOption):
                               mk_full_default_path('containerpath')),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
                                           'strlist', 'store', None),
-            'editor': ("Editor command to use (used for --edit)", 'str', 'store', 'vim'),
+            'editor-command-template': ("Editor command template to use (used for --edit)", 'str', 'store', "vim %s"),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),

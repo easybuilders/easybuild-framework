@@ -1713,17 +1713,39 @@ def copy(paths, target_path, force_in_dry_run=False):
 def edit_file(fp):
     """Edit file at specified location."""
 
-    editor_cmd = build_option('editor')
-    if which(editor_cmd) is None:
-        raise EasyBuildError("Editor command '%s' not found", editor_cmd)
+    tmpl_editor_cmd = build_option('editor_command_template')
+    if not tmpl_editor_cmd:
+        raise EasyBuildError("No editor command template specified (see --editor-command-template)")
+    elif tmpl_editor_cmd.count('%s') != 1:
+        raise EasyBuildError("Editor command template should contain exactly one '%s' as placeholder for filename: '" +
+                             tmpl_editor_cmd + "'")
 
-    _log.info("Editing %s using '%s'", fp, editor_cmd)
+    # read file before editing so we can detect whether or not any changes were made
+    txt = read_file(fp)
+
+    # replace placeholder %s with path of file to edit
+    cmd = []
+    for cmd_part in tmpl_editor_cmd.split(' '):
+        if cmd_part == '%s':
+            cmd.append(fp)
+        else:
+            cmd.append(cmd_part)
+
+    print_msg("editing %s... " % fp, newline=False)
     # can't use run_cmd here, just hangs without actually bringing up the editor...
-    exit_code = subprocess.call([editor_cmd, fp])
+    try:
+        exit_code = subprocess.call(cmd)
+    except OSError as err:
+        raise EasyBuildError("Editor command '%s' failed: %s", ' '.join(cmd), err)
     if exit_code:
-        raise EasyBuildError("Editor '%s' failed with exit code %s while editing", editor_cmd, exit_code, fp)
+        raise EasyBuildError("Editor command '%s' failed with exit code %s", ' '.join(cmd), exit_code)
+
+    if txt == read_file(fp):
+        done_msg = 'done (no changes)'
     else:
-        _log.info("Done editing %s using '%s' (exit code %s)", fp, editor_cmd, exit_code)
+        done_msg = 'done (changes detected)'
+
+    print_msg(done_msg, prefix=False)
 
 
 def get_source_tarball_from_git(filename, targetdir, git_config):

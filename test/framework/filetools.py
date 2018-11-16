@@ -41,7 +41,6 @@ import tempfile
 import urllib2
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
@@ -1803,11 +1802,20 @@ class FileToolsTest(EnhancedTestCase):
         testfile = os.path.join(self.test_prefix, 'test.txt')
         ft.write_file(testfile, 'test123')
 
-        init_config(build_options={'editor': 'echo'})
-        ft.edit_file(testfile)
+        for cmd_tmpl in ['true', '%s true %s']:
+            init_config(build_options={'editor_command_template': cmd_tmpl})
+            error_pattern = "Editor command template should contain exactly one '%s' as placeholder for filename"
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.edit_file, testfile)
 
-        init_config(build_options={'editor': 'nosucheditorcommand'})
-        self.assertErrorRegex(EasyBuildError, "Editor command 'nosucheditorcommand' not found", ft.edit_file, testfile)
+        init_config(build_options={'editor_command_template': 'true %s'})
+        self.mock_stdout(True)
+        ft.edit_file(testfile)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(stdout.strip(), "== editing %s... done (no changes)" % testfile)
+
+        init_config(build_options={'editor_command_template': 'false %s'})
+        self.assertErrorRegex(EasyBuildError, "Editor command 'false .*' failed", ft.edit_file, testfile)
 
 
 def suite():
