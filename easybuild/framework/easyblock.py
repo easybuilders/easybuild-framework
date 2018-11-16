@@ -46,6 +46,7 @@ import os
 import re
 import shutil
 import stat
+import sys
 import tempfile
 import time
 import traceback
@@ -90,6 +91,7 @@ from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -3247,3 +3249,48 @@ def inject_checksums(ecs, checksum_type):
             ectxt = regex.sub('\n'.join(exts_list_lines), ectxt)
 
         write_file(ec['spec'], ectxt)
+
+
+def avail_easyblocks():
+    """Return a list of all available easyblocks."""
+
+    module_regexp = re.compile(r"^([^_].*)\.py$")
+    class_regex = re.compile(r"^class ([^(]*)\(", re.M)
+
+    # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
+    search_toolchain('')
+
+    easyblocks = {}
+    for pkg in ['easybuild.easyblocks', 'easybuild.easyblocks.generic']:
+        __import__(pkg)
+
+        # determine paths for this package
+        paths = sys.modules[pkg].__path__
+
+        # import all modules in these paths
+        for path in paths:
+            if os.path.exists(path):
+                for fn in os.listdir(path):
+                    res = module_regexp.match(fn)
+                    if res:
+                        easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
+
+                        if easyblock_mod_name not in easyblocks:
+                            __import__(easyblock_mod_name)
+                            easyblock_loc = os.path.join(path, fn)
+
+                            class_names = class_regex.findall(read_file(easyblock_loc))
+                            if len(class_names) == 1:
+                                easyblock_class = class_names[0]
+                            elif class_names:
+                                raise EasyBuildError("Found multiple class names for easyblock %s: %s",
+                                                     easyblock_loc, class_names)
+                            else:
+                                raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
+
+                            easyblocks[easyblock_mod_name] = {'class': easyblock_class, 'loc': easyblock_loc}
+                        else:
+                            _log.debug("%s already imported from %s, ignoring %s",
+                                       easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+
+    return easyblocks

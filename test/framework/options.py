@@ -605,12 +605,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
-        for pat in [
-                    r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
-                    r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
-                    r"|--\s+bar\s+\(easybuild.easyblocks.generic.bar\)\n",
-                   ]:
-
+        patterns = [
+            r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
+            r"\|--\s+EB_foo\s+\(easybuild.easyblocks.foo @ .*/sandbox/easybuild/easyblocks/f/foo.py\)\n" +
+            "\|\s+\|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo @ .*/sandbox/easybuild/easyblocks/f/foofoo.py\)\n",
+            r"\|--\s+bar\s+\(easybuild.easyblocks.generic.bar @ .*/sandbox/easybuild/easyblocks/generic/bar.py\)\n",
+        ]
+        for pat in patterns:
             msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
             self.assertTrue(re.search(pat, logtxt), msg)
 
