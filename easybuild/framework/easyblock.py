@@ -2986,6 +2986,7 @@ def build_and_install_one(ecdict, init_env):
 
     return (success, application_log, errormsg)
 
+
 def get_format_extension(spec):
     """
     Get the extension format to use for a given spec
@@ -3000,6 +3001,7 @@ def get_format_extension(spec):
         extension = EB_FORMAT_EXTENSION
 
     return extension
+
 
 def reproduce_build(app, reprod_dir_root):
     """
