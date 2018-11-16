@@ -361,7 +361,7 @@ class EasyBuildOptions(GeneralOption):
             'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
                                   None, 'store_true', False),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
-                             None, 'store_true', False),
+                             None, 'store_true', False, 'E'),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "

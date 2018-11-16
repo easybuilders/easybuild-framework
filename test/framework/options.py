@@ -1294,26 +1294,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         log = fancylogger.getLogger()
 
-        # force it to False
-        topt = EasyBuildOptions(
-            go_args=['--disable-experimental'],
-        )
-        try:
-            log.experimental('x')
-            # sanity check, should never be reached if it works.
-            self.assertTrue(False, "Experimental logging should be disabled by setting the --disable-experimental option")
-        except easybuild.tools.build_log.EasyBuildError, err:
-            # check error message
-            self.assertTrue('Experimental functionality.' in str(err))
+        for experimental_opt in ['--experimental', '-E']:
+            # force it to False
+            topt = EasyBuildOptions(go_args=['--disable-experimental'])
+            try:
+                log.experimental('x')
+                # sanity check, should never be reached if it works.
+                self.assertTrue(False, "Experimental logging should be disabled via --disable-experimental")
+            except easybuild.tools.build_log.EasyBuildError, err:
+                # check error message
+                self.assertTrue('Experimental functionality.' in str(err))
 
-        # toggle experimental
-        topt = EasyBuildOptions(
-            go_args=['--experimental'],
-        )
-        try:
-            log.experimental('x')
-        except easybuild.tools.build_log.EasyBuildError, err:
-            self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
+            # toggle experimental
+            EasyBuildOptions(go_args=[experimental_opt])
+            try:
+                log.experimental('x')
+            except easybuild.tools.build_log.EasyBuildError, err:
+                self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
 
         # set it back
         easybuild.tools.build_log.EXPERIMENTAL = orig_value
