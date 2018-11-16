@@ -134,6 +134,7 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'editor',
         'extra_modules',
         'filter_deps',
         'filter_env_vars',

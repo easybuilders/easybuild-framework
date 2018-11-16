@@ -1797,6 +1797,18 @@ class FileToolsTest(EnhancedTestCase):
         ]:
             self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
 
+    def test_edit_file(self):
+        """Test for edit_file function."""
+
+        testfile = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(testfile, 'test123')
+
+        init_config(build_options={'editor': 'echo'})
+        ft.edit_file(testfile)
+
+        init_config(build_options={'editor': 'nosucheditorcommand'})
+        self.assertErrorRegex(EasyBuildError, "Editor command 'nosucheditorcommand' not found", ft.edit_file, testfile)
+
 
 def suite():
     """ returns all the testcases in this module """
