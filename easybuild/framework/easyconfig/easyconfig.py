@@ -785,7 +785,12 @@ class EasyConfig(object):
             if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
                 templ_val[self.template_values[key]] = key
 
-        ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        try:
+            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        except NotImplementedError as err:
+            self.enable_templating = orig_enable_templating
+            raise NotImplementedError(err)
+
         self.log.debug("Dumped easyconfig: %s", ectxt)
 
         if build_option('dump_autopep8'):
