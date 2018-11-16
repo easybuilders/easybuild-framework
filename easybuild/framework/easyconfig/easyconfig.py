@@ -794,7 +794,7 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
 
-        :param overwrite: overwrite existing file at specified location without use of --force
+        :param always_overwrite: overwrite existing file at specified location without use of --force
         :param backup: create backup of existing file before overwriting it
         """
         orig_enable_templating = self.enable_templating
