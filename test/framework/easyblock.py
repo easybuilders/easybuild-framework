@@ -36,10 +36,10 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-from easybuild.framework.easyblock import EasyBlock, avail_easyblocks, get_easyblock_instance
+from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import process_easyconfig
+from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError

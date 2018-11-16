@@ -44,7 +44,7 @@ from vsc.utils.docs import mk_rst_table
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
-from easybuild.framework.easyblock import EasyBlock, avail_easyblocks
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
@@ -53,6 +53,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMP
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS, template_constant_dict
+from easybuild.framework.easyconfig.tools import avail_easyblocks
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
