@@ -3039,6 +3039,15 @@ def reproduce_build(app, reprod_dir_root):
             copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
             _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
 
+    # if there is a hook file we should also archive it
+    reprod_hooks_dir = os.path.join(reprod_dir, 'hooks')
+    hooks = build_option('hooks')
+    if hooks:
+        hooks_filename = os.path.basename(hooks)
+        copy_file(hooks, os.path.join(reprod_hooks_dir, hooks_filename))
+        _log.info("Dumped hooks file %s (potentially) required for reproduction to %s", hooks_filename,
+                  reprod_hooks_dir)
+
     return reprod_dir
 
 def get_easyblock_instance(ecdict):
