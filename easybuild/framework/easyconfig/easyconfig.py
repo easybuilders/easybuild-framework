@@ -790,7 +790,7 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
-    def dump(self, fp, allways_overwrite=True, backup=False):
+    def dump(self, fp, always_overwrite=True, backup=False):
         """
         Dump this easyconfig to file, with the given filename.
 
