@@ -173,6 +173,60 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
+def handle_cat_copy_edit(filepaths, print_contents=False, copy=False, edit=False, target_dir=None):
+    """Handle use of --cat, --copy and --edit."""
+
+    res = []
+    for orig_fp in filepaths:
+        if copy:
+            fp = os.path.join(target_dir, os.path.basename(orig_fp))
+            copy_file(orig_fp, fp)
+            res.append(fp)
+        else:
+            fp = orig_fp
+
+        if edit:
+            edit_file(fp)
+
+        if print_contents:
+            print_msg("Contents of easyconfig file %s:\n" % fp)
+            print_msg(read_file(fp), prefix=False)
+
+    return res
+
+
+def handle_new(options, tmpdir, args):
+    """Handle use of --new."""
+    tmpfp = create_new_easyconfig(tmpdir, args)
+
+    # use current directory as default location to save generated file, in case no location is specified via --copy
+    target_dir = options.copy or '.'
+    res = handle_cat_copy_edit([tmpfp], print_contents=options.cat, copy=True, edit=options.edit, target_dir=target_dir)
+
+    print_msg("easyconfig file %s created!" % res[0])
+
+
+def handle_search(options, search_query):
+    """Handle use of --search."""
+
+    search_action = options.cat or options.copy or options.edit
+    res = search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                             terse=options.terse, return_hits=search_action)
+
+    if search_action:
+        # only perform action(s) if there's a single search result, unless --force is used
+        if len(res) > 1 and not options.force:
+            raise EasyBuildError("Found %d results, not performing search action(s) without --force", len(res))
+
+        res = handle_cat_copy_edit(res, print_contents=options.cat, copy=options.copy, edit=options.edit,
+                                   target_dir=options.copy or '.')
+
+        if options.copy:
+            print_msg("copied easyconfig files:")
+            for path in res:
+                print_msg("* %s" % path, prefix=False)
+
+
 def clean_exit(logfile, tmpdir, testing, silent=False):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
@@ -220,8 +274,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # search for easyconfigs, if a query is specified
     if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
+        handle_search(options, search_query)
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
@@ -244,19 +297,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
     elif options.new:
-        tmpfp = create_new_easyconfig(eb_tmpdir, args)
-
-        if options.edit:
-            edit_file(tmpfp)
-
-        fp = os.path.join(options.copy or '', os.path.basename(tmpfp))
-        copy_file(tmpfp, fp)
-
-        if options.cat:
-            print_msg("Contents of easyconfig file %s:\n" % fp)
-            print_msg(read_file(fp), prefix=False)
-
-        print_msg("Easyconfig file %s created!" % fp)
+        handle_new(options, eb_tmpdir, args)
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [

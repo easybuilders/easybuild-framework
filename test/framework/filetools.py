@@ -1815,7 +1815,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(stdout.strip(), "== editing %s... done (no changes)" % testfile)
 
         init_config(build_options={'editor_command_template': 'false %s'})
+        self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, "Editor command 'false .*' failed", ft.edit_file, testfile)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(stdout.strip(), "== editing %s..." % testfile)
 
 
 def suite():
