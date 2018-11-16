@@ -703,7 +703,7 @@ def avail_easyblocks():
     return easyblocks
 
 
-def create_new_easyconfig(args):
+def create_new_easyconfig(path, args):
     """Create new easyconfig file based on specified information."""
 
     specs = {}
@@ -820,12 +820,12 @@ def create_new_easyconfig(args):
     except EasyBuildError as err:
         print_warning("Problem occured when parsing generated easyconfig file: %s" % err)
 
-    if ec:
-        full_ec_ver = det_full_ec_version(specs)
-        fn = '%s-%s.eb' % (specs['name'], full_ec_ver)
-
-        ec.dump(fn)
-        print_msg("Easyconfig file %s created based on specified information!" % fn)
-    else:
+    if err:
         print_msg(ec_raw + '\n', prefix=False)
         raise EasyBuildError("Easyconfig file with raw contents shown above NOT created because of errors: %s", err)
+    else:
+        full_ec_ver = det_full_ec_version(specs)
+        fp = os.path.join(path, '%s-%s.eb' % (specs['name'], full_ec_ver))
+
+        ec.dump(fp)
+        return fp

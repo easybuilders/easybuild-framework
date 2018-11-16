@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, edit_file, read_file, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import new_pr, merge_pr, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
@@ -244,7 +244,19 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
     elif options.new:
-        create_new_easyconfig(args)
+        tmpfp = create_new_easyconfig(eb_tmpdir, args)
+
+        if options.edit:
+            edit_file(tmpfp)
+
+        fp = os.path.join(options.copy or '', os.path.basename(tmpfp))
+        copy_file(tmpfp, fp)
+
+        if options.cat:
+            print_msg("Contents of easyconfig file %s:\n" % fp)
+            print_msg(read_file(fp), prefix=False)
+
+        print_msg("Easyconfig file %s created!" % fp)
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [

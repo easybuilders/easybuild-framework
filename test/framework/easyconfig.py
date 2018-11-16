@@ -2388,7 +2388,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec_fp = os.path.join(self.test_prefix, 'toy-1.2.3-foss-2018b.eb')
         self.assertTrue(os.path.exists(ec_fp))
 
-        expected_stdout = "== Easyconfig file %s created based on specified information!"
+        expected_stdout = "== Easyconfig file %s created!"
         self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
 
         ec = EasyConfig(ec_fp)

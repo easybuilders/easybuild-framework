@@ -665,9 +665,13 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
 
         opts = OrderedDict({
+            'cat': ("Print contents of easyconfig file(s) (works well with --search)", None, 'store_true', False),
+            'copy': ("Copy easyconfig file(s) to specified location (works well with --search)",
+                     None, 'store_or_None', '', {'metavar': "PATH"}),
+            'edit': ("Edit easyconfig file (using editor specified via --editor)", None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
-            'new': ("Create a new easyconfig file based on specified information", None, 'store_true', False),
+            'new': ("Create a new easyconfig file based on specified information", None, 'store_true', False, 'n'),
         })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='')
