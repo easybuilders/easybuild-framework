@@ -2857,9 +2857,10 @@ def build_and_install_one(ecdict, init_env):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
-        # create our reproducability files before carrying out the easyblock steps
-        reprod_dir_root = os.path.dirname(app.logfile)
-        reprod_dir = reproduce_build(app, reprod_dir_root)
+        if not dry_run:
+            # create our reproducability files before carrying out the easyblock steps
+            reprod_dir_root = os.path.dirname(app.logfile)
+            reprod_dir = reproduce_build(app, reprod_dir_root)
         result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
         first_n = 300
