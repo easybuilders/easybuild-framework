@@ -608,7 +608,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
             r"\|--\s+EB_foo\s+\(easybuild.easyblocks.foo @ .*/sandbox/easybuild/easyblocks/f/foo.py\)\n" +
-            "\|\s+\|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo @ .*/sandbox/easybuild/easyblocks/f/foofoo.py\)\n",
+            r"\|\s+\|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo @ .*/sandbox/easybuild/easyblocks/f/foofoo.py\)\n",
             r"\|--\s+bar\s+\(easybuild.easyblocks.generic.bar @ .*/sandbox/easybuild/easyblocks/generic/bar.py\)\n",
         ]
         for pat in patterns:
