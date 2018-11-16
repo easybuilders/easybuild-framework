@@ -561,18 +561,18 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(fp), 'blah')
 
         # blind overwriting can be disabled via 'overwrite'
-        error_pattern = "File exists, not overwriting it without --force: %s" % fp
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.write_file, fp, 'blah', overwrite=False)
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.write_file, fp, 'blah', overwrite=False, backup=True)
+        error = "File exists, not overwriting it without --force: %s" % fp
+        self.assertErrorRegex(EasyBuildError, error, ft.write_file, fp, 'blah', always_overwrite=False)
+        self.assertErrorRegex(EasyBuildError, error, ft.write_file, fp, 'blah', always_overwrite=False, backup=True)
 
         # use of --force ensuring that file gets written regardless of whether or not it exists already
         build_options = {'force': True}
         init_config(build_options=build_options)
 
-        ft.write_file(fp, 'overwrittenbyforce', overwrite=False)
+        ft.write_file(fp, 'overwrittenbyforce', always_overwrite=False)
         self.assertEqual(ft.read_file(fp), 'overwrittenbyforce')
 
-        ft.write_file(fp, 'overwrittenbyforcewithbackup', overwrite=False, backup=True)
+        ft.write_file(fp, 'overwrittenbyforcewithbackup', always_overwrite=False, backup=True)
         self.assertEqual(ft.read_file(fp), 'overwrittenbyforcewithbackup')
 
         # also test behaviour of write_file under --dry-run
