@@ -667,7 +667,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'cat': ("Print contents of easyconfig file(s) (works well with --search)", None, 'store_true', False),
             'copy': ("Copy easyconfig file(s) to specified location (works well with --search)",
-                     None, 'store_or_None', '', {'metavar': "PATH"}),
+                     None, 'store_or_None', '.', {'metavar': "PATH"}),
             'edit': ("Edit easyconfig file (using editor specified via --editor)", None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
