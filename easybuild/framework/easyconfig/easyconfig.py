@@ -790,9 +790,12 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
-    def dump(self, fp):
+    def dump(self, fp, always_overwrite=True, backup=False):
         """
         Dump this easyconfig to file, with the given filename.
+
+        :param always_overwrite: overwrite existing file at specified location without use of --force
+        :param backup: create backup of existing file before overwriting it
         """
         orig_enable_templating = self.enable_templating
 
@@ -828,7 +831,7 @@ class EasyConfig(object):
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
-        write_file(fp, ectxt)
+        write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
         self.enable_templating = orig_enable_templating
 

@@ -139,7 +139,7 @@ class TweakTest(EnhancedTestCase):
             self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))
 
         # check behaviour if target file already exists
-        error_pattern = "A file already exists at .* where tweaked easyconfig file would be written"
+        error_pattern = "File exists, not overwriting it without --force"
         self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
 
         # existing file does get overwritten when --force is used
