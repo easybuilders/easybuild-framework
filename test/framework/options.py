@@ -748,6 +748,85 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertEqual(txt, expected)
 
+    def test_search_actions(self):
+        """Test combo of --search with --copy/--edit/--show."""
+
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        test_gcc_ecs = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb',
+                        'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb']
+
+        # too many search hits (> 1) for '^gcc-4' search query
+        error_pattern = r"Found [0-9]* results which is more than search action limit \(1\), "
+        error_pattern += "so not performing search action\(s\)"
+
+        copy = '--copy=%s' % self.test_prefix
+        search_actions_to_test = [
+            [copy],
+            ['--edit'],
+            ['--show'],
+            [copy, '--show'],
+            [copy, '--edit'],
+            ['--edit', '--show'],
+            [copy, '--edit', '--show'],
+        ]
+        for search_actions in search_actions_to_test:
+
+            args = ['--search=^gcc-4', '--editor-command-template=true %s'] + search_actions
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, testing=False, raise_error=True)
+
+            args.append('--search-action-limit=100')
+            self.mock_stdout(True)
+            self.eb_main(args, testing=False, raise_error=True)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+
+            ecs_dir = os.path.join(test_ecs, 'g', 'GCC')
+
+            if any(a.startswith('--copy') for a in search_actions):
+                self.assertTrue("== copied easyconfig files:\n" in stdout)
+                for ec in test_gcc_ecs:
+                    self.assertTrue("* %s/%s" % (self.test_prefix, ec) in stdout)
+                self.assertEqual(sorted(f for f in os.listdir(self.test_prefix) if f.startswith('GCC-')), test_gcc_ecs)
+                ecs_dir = self.test_prefix
+            else:
+                self.assertFalse("== copied easyconfig files" in stdout)
+
+            if any(a.startswith('--edit') for a in search_actions):
+                for ec in test_gcc_ecs:
+                    self.assertTrue("== editing %s/%s... done (no changes)" % (ecs_dir, ec) in stdout)
+            else:
+                self.assertFalse("== editing" in stdout)
+
+            if any(a.startswith('--show') for a in search_actions):
+                for ec in test_gcc_ecs:
+                    self.assertTrue("== Contents of easyconfig file %s/%s:" % (ecs_dir, ec) in stdout)
+            else:
+                self.assertFalse("== Contents of easyconfig file" in stdout)
+
+            # clean up and recreate test dir
+            remove_dir(self.test_prefix)
+            mkdir(self.test_prefix)
+
+        # test with search query that only returns a single result
+        args = ['--search=^gcc-4.8.3', '--copy=%s' % self.test_prefix, '--edit', '--show',
+                '--editor-command-template=true %s']
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        patterns = [
+            r"^== editing %s/GCC-4.8.3.eb... done \(no changes\)$" % self.test_prefix,
+            r"^== Contents of easyconfig file %s/GCC-4.8.3.eb:$" % self.test_prefix,
+            r'^name = "GCC"$',
+            r"^version = '4.8.3'$",
+            r"^toolchain = .*dummy",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertTrue(stdout.strip().endswith("== copied easyconfig files:\n* %s/GCC-4.8.3.eb" % self.test_prefix))
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -3923,7 +4002,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mkdir(self.test_prefix)
 
         # throwing --edit in the mix
-        args.extend(['--edit', '--editor-command-template=echo %s'])
+        args.extend(['--edit', '--editor-command-template=true %s'])
         (stdout, stderr) = self.run_eb_new(args + ['--show'])
         self.assertTrue(os.path.exists(ec_fp))
         patterns[0] = r"== Contents of easyconfig file \./toy-1.2.3-foss-2018b.eb:\n\neasyblock = 'ConfigureMake'"
