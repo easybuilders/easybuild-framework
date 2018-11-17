@@ -173,13 +173,19 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
-def handle_cat_copy_edit(filepaths, print_contents=False, copy=False, edit=False, target_dir=None):
+def handle_cat_copy_edit(filepaths, print_contents=False, copy=False, edit=False, target=None):
     """Handle use of --cat, --copy and --edit."""
 
     res = []
     for orig_fp in filepaths:
         if copy:
-            fp = os.path.join(target_dir, os.path.basename(orig_fp))
+            # if target location is an existing directory, retain filename
+            # if not, assume last part of specific location is filename
+            if os.path.isdir(target):
+                fp = os.path.join(target, os.path.basename(orig_fp))
+            else:
+                fp = target
+
             copy_file(orig_fp, fp)
             res.append(fp)
         else:
@@ -200,8 +206,8 @@ def handle_new(options, tmpdir, args):
     tmpfp = create_new_easyconfig(tmpdir, args)
 
     # use current directory as default location to save generated file, in case no location is specified via --copy
-    target_dir = options.copy or '.'
-    res = handle_cat_copy_edit([tmpfp], print_contents=options.cat, copy=True, edit=options.edit, target_dir=target_dir)
+    target = options.copy or '.'
+    res = handle_cat_copy_edit([tmpfp], print_contents=options.cat, copy=True, edit=options.edit, target=target)
 
     print_msg("easyconfig file %s created!" % res[0])
 
@@ -219,7 +225,7 @@ def handle_search(options, search_query):
             raise EasyBuildError("Found %d results, not performing search action(s) without --force", len(res))
 
         res = handle_cat_copy_edit(res, print_contents=options.cat, copy=options.copy, edit=options.edit,
-                                   target_dir=options.copy or '.')
+                                   target=options.copy or '.')
 
         if options.copy:
             print_msg("copied easyconfig files:")
