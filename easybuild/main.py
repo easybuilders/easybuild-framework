@@ -207,7 +207,7 @@ def handle_new(options, tmpdir, args):
 
     # use current directory as default location to save generated file, in case no location is specified via --copy
     target = options.copy or '.'
-    res = handle_cat_copy_edit([tmpfp], print_contents=options.cat, copy=True, edit=options.edit, target=target)
+    res = handle_cat_copy_edit([tmpfp], print_contents=options.show, copy=True, edit=options.edit, target=target)
 
     print_msg("easyconfig file %s created!" % res[0])
 
@@ -215,7 +215,7 @@ def handle_new(options, tmpdir, args):
 def handle_search(options, search_query):
     """Handle use of --search."""
 
-    search_action = options.cat or options.copy or options.edit
+    search_action = options.show or options.copy or options.edit
     res = search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                              terse=options.terse, return_hits=search_action)
 
@@ -224,7 +224,7 @@ def handle_search(options, search_query):
         if len(res) > 1 and not options.force:
             raise EasyBuildError("Found %d results, not performing search action(s) without --force", len(res))
 
-        res = handle_cat_copy_edit(res, print_contents=options.cat, copy=options.copy, edit=options.edit,
+        res = handle_cat_copy_edit(res, print_contents=options.show, copy=options.copy, edit=options.edit,
                                    target=options.copy or '.')
 
         if options.copy:
