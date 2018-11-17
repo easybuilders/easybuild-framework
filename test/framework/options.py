@@ -3805,6 +3805,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain", self.run_eb_new, ['toy', '1.2.3'])
         self.assertErrorRegex(EasyBuildError, error_pattern % "version", self.run_eb_new, ['toy', 'foss/2018a'])
 
+        # first argument is *always* the software name, even if it matches with a known easyblock (e.g. SCons)
+        self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain, version", self.run_eb_new, ['ConfigureMake'])
+
         # when just the required specs are specified, a lot of warnings are spit out
         (stdout, stderr) = self.run_eb_new(['toy', '1.2.3', 'foss/2018b'])
 

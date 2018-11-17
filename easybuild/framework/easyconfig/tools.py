@@ -703,13 +703,80 @@ def avail_easyblocks():
     return easyblocks
 
 
+def parse_param_value(string):
+    """Parse specified string as an easyconfig parameter value."""
+
+    def split_one(item, sep=','):
+        """Helper function to split of first part in an item, using given separator."""
+        parts = item.split(sep)
+        return (parts[0], sep.join(parts[1:]))
+
+    param, value = None, None
+
+    # determine list of names of known easyblocks, so we can descriminate an easyblock name
+    easyblock_names = [e['class'] for e in avail_easyblocks().values()]
+
+    # regular expression to recognise a version
+    version_regex = re.compile('^[0-9][0-9.-]')
+
+    # first check whether easyconfig parameter name is specfied as '<param_name>=<value>'
+    if re.match('^[a-z_]+=', string):
+        param, string = split_one(string, sep='=')
+
+    # check if the value is most likely a dictionary '<key>:<val>[;<key>:<val>]'
+    if re.match('^[a-z_]+:', string):
+        value = {}
+        for item in string.split(';'):
+            key, val = split_one(item, sep=':')
+            value[key] = parse_param_value(val)[1]
+
+        # if we encounter a dictionary with (only) 'files' and/or 'dirs' as key(s), it must be sanity_check_paths
+        if len(value) <= 2 and ('files' in value or 'dirs' in value):
+            param = 'sanity_check_paths'
+            for item_key, item_val in value.items():
+                if isinstance(item_val, basestring):
+                    value[item_key] = [item_val]
+                elif isinstance(item_val, tuple):
+                    value[item_key] = list(item_val)
+                else:
+                    raise EasyBuildError("Incorrect type of value for sanity_check_paths key '%s': %s", key, value[key])
+
+            # make sure both files/dirs keys are defined
+            value.setdefault('files', [])
+            value.setdefault('dirs', [])
+
+    # ';' is the separator for a list of items
+    elif ';' in string:
+        value = [parse_param_value(x)[1] for x in string.split(';')]
+
+    # ',' is the separator for a tuple
+    elif ',' in string:
+        value = tuple(parse_param_value(x)[1] for x in string.split(','))
+
+    # if parameter name is not decided yet, check for a likely match for specific parameters
+    elif string in easyblock_names and param is None:
+        param, value = 'easyblock', string
+
+    elif version_regex.match(string) and param is None:
+        param, value = 'version', string
+
+    elif find_extension(string, raise_error=False) and param is None:
+        param, value = 'sources', [string]
+
+    # a value with 3 or more spaces should most likely remain a string
+    elif string.count(' ') >= 3 and param is None:
+        param, value = 'description', string
+
+    else:
+        value = string
+
+    return (param, value)
+
+
 def create_new_easyconfig(path, args):
     """Create new easyconfig file based on specified information."""
 
     specs = {}
-
-    # regular expression to recognise a version
-    version_regex = re.compile('^[0-9]')
 
     # try and discriminate between homepage and source URL
     http_args = [arg for arg in args if arg.startswith('http')]
@@ -748,43 +815,30 @@ def create_new_easyconfig(path, args):
                 if specs.get('homepage') is None:
                     specs['homepage'] = arg
 
-    # determine list of names of known easyblocks, so we can descriminate an easyblock name
-    easyblock_names = [e['class'] for e in avail_easyblocks().values()]
-
     # iterate over provided arguments, and try to figure out what they specify
     for arg in args:
 
-        # arguments that start with '<param_name>=' are dealt with first
-        if re.match('^[a-z_]+=', arg):
-            key = arg.split('=')[0]
-            if key in ['builddeps', 'deps']:
-                deps = []
-                for dep in arg.split('=')[-1].split(';'):
-                    deps.append(tuple(dep.split(',')))
-                specs[key.replace('deps', 'dependencies')] = deps
-            else:
-                specs[key] = '='.join(arg.split('=')[1:])
+        key, val = parse_param_value(arg)
 
         # first argument is assumed to be the software name
-        elif specs.get('name') is None:
+        if specs.get('name') is None:
             specs['name'] = arg
 
-        elif version_regex.match(arg) and specs.get('version') is None:
-            specs['version'] = arg
+        elif key and specs.get(key) is None:
+
+            if key in ['builddeps', 'deps', 'source_urls', 'sources']:
+                if not isinstance(val, list):
+                    val = [val]
+
+            if key in ['builddeps', 'deps']:
+                key = key.replace('deps', 'dependencies')
+
+            specs[key] = val
 
         # toolchain is usually specified as <toolchain_name>/<toolchain_version>, e.g. intel/2018a
-        elif '/' in arg and specs.get('toolchain') is None:
-            tc_name, tc_ver = arg.split('/')
+        elif isinstance(val, basestring) and '/' in val and specs.get('toolchain') is None:
+            tc_name, tc_ver = val.split('/')
             specs['toolchain'] = {'name': tc_name, 'version': tc_ver}
-
-        elif arg in easyblock_names and specs.get('easyblock') is None:
-            specs['easyblock'] = arg
-
-        elif arg.count(' ') >= 3 and specs.get('description') is None:
-            specs['description'] = arg
-
-        elif find_extension(arg, raise_error=False):
-            specs['sources'] = [arg]
 
         else:
             print_warning("Unhandled argument: %s" % quote_str(arg))
