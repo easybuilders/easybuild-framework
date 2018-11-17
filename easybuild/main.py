@@ -173,8 +173,11 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
-def handle_cat_copy_edit(filepaths, print_contents=False, copy=False, edit=False, target=None):
+def handle_cat_copy_edit(filepaths, target=None, copy=None):
     """Handle use of --cat, --copy and --edit."""
+
+    if copy is None:
+        copy = build_option('copy')
 
     res = []
     for orig_fp in filepaths:
@@ -186,48 +189,50 @@ def handle_cat_copy_edit(filepaths, print_contents=False, copy=False, edit=False
             else:
                 fp = target
 
+            if os.path.exists(fp) and not build_option('force'):
+                raise EasyBuildError("Not overwriting existing file %s without --force", fp)
+
             copy_file(orig_fp, fp)
             res.append(fp)
         else:
             fp = orig_fp
 
-        if edit:
+        if build_option('edit'):
             edit_file(fp)
 
-        if print_contents:
+        if build_option('show'):
             print_msg("Contents of easyconfig file %s:\n" % fp)
             print_msg(read_file(fp), prefix=False)
 
     return res
 
 
-def handle_new(options, tmpdir, args):
+def handle_new(tmpdir, args):
     """Handle use of --new."""
     tmpfp = create_new_easyconfig(tmpdir, args)
 
     # use current directory as default location to save generated file, in case no location is specified via --copy
-    target = options.copy or '.'
-    res = handle_cat_copy_edit([tmpfp], print_contents=options.show, copy=True, edit=options.edit, target=target)
+    res = handle_cat_copy_edit([tmpfp], target=build_option('copy') or '.', copy=True)
 
     print_msg("easyconfig file %s created!" % res[0])
 
 
-def handle_search(options, search_query):
+def handle_search(search_query, search_filename, search_short):
     """Handle use of --search."""
 
-    search_action = options.show or options.copy or options.edit
-    res = search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                             terse=options.terse, return_hits=search_action)
+    copy_path = build_option('copy')
+    search_action = copy_path or build_option('show') or build_option('edit')
+    res = search_easyconfigs(search_query, short=search_short, filename_only=search_filename,
+                             terse=build_option('terse'), return_hits=search_action)
 
     if search_action:
         # only perform action(s) if there's a single search result, unless --force is used
-        if len(res) > 1 and not options.force:
+        if len(res) > 1 and not build_option('force'):
             raise EasyBuildError("Found %d results, not performing search action(s) without --force", len(res))
 
-        res = handle_cat_copy_edit(res, print_contents=options.show, copy=options.copy, edit=options.edit,
-                                   target=options.copy or '.')
+        res = handle_cat_copy_edit(res, target=copy_path or '.')
 
-        if options.copy:
+        if copy_path:
             print_msg("copied easyconfig files:")
             for path in res:
                 print_msg("* %s" % path, prefix=False)
@@ -280,7 +285,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # search for easyconfigs, if a query is specified
     if search_query:
-        handle_search(options, search_query)
+        handle_search(search_query, options.search_filename, options.search_short)
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
@@ -303,7 +308,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
     elif options.new:
-        handle_new(options, eb_tmpdir, args)
+        handle_new(eb_tmpdir, args)
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [

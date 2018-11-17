@@ -3749,6 +3749,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no unused arguments
         self.assertFalse("WARNING: Unhandled argument" in stderr)
 
+        # --new doesn't blindly overwrite an existing easyconfig file
+        error_pattern = "Not overwriting existing file ./toy-1.2.3-foss-2018b.eb without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_eb_new, ['toy', '1.2.3', 'foss/2018b'])
+
+        # works fine with --force
+        self.assertTrue(os.path.exists(ec_fp))
+        (stdout, stderr) = self.run_eb_new(['toy', '1.2.3', 'foss/2018b', 'moduleclass=bio', '--force'])
+        self.assertTrue(os.path.exists(ec_fp))
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec.version, '1.2.3')
+        self.assertEqual(ec['toolchain'], {'name': 'foss', 'version': '2018b'})
+        self.assertEqual(ec['moduleclass'], 'bio')
+
+        remove_file(ec_fp)
+
         # warnings are printed for arguments that can't be matched to an easyconfig parameter
         (stdout, stderr) = self.run_eb_new(['toy', '1.2.3', 'foss/2018b', 'this_is_a_useless_value'])
         self.assertTrue(os.path.exists(ec_fp))
@@ -3770,6 +3786,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
             self.assertEqual(ec['easyblock'], easyblock)
 
+            remove_file(ec_fp)
+
         # check handling of description (first arguments with 3 or more spaces)
         args = ['bar', '3.4.5', 'GCCcore/6.4.0', "not a description", "this is a description"]
         (stdout, stderr) = self.run_eb_new(args)
@@ -3782,6 +3800,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
         self.assertEqual(ec['description'], "this is a description")
         self.assertTrue('WARNING: Unhandled argument: "not a description"' in stderr)
+
+        remove_file(ec_fp)
 
         # check handling of deps/builddeps
         args = ['bar', '3.4.5', 'GCCcore/6.4.0', 'deps=toy,0.0;GCC,4.9.2', 'builddeps=gzip,1.4']
@@ -3804,6 +3824,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(len(ec['builddependencies']), 1)
         self.assertEqual(ec['builddependencies'][0]['name'], 'gzip')
         self.assertEqual(ec['builddependencies'][0]['version'], '1.4')
+
+        remove_file(ec_fp)
 
         # check handling of easyconfig parameters that are specified by <name>=, which get preference
         (stdout, stderr) = self.run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', 'easyblock=EB_toy', 'Toolchain',
@@ -3854,6 +3876,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(ec_fp))
         self.assertEqual(stdout.strip(), "== easyconfig file ./toy-1.2.3-foss-2018b.eb created!")
 
+        # --copy doesn't blindly overwrite an existing easyconfig file without --force
+        error_pattern = "Not overwriting existing file ./toy-1.2.3-foss-2018b.eb without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_eb_new, args + ['--copy'])
+
+        # overwriting works fine with --force
+        write_file(ec_fp, '')
+        (stdout, stderr) = self.run_eb_new(args + ['--copy', '--force'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertTrue(read_file(ec_fp) != '')
+
         remove_dir(self.test_prefix)
         mkdir(self.test_prefix)
 
@@ -3874,6 +3906,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertFalse(os.path.exists(ec_fp))
             self.assertTrue(os.path.exists(test_ec), "%s exists" % test_ec)
             self.assertEqual(stdout.strip(), "== easyconfig file %s created!" % test_ec)
+
+            remove_file(test_ec)
 
             # combination of --copy and --show also works
             (stdout, stderr) = self.run_eb_new(args + ['--show', '--copy', copy_arg])
