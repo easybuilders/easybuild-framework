@@ -555,6 +555,7 @@ class EasyBuildOptions(GeneralOption):
                                 None, 'store_true', False),
             'search': ("Search for easyconfig files in the robot search path, print full paths",
                        None, 'store', None, {'metavar': 'REGEX'}),
+            'search-action-limit': ("Search hit count limit to perform search action(s)", int, 'store', None),
             'search-filename': ("Search for easyconfig files in the robot search path, print only filenames",
                                 None, 'store', None, {'metavar': 'REGEX'}),
             'search-short': ("Search for easyconfig files in the robot search path, print short paths",

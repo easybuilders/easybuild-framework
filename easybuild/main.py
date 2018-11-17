@@ -227,8 +227,10 @@ def handle_search(search_query, search_filename, search_short):
 
     if search_action:
         # only perform action(s) if there's a single search result, unless --force is used
-        if len(res) > 1 and not build_option('force'):
-            raise EasyBuildError("Found %d results, not performing search action(s) without --force", len(res))
+        search_action_limit = build_option('search_action_limit') or 1
+        if len(res) > search_action_limit:
+            err_msg = "Found %d results which is more than search action limit (%d), so not performing search action(s)"
+            raise EasyBuildError(err_msg, len(res), search_action_limit)
 
         res = handle_cat_copy_edit(res, target=copy_path or '.')
 

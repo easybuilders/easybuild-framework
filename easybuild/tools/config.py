@@ -170,6 +170,7 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_target_repo',
         'rpath_filter',
         'regtest_output_dir',
+        'search_action_limit',
         'skip',
         'stop',
         'subdir_user_modules',
