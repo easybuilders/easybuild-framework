@@ -3885,10 +3885,35 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         remove_file(ec_fp)
 
+        # check handling of sanity_check_paths (dict value with files/dir keys)
+        tests = [
+            ('files:', {'files': [], 'dirs': []}),
+            ('dirs:', {'files': [], 'dirs': []}),
+            ('files:;dirs:', {'files': [], 'dirs': []}),
+            ('files:bin/foo', {'files': ['bin/foo'], 'dirs': []}),
+            ('dirs:include', {'files': [], 'dirs': ['include']}),
+            ('files:bin/foo,bin/bar', {'files': ['bin/foo', 'bin/bar'], 'dirs': []}),
+            ('dirs:bin,include,lib', {'files': [], 'dirs': ['bin', 'include', 'lib']}),
+            ('files:bin/foo;dirs:include', {'files': ['bin/foo'], 'dirs': ['include']}),
+            ('files:bin/foo,bin/bar;dirs:include,lib', {'files': ['bin/foo', 'bin/bar'], 'dirs': ['include', 'lib']}),
+        ]
+        for arg, expected in tests:
+            args = ['bar', '3.4.5', 'GCCcore/6.4.0', arg]
+            (stdout, stderr) = self.run_eb_new(args)
+            ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+            self.assertTrue(os.path.exists(ec_fp))
+            self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+            ec = EasyConfig(ec_fp)
+            self.assertEqual(ec.name, 'bar')
+            self.assertEqual(ec.version, '3.4.5')
+            self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+            self.assertEqual(ec['sanity_check_paths'], expected)
+
+            remove_file(ec_fp)
+
         # check handling of deps/builddeps
         args = ['bar', '3.4.5', 'GCCcore/6.4.0', 'deps=toy,0.0;GCC,4.9.2', 'builddeps=gzip,1.4']
         (stdout, stderr) = self.run_eb_new(args)
-        ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
         self.assertTrue(os.path.exists(ec_fp))
         self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
         self.assertFalse("WARNING: Unhandled argument" in stderr)
