@@ -2376,6 +2376,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # list, tuple
         self.assertEqual(parse_param_value('one,two,three,four'), (None, ('one', 'two', 'three', 'four')))
+        self.assertEqual(parse_param_value('one,two,,four'), (None, ('one', 'two', 'four')))
         self.assertEqual(parse_param_value('one;two;three;four'), (None, ['one', 'two', 'three', 'four']))
         # list of tuples
         self.assertEqual(parse_param_value('one,two;three,four'), (None, [('one', 'two'), ('three', 'four')]))
@@ -2388,6 +2389,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(parse_param_value('configopts=%s' % configopts), ('configopts', configopts))
 
         # sanity_check_paths
+        self.assertEqual(parse_param_value('files:;dirs:'), ('sanity_check_paths', {'files': [], 'dirs': []}))
         expected = {'files': ['bin/foo', 'lib/libfoo.a'], 'dirs': ['include']}
         self.assertEqual(parse_param_value('files:bin/foo,lib/libfoo.a;dirs:include'), ('sanity_check_paths', expected))
         expected = {'files': [], 'dirs': ['lib']}

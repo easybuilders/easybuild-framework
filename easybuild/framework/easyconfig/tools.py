@@ -735,7 +735,9 @@ def parse_param_value(string):
             param = 'sanity_check_paths'
             for item_key, item_val in value.items():
                 if isinstance(item_val, basestring):
-                    value[item_key] = [item_val]
+                    value[item_key] = []
+                    if item_val:
+                        value[item_key].append(item_val)
                 elif isinstance(item_val, tuple):
                     value[item_key] = list(item_val)
                 else:
@@ -747,11 +749,11 @@ def parse_param_value(string):
 
     # ';' is the separator for a list of items
     elif ';' in string:
-        value = [parse_param_value(x)[1] for x in string.split(';')]
+        value = [parse_param_value(x)[1] for x in string.split(';') if x]
 
     # ',' is the separator for a tuple
     elif ',' in string:
-        value = tuple(parse_param_value(x)[1] for x in string.split(','))
+        value = tuple(parse_param_value(x)[1] for x in string.split(',') if x)
 
     # if parameter name is not decided yet, check for a likely match for specific parameters
     elif string in easyblock_names and param is None:
