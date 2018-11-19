@@ -80,10 +80,22 @@ class LinAlg(Toolchain):
 
     LIB_EXTRA = None
 
+    LINALG_SHARED_OPTS = {
+        'mt_blas_lapack': (False, "Define $LIBBLAS & $LIBLAPACK with multi-threaded BLAS/LAPACK libraries"),
+    }
+    LINALG_SHARED_OPTION_MAP = None
+
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
+        self._set_linalg_options()
+
         super(LinAlg, self).__init__(*args, **kwargs)
+
+    def _set_linalg_options(self):
+        """Set toolchain options that are specific to LinAlg libraries."""
+        self.options.add_options(self.LINALG_SHARED_OPTS, self.LINALG_SHARED_OPTION_MAP)
+        self.log.devel('_set_linalg_options: all current options %s', self.options)
 
     def set_variables(self):
         """Set the variables"""
@@ -97,6 +109,17 @@ class LinAlg(Toolchain):
         self.log.devel('set_variables: LinAlg variables %s', self.variables)
 
         super(LinAlg, self).set_variables()
+
+    def generate_vars(self):
+        """Prepare variables for defining them as environment variables."""
+        super(LinAlg, self).generate_vars()
+
+        if self.options.get('mt_blas_lapack'):
+            # define all non-MT variables equal to MT equivalent
+            for key in self.vars:
+                if '_MT' in key:
+                    self.log.info("Defining $%s equivalent with $%s: %s", key.replace('_MT', ''), key, self.vars[key])
+                    self.vars[key.replace('_MT', '')] = self.vars[key]
 
     def _set_blas_variables(self):
         """Set BLAS related variables"""
