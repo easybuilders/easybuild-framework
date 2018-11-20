@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -32,7 +32,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import apply_patch, extract_file
+from easybuild.tools.filetools import apply_patch, change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars
 
 
@@ -81,6 +81,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
+            # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
+            # It should be specified for the extension specifically, or be empty (so it is auto-derived).
+            self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
@@ -101,6 +104,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
 
+            if self.start_dir and os.path.isdir(self.start_dir):
+                self.log.debug("Using start_dir: %s", self.start_dir)
+                change_dir(self.start_dir)
+
         # patch if needed
         if self.patches:
             for patchfile in self.patches:
@@ -120,8 +127,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # load fake module
             fake_mod_data = self.load_fake_module(purge=True)
 
-        # perform sanity check
-        sanity_check_ok = Extension.sanity_check_step(self)
+        # perform extension sanity check
+        (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
 
         if fake_mod_data:
             # unload fake module and clean up
@@ -133,21 +140,19 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                                                               extension=self.is_extension)
 
         # pass or fail sanity check
-        if not sanity_check_ok:
-            msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
-            if self.is_extension:
-                self.log.warning(msg)
-            else:
-                raise EasyBuildError(msg)
-            return False
+        if sanity_check_ok:
+            self.log.info("Sanity check for %s successful!", self.name)
         else:
-            self.log.info("Sanity check for %s successful!" % self.name)
-            return True
+            if not self.is_extension:
+                msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
+                raise EasyBuildError(msg)
+
+        return (sanity_check_ok, '; '.join(self.sanity_check_fail_msgs))
 
     def make_module_extra(self, extra=None):
         """Add custom entries to module."""
 
         txt = EasyBlock.make_module_extra(self)
-        if not extra is None:
+        if extra is not None:
             txt += extra
         return txt

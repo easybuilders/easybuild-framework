@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -31,6 +31,7 @@ EasyBuild support for gmpolf compiler toolchain (includes GCC, Parastation MPICH
 """
 
 from easybuild.toolchains.gpsmpi import Gpsmpi
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -39,4 +40,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Gpsolf(Gpsmpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, Parastation MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gpsolf'
-    SUBTOOLCHAIN = Gpsmpi.NAME
+    SUBTOOLCHAIN = [Gpsmpi.NAME, Golf.NAME]

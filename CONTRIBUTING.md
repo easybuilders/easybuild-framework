@@ -43,7 +43,7 @@ Pull the _develop_ branch from the main easybuild-framework repository:
 
 ```bash
 cd easybuild
-git remote add github_easybuilders git@github.com/easybuilders/easybuild-framework.git
+git remote add github_easybuilders git@github.com:easybuilders/easybuild-framework.git
 git branch develop
 git checkout develop
 git pull github_easybuilders develop

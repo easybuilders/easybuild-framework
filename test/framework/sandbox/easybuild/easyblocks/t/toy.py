@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,7 +32,7 @@ import os
 import platform
 import shutil
 
-from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir
@@ -40,7 +40,7 @@ from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.run import run_cmd
 
 
-class EB_toy(EasyBlock):
+class EB_toy(ExtensionEasyBlock):
     """Support for building/installing toy."""
 
     def __init__(self, *args, **kwargs):
@@ -98,6 +98,13 @@ class EB_toy(EasyBlock):
         f = open(os.path.join(libdir, 'lib%s.a' % name), 'w')
         f.write(name.upper())
         f.close()
+
+    def run(self):
+        """Install toy as extension."""
+        super(EB_toy, self).run(unpack_src=True)
+        self.configure_step()
+        self.build_step()
+        self.install_step()
 
     def make_module_extra(self):
         """Extra stuff for toy module"""

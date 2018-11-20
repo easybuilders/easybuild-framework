@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 """
 
 from easybuild.toolchains.iimpi import Iimpi
+from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -41,4 +42,4 @@ class Ictce(Iimpi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'ictce'
-    SUBTOOLCHAIN = Iimpi.NAME
+    SUBTOOLCHAIN = [Iimpi.NAME, Iimkl.NAME]
