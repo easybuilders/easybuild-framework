@@ -86,9 +86,12 @@ GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
-GITHUB_LIST_PR_STATES = ['open', 'closed', 'all']
-GITHUB_LIST_PR_ORDERS = ['created', 'updated', 'popularity', 'long-running']
-GITHUB_LIST_PR_DIRECTIONS = ['asc', 'desc']
+GITHUB_PR_STATE_OPEN = 'open'
+GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
+GITHUB_PR_ORDER_CREATED = 'created'
+GITHUB_PR_ORDERS = [GITHUB_PR_ORDER_CREATED, 'updated', 'popularity', 'long-running']
+GITHUB_PR_DIRECTION_DESC = 'desc'
+GITHUB_PR_DIRECTIONS = ['asc', GITHUB_PR_DIRECTION_DESC]
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
 GITHUB_PR = 'pull'
@@ -961,18 +964,19 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
-def list_prs(list_pr_opt, per_page=GITHUB_MAX_PER_PAGE):
+def list_prs(params, per_page=GITHUB_MAX_PER_PAGE):
     """
     List pull requests according to specified selection/order parameters
 
-    :param parameters: Selection parameters for PRs, see https://developer.github.com/v3/pulls/#parameters
+    :param params: 3-tuple with selection parameters for PRs (<state>, <sort>, <direction>),
+                   see https://developer.github.com/v3/pulls/#parameters
     """
     parameters = {
-        'state': list_pr_opt[0],
-        'sort': list_pr_opt[1],
-        'direction': list_pr_opt[2],
+        'state': params[0],
+        'sort': params[1],
+        'direction': params[2],
         'per_page': per_page,
-        }
+    }
     print_msg("Listing PRs with parameters %s" % parameters)
 
     pr_target_account = build_option('pr_target_account')
