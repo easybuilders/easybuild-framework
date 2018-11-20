@@ -64,6 +64,7 @@ class IntelIccIfort(Compiler):
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
         'loose': ['fp-model fast=1'],
         'veryloose': ['fp-model fast=2'],
+        'vectorize': {False: 'no-vec', True: 'vec'},
         'intel-static': 'static-intel',
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option

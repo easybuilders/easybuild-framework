@@ -62,6 +62,17 @@ class DocsTest(EnhancedTestCase):
             '',
             "Dummy support for building and installing applications with configure/make/make install.",
             '',
+            "Extra easyconfig parameters specific to ``ConfigureMake`` easyblock",
+            "-------------------------------------------------------------------",
+            '',
+            "====================    ============    =============",
+            "easyconfig parameter    description     default value",
+            "====================    ============    =============",
+            '``test_123``            Test 1, 2, 3    ``""``       ',
+            "``test_bool``           Just a test     ``False``    ",
+            "``test_none``           Another test    ``None``     ",
+            "====================    ============    =============",
+            '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
             '',
@@ -74,7 +85,7 @@ class DocsTest(EnhancedTestCase):
             "====================    ================================================================",
         ])
 
-        self.assertTrue(check_configuremake in ebdoc)
+        self.assertTrue(check_configuremake in ebdoc, "Found '%s' in: %s" % (check_configuremake, ebdoc))
         names = []
 
         for mod in modules:
@@ -241,7 +252,7 @@ class DocsTest(EnhancedTestCase):
             '',
             'homepage: https://easybuilders.github.io/easybuild',
             '',
-            "  * toy v0.0: dummy",
+            "  * toy v0.0: dummy, gompi/1.3.12",
             "  * toy v0.0 (versionsuffix: '-deps'): dummy",
             "  * toy v0.0 (versionsuffix: '-iter'): dummy",
             "  * toy v0.0 (versionsuffix: '-multiple'): dummy",
@@ -260,15 +271,15 @@ class DocsTest(EnhancedTestCase):
             '',
             '*homepage*: https://easybuilders.github.io/easybuild',
             '',
-            '=======    =============    ================',
-            'version    versionsuffix    toolchain       ',
-            '=======    =============    ================',
-            '``0.0``                     ``dummy``       ',
-            '``0.0``    ``-deps``        ``dummy``       ',
-            '``0.0``    ``-iter``        ``dummy``       ',
-            '``0.0``    ``-multiple``    ``dummy``       ',
-            '``0.0``    ``-test``        ``gompi/1.3.12``',
-            '=======    =============    ================',
+            '=======    =============    ===========================',
+            'version    versionsuffix    toolchain                  ',
+            '=======    =============    ===========================',
+            '``0.0``                     ``dummy``, ``gompi/1.3.12``',
+            '``0.0``    ``-deps``        ``dummy``                  ',
+            '``0.0``    ``-iter``        ``dummy``                  ',
+            '``0.0``    ``-multiple``    ``dummy``                  ',
+            '``0.0``    ``-test``        ``gompi/1.3.12``           ',
+            '=======    =============    ===========================',
         ]
         txt = list_software(output_format='rst', detailed=True)
         lines = txt.split('\n')

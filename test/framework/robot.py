@@ -249,7 +249,7 @@ class RobotTest(EnhancedTestCase):
         MockModule.avail_modules = [
             'GCC/4.7.2',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'FFTW/3.3.3-gompi-1.4.10',
             'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
         ]
@@ -331,7 +331,7 @@ class RobotTest(EnhancedTestCase):
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 4)
         # goolf should be first, the software itself second
-        self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['full_mod_name'])
+        self.assertEqual('OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', res[0]['full_mod_name'])
         self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['full_mod_name'])
         self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
@@ -442,12 +442,12 @@ class RobotTest(EnhancedTestCase):
         # all modules in the dep graph, in order
         all_mods_ordered = [
             'GCC/4.7.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'hwloc/1.6.2-GCC-4.7.2',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'gompi/1.4.10',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
-            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'SQLite/3.8.10.2-GCC-4.7.2',
+            'gompi/1.4.10',
+            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'FFTW/3.3.3-gompi-1.4.10',
             'goolf/1.4.10',
             'bar/1.2.3-goolf-1.4.10',
@@ -464,7 +464,7 @@ class RobotTest(EnhancedTestCase):
             'gompi/1.4.10',
             'goolf/1.4.10',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'SQLite/3.8.10.2-GCC-4.7.2',
         ]
@@ -688,9 +688,20 @@ class RobotTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
 
+        goolfc_hierarchy = get_toolchain_hierarchy({'name': 'goolfc', 'version': '2.6.10'})
+        self.assertEqual(goolfc_hierarchy, [
+            {'name': 'GCC', 'version': '4.8.2'},
+            {'name': 'golf', 'version': '2.6.10'},
+            {'name': 'gcccuda', 'version': '2.6.10'},
+            {'name': 'golfc', 'version': '2.6.10'},
+            {'name': 'gompic', 'version': '2.6.10'},
+            {'name': 'goolfc', 'version': '2.6.10'},
+        ])
+
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
         self.assertEqual(goolf_hierarchy, [
             {'name': 'GCC', 'version': '4.7.2'},
+            {'name': 'golf', 'version': '1.4.10'},
             {'name': 'gompi', 'version': '1.4.10'},
             {'name': 'goolf', 'version': '1.4.10'},
         ])
@@ -700,6 +711,103 @@ class RobotTest(EnhancedTestCase):
             {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
             {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
         ])
+
+        # test also --try-toolchain* case, where we want more detailed information
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        get_toolchain_hierarchy.clear()
+
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
+        expected = [
+            {
+                'name': 'GCC',
+                'version': '4.7.2',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'golf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+            {
+                'name': 'gompi',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'goolf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+        ]
+        self.assertEqual(goolf_hierarchy, expected)
+
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'iimpi',
+                'version': '5.5.3-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': 'IntelMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+        ]
+        self.assertEqual(iimpi_hierarchy, expected)
+
+        iccifortcuda_hierarchy = get_toolchain_hierarchy({'name': 'iccifortcuda', 'version': 'test'},
+                                                         incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None,
+            },
+            {
+                'name': 'iccifortcuda',
+                'version': 'test',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': True,
+            },
+        ]
+        self.assertEqual(iccifortcuda_hierarchy, expected)
 
         # test also including dummy
         init_config(build_options={
@@ -992,7 +1100,7 @@ class RobotTest(EnhancedTestCase):
 
         expected_dep_versions = [
             '1.6.4-GCC-4.7.2',
-            '0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            '0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             '2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             '3.8.10.2-goolf-1.4.10',
         ]
@@ -1114,6 +1222,31 @@ class RobotTest(EnhancedTestCase):
 
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
+
+    def test_check_conflicts_wrapper_deps(self):
+        """Test check_conflicts when dependency 'wrappers' are involved."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        wrapper_ec_txt = '\n'.join([
+            "easyblock = 'ModuleRC'",
+            "name = 'toy'",
+            "version = '0'",
+            "homepage = 'https://example.com'",
+            "description = 'Just A Wrapper'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+            "dependencies = [('toy', '0.0')]",
+        ])
+        wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
+        write_file(wrapper_ec, wrapper_ec_txt)
+
+        ecs, _ = parse_easyconfigs([(toy_ec, False), (wrapper_ec, False)])
+        self.mock_stderr(True)
+        res = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        self.assertFalse(res)
 
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""

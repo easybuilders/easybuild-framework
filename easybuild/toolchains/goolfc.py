@@ -29,6 +29,7 @@ EasyBuild support for goolfc compiler toolchain (includes GCC+CUDA, OpenMPI, Ope
 """
 
 from easybuild.toolchains.gompic import Gompic
+from easybuild.toolchains.golfc import Golfc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -36,5 +37,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Goolfc(Gompic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolfc'
-    SUBTOOLCHAIN = Gompic.NAME
-
+    SUBTOOLCHAIN = [Gompic.NAME, Golfc.NAME]

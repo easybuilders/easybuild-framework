@@ -39,49 +39,36 @@ import copy
 import os
 import stat
 import sys
-import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, init_logging, print_error, print_msg, print_warning, stop_logging
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
 
-import easybuild.tools.config as config
-import easybuild.tools.options as eboptions
-from easybuild.framework.easyblock import EasyBlock, build_and_install_one, inject_checksums
+from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
-from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
+from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import list_prs, new_pr, merge_pr, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
-from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.robot import check_conflicts, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.version import this_is_easybuild
 
 _log = None
-
-
-def log_start(eb_command_line, eb_tmpdir):
-    """Log startup info."""
-    _log.info(this_is_easybuild())
-
-    # log used command line
-    _log.info("Command line: %s" % (' '.join(eb_command_line)))
-
-    _log.info("Using %s as temporary directory" % eb_tmpdir)
 
 
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
@@ -105,27 +92,24 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True, hooks=None):
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     """
     Build and install software for all provided parsed easyconfig files.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
     :param exit_on_failure: whether or not to exit on installation failure
-    :param hooks: list of defined pre- and post-step hooks
     """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
-    run_hook(START, hooks)
-
     res = []
     for ec in ecs:
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, hooks=hooks)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -164,26 +148,35 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, ho
 
         res.append((ec, ec_res))
 
-    run_hook(END, hooks)
-
     return res
 
 
-def check_root_usage(allow_use_as_root=False):
+def run_contrib_style_checks(ecs, check_contrib, check_style):
     """
-    Check whether we are running as root, and act accordingly
+    Handle running of contribution and style checks on specified easyconfigs (if desired).
 
-    :param allow_use_as_root: allow use of EasyBuild as root (but do print a warning when doing so)
+    :return: boolean indicating whether or not any checks were actually performed
     """
-    if os.getuid() == 0:
-        if allow_use_as_root:
-            msg = "Using EasyBuild as root is NOT recommended, please proceed with care!\n"
-            msg += "(this is only allowed because EasyBuild was configured with "
-            msg += "--allow-use-as-root-and-accept-consequences)"
-            print_warning(msg)
-        else:
-            raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
-                                 "so let's end this here.")
+    check_actions = {
+        'contribution': (check_contrib, run_contrib_checks),
+        'style': (check_style, cmdline_easyconfigs_style_check),
+    }
+    for check_label, (run_check, check_function) in sorted(check_actions.items()):
+        if run_check:
+            _log.info("Running %s checks on %d specified easyconfigs...", check_label, len(ecs))
+            if check_function(ecs):
+                print_msg("\n>> All %s checks PASSed!\n" % check_label, prefix=False)
+            else:
+                print_msg('', prefix=False)
+                raise EasyBuildError("One or more %s checks FAILED!" % check_label)
+
+    return check_contrib or check_style
+
+
+def clean_exit(logfile, tmpdir, testing, silent=False):
+    """Small utility function to perform a clean exit."""
+    cleanup(logfile, tmpdir, testing, silent=silent)
+    sys.exit(0)
 
 
 def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
@@ -197,63 +190,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
-    # initialise options
-    eb_go = eboptions.parse_options(args=args)
-    options = eb_go.options
-    orig_paths = eb_go.args
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    options, orig_paths = eb_go.options, eb_go.args
 
-    # set umask (as early as possible)
-    if options.umask is not None:
-        new_umask = int(options.umask, 8)
-        old_umask = os.umask(new_umask)
-
-    # set by option parsers via set_tmpdir
-    eb_tmpdir = tempfile.gettempdir()
-
-    search_query = options.search or options.search_filename or options.search_short
-
-    # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
-                                 silent=(testing or options.terse or search_query), colorize=options.color)
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
 
-    # disallow running EasyBuild as root (by default)
-    check_root_usage(allow_use_as_root=options.allow_use_as_root_and_accept_consequences)
+    # load hook implementations (if any)
+    hooks = load_hooks(options.hooks)
 
-    # log startup info
-    eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
-    log_start(eb_cmd_line, eb_tmpdir)
-
-    if options.umask is not None:
-        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
-
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, build_specs) = process_software_build_specs(options)
-
-    # determine robot path
-    # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
-    tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
-    auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
-    _log.debug("Full robot path: %s" % robot_path)
-
-    # configure & initialize build options
-    config_options_dict = eb_go.get_options_by_section('config')
-    build_options = {
-        'build_specs': build_specs,
-        'command_line': eb_cmd_line,
-        'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
-        'pr_path': pr_path,
-        'robot_path': robot_path,
-        'silent': testing,
-        'try_to_generate': try_to_generate,
-        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
-    }
-    # initialise the EasyBuild configuration & build options
-    config.init(options, config_options_dict)
-    config.init_build_options(build_options=build_options, cmdline_options=options)
+    run_hook(START, hooks)
 
     if modtool is None:
         modtool = modules_tool(testing=testing)
@@ -313,8 +259,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         search_query,
     ]
     if any(early_stop_options):
-        cleanup(logfile, eb_tmpdir, testing, silent=True)
-        sys.exit(0)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
@@ -368,17 +313,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
-    if options.check_style:
-        _log.debug("Running style check...")
-        if cmdline_easyconfigs_style_check([path[0] for path in paths]):
-            print_msg("All style checks passed!", prefix=False)
-            cleanup(logfile, eb_tmpdir, testing)
-            sys.exit(0)
-        else:
-            raise EasyBuildError("One or more style checks FAILED!")
-
     # read easyconfig files
     easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+
+    # handle --check-contrib & --check-style options
+    if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
+        clean_exit(logfile, eb_tmpdir, testing)
 
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
@@ -391,6 +331,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
+
+    if options.containerize:
+        # if --containerize/-C create a container recipe (and optionally container image), and stop
+        containerize(easyconfigs)
+        clean_exit(logfile, eb_tmpdir, testing)
 
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
@@ -450,31 +395,26 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
     if any(no_ec_opts) or any(stop_options):
-        cleanup(logfile, eb_tmpdir, testing)
-        sys.exit(0)
+        clean_exit(logfile, eb_tmpdir, testing)
 
     # create dependency graph and exit
     if options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
-        cleanup(logfile, eb_tmpdir, testing, silent=True)
-        sys.exit(0)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True)
 
     # submit build as job(s), clean up and exit
     if options.job:
         submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now")
-            cleanup(logfile, eb_tmpdir, testing)
-            sys.exit(0)
+            clean_exit(logfile, eb_tmpdir, testing)
 
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
-        hooks = load_hooks(options.hooks)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
-                                                  exit_on_failure=exit_on_failure, hooks=hooks)
+        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
@@ -497,6 +437,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
+    run_hook(END, hooks)
+
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
@@ -506,5 +448,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 if __name__ == "__main__":
     try:
         main()
-    except EasyBuildError, e:
-        print_error(e.msg)
+    except EasyBuildError as err:
+        print_error(err.msg)
+    except KeyboardInterrupt:
+        print_error("Cancelled by user (keyboard interrupt)")
