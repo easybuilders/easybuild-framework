@@ -217,7 +217,6 @@ class GithubError(Exception):
     pass
 
 
-
 def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
     Helper method, for performing get requests to GitHub API.
@@ -885,7 +884,6 @@ def find_software_name_for_patch(patch_name):
     :return: name of the software that this patch file belongs to (if found)
     """
 
-
     robot_paths = build_option('robot_path')
     soft_name = None
 
@@ -1015,7 +1013,10 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls
+    def pr_url(gh):
+        """Utility function to fetch data for PRs."""
+        return gh.repos[pr_target_account][pr_target_repo].pulls
+
     status, pr_data = github_api_get_request(pr_url, None, **parameters)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get PR data from %s/%s (parameters: %s, status: %d %s)",
@@ -1039,7 +1040,10 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
+    def pr_url(gh):
+        """Utility function to fetch data for a specific PR."""
+        return gh.repos[pr_target_account][pr_target_repo].pulls[pr]
+
     status, pr_data = github_api_get_request(pr_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
@@ -1051,25 +1055,35 @@ def merge_pr(pr):
     if pr_data['user']['login'] == github_user:
         raise EasyBuildError("Please do not merge your own PRs!")
 
-    # also fetch status of last commit
     pr_head_sha = pr_data['head']['sha']
-    status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
+
+    def status_url(gh):
+        """Utility function to fetch status of specific commit."""
+        return gh.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
+
+    # also fetch status of last commit
     status, status_data = github_api_get_request(status_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, status_data)
     pr_data['status_last_commit'] = status_data['state']
 
+    def comments_url(gh):
+        """Utility function to fetch comments for a specific PR."""
+        return gh.repos[pr_target_account][pr_target_repo].issues[pr].comments
+
     # also fetch comments
-    comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
     status, comments_data = github_api_get_request(comments_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, comments_data)
     pr_data['issue_comments'] = comments_data
 
+    def reviews_url(gh):
+        """Utility function to fetch reviews for a specific PR."""
+        return gh.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
+
     # also fetch reviews
-    reviews_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
     status, reviews_data = github_api_get_request(reviews_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
@@ -1078,6 +1092,10 @@ def merge_pr(pr):
 
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    def merge_url(gh):
+        """Utility function to fetch merge URL for a specific PR."""
+        return gh.repos[pr_target_account][pr_target_repo].pulls[pr].merge
 
     if check_pr_eligible_to_merge(pr_data) or force:
         print_msg("\nReview %s merging pull request!\n" % ("OK,", "FAILed, yet forcibly")[force], prefix=False)
@@ -1092,7 +1110,6 @@ def merge_pr(pr):
                 'commit_message': pr_data['title'],
                 'sha': pr_head_sha,
             }
-            merge_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].merge
             github_api_put_request(merge_url, github_user, body=body)
     else:
         print_warning("Review indicates this PR should not be merged (use -f/--force to do so anyway)")
@@ -1234,7 +1251,10 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
+    def pr_url(gh):
+        """Utility function to fetch data for a specific PR."""
+        return gh.repos[pr_target_account][pr_target_repo].pulls[pr]
+
     status, pr_data = github_api_get_request(pr_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
@@ -1361,7 +1381,8 @@ def check_github():
     branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
-        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master', silent=True, git_only=True)
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master',
+                                 silent=True, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
     except Exception as err:
