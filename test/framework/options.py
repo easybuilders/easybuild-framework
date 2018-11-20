@@ -1557,7 +1557,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # filter deps (including a non-existing dep, i.e. zlib)
-        args.append('--filter-deps=FFTW,ScaLAPACK,zlib')
+        args.extend(['--filter-deps', 'FFTW,ScaLAPACK,zlib'])
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
@@ -1566,7 +1566,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # filter specific version of deps
-        args[-1] = '--filter-deps=FFTW=3.2.3,zlib,ScaLAPACK=2.0.2'
+        args[-1] = 'FFTW=3.2.3,zlib,ScaLAPACK=2.0.2'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
@@ -1574,7 +1574,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         open(self.logfile, 'w').write('')
 
-        args[-1] = '--filter-deps=FFTW=3.3.3,zlib,ScaLAPACK=2.0.1'
+        args[-1] = 'zlib,FFTW=3.3.3,ScaLAPACK=2.0.1'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertFalse(re.search('module: FFTW', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
@@ -1583,7 +1583,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # filter deps with version range: only filter FFTW 3.x, ScaLAPACK 1.x
-        args[-1] = '--filter-deps=FFTW=[3.0:4.0[,zlib,ScaLAPACK=]1.0:2.0['
+        args[-1] = 'zlib,ScaLAPACK=]1.0:2.0[,FFTW=[3.0:4.0['
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertFalse(re.search('module: FFTW', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
@@ -1591,8 +1591,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         open(self.logfile, 'w').write('')
 
+        # also test open ended ranges
+        args[-1] = 'zlib,ScaLAPACK=[1.0:,FFTW=:4.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        args[-1] = 'zlib,ScaLAPACK=[2.1:,FFTW=:3.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
         # test corner cases where version to filter in equal to low/high range limit
-        args[-1] = '--filter-deps=FFTW=[3.3.3:4.0],zlib,ScaLAPACK=[1.0:2.0.2]'
+        args[-1] = 'FFTW=[3.3.3:4.0],zlib,ScaLAPACK=[1.0:2.0.2]'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertFalse(re.search('module: FFTW', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
@@ -1601,7 +1616,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # FFTW & ScaLAPACK versions are not included in range, so no filtering
-        args[-1] = '--filter-deps=FFTW=]3.3.3:4.0],zlib,ScaLAPACK=[1.0:2.0.2['
+        args[-1] = 'FFTW=]3.3.3:4.0],zlib,ScaLAPACK=[1.0:2.0.2['
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
@@ -1610,14 +1625,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # also test mix of ranges & specific versions
-        args[-1] = '--filter-deps=FFTW=3.3.3,zlib,ScaLAPACK=[1.0:2.0.2['
+        args[-1] = 'FFTW=3.3.3,zlib,ScaLAPACK=[1.0:2.0.2['
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertFalse(re.search('module: FFTW', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
         open(self.logfile, 'w').write('')
-        args[-1] = '--filter-deps=FFTW=]3.3.3:4.0],zlib,ScaLAPACK=2.0.2'
+        args[-1] = 'FFTW=]3.3.3:4.0],zlib,ScaLAPACK=2.0.2'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
