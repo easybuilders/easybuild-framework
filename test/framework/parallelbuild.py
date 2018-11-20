@@ -335,18 +335,20 @@ class ParallelBuildTest(EnhancedTestCase):
 
         self.assertEqual(len(jobs), 8)
 
+        # last job (gzip) has a dependency on second-to-last job (goolf)
+        self.assertEqual(jobs[-2].job_specs['job-name'], 'goolf-1.4.10')
         expected = {
-            'job-name': 'gzip-1.5-goolf-1.4.10',
-            'wrap': "echo '%s'" % test_ec,
-            'nodes': 1,
-            'ntasks': 3,
-            'time': 300,  # 60*5 (unit is minutes)
             'dependency': 'afterok:%s' % jobs[-2].jobid,
             'hold': True,
+            'job-name': 'gzip-1.5-goolf-1.4.10',
+            'nodes': 1,
+            'ntasks': 3,
+            'ntasks-per-node': 3,
+            'output': '%x-%j.out',
+            'time': 300,  # 60*5 (unit is minutes)
+            'wrap': "echo '%s'" % test_ec,
         }
-        for key, val in expected.items():
-            self.assertTrue(key in jobs[-1].job_specs)
-            self.assertEqual(jobs[-1].job_specs[key], expected[key])
+        self.assertEqual(jobs[-1].job_specs, expected)
 
 
 def suite():
