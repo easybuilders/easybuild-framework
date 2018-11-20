@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,9 +72,9 @@ def find_rel_test():
 easybuild_packages = [
     "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
     "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
-    "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.deprecated",
-    "easybuild.tools.job", "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme",
-    "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
+    "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
+    "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
+    "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
     "easybuild.tools.repository", "test.framework", "test",
 ]
 

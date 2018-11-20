@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,13 +38,14 @@ import os
 import re
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 from datetime import datetime
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, time_str_since
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.utilities import trace_msg
 
@@ -97,7 +98,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True):
+            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -112,6 +113,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param verbose: include message on running the command in dry run output
     :param shell: allow commands to not run in a shell (especially useful for cmd lists)
     :param trace: print command being executed as part of trace output
+    :param stream_output: enable streaming command output to stdout
     """
     cwd = os.getcwd()
 
@@ -133,6 +135,14 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         _log.debug('run_cmd: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
+
+    # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
+    if stream_output is None and build_option('logtostdout'):
+        _log.info("Auto-enabling streaming output of '%s' command because logging to stdout is enabled", cmd_msg)
+        stream_output = True
+
+    if stream_output:
+        print_msg("(streaming) output for command '%s':" % cmd_msg)
 
     start_time = datetime.now()
     if trace:
@@ -167,7 +177,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     if cmd_log:
         cmd_log.write("# output for command: %s\n\n" % cmd_msg)
-    
+
     exec_cmd = "/bin/bash"
 
     if not shell:
@@ -179,33 +189,43 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
 
-    readSize = 1024 * 8
     _log.info('running cmd: %s ' % cmd)
     try:
-        p = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
+        proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
     except OSError, err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
-        p.stdin.write(inp)
-    p.stdin.close()
+        proc.stdin.write(inp)
+    proc.stdin.close()
 
-    ec = p.poll()
+    # use small read size when streaming output, to make it stream more fluently
+    # read size should not be too small though, to avoid too much overhead
+    if stream_output:
+        read_size = 128
+    else:
+        read_size = 1024 * 8
+
+    ec = proc.poll()
     stdouterr = ''
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = p.stdout.read(readSize)
+        output = proc.stdout.read(read_size)
         if cmd_log:
             cmd_log.write(output)
+        if stream_output:
+            sys.stdout.write(output)
         stdouterr += output
-        ec = p.poll()
+        ec = proc.poll()
 
     # read remaining data (all of it)
-    output = p.stdout.read()
+    output = proc.stdout.read()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
+    if stream_output:
+        sys.stdout.write(output)
     stdouterr += output
 
     if trace:
@@ -475,17 +495,17 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if not regexp:
         use_regexp = False
 
-    _log.debug('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
         if check_ec:
-            raise EasyBuildError('cmd "%s" exited with exitcode %s and output:\n%s', cmd, ec, stdouterr)
+            raise EasyBuildError('cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
         else:
-            _log.warn('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.warn('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
     elif not ec:
         if log_all:
-            _log.info('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.info('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+        else:
+            _log.debug('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
     if use_regexp or regexp:

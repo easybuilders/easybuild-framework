@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -137,7 +137,7 @@ class EasyConfigParserTest(EnhancedTestCase):
             # name, version, versionsuffix, toolchain
             ('GCC', '4.7.2', None, None),
             ('OpenMPI', '1.6.4', None, {'name': 'GCC', 'version': '4.7.2'}),
-            ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2', {'name': 'gompi', 'version': '1.4.10'}),
+            ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2', {'name': 'GCC', 'version': '4.7.2'}),
             ('FFTW', '3.3.3', None, {'name': 'gompi', 'version': '1.4.10'}),
             ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2', {'name': 'gompi', 'version': '1.4.10'}),
         ]
