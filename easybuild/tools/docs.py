@@ -37,9 +37,7 @@ Documentation-related functionality
 import copy
 import inspect
 import os
-import re
 import string
-import sys
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.docs import mk_rst_table
@@ -48,13 +46,14 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS, template_constant_dict
+from easybuild.framework.easyconfig.tools import avail_easyblocks
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -123,12 +122,12 @@ def avail_cfgfile_constants_txt(go_cfg_constants):
 
 def avail_cfgfile_constants_rst(go_cfg_constants):
     title = "Constants available (only) in configuration files"
-    doc =[title, '-' * len(title), '']
+    doc = [title, '-' * len(title), '']
 
     for section in go_cfg_constants:
         doc.append('')
         if section != go_cfg_constants['DEFAULT']:
-            section_title = "only in '%s' section:" %section
+            section_title = "only in '%s' section:" % section
             doc.extend([section_title, '-' * len(section_title), ''])
         table_titles = ["Constant name", "Constant help", "Constant value"]
         table_values = [
@@ -419,9 +418,9 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
             mod = class_info['module']
             loc = ''
             if mod in locations:
-                loc = '@ %s' % locations[mod]
+                loc = '@ %s' % locations[mod]['loc']
             txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
-                        format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
+                       format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
         else:
             txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
                        format_strings['sep'] + class_name)
@@ -429,7 +428,8 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
             if len(class_info['children']) > 0:
                 if format_strings.get('newline') is not None:
                     txt.append(format_strings['newline'])
-                txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
+                txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed,
+                                              format_strings, depth + 1))
                 if format_strings.get('newline') is not None:
                     txt.append(format_strings['newline'])
     return txt
@@ -437,14 +437,14 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
 
 def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
     format_strings = {
-        FORMAT_TXT : {
+        FORMAT_TXT: {
             'det_root_templ': "%s (%s%s)",
             'root_templ': "%s",
             'zero_indent': '',
             'indent': "|   ",
             'sep': "|-- ",
         },
-        FORMAT_RST : {
+        FORMAT_RST: {
             'det_root_templ': "* **%s** (%s%s)",
             'root_templ': "* **%s**",
             'zero_indent': INDENT_2SPACES,
@@ -459,31 +459,8 @@ def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
 def gen_list_easyblocks(list_easyblocks, format_strings):
     """Get a class tree for easyblocks."""
     detailed = list_easyblocks == DETAILED
-    module_regexp = re.compile(r"^([^_].*)\.py$")
 
-    # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
-    search_toolchain('')
-
-    locations = {}
-    for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
-        __import__(package)
-
-        # determine paths for this package
-        paths = sys.modules[package].__path__
-
-        # import all modules in these paths
-        for path in paths:
-            if os.path.exists(path):
-                for f in os.listdir(path):
-                    res = module_regexp.match(f)
-                    if res:
-                        easyblock = '%s.%s' % (package, res.group(1))
-                        if easyblock not in locations:
-                            __import__(easyblock)
-                            locations.update({easyblock: os.path.join(path, f)})
-                        else:
-                            _log.debug("%s already imported from %s, ignoring %s",
-                                               easyblock, locations[easyblock], path)
+    locations = avail_easyblocks()
 
     def add_class(classes, cls):
         """Add a new class, and all of its subclasses."""
@@ -510,7 +487,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
             mod = classes[root]['module']
             loc = ''
             if mod in locations:
-                loc = ' @ %s' % locations[mod]
+                loc = ' @ %s' % locations[mod]['loc']
             txt.append(format_strings['det_root_templ'] % (root, mod, loc))
         else:
             txt.append(format_strings['root_templ'] % root)
@@ -559,20 +536,23 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
-        versionsuffix = ec.get('versionsuffix', '')
+        keys = ['description', 'homepage', 'version', 'versionsuffix']
 
-        # make sure versionsuffix gets properly templated
-        if versionsuffix and isinstance(ec, dict):
-            template_values = template_constant_dict(ec)
-            versionsuffix = versionsuffix % template_values
+        info = {'toolchain': toolchain}
+        for key in keys:
+            info[key] = ec.get(key, '')
 
-        software[ec['name']].append({
-            'description': ec['description'],
-            'homepage': ec['homepage'],
-            'toolchain': toolchain,
-            'version': ec['version'],
-            'versionsuffix': versionsuffix,
-        })
+        # make sure values like homepage & versionsuffix get properly templated
+        if isinstance(ec, dict):
+            template_values = template_constant_dict(ec, skip_lower=False)
+            for key in keys:
+                if '%(' in info[key]:
+                    try:
+                        info[key] = info[key] % template_values
+                    except (KeyError, TypeError, ValueError) as err:
+                        _log.debug("Ignoring failure to resolve templates: %s", err)
+
+        software[ec['name']].append(info)
 
         if only_installed:
             software[ec['name']][-1].update({'mod_name': ec.full_mod_name})
@@ -785,7 +765,7 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
     tc_class, _ = search_toolchain(name)
     if not tc_class:
         raise EasyBuildError("Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name)
-    tc = tc_class(version='1.0') # version doesn't matter here, but needs to be defined
+    tc = tc_class(version='1.0')  # version doesn't matter here, but needs to be defined
 
     tc_dict = {}
     for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
@@ -834,7 +814,7 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
 
     # get all blocks
     for mod in modules:
-        for name,obj in inspect.getmembers(mod, inspect.isclass):
+        for name, obj in inspect.getmembers(mod, inspect.isclass):
             eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
             if eb_class.__module__.startswith(package_name) and eb_class not in all_blocks:
@@ -878,7 +858,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
 
     bases = []
     for b in eb_class.__bases__:
-        base = ':ref:`' + b.__name__ +'`' if b in all_blocks else b.__name__
+        base = ':ref:`' + b.__name__ + '`' if b in all_blocks else b.__name__
         bases.append(base)
 
     derived = '(derives from ' + ', '.join(bases) + ')'

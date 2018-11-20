@@ -49,11 +49,12 @@ import site
 import sys
 import tempfile
 import traceback
+import urllib2
 from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180201.01'
+EB_BOOTSTRAP_VERSION = '20180925.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -86,6 +87,7 @@ os.environ['PYTHONPATH'] = ''
 
 EASYBUILD_BOOTSTRAP_SOURCEPATH = os.environ.pop('EASYBUILD_BOOTSTRAP_SOURCEPATH', None)
 EASYBUILD_BOOTSTRAP_SKIP_STAGE0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
+EASYBUILD_BOOTSTRAP_FORCE_VERSION = os.environ.pop('EASYBUILD_BOOTSTRAP_FORCE_VERSION', None)
 
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
@@ -259,8 +261,8 @@ def check_module_command(tmpdir):
     # order matters, which is why we don't use a dict
     known_module_commands = [
         ('lmod', 'Lmod'),
-        ('modulecmd', 'EnvironmentModulesC'),
         ('modulecmd.tcl', 'EnvironmentModules'),
+        ('modulecmd', 'EnvironmentModulesC'),
     ]
     out = os.path.join(tmpdir, 'module_command.out')
     modtool = None
@@ -379,26 +381,16 @@ def check_easy_install_cmd():
     easy_install_regex = re.compile('^(setuptools|distribute) %s' % setuptools.__version__)
     debug("Pattern for 'easy_install --version': %s" % easy_install_regex.pattern)
 
-    for path in os.getenv('PATH', '').split(os.pathsep):
-        easy_install = os.path.join(path, 'easy_install')
-        debug("Checking %s..." % easy_install)
-        res = False
-        if os.path.exists(easy_install):
-            cmd = "PYTHONPATH='%s' %s %s --version" % (os.getenv('PYTHONPATH', ''), sys.executable, easy_install)
-            os.system("%s > %s 2>&1" % (cmd, outfile))
-            outtxt = open(outfile).read().strip()
-            debug("Output of '%s':\n%s" % (cmd, outtxt))
-            res = bool(easy_install_regex.match(outtxt))
-            debug("Result for %s: %s" % (easy_install, res))
-        else:
-            debug("%s does not exist" % easy_install)
-
-        if res:
-            debug("Found right 'easy_install' command in %s" % path)
-            curr_path = os.environ.get('PATH', '').split(os.pathsep)
-            os.environ['PATH'] = os.pathsep.join([path] + curr_path)
-            debug("$PATH: %s" % os.environ['PATH'])
-            return
+    pythonpath = os.getenv('PYTHONPATH', '')
+    cmd = "PYTHONPATH='%s' %s -m easy_install --version" % (pythonpath, sys.executable)
+    os.system("%s > %s 2>&1" % (cmd, outfile))
+    outtxt = open(outfile).read().strip()
+    debug("Output of '%s':\n%s" % (cmd, outtxt))
+    res = bool(easy_install_regex.match(outtxt))
+    debug("Result: %s" % res)
+    if res:
+        debug("Found right 'easy_install' command")
+        return
 
     error("Failed to find right 'easy_install' command!")
 
@@ -473,7 +465,7 @@ def stage0(tmpdir):
     return distribute_egg_dir
 
 
-def stage1(tmpdir, sourcepath, distribute_egg_dir):
+def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
     """STAGE 1: temporary install EasyBuild using distribute's easy_install."""
 
     print('\n')
@@ -522,7 +514,10 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
             cmd.append(source_tarballs[VSC_BASE])
     else:
         # install meta-package easybuild from PyPI
-        cmd.append('easybuild')
+        if forcedversion:
+            cmd.append('easybuild==%s' % forcedversion)
+        else:
+            cmd.append('easybuild')
 
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
         post_vsc_base = cmd[:]
@@ -636,15 +631,15 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     preinstallopts = ''
 
     if distribute_egg_dir is not None:
-        # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
+        # inject path to distribute installed in stage 0 into $PYTHONPATH via preinstallopts
         # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
-        # this is required for the easy_install from stage 1 to work
+        # this is required for the easy_install from stage 0 to work
         preinstallopts += "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
 
         # ensure that (latest) setuptools is installed as well alongside EasyBuild,
         # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
         # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
-        preinstallopts += "%s $(which easy_install) -U --prefix %%(installdir)s setuptools && " % sys.executable
+        preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s setuptools && " % sys.executable
 
     # vsc-install is a runtime dependency for the EasyBuild unit test suite,
     # and is easily picked up from stage1 rather than being actually installed, so force it
@@ -653,22 +648,56 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
         if len(vsc_install_tarball_paths) == 1:
             vsc_install = vsc_install_tarball_paths[0]
-    preinstallopts += "%s $(which easy_install) -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
+    preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
 
     templates.update({
         'preinstallopts': preinstallopts,
     })
 
-    # create easyconfig file
-    ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
-    handle = open(ebfile, 'w')
+    # determine PyPI URLs for individual packages
+    pkg_urls = []
+    for pkg in EASYBUILD_PACKAGES:
+        # format of pkg entries in templates: "'<pkg_filename>',"
+        pkg_filename = templates[pkg][1:-2]
+
+        # the lines below implement a simplified version of the 'pypi_source_urls' and 'derive_alt_pypi_url' functions,
+        # which we can't leverage here, partially because of transitional changes in PyPI (#md5= -> #sha256=)
+
+        # determine download URL via PyPI's 'simple' API
+        pkg_simple = None
+        try:
+            pkg_simple = urllib2.urlopen('https://pypi.python.org/simple/%s' % pkg, timeout=10).read()
+        except (urllib2.URLError, urllib2.HTTPError) as err:
+            # failing to figure out the package download URl may be OK when source tarballs are provided
+            if sourcepath:
+                info("Ignoring failed attempt to determine '%s' download URL since source tarballs are provided" % pkg)
+            else:
+                raise err
+
+        if pkg_simple:
+            pkg_url_part_regex = re.compile('/(packages/[^#]+)/%s#' % pkg_filename)
+            res = pkg_url_part_regex.search(pkg_simple)
+            if res:
+                pkg_url_part = res.group(1)
+            else:
+                error("Failed to determine PyPI package URL for %s: %s\n" % (pkg, pkg_simple))
+
+            pkg_url = 'https://pypi.python.org/' + pkg_url_part
+            pkg_urls.append(pkg_url)
+
     templates.update({
-        'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
+        'source_urls': '\n'.join(["'%s'," % pkg_url for pkg_url in pkg_urls]),
         'sources': "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
         'pythonpath': distribute_egg_dir,
     })
-    handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
+
+    # create easyconfig file
+    ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
+    handle = open(ebfile, 'w')
+    ebfile_txt = EASYBUILD_EASYCONFIG_TEMPLATE % templates
+    handle.write(ebfile_txt)
     handle.close()
+    debug("Contents of generated easyconfig file:\n%s" % ebfile_txt)
 
     # set command line arguments for eb
     eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
@@ -790,6 +819,10 @@ def main():
     if sourcepath is not None:
         info("Fetching sources from %s..." % sourcepath)
 
+    forcedversion = EASYBUILD_BOOTSTRAP_FORCE_VERSION
+    if forcedversion:
+        info("Forcing specified version %s..." % forcedversion)
+
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
     debug("Going to use %s as temporary directory" % tmpdir)
@@ -836,7 +869,7 @@ def main():
             distribute_egg_dir = stage0(tmpdir)
 
     # STAGE 1: install EasyBuild using easy_install to tmp dir
-    templates = stage1(tmpdir, sourcepath, distribute_egg_dir)
+    templates = stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion)
 
     # add location to easy_install provided through stage0 to $PATH
     # this must be done *after* stage1, since $PATH is reset during stage1

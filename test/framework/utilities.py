@@ -250,7 +250,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         self.modtool.set_mod_paths()
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True, raise_systemexit=False, testing=True):
+                reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -282,8 +282,9 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         os.chdir(self.cwd)
 
-        # make sure config is reinitialized
-        init_config(with_include=False)
+        if redo_init_config:
+            # make sure config is reinitialized
+            init_config(with_include=False)
 
         # restore environment to what it was before running main,
         # changes may have been made by eb_main (e.g. $TMPDIR & co)

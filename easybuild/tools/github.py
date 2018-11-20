@@ -48,13 +48,11 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
-from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
-from easybuild.tools.filetools import mkdir, read_file, which, write_file
+from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -374,29 +372,33 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
-    _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
+    github_account = build_option('pr_target_account')
+    github_repo = GITHUB_EASYCONFIGS_REPO
 
-    status, pr_data, pr_url = fetch_pr_data(pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, github_user)
+    def pr_url(gh):
+        """Utility function to fetch data for a specific PR."""
+        return gh.repos[github_account][github_repo].pulls[pr]
 
-    # if PR is open and mergable, download develop and patch
-    stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
-    closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_data['merged']
+    _log.debug("Fetching easyconfigs from %s/%s PR #%s into %s", github_account, github_repo, pr, path)
 
-    # 'clean' on successful (or missing) test, 'unstable' on failed tests or merge conflict
-    if not stable:
-        _log.warning("Mergeable state for PR #%d is not '%s': %s.",
-                     pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
+    status, pr_data = github_api_get_request(pr_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, github_account, github_repo, status, pr_data)
 
-    if (stable or pr_data['merged']) and not closed:
-        # whether merged or not, download develop
-        final_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', github_user=github_user)
+    pr_merged = pr_data['merged']
+    pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
 
-    else:
-        final_path = path
+    pr_target_branch = pr_data['base']['ref']
+    _log.info("Target branch for PR #%s: %s", pr, pr_target_branch)
+
+    # download target branch of PR so we can try and apply the PR patch on top of it
+    repo_target_branch = download_repo(repo=github_repo, account=github_account, branch=pr_target_branch,
+                                       github_user=github_user)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
-    diff_filepath = os.path.join(final_path, diff_fn)
+    diff_filepath = os.path.join(path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
 
@@ -404,51 +406,72 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     _log.debug("List of patched files: %s" % patched_files)
 
     for key, val in sorted(pr_data.items()):
-        _log.debug("\n%s:\n\n%s\n" % (key, val))
+        _log.debug("\n%s:\n\n%s\n", key, val)
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
     if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
-        raise EasyBuildError("PR #%s contains more than %s commits, can't obtain last commit", pr, GITHUB_MAX_PER_PAGE)
-    status, commits_data = github_api_get_request(lambda g: pr_url(g).commits, github_user,
+        raise EasyBuildError("PR #%s contains more than %s commits, can't obtain last commit",
+                             pr, GITHUB_MAX_PER_PAGE)
+
+    status, commits_data = github_api_get_request(lambda gh: pr_url(gh).commits, github_user,
                                                   per_page=GITHUB_MAX_PER_PAGE)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, commits_data)
+                             pr, github_account, github_repo, status, commits_data)
     last_commit = commits_data[-1]
-    _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
+    _log.debug("Commits: %s, last commit: %s", commits_data, last_commit['sha'])
 
-    if not(pr_data['merged']):
-        if not stable or closed:
-            state_msg = "unstable (pending/failed tests or merge conflict)" if not stable else "closed (but not merged)"
-            print "\n*** WARNING: Using easyconfigs from %s PR #%s ***\n" % (state_msg, pr)
-            # obtain most recent version of patched files
-            for patched_file in patched_files:
-                # path to patch file, incl. subdir it is in
-                fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
-                sha = last_commit['sha']
-                full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
-                _log.info("Downloading %s from %s" % (fn, full_url))
-                download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
-        else:
-            apply_patch(diff_filepath, final_path, level=1)
+    final_path = None
 
+    # try to apply PR patch on top of target branch, unless the PR is closed or already merged
+    if pr_merged:
+        _log.info("PR is already merged, so using current version of PR target branch")
+        final_path = repo_target_branch
+
+    elif not pr_closed:
+        try:
+            _log.debug("Trying to apply PR patch %s to %s...", diff_filepath, repo_target_branch)
+            apply_patch(diff_filepath, repo_target_branch, level=1)
+            _log.info("Using %s which included PR patch to test PR #%s", repo_target_branch, pr)
+            final_path = repo_target_branch
+
+        except EasyBuildError as err:
+            _log.warning("Ignoring problem that occured when applying PR patch: %s", err)
+
+    if final_path is None:
+
+        if pr_closed:
+            print_warning("Using easyconfigs from closed PR #%s" % pr)
+
+        # obtain most recent version of patched files
+        for patched_file in patched_files:
+            # path to patch file, incl. subdir it is in
+            fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+            sha = last_commit['sha']
+            full_url = URL_SEPARATOR.join([GITHUB_RAW, github_account, github_repo, sha, patched_file])
+            _log.info("Downloading %s from %s", fn, full_url)
+            download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+
+        final_path = path
+
+    # symlink directories into expected place if they're not there yet
     if final_path != path:
         dirpath = os.path.join(final_path, 'easybuild', 'easyconfigs')
         for eb_dir in os.listdir(dirpath):
-            os.symlink(os.path.join(dirpath, eb_dir), os.path.join(path, os.path.basename(eb_dir)))
+            symlink(os.path.join(dirpath, eb_dir), os.path.join(path, os.path.basename(eb_dir)))
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []
-    for patched_file in patched_files:
+    for patched_file in [f for f in patched_files if not f.startswith('test/')]:
         fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
-        if os.path.exists(os.path.join(path, fn)):
-            ec_files.append(os.path.join(path, fn))
+        full_path = os.path.join(path, fn)
+        if os.path.exists(full_path):
+            ec_files.append(full_path)
         else:
-            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, fn))
+            raise EasyBuildError("Couldn't find path to patched file %s", full_path)
 
     return ec_files
-
 
 
 def create_gist(txt, fn, descr=None, github_user=None):
@@ -811,6 +834,19 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     return file_info, deleted_paths, git_repo, pr_branch, diff_stat
 
 
+def is_patch_for(patch_name, ec):
+    """Check whether specified patch matches any patch in the provided EasyConfig instance."""
+    res = False
+    for patch in ec['patches']:
+        if isinstance(patch, (tuple, list)):
+            patch = patch[0]
+        if patch == patch_name:
+            res = True
+            break
+
+    return res
+
+
 def det_patch_specs(patch_paths, file_info):
     """ Determine software names for patch files """
     print_msg("determining software names for patch files...")
@@ -821,8 +857,8 @@ def det_patch_specs(patch_paths, file_info):
 
         # consider patch lists of easyconfigs being provided
         for ec in file_info['ecs']:
-            if patch_file in ec['patches']:
-                soft_name = ec.name
+            if is_patch_for(patch_file, ec):
+                soft_name = ec['name']
                 break
 
         if soft_name:
@@ -849,17 +885,6 @@ def find_software_name_for_patch(patch_name):
     :return: name of the software that this patch file belongs to (if found)
     """
 
-    def is_patch_for(patch_name, ec):
-        """Check whether specified patch matches any patch in the provided EasyConfig instance."""
-        res = False
-        for patch in ec['patches']:
-            if isinstance(patch, (tuple, list)):
-                patch = patch[0]
-            if patch == patch_name:
-                res = True
-                break
-
-        return res
 
     robot_paths = build_option('robot_path')
     soft_name = None
@@ -1201,7 +1226,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             title = commit_msg
         elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
-            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
             if len(names_and_versions) <= 3:
                 main_title = ', '.join(names_and_versions)
             else:
@@ -1254,11 +1279,12 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             # post labels
             pr = data['html_url'].split('/')[-1]
             pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
-            status, data = pr_url.labels.post(body=labels)
-            if not status == HTTP_STATUS_OK:
-                raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
-
-            print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+            try:
+                status, data = pr_url.labels.post(body=labels)
+                if status == HTTP_STATUS_OK:
+                    print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+            except urllib2.HTTPError as err:
+                _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
 @only_if_module_is_available('git', pkgname='GitPython')

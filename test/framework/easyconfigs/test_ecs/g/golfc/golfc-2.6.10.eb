@@ -1,0 +1,30 @@
+easyblock = "Toolchain"
+
+name = 'golfc'
+version = '2.6.10'
+
+homepage = '(none)'
+description = """GCC based compiler toolchain __with CUDA support__, and including
+ OpenBLAS (BLAS and LAPACK support) and FFTW."""
+
+toolchain = {'name': 'dummy', 'version': 'dummy'}
+
+comp_name = 'GCC'
+comp_ver = '4.8.2'
+comp = (comp_name, comp_ver)
+
+blaslib = 'OpenBLAS'
+blasver = '0.2.8'
+blassuff = '-LAPACK-3.4.2'
+
+# compiler toolchain dependencies
+# we need GCC as explicit dependency instead of golf toolchain
+# because of toolchain preperation functions
+dependencies = [
+    comp, # part of golf and gcccuda
+    ('CUDA', '5.5.22', '', comp),  # part of gcccuda
+    (blaslib, blasver, blassuff, comp),
+    ('FFTW', '3.3.3', '-serial', comp),
+]
+
+moduleclass = 'toolchain'
