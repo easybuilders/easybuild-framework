@@ -597,6 +597,30 @@ class EasyConfig(object):
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
+    def parse_version_range(self, version_spec):
+        """Parse provided version specification as a version range."""
+        res = {}
+        range_sep = ':'  # version range separator (e.g. ]1.0:2.0])
+
+        if range_sep in version_spec:
+            # remove range characters to obtain lower/upper version limits
+            version_limits = version_spec.translate(None, '][()').split(range_sep)
+            if len(version_limits) == 2:
+                res['lower'], res['upper'] = version_limits
+                if LooseVersion(res['lower']) > LooseVersion('upper'):
+                    raise EasyBuildError("Incorrect version range, found lower limit > higher limit: %s", version_spec)
+            else:
+                raise EasyBuildError("Incorrect version range, expected lower/upper limit: %s", version_spec)
+
+            res['excl_lower'] = version_spec[0] in [']', '(']
+            res['excl_upper'] = version_spec[-1] in ['[', ')']
+
+        else:  # strict version spec (not a range)
+            res['lower'] = res['upper'] = version_spec
+            res['excl_lower'] = res['excl_upper'] = False
+
+        return res
+
     def dependencies(self):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
@@ -610,55 +634,46 @@ class EasyConfig(object):
         filter_deps = build_option('filter_deps')
 
         if filter_deps:
-            complex_fdeps = { }
-            # find if any of the filter_deps are in the form name=version or name=[low:high[
-            for dep_spec in [ x for x in filter_deps if "=" in x ]:
-                # convert list of k=v into dictionary
-                dep_name,dep_version = dep_spec.split('=')
-                
-                # test whether this is a range
-                if ":" in dep_version:
-                    # remove range characters
-                    values = dep_version.translate(None, '][()')
-                    low, high = values.split(":")
-                    excl_low = dep_version[0] in [']', '(']
-                    excl_high = dep_version[-1] in ['[', ')']
-                else:
-                    low = high = dep_version
-                    excl_low = False
-                    excl_high = False
-                complex_fdeps[dep_name] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
+            complex_fdeps = {}
+            # find if any of the filter_deps are in the form name=version or name=[<lower>:<upper>[
+            for dep_spec in [x for x in filter_deps if '=' in x]:
+                # convert list of dep=version_spec into dictionary
+                dep_name, dep_version = dep_spec.split('=')
+                complex_fdeps[dep_name] = self.parse_version_range(dep_version)
 
-            filtered_deps = []
+            retained_deps = []
             for dep in deps:
                 if dep['name'] not in filter_deps:
                     if dep['name'] not in complex_fdeps.keys():
-                        filtered_deps.append(dep)
+                        retained_deps.append(dep)
                     else:
                         # get the version specification
                         spec = complex_fdeps[dep['name']]
-                        excl_low = spec['excl_low']
-                        low = LooseVersion(spec['low']) if spec['low'] else None
-                        excl_high = spec['excl_high']
-                        high = LooseVersion(spec['high']) if spec['high'] else None
-                        filtering = True
+                        excl_lower = spec['excl_lower']
+                        lower = LooseVersion(spec['lower']) if spec['lower'] else None
+                        excl_upper = spec['excl_upper']
+                        upper = LooseVersion(spec['upper']) if spec['upper'] else None
+
                         version = LooseVersion(dep['version'])
 
+                        filtering = True
                         # test if version is lower than the lower bound
-                        if filtering and low:
-                            if version < low or (excl_low and version == low):
+                        if lower:
+                            if version < lower or (excl_lower and version == lower):
                                 filtering = False
 
-                        if filtering and high:
-                            if version > high or (excl_high and version == high):
+                        # test if version is lower than the upper bound
+                        if upper:
+                            if version > upper or (excl_upper and version == upper):
                                 filtering = False
 
                         if not filtering:
-                            filtered_deps.append(dep)
+                            retained_deps.append(dep)
                 else:
-                    self.log.info("filtered out dependency %s" % dep)
-            self.log.debug("Dependencies AFTER filtering: %s" % filtered_deps)
-            deps = filtered_deps
+                    self.log.info("filtered out dependency %s", dep)
+
+            self.log.debug("Dependencies AFTER filtering: %s", retained_deps)
+            deps = retained_deps
 
         return deps
 
