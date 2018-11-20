@@ -624,10 +624,10 @@ class EasyConfig(object):
                     excl_low = dep_version[0] in [']', '(']
                     excl_high = dep_version[-1] in ['[', ')']
                 else:
-                    low, high = dep_version
+                    low = high = dep_version
                     excl_low = False
                     excl_high = False
-                complex_fdeps[k] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
+                complex_fdeps[dep_name] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
 
             filtered_deps = []
             for dep in deps:
