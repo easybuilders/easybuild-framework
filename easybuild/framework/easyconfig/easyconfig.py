@@ -604,7 +604,7 @@ class EasyConfig(object):
 
         if range_sep in version_spec:
             # remove range characters to obtain lower/upper version limits
-            version_limits = version_spec.translate(None, '][()').split(range_sep)
+            version_limits = version_spec.translate(None, '][').split(range_sep)
             if len(version_limits) == 2:
                 res['lower'], res['upper'] = version_limits
                 if res['lower'] and res['upper'] and LooseVersion(res['lower']) > LooseVersion('upper'):
@@ -612,8 +612,8 @@ class EasyConfig(object):
             else:
                 raise EasyBuildError("Incorrect version range, expected lower/upper limit: %s", version_spec)
 
-            res['excl_lower'] = version_spec[0] in [']', '(']
-            res['excl_upper'] = version_spec[-1] in ['[', ')']
+            res['excl_lower'] = version_spec[0] == ']'
+            res['excl_upper'] = version_spec[-1] == '['
 
         else:  # strict version spec (not a range)
             res['lower'] = res['upper'] = version_spec
