@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -236,6 +236,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                     if key in DEPENDENCY_PARAMETERS:
                         valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                    elif key == 'toolchain':
+                        valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
                         valstr = quote_py_str(ecfg[key])
 
@@ -287,9 +289,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Inline comments on items of iterable values are also extracted.
         """
         self.comments = {
-            'above' : {},  # comments for a particular parameter definition
-            'header' : [],  # header comment lines
-            'inline' : {},  # inline comments
+            'above': {},  # comments for a particular parameter definition
+            'header': [],  # header comment lines
+            'inline': {},  # inline comments
             'iter': {},  # (inline) comments on elements of iterable values
             'tail': [],
          }
@@ -297,7 +299,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         rawlines = rawtxt.split('\n')
 
         # extract header first
-        while rawlines[0].startswith('#'):
+        while rawlines and rawlines[0].startswith('#'):
             self.comments['header'].append(rawlines.pop(0))
 
         parsed_ec = self.get_config_dict()
@@ -410,7 +412,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
 
             if 'dependencies' in block:
                 for dep in block['dependencies']:
-                    if not dep in [b['name'] for b in blocks]:
+                    if dep not in [b['name'] for b in blocks]:
                         raise EasyBuildError("Block %s depends on %s, but block was not found.", name, dep)
 
                     dep = [b for b in blocks if b['name'] == dep][0]

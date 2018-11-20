@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2017 Ghent University
+# Copyright 2011-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -164,3 +164,12 @@ class ModuleNamingScheme(object):
                        short_modname, name, modname_regex.pattern, res)
 
         return res
+
+    def det_make_devel_module(self):
+        """
+        Determine if a devel module should be generated.
+        Can be used to create a separate set of modules with a different naming scheme.
+        Software is already installed beforehand with one naming scheme, including development module.
+        """
+        return True
+

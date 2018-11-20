@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -120,9 +120,13 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
 
-        tmpdir = tempfile.mkdtemp()
-        # PR for rename of ffmpeg to FFmpeg, see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
-        all_ecs = [
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
+
+        # PR for rename of ffmpeg to FFmpeg,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
+        all_ecs_pr2481 = [
             'FFmpeg-2.4-intel-2014.06.eb',
             'FFmpeg-2.4-intel-2014b.eb',
             'FFmpeg-2.8-intel-2015b.eb',
@@ -130,19 +134,32 @@ class GithubTest(EnhancedTestCase):
             'OpenCV-2.4.9-intel-2014b.eb',
             'animation-2.4-intel-2015b-R-3.2.1.eb',
         ]
-        try:
-            ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
-            self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
+        # PR where also files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
+        all_ecs_pr6587 = [
+            'WIEN2k-18.1-foss-2018a.eb',
+            'WIEN2k-18.1-gimkl-2017a.eb',
+            'WIEN2k-18.1-intel-2018a.eb',
+            'libxc-4.2.3-foss-2018a.eb',
+            'libxc-4.2.3-gimkl-2017a.eb',
+            'libxc-4.2.3-intel-2018a.eb',
+        ]
 
+        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587)]:
+            try:
+                tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
+                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
+            except URLError, err:
+                print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
+
+        try:
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
             self.assertErrorRegex(EasyBuildError, err_msg, gh.fetch_easyconfigs_from_pr, 897,
                                   github_user=GITHUB_TEST_ACCOUNT)
-
         except URLError, err:
             print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
-
-        shutil.rmtree(tmpdir)
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
@@ -270,7 +287,7 @@ class GithubTest(EnhancedTestCase):
             'validate': False,
         })
         self.mock_stdout(True)
-        ec = gh.find_software_name_for_patch('toy-0.0_typo.patch')
+        ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch')
         txt = self.get_stdout()
         self.mock_stdout(False)
 
@@ -383,6 +400,36 @@ class GithubTest(EnhancedTestCase):
         # all checks pass, PR is eligible for merging
         expected_warning = ''
         self.assertEqual(run_check(True), '')
+
+    def test_det_patch_specs(self):
+        """Test for det_patch_specs function."""
+
+        # robot_path build option is used by find_software_name_for_patch, which is called by det_patch_specs
+        init_config(build_options={'robot_path': []})
+
+        patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
+        file_info = {'ecs': [
+                {'name': 'A', 'patches': ['1.patch']},
+                {'name': 'B', 'patches': []},
+            ]
+        }
+        error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info)
+        self.mock_stdout(False)
+
+        file_info['ecs'].append({'name': 'C', 'patches': [('3.patch', 'subdir'), '2.patch']})
+        self.mock_stdout(True)
+        res = gh.det_patch_specs(patch_paths, file_info)
+        self.mock_stdout(False)
+
+        self.assertEqual(len(res), 3)
+        self.assertEqual(os.path.basename(res[0][0]), '1.patch')
+        self.assertEqual(res[0][1], 'A')
+        self.assertEqual(os.path.basename(res[1][0]), '2.patch')
+        self.assertEqual(res[1][1], 'C')
+        self.assertEqual(os.path.basename(res[2][0]), '3.patch')
+        self.assertEqual(res[2][1], 'C')
 
 
 def suite():

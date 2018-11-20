@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,7 @@ from datetime import datetime
 from vsc.utils import fancylogger
 from vsc.utils.exceptions import LoggedException
 
-from easybuild.tools.version import VERSION
+from easybuild.tools.version import VERSION, this_is_easybuild
 
 
 # EasyBuild message prefix
@@ -121,7 +121,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, ver, max_ver=None, *args, **kwargs):
+    def deprecated(self, msg, ver, max_ver=None, more_info=None, *args, **kwargs):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
@@ -129,12 +129,13 @@ class EasyBuildLog(fancylogger.FancyLogger):
         :param ver: if max_ver is None: threshold for EasyBuild version to determine warning vs exception
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
+        :param more_info: additional message with instructions where to get more information
         """
         # provide log_callback function that both logs a warning and prints to stderr
         def log_callback_warning_and_print(msg):
             """Log warning message, and also print it to stderr."""
             self.warning(msg)
-            sys.stderr.write(msg + '\n')
+            sys.stderr.write('\nWARNING: ' + msg + '\n\n')
 
         kwargs['log_callback'] = log_callback_warning_and_print
 
@@ -142,7 +143,10 @@ class EasyBuildLog(fancylogger.FancyLogger):
         kwargs['exception'] = EasyBuildError
 
         if max_ver is None:
-            msg += "; see %s for more information" % DEPRECATED_DOC_URL
+            if more_info:
+                msg += more_info
+            else:
+                msg += "; see %s for more information" % DEPRECATED_DOC_URL
             fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
         else:
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
@@ -204,19 +208,22 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
     return log, logfile
 
 
+def log_start(log, eb_command_line, eb_tmpdir):
+    """Log startup info."""
+    log.info(this_is_easybuild())
+
+    # log used command line
+    log.info("Command line: %s", ' '.join(eb_command_line))
+
+    log.info("Using %s as temporary directory", eb_tmpdir)
+
+
 def stop_logging(logfile, logtostdout=False):
     """Stop logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
     if logfile is not None:
         fancylogger.logToFile(logfile, enable=False)
-
-
-def get_log(name=None):
-    """
-    (NO LONGER SUPPORTED!) Generate logger object
-    """
-    log.nosupport("Use of get_log function", '2.0')
 
 
 def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=False):
