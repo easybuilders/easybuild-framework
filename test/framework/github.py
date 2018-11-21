@@ -407,6 +407,9 @@ class GithubTest(EnhancedTestCase):
 
     def test_is_pr_merged(self):
         """Test for is_pr_merged function."""
+        if self.github_token is None:
+            print "Skipping test_is_pr_merged, no GitHub token available?"
+            return
 
         # test on merged PR in easybuilders/easybuild-easyconfigs
         self.assertTrue(gh.is_pr_merged(1, github_user=GITHUB_TEST_ACCOUNT))
