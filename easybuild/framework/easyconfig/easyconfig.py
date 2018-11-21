@@ -46,6 +46,7 @@ import re
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
+from distutils.version import LooseVersion
 
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -704,6 +705,91 @@ class EasyConfig(object):
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
+    def parse_version_range(self, version_spec):
+        """Parse provided version specification as a version range."""
+        res = {}
+        range_sep = ':'  # version range separator (e.g. ]1.0:2.0])
+
+        if range_sep in version_spec:
+            # remove range characters to obtain lower/upper version limits
+            version_limits = version_spec.translate(None, '][').split(range_sep)
+            if len(version_limits) == 2:
+                res['lower'], res['upper'] = version_limits
+                if res['lower'] and res['upper'] and LooseVersion(res['lower']) > LooseVersion('upper'):
+                    raise EasyBuildError("Incorrect version range, found lower limit > higher limit: %s", version_spec)
+            else:
+                raise EasyBuildError("Incorrect version range, expected lower/upper limit: %s", version_spec)
+
+            res['excl_lower'] = version_spec[0] == ']'
+            res['excl_upper'] = version_spec[-1] == '['
+
+        else:  # strict version spec (not a range)
+            res['lower'] = res['upper'] = version_spec
+            res['excl_lower'] = res['excl_upper'] = False
+
+        return res
+
+    def parse_filter_deps(self):
+        """Parse specifications for which dependencies should be filtered."""
+        res = {}
+
+        separator = '='
+        for filter_dep_spec in build_option('filter_deps') or []:
+            if separator in filter_dep_spec:
+                dep_specs = filter_dep_spec.split(separator)
+                if len(dep_specs) == 2:
+                    dep_name, dep_version_spec = dep_specs
+                else:
+                    raise EasyBuildError("Incorrect specification for dependency to filter: %s", filter_dep_spec)
+
+                res[dep_name] = self.parse_version_range(dep_version_spec)
+            else:
+                res[filter_dep_spec] = {'always_filter': True}
+
+        return res
+
+    def filter_deps(self, deps):
+        """Filter dependencies according to 'filter-deps' configuration setting."""
+
+        retained_deps = []
+        filter_deps_specs = self.parse_filter_deps()
+
+        for dep in deps:
+            filter_dep = False
+
+            # figure out whether this dependency should be filtered
+            if dep['name'] in filter_deps_specs:
+
+                filter_spec = filter_deps_specs[dep['name']]
+
+                if filter_spec.get('always_filter', False):
+                    filter_dep = True
+                else:
+                    version = LooseVersion(dep['version'])
+                    lower = LooseVersion(filter_spec['lower']) if filter_spec['lower'] else None
+                    upper = LooseVersion(filter_spec['upper']) if filter_spec['upper'] else None
+
+                    # assume dep is filtered before checking version range
+
+                    filter_dep = True
+
+                    # if version is lower than lower limit: no filtering
+                    if lower:
+                        if version < lower or (filter_spec['excl_lower'] and version == lower):
+                            filter_dep = False
+
+                    # if version is higher than upper limit: no filtering
+                    if upper:
+                        if version > upper or (filter_spec['excl_upper'] and version == upper):
+                            filter_dep = False
+
+            if filter_dep:
+                self.log.info("filtered out dependency %s", dep)
+            else:
+                retained_deps.append(dep)
+
+        return retained_deps
+
     def dependencies(self, build_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
@@ -718,19 +804,12 @@ class EasyConfig(object):
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
-        self.log.debug("Dependencies BEFORE filtering: %s" % deps)
-        filter_deps = build_option('filter_deps')
-        if filter_deps:
-            filtered_deps = []
-            for dep in deps:
-                if dep['name'] not in filter_deps:
-                    filtered_deps.append(dep)
-                else:
-                    self.log.info("filtered out dependency %s" % dep)
-            self.log.debug("Dependencies AFTER filtering: %s" % filtered_deps)
-            deps = filtered_deps
+        self.log.debug("Dependencies BEFORE filtering: %s", deps)
 
-        return deps
+        retained_deps = self.filter_deps(deps)
+        self.log.debug("Dependencies AFTER filtering: %s", retained_deps)
+
+        return retained_deps
 
     def builddependencies(self):
         """
