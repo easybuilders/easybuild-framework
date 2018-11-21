@@ -471,7 +471,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tcs = {
             'dummy': [],
             'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
-            'ictce': ['icc', 'ifort', 'imkl', 'impi'],
+            'intel': ['icc', 'ifort', 'imkl', 'impi'],
         }
         for tc, tcelems in tcs.items():
             res = re.findall("^\s*%s: .*" % tc, logtxt, re.M)
@@ -721,13 +721,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
-        args = ['--search-filename=^ictce']
+        args = ['--search-filename=^intel']
         self.mock_stdout(True)
         self.eb_main(args, testing=False)
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
-            ' * ictce-4.1.13.eb',
+            ' * intel-2018a.eb',
             '',
             "Note: 1 matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them",
         ])
@@ -739,11 +739,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
-            ' * ictce-4.1.13.eb',
+            ' * intel-2018a.eb',
             '',
             "Matching archived easyconfigs:",
             '',
-            ' * ictce-3.2.2.u3.eb',
+            ' * intel-2012a.eb',
         ])
         self.assertEqual(txt, expected)
 
@@ -1760,7 +1760,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ecfiles = [
             'g/GCC/GCC-4.6.3.eb',
-            'i/ictce/ictce-4.1.13.eb',
+            'i/intel/intel-2018a.eb',
             't/toy/toy-0.0-deps.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
         ]
@@ -3223,7 +3223,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\*GCC\*', txt, re.M))
         self.assertTrue(re.search('^``4.6.3``\s+``dummy``', txt, re.M))
         self.assertTrue(re.search('^\*gzip\*', txt, re.M))
-        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``ictce/4.1.13``', txt, re.M))
+        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``intel/2018a``', txt, re.M))
 
         args = [
             '--list-installed-software',

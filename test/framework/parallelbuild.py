@@ -159,14 +159,14 @@ class ParallelBuildTest(EnhancedTestCase):
         for job in jobs:
             self.assertEqual(job.cores, build_options['job_cores'])
 
-        # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
+        # no deps for GCC/4.6.3 (toolchain) and intel/2018a (test easyconfig with 'fake' deps)
         self.assertEqual(len(jobs[0].deps), 0)
         self.assertEqual(len(jobs[1].deps), 0)
 
-        # only dependency for toy/0.0-deps is ictce/4.1.13 (dep marked as external module is filtered out)
+        # only dependency for toy/0.0-deps is intel/2018a (dep marked as external module is filtered out)
         self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
         self.assertEqual(len(jobs[2].deps), 1)
-        self.assertTrue('ictce-4.1.13.eb' in jobs[2].deps[0].script)
+        self.assertTrue('intel-2018a.eb' in jobs[2].deps[0].script)
 
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
