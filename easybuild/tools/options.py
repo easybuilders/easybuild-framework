@@ -592,7 +592,7 @@ class EasyBuildOptions(GeneralOption):
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
-            'list-prs': ("List pull requests", str, 'store_or_None', 
+            'list-prs': ("List pull requests", str, 'store_or_None',
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
