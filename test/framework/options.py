@@ -50,8 +50,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
-from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
-from easybuild.tools.github import fetch_github_token
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_MAX_PER_PAGE
+from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -3195,6 +3195,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(use_color('auto'))
         easybuild.tools.options.terminal_supports_colors = lambda _: False
         self.assertFalse(use_color('auto'))
+
+    def test_list_prs(self):
+        """Test --list-prs."""
+        args = ['--list-prs', 'foo']
+        error_msg = "must be one of \['open', 'closed', 'all'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,foo']
+        error_msg = "must be one of \['created', 'updated', 'popularity', 'long-running'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,created,foo']
+        error_msg = "must be one of \['asc', 'desc'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,created,asc,foo']
+        error_msg = "must be in the format 'state\[,order\[,direction\]\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'closed,updated,asc']
+        txt, _ = self._run_mock_eb(args, testing=False)
+        expected = "Listing PRs with parameters "
+        expected += "{'sort': 'updated', 'per_page': %s, 'state': 'closed', 'direction': 'asc'}" % GITHUB_MAX_PER_PAGE
+        self.assertTrue(expected in txt)
 
     def test_list_software(self):
         """Test --list-software and --list-installed-software."""

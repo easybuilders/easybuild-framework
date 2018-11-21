@@ -115,7 +115,7 @@ class GithubTest(EnhancedTestCase):
             pass
 
     def test_list_prs(self):
-        """Test fetch_easyconfigs_from_pr function."""
+        """Test list_prs function."""
         if self.github_token is None:
             print "Skipping test_list_prs, no GitHub token available?"
             return
