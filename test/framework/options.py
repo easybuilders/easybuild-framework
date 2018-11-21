@@ -40,7 +40,7 @@ import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
-from easybuild.framework.easyblock import EasyBlock, FETCH_STEP
+from easybuild.framework.easyblock import EasyBlock 
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -50,7 +50,7 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
-from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_MAX_PER_PAGE
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
@@ -3216,8 +3216,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--list-prs', 'closed,updated,asc']
         txt, _ = self._run_mock_eb(args, testing=False)
-        expected = "Listing PRs with parameters "
-        expected += "{'sort': 'updated', 'per_page': %s, 'state': 'closed', 'direction': 'asc'}" % GITHUB_MAX_PER_PAGE
+        expected = "Listing PRs with parameters: direction=asc, per_page=100, sort=updated, state=closed"
         self.assertTrue(expected in txt)
 
     def test_list_software(self):

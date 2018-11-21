@@ -1008,7 +1008,7 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE):
         'direction': params[2],
         'per_page': per_page,
     }
-    print_msg("Listing PRs with parameters %s" % parameters)
+    print_msg("Listing PRs with parameters: %s" % ', '.join(k + '=' + str(parameters[k]) for k in sorted(parameters)))
 
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
