@@ -405,6 +405,19 @@ class GithubTest(EnhancedTestCase):
         expected_warning = ''
         self.assertEqual(run_check(True), '')
 
+    def test_is_pr_merged(self):
+        """Test for is_pr_merged function."""
+
+        # test on merged PR in easybuilders/easybuild-easyconfigs
+        self.assertTrue(gh.is_pr_merged(1, github_user=GITHUB_TEST_ACCOUNT))
+
+        # test on closed PR in easybuilders/easybuild-easyconfigs
+        self.assertFalse(gh.is_pr_merged(6, github_user=GITHUB_TEST_ACCOUNT))
+
+        # test on open PR in hpcugent/testrepository
+        self.assertFalse(gh.is_pr_merged(2, account='hpcugent', repo='testrepository',
+                                         github_user=GITHUB_TEST_ACCOUNT))
+
     def test_det_patch_specs(self):
         """Test for det_patch_specs function."""
 
