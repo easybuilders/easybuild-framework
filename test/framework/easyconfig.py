@@ -1742,8 +1742,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['toolchain'] = {'name': 'gompi', 'version': '1.5.16'}
         ec['versionsuffix'] = '-foobar'
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
-        self.assertEqual(res, ['toy-0.0-gompi-1.3.12-optarch-map.eb', 'toy-0.0-gompi-1.3.12-optarch.eb',
-                               'toy-0.0-gompi-1.3.12-test.eb', 'toy-0.0-gompi-1.3.12.eb'])
+        self.assertEqual(res, ['toy-0.0-gompi-1.3.12-test.eb', 'toy-0.0-gompi-1.3.12.eb'])
 
         # restore original versionsuffix => matching versionsuffix wins over matching toolchain (name)
         ec['versionsuffix'] = '-deps'
