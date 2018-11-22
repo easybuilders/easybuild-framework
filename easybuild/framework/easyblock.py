@@ -2898,11 +2898,6 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # for reproducability we dump out the fully processed easyconfig since the contents can be affected
-            # by subtoolchain resolution (and related options) and/or hooks
-            reprod_dir = reproduce_build(app, new_log_dir)
-            _log.info("Wrote files for reproducability to %s", reprod_dir)
-
             try:
                 # upload easyconfig (and patch files) to central repository
                 currentbuildstats = app.cfg['buildstats']
