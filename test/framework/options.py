@@ -40,7 +40,7 @@ import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
-from easybuild.framework.easyblock import EasyBlock, FETCH_STEP
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -50,8 +50,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
-from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
-from easybuild.tools.github import fetch_github_token
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -471,7 +471,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tcs = {
             'dummy': [],
             'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
-            'ictce': ['icc', 'ifort', 'imkl', 'impi'],
+            'intel': ['icc', 'ifort', 'imkl', 'impi'],
         }
         for tc, tcelems in tcs.items():
             res = re.findall("^\s*%s: .*" % tc, logtxt, re.M)
@@ -607,12 +607,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
-        for pat in [
-                    r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
-                    r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
-                    r"|--\s+bar\s+\(easybuild.easyblocks.generic.bar\)\n",
-                   ]:
-
+        patterns = [
+            r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
+            r"\|--\s+EB_foo\s+\(easybuild.easyblocks.foo @ .*/sandbox/easybuild/easyblocks/f/foo.py\)\n" +
+            r"\|\s+\|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo @ .*/sandbox/easybuild/easyblocks/f/foofoo.py\)\n",
+            r"\|--\s+bar\s+\(easybuild.easyblocks.generic.bar @ .*/sandbox/easybuild/easyblocks/generic/bar.py\)\n",
+        ]
+        for pat in patterns:
             msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
             self.assertTrue(re.search(pat, logtxt), msg)
 
@@ -722,13 +723,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
-        args = ['--search-filename=^ictce']
+        args = ['--search-filename=^intel']
         self.mock_stdout(True)
         self.eb_main(args, testing=False)
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
-            ' * ictce-4.1.13.eb',
+            ' * intel-2018a.eb',
             '',
             "Note: 1 matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them",
         ])
@@ -740,11 +741,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
-            ' * ictce-4.1.13.eb',
+            ' * intel-2018a.eb',
             '',
             "Matching archived easyconfigs:",
             '',
-            ' * ictce-3.2.2.u3.eb',
+            ' * intel-2012a.eb',
         ])
         self.assertEqual(txt, expected)
 
@@ -1345,7 +1346,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Deprecated logging should work')
 
-        stderr_regex = re.compile("^Deprecated functionality, will no longer work in")
+        stderr_regex = re.compile("^\nWARNING: Deprecated functionality, will no longer work in")
         self.assertTrue(stderr_regex.search(stderr), "Pattern '%s' found in: %s" % (stderr_regex.pattern, stderr))
 
         # force it to current version, which should result in deprecation
@@ -1591,6 +1592,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--dry-run',
         ]
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+
+        # note: using loose regex pattern when we expect no match, strict pattern when we do expect a match
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
@@ -1599,10 +1602,85 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # filter deps (including a non-existing dep, i.e. zlib)
-        args.append('--filter-deps=FFTW,ScaLAPACK,zlib')
+        args.extend(['--filter-deps', 'FFTW,ScaLAPACK,zlib'])
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # filter specific version of deps
+        args[-1] = 'FFTW=3.2.3,zlib,ScaLAPACK=2.0.2'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        args[-1] = 'zlib,FFTW=3.3.3,ScaLAPACK=2.0.1'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # filter deps with version range: only filter FFTW 3.x, ScaLAPACK 1.x
+        args[-1] = 'zlib,ScaLAPACK=]1.0:2.0[,FFTW=[3.0:4.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # also test open ended ranges
+        args[-1] = 'zlib,ScaLAPACK=[1.0:,FFTW=:4.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        args[-1] = 'zlib,ScaLAPACK=[2.1:,FFTW=:3.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        # test corner cases where version to filter in equal to low/high range limit
+        args[-1] = 'FFTW=[3.3.3:4.0],zlib,ScaLAPACK=[1.0:2.0.2]'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # FFTW & ScaLAPACK versions are not included in range, so no filtering
+        args[-1] = 'FFTW=]3.3.3:4.0],zlib,ScaLAPACK=[1.0:2.0.2['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # also test mix of ranges & specific versions
+        args[-1] = 'FFTW=3.3.3,zlib,ScaLAPACK=[1.0:2.0.2['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+        args[-1] = 'FFTW=]3.3.3:4.0],zlib,ScaLAPACK=2.0.2'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
     def test_hide_deps(self):
@@ -1761,7 +1839,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ecfiles = [
             'g/GCC/GCC-4.6.3.eb',
-            'i/ictce/ictce-4.1.13.eb',
+            'i/intel/intel-2018a.eb',
             't/toy/toy-0.0-deps.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
         ]
@@ -3198,6 +3276,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.options.terminal_supports_colors = lambda _: False
         self.assertFalse(use_color('auto'))
 
+    def test_list_prs(self):
+        """Test --list-prs."""
+        args = ['--list-prs', 'foo']
+        error_msg = "must be one of \['open', 'closed', 'all'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,foo']
+        error_msg = "must be one of \['created', 'updated', 'popularity', 'long-running'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,created,foo']
+        error_msg = "must be one of \['asc', 'desc'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,created,asc,foo']
+        error_msg = "must be in the format 'state\[,order\[,direction\]\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'closed,updated,asc']
+        txt, _ = self._run_mock_eb(args, testing=False)
+        expected = "Listing PRs with parameters: direction=asc, per_page=100, sort=updated, state=closed"
+        self.assertTrue(expected in txt)
+
     def test_list_software(self):
         """Test --list-software and --list-installed-software."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'v1.0')
@@ -3225,7 +3326,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\*GCC\*', txt, re.M))
         self.assertTrue(re.search('^``4.6.3``\s+``dummy``', txt, re.M))
         self.assertTrue(re.search('^\*gzip\*', txt, re.M))
-        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``ictce/4.1.13``', txt, re.M))
+        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``intel/2018a``', txt, re.M))
 
         args = [
             '--list-installed-software',

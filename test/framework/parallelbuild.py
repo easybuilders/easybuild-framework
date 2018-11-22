@@ -159,14 +159,14 @@ class ParallelBuildTest(EnhancedTestCase):
         for job in jobs:
             self.assertEqual(job.cores, build_options['job_cores'])
 
-        # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
+        # no deps for GCC/4.6.3 (toolchain) and intel/2018a (test easyconfig with 'fake' deps)
         self.assertEqual(len(jobs[0].deps), 0)
         self.assertEqual(len(jobs[1].deps), 0)
 
-        # only dependency for toy/0.0-deps is ictce/4.1.13 (dep marked as external module is filtered out)
+        # only dependency for toy/0.0-deps is intel/2018a (dep marked as external module is filtered out)
         self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
         self.assertEqual(len(jobs[2].deps), 1)
-        self.assertTrue('ictce-4.1.13.eb' in jobs[2].deps[0].script)
+        self.assertTrue('intel-2018a.eb' in jobs[2].deps[0].script)
 
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
@@ -335,18 +335,20 @@ class ParallelBuildTest(EnhancedTestCase):
 
         self.assertEqual(len(jobs), 8)
 
+        # last job (gzip) has a dependency on second-to-last job (goolf)
+        self.assertEqual(jobs[-2].job_specs['job-name'], 'goolf-1.4.10')
         expected = {
-            'job-name': 'gzip-1.5-goolf-1.4.10',
-            'wrap': "echo '%s'" % test_ec,
-            'nodes': 1,
-            'ntasks': 3,
-            'time': 300,  # 60*5 (unit is minutes)
             'dependency': 'afterok:%s' % jobs[-2].jobid,
             'hold': True,
+            'job-name': 'gzip-1.5-goolf-1.4.10',
+            'nodes': 1,
+            'ntasks': 3,
+            'ntasks-per-node': 3,
+            'output': '%x-%j.out',
+            'time': 300,  # 60*5 (unit is minutes)
+            'wrap': "echo '%s'" % test_ec,
         }
-        for key, val in expected.items():
-            self.assertTrue(key in jobs[-1].job_specs)
-            self.assertEqual(jobs[-1].job_specs[key], expected[key])
+        self.assertEqual(jobs[-1].job_specs, expected)
 
 
 def suite():

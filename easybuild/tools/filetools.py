@@ -193,7 +193,7 @@ def read_file(path, log_error=True):
     return txt
 
 
-def write_file(path, txt, append=False, forced=False, backup=False):
+def write_file(path, txt, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
@@ -203,15 +203,26 @@ def write_file(path, txt, append=False, forced=False, backup=False):
     :param append: append to existing file rather than overwrite
     :param forced: force actually writing file in (extended) dry run mode
     :param backup: back up existing file before overwriting or modifying it
+    :param always_overwrite: don't require --force to overwrite an existing file
+    :param verbose: be verbose, i.e. inform where backup file was created
     """
     # early exit in 'dry run' mode
     if not forced and build_option('extended_dry_run'):
         dry_run_msg("file written: %s" % path, silent=build_option('silent'))
         return
 
-    if backup and os.path.exists(path):
-        backup = back_up_file(path)
-        _log.info("Existing file %s backed up to %s", path, backup)
+    if os.path.exists(path):
+        if not append:
+            if always_overwrite or build_option('force'):
+                _log.info("Overwriting existing file %s", path)
+            else:
+                raise EasyBuildError("File exists, not overwriting it without --force: %s", path)
+
+        if backup:
+            backed_up_fp = back_up_file(path)
+            _log.info("Existing file %s backed up to %s", path, backed_up_fp)
+            if verbose:
+                print_msg("Backup of %s created at %s" % (path, backed_up_fp))
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:

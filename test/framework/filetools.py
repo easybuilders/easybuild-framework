@@ -547,6 +547,34 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(backup1), txt + txt2)
         self.assertEqual(ft.read_file(backup2), 'foo')
 
+        # tese use of 'verbose' to make write_file print location of backed up file
+        self.mock_stdout(True)
+        ft.write_file(fp, 'foo', backup=True, verbose=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        regex = re.compile("^== Backup of .*/test.txt created at .*/test.txt.bak_[0-9]*")
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # by default, write_file will just blindly overwrite an already existing file
+        self.assertTrue(os.path.exists(fp))
+        ft.write_file(fp, 'blah')
+        self.assertEqual(ft.read_file(fp), 'blah')
+
+        # blind overwriting can be disabled via 'overwrite'
+        error = "File exists, not overwriting it without --force: %s" % fp
+        self.assertErrorRegex(EasyBuildError, error, ft.write_file, fp, 'blah', always_overwrite=False)
+        self.assertErrorRegex(EasyBuildError, error, ft.write_file, fp, 'blah', always_overwrite=False, backup=True)
+
+        # use of --force ensuring that file gets written regardless of whether or not it exists already
+        build_options = {'force': True}
+        init_config(build_options=build_options)
+
+        ft.write_file(fp, 'overwrittenbyforce', always_overwrite=False)
+        self.assertEqual(ft.read_file(fp), 'overwrittenbyforce')
+
+        ft.write_file(fp, 'overwrittenbyforcewithbackup', always_overwrite=False, backup=True)
+        self.assertEqual(ft.read_file(fp), 'overwrittenbyforcewithbackup')
+
         # also test behaviour of write_file under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -567,7 +595,6 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
-
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""

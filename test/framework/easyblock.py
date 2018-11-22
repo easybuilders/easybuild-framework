@@ -39,7 +39,7 @@ from unittest import TextTestRunner
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import process_easyconfig
+from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
@@ -1466,6 +1466,36 @@ class EasyBlockTest(EnhancedTestCase):
         # this verifies whether the "module show" cache is cleared in between builds,
         # since one/1.0 is required for ec2, and the underlying one/1.0.2 is installed via ec1 in the same session
         self.eb_main([ec1, ec2], raise_error=True, do_build=True, verbose=True)
+
+    def test_avail_easyblocks(self):
+        """Test avail_easyblocks function."""
+        easyblocks = avail_easyblocks()
+        print easyblocks
+
+        self.assertTrue(all(key.startswith('easybuild.easyblocks') for key in easyblocks))
+
+        for modname in ['foo', 'generic.bar', 'toy', 'gcc', 'hpl']:
+            self.assertTrue('easybuild.easyblocks.%s' % modname in easyblocks)
+
+        foo = easyblocks['easybuild.easyblocks.foo']
+        self.assertEqual(foo['class'], 'EB_foo')
+        self.assertTrue(foo['loc'].endswith('sandbox/easybuild/easyblocks/f/foo.py'))
+
+        bar = easyblocks['easybuild.easyblocks.generic.bar']
+        self.assertEqual(bar['class'], 'bar')
+        self.assertTrue(bar['loc'].endswith('sandbox/easybuild/easyblocks/generic/bar.py'))
+
+        toy = easyblocks['easybuild.easyblocks.toy']
+        self.assertEqual(toy['class'], 'EB_toy')
+        self.assertTrue(toy['loc'].endswith('sandbox/easybuild/easyblocks/t/toy.py'))
+
+        gcc = easyblocks['easybuild.easyblocks.gcc']
+        self.assertEqual(gcc['class'], 'EB_GCC')
+        self.assertTrue(gcc['loc'].endswith('sandbox/easybuild/easyblocks/g/gcc.py'))
+
+        hpl = easyblocks['easybuild.easyblocks.hpl']
+        self.assertEqual(hpl['class'], 'EB_HPL')
+        self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
 
 
 def suite():
