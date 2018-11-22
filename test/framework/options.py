@@ -3940,11 +3940,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(ec_fp))
         self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
         self.assertTrue('WARNING: Unhandled argument: "Toolchain"' in stderr)
+        ec = EasyConfig(ec_fp)
         self.assertEqual(ec.name, 'bar')
         self.assertEqual(ec.version, '3.4.5')
         self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
-        self.assertEqual(ec['easyblock'], 'ConfigureMake')  # this is the default if no easyblock is specified
-        self.assertEqual(ec['moduleclass'], 'tools')  # this is the default if no moduleclass is specified
+        self.assertEqual(ec['easyblock'], 'EB_toy')
+        self.assertEqual(ec['moduleclass'], 'lib')
+
+        remove_file(ec_fp)
+
+        # check handling of URLs: source_urls vs homepage
+        (stdout, stderr) = self.run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0',
+                                            'https://example.com/files/bar-3.4.5.tar.gz', 'http://example.com/bar'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['homepage'], 'http://example.com/bar')
+        self.assertEqual(ec['source_urls'], ['https://example.com/files'])
+        self.assertEqual(ec['sources'], ['bar-3.4.5.tar.gz'])
 
         # using an unknown easyblock means trouble
         error_pattern = "Easyconfig file with raw contents shown above NOT created because of errors: "

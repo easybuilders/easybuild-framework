@@ -804,42 +804,43 @@ def create_new_easyconfig(path, args):
 
     specs = {}
 
+    # handle values that start with 'http' first
     # try and discriminate between homepage and source URL
     http_args = [arg for arg in args if arg.startswith('http')]
-    if http_args:
 
-        # first, check and see if we have a full download URL provided as an argument
-        for arg in http_args:
-            maybe_filename = os.path.basename(arg)
-            ext = find_extension(maybe_filename, raise_error=False)
-            if ext:
-                specs['source_urls'] = [os.path.dirname(arg)]
-                # try to recognise downloading of source tarballs by commit ID
-                if re.search('^[0-9a-f]+\.', maybe_filename):
-                    specs['sources'] = [{
-                        'download_filename': maybe_filename,
-                        'filename': '%(name)s-%(version)s' + ext,
-                    }]
-                else:
-                    specs['sources'] = [maybe_filename]
-                http_args.remove(arg)
+    # first, check and see if we have a full download URL provided as an argument
+    for arg in http_args:
+        maybe_filename = os.path.basename(arg)
+        ext = find_extension(maybe_filename, raise_error=False)
+        if ext:
+            specs['source_urls'] = [os.path.dirname(arg)]
+            # try to recognise downloading of source tarballs by commit ID
+            if re.search('^[0-9a-f]+\.', maybe_filename):
+                specs['sources'] = [{
+                    'download_filename': maybe_filename,
+                    'filename': '%(name)s-%(version)s' + ext,
+                }]
+            else:
+                specs['sources'] = [maybe_filename]
+            http_args.remove(arg)
+            args.remove(arg)
+            break
+
+    for arg in http_args:
+        if specs.get('homepage') is None:
+            # homepage is more like to be of form https://example.com, i.e. top-level domain
+            # if source_urls is already set, then this URL is likely to be a value for homepage
+            if '/' not in arg.split('://')[-1] or specs.get('source_urls'):
+                specs['homepage'] = arg
                 args.remove(arg)
-                break
+                # go to next iteration to avoid also using this value for 'source_urls'
+                continue
 
-        for arg in http_args:
+        if specs.get('source_urls') is None:
+            specs['source_urls'] = [arg]
+            args.remove(arg)
             if specs.get('homepage') is None:
-                # homepage is more like to be of form https://example.com, i.e. top-level domain
-                if '/' not in arg.split('://')[-1] or specs.get('source_urls'):
-                    specs['homepage'] = arg
-                    args.remove(arg)
-                    # go to next iteration to avoid also using this value for 'source_urls'
-                    continue
-
-            if specs.get('source_urls') is None:
-                specs['source_urls'] = [arg]
-                args.remove(arg)
-                if specs.get('homepage') is None:
-                    specs['homepage'] = arg
+                specs['homepage'] = arg
 
     # iterate over provided arguments, and try to figure out what they specify
     for arg in args:
