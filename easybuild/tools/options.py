@@ -73,7 +73,7 @@ from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, 
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
-from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_MAX_PER_PAGE
+from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING
@@ -865,7 +865,7 @@ class EasyBuildOptions(GeneralOption):
         if list_pr_direc not in GITHUB_PR_DIRECTIONS:
             raise EasyBuildError("3rd item in --list-prs ('%s') must be one of %s", list_pr_direc, GITHUB_PR_DIRECTIONS)
 
-        self.options.list_prs = (list_pr_state, list_pr_order, list_pr_direc, GITHUB_MAX_PER_PAGE)
+        self.options.list_prs = (list_pr_state, list_pr_order, list_pr_direc)
 
     def _postprocess_include(self):
         """Postprocess --include options."""
