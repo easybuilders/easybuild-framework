@@ -2901,10 +2901,10 @@ def build_and_install_one(ecdict, init_env):
             # move the reproducability files to the final log directory
             archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
             if os.path.exists(archive_reprod_dir):
-                print_warning("Reproducability directory %s already exists, cannot overwrite", archive_reprod_dir)
+                print_warning("Reproducability directory %s already exists, cannot overwrite" % archive_reprod_dir)
             else:
                 copy_dir(reprod_dir, archive_reprod_dir)
-            _log.info("Wrote files for reproducability to %s", reprod_dir)
+            _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
