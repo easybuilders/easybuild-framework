@@ -713,6 +713,11 @@ def parse_param_value(string):
 
     param, value = None, None
 
+    # separators
+    list_sep = ';'
+    tuple_sep = ','
+    dict_key_val_sep = ':'
+
     # determine list of names of known easyblocks, so we can descriminate an easyblock name
     easyblock_names = [e['class'] for e in avail_easyblocks().values()]
     _log.debug("List of names for known easyblocks: %s", sorted(easyblock_names))
@@ -726,13 +731,12 @@ def parse_param_value(string):
         _log.info("Found (raw) value for '%s' easyconfig parameter: %s", param, string)
 
     # check if the value is most likely a dictionary '<key>:<val>[;<key>:<val>]'
-    dict_item_sep = ':'
-    if re.match('^[a-z_]+' + dict_item_sep, string):
+    if re.match('^[a-z_]+' + dict_key_val_sep, string):
         _log.info("String value '%s' represents a dictionary value", string)
         value = {}
-        for item in string.split(';'):
-            if dict_item_sep in item:
-                key, val = split_one(item, sep=dict_item_sep)
+        for item in string.split(list_sep):
+            if dict_key_val_sep in item:
+                key, val = split_one(item, sep=dict_key_val_sep)
                 # recurse to obtain parsed value for this key
                 value[key] = parse_param_value(val)[1]
             else:
@@ -759,15 +763,15 @@ def parse_param_value(string):
             value.setdefault('dirs', [])
 
     # ';' is the separator for a list of items
-    elif ';' in string:
+    elif list_sep in string:
         # recurse for to obtain parsed value for each item in the list
-        value = [parse_param_value(x)[1] for x in string.split(';') if x]
+        value = [parse_param_value(x)[1] for x in string.split(list_sep) if x]
         _log.info("String value '%s' represents a list: %s", string, value)
 
     # ',' is the separator for a tuple
-    elif ',' in string:
+    elif tuple_sep in string:
         # recurse for to obtain parsed value for each item in the tuple
-        value = tuple(parse_param_value(x)[1] for x in string.split(',') if x)
+        value = tuple(parse_param_value(x)[1] for x in string.split(tuple_sep) if x)
         _log.info("String value '%s' represents a tuple: %s", string, value)
 
     # if parameter name is not decided yet, check for a likely match for specific parameters
