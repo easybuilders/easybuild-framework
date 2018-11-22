@@ -303,6 +303,7 @@ class Compiler(Toolchain):
                 optarch = ec_optarch
         else:
             optarch = build_option('optarch')
+
         # --optarch is specified with flags to use
         if optarch is not None and isinstance(optarch, dict):
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
@@ -328,7 +329,7 @@ class Compiler(Toolchain):
             else:
                 raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 
-        if use_generic == True:
+        if use_generic:
             if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
                 optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
             else:
@@ -341,7 +342,7 @@ class Compiler(Toolchain):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
-            self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
+            self.log.info("_set_optimal_architecture: using %s as optarch for %s.", optarch, self.arch)
             self.options.options_map['optarch'] = optarch
 
         if self.options.options_map.get('optarch', None) is None:
