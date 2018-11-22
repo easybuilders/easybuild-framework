@@ -73,7 +73,10 @@ from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, 
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
-from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
+from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
+from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
+from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -131,6 +134,9 @@ XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
 DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
+DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
+DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
+DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -588,6 +594,9 @@ class EasyBuildOptions(GeneralOption):
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
+            'list-prs': ("List pull requests", str, 'store_or_None',
+                         ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
+                         {'metavar': 'STATE,ORDER,DIRECTION'}),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
@@ -807,6 +816,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
+        # make sure --list-prs has a valid format
+        if self.options.list_prs:
+            self._postprocess_list_prs()
+
         # handle configuration options that affect other configuration options
         self._postprocess_config()
 
@@ -839,6 +852,27 @@ class EasyBuildOptions(GeneralOption):
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
                 self.log.info("Keeping optarch raw: %s", self.options.optarch)
+
+    def _postprocess_list_prs(self):
+        """Postprocess --list-prs options"""
+        list_pr_parts = self.options.list_prs.split(',')
+        nparts = len(list_pr_parts)
+
+        if nparts > 3:
+            raise EasyBuildError("Argument to --list-prs must be in the format 'state[,order[,direction]]")
+
+        list_pr_state = list_pr_parts[0]
+        list_pr_order = list_pr_parts[1] if nparts > 1 else DEFAULT_LIST_PR_ORDER
+        list_pr_direc = list_pr_parts[2] if nparts > 2 else DEFAULT_LIST_PR_DIREC
+
+        if list_pr_state not in GITHUB_PR_STATES:
+            raise EasyBuildError("1st item in --list-prs ('%s') must be one of %s", list_pr_state, GITHUB_PR_STATES)
+        if list_pr_order not in GITHUB_PR_ORDERS:
+            raise EasyBuildError("2nd item in --list-prs ('%s') must be one of %s", list_pr_order, GITHUB_PR_ORDERS)
+        if list_pr_direc not in GITHUB_PR_DIRECTIONS:
+            raise EasyBuildError("3rd item in --list-prs ('%s') must be one of %s", list_pr_direc, GITHUB_PR_DIRECTIONS)
+
+        self.options.list_prs = (list_pr_state, list_pr_order, list_pr_direc)
 
     def _postprocess_include(self):
         """Postprocess --include options."""

@@ -200,12 +200,12 @@ class RobotTest(EnhancedTestCase):
         self.assertFalse('toy/.0.0-deps' in full_mod_names)
 
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool, retain_all_deps=True)
-        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
+        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) intel/2018a (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
         full_mod_names = [ec['full_mod_name'] for ec in res]
         self.assertTrue('toy/.0.0-deps' in full_mod_names)
-        self.assertTrue('ictce/4.1.13' in full_mod_names)
+        self.assertTrue('intel/2018a' in full_mod_names)
 
         # here we have included a dependency in the easyconfig list
         easyconfig['full_mod_name'] = 'gzip/1.4'
@@ -550,7 +550,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(test_ecs_path, 'i', 'ictce', 'ictce-4.1.13.eb'), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         args = [
@@ -568,7 +568,7 @@ class RobotTest(EnhancedTestCase):
 
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
-            (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
+            (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
         ]
         for path_prefix, module in modules:
@@ -578,7 +578,7 @@ class RobotTest(EnhancedTestCase):
 
         # test using archived easyconfigs
         args = [
-            'ictce-3.2.2.u3.eb',
+            'intel-2012a.eb',
             '--dry-run',
             '--debug',
             '--robot',
@@ -588,7 +588,7 @@ class RobotTest(EnhancedTestCase):
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/ictce-3.2.2.u3.eb \(module: ictce/3.2.2.u3\)", re.M)
+        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
 
@@ -632,7 +632,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(test_ecs_path, 'i', 'ictce', 'ictce-4.1.13.eb'), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         gompi_2015a_txt = '\n'.join([
@@ -664,7 +664,7 @@ class RobotTest(EnhancedTestCase):
 
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
-            (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
+            (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
             ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
@@ -1248,11 +1248,11 @@ class RobotTest(EnhancedTestCase):
         """Test whether robot can pick up archived easyconfigs when asked."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
-        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-ictce-4.1.13.eb')
+        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-intel-2018a.eb')
         gzip_ectxt = read_file(gzip_ec)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        tc_spec = "toolchain = {'name': 'ictce', 'version': '3.2.2.u3'}"
+        tc_spec = "toolchain = {'name': 'intel', 'version': '2012a'}"
         regex = re.compile("^toolchain = .*", re.M)
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
@@ -1266,8 +1266,8 @@ class RobotTest(EnhancedTestCase):
             'robot_path': [test_ecs],
         })
         res = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-        self.assertEqual([ec['full_mod_name'] for ec in res], ['ictce/3.2.2.u3', 'gzip/1.5-ictce-3.2.2.u3'])
-        expected = os.path.join(test_ecs, '__archive__', 'i', 'ictce', 'ictce-3.2.2.u3.eb')
+        self.assertEqual([ec['full_mod_name'] for ec in res], ['intel/2012a', 'gzip/1.5-intel-2012a'])
+        expected = os.path.join(test_ecs, '__archive__', 'i', 'intel', 'intel-2012a.eb')
         self.assertTrue(os.path.samefile(res[0]['spec'], expected))
 
 

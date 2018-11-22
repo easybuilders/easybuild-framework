@@ -1215,7 +1215,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # install dummy modules
         modulepath = os.path.join(self.test_prefix, 'modules')
-        for mod in ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
+        for mod in ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
@@ -1224,7 +1224,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
-        mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
+        mods = ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
         self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
@@ -1277,7 +1277,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
         self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
 
         os.remove(toy_mod)
@@ -1288,7 +1288,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
         self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
 
         os.remove(toy_mod)
@@ -1322,7 +1322,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
         os.remove(toy_mod)
         os.remove(toy_core_mod)
@@ -1347,7 +1347,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
-            self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+            self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
@@ -1532,9 +1532,31 @@ class ToyBuildTest(EnhancedTestCase):
         # this test doesn't check for anything specific to using minimal toolchains, only side-effects
         self.test_toy_build(extra_args=['--minimal-toolchains'])
 
+    def test_reproducability(self):
+        """Test toy build produces expected reproducability files"""
+        # use the easyblock with inheritance to fully test
+        self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
         # also check whether easyconfig is dumped to reprod/ subdir
-        reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
+        reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
+
         self.assertTrue(os.path.exists(reprod_ec))
+
+        # Check that the toytoy easyblock is recorded in the reprod easyconfig
+        ec = EasyConfig(reprod_ec)
+        self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
+
+        # Check for easyblock existence
+        child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
+        self.assertTrue(os.path.exists(child_easyblock))
+        # Check for parent easyblock existence
+        parent_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
+        self.assertTrue(os.path.exists(parent_easyblock))
+
+        # Make sure framework easyblock modules are not included
+        for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
+            path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
+            self.assertFalse(os.path.exists(path))
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""

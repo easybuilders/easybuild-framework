@@ -85,9 +85,9 @@ class YebTest(EnhancedTestCase):
             'bzip2-1.0.6-GCC-4.9.2',
             'gzip-1.6-GCC-4.9.2',
             'goolf-1.4.10',
-            'ictce-4.1.13',
+            'intel-2018a',
             'SQLite-3.8.10.2-goolf-1.4.10',
-            'Python-2.7.10-ictce-4.1.13',
+            'Python-2.7.10-intel-2018a',
             'CrayCCE-5.1.29',
             'toy-0.0',
         ]
