@@ -2357,6 +2357,23 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
+    def test_filename(self):
+        """Test filename method of EasyConfig class."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        test_ecs = [
+            os.path.join('g', 'GCC', 'GCC-4.6.4.eb'),
+            os.path.join('g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'),
+            os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompic-2.6.10-OpenBLAS-0.2.8-LAPACK-3.4.2.eb'),
+            os.path.join('o', 'OpenBLAS', 'OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb'),
+            os.path.join('t', 'toy', 'toy-0.0.eb'),
+            os.path.join('t', 'toy', 'toy-0.0-deps.eb'),
+        ]
+        for test_ec in test_ecs:
+            test_ec = os.path.join(test_ecs_dir, test_ec)
+            ec = EasyConfig(test_ec)
+            self.assertTrue(ec.filename(), os.path.basename(test_ec))
+
 
 def suite():
     """ returns all the testcases in this module """
