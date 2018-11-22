@@ -74,10 +74,10 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_logs, read_file, remove_file, rmtree2
-from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import compute_checksum, copy_dir, copy_file, derive_alt_pypi_url, diff_files
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, get_source_tarball_from_git
+from easybuild.tools.filetools import is_alt_pypi_url, is_sha256_checksum, mkdir, move_logs, read_file, remove_file
+from easybuild.tools.filetools import rmtree2, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -2897,6 +2897,14 @@ def build_and_install_one(ecdict, init_env):
 
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
+
+            # move the reproducability files to the final log directory
+            archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
+            if os.path.exists(archive_reprod_dir):
+                print_warning("Reproducability directory %s already exists, cannot overwrite", archive_reprod_dir)
+            else:
+                copy_dir(reprod_dir, archive_reprod_dir)
+            _log.info("Wrote files for reproducability to %s", reprod_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
