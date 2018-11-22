@@ -127,7 +127,7 @@ class GithubTest(EnhancedTestCase):
 
         expected = "PR #1: a pr"
 
-        output = gh.list_prs(parameters, per_page=1)
+        output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(expected, output)
 
     def test_fetch_easyconfigs_from_pr(self):
