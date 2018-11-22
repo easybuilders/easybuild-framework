@@ -715,25 +715,36 @@ def parse_param_value(string):
 
     # determine list of names of known easyblocks, so we can descriminate an easyblock name
     easyblock_names = [e['class'] for e in avail_easyblocks().values()]
+    _log.debug("List of names for known easyblocks: %s", sorted(easyblock_names))
 
     # regular expression to recognise a version
     version_regex = re.compile('^[0-9][0-9.-]')
 
-    # first check whether easyconfig parameter name is specfied as '<param_name>=<value>'
+    # first check whether easyconfig parameter name is specified as '<param_name>=<value>'
     if re.match('^[a-z_]+=', string):
         param, string = split_one(string, sep='=')
+        _log.info("Found (raw) value for '%s' easyconfig parameter: %s", param, string)
 
     # check if the value is most likely a dictionary '<key>:<val>[;<key>:<val>]'
-    if re.match('^[a-z_]+:', string):
+    dict_item_sep = ':'
+    if re.match('^[a-z_]+' + dict_item_sep, string):
+        _log.info("String value '%s' represents a dictionary value", string)
         value = {}
         for item in string.split(';'):
-            key, val = split_one(item, sep=':')
-            value[key] = parse_param_value(val)[1]
+            if dict_item_sep in item:
+                key, val = split_one(item, sep=dict_item_sep)
+                # recurse to obtain parsed value for this key
+                value[key] = parse_param_value(val)[1]
+            else:
+                raise EasyBuildError("Wrong format for dictionary item '%s', should be '<key>:<format'", item)
+
+        _log.info("Parsed dictionary value: %s", value)
 
         # if we encounter a dictionary with (only) 'files' and/or 'dirs' as key(s), it must be sanity_check_paths
         if len(value) <= 2 and ('files' in value or 'dirs' in value):
             param = 'sanity_check_paths'
             for item_key, item_val in value.items():
+                # a list is expected for both keys, so make sure it's a list (no a tuple or a single string)
                 if isinstance(item_val, basestring):
                     value[item_key] = []
                     if item_val:
@@ -749,11 +760,15 @@ def parse_param_value(string):
 
     # ';' is the separator for a list of items
     elif ';' in string:
+        # recurse for to obtain parsed value for each item in the list
         value = [parse_param_value(x)[1] for x in string.split(';') if x]
+        _log.info("String value '%s' represents a list: %s", string, value)
 
     # ',' is the separator for a tuple
     elif ',' in string:
+        # recurse for to obtain parsed value for each item in the tuple
         value = tuple(parse_param_value(x)[1] for x in string.split(',') if x)
+        _log.info("String value '%s' represents a tuple: %s", string, value)
 
     # if parameter name is not decided yet, check for a likely match for specific parameters
     elif string in easyblock_names and param is None:
@@ -763,7 +778,7 @@ def parse_param_value(string):
         param, value = 'version', string
 
     elif find_extension(string, raise_error=False) and param is None:
-        param, value = 'sources', [string]
+        param, value = 'sources', string
 
     # a value with 3 or more spaces should most likely remain a string
     elif string.count(' ') >= 3 and param is None:
@@ -771,6 +786,11 @@ def parse_param_value(string):
 
     else:
         value = string
+
+    if param:
+        _log.info("Found value for '%s' easyconfig parameter: %s", param, value)
+    else:
+        _log.info("Found value for unknown easyconfig parameter: %s", value)
 
     return (param, value)
 

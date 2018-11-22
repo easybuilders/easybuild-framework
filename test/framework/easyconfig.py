@@ -2368,7 +2368,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # names of source tarballs are recognized
         for ext in ['tar.gz', 'gz', 'tar.bz2', 'bz2', 'zip']:
-            self.assertEqual(parse_param_value('toy-0.0.' + ext), ('sources', ['toy-0.0.' + ext]))
+            self.assertEqual(parse_param_value('toy-0.0.' + ext), ('sources', 'toy-0.0.' + ext))
 
         # known easyblocks are recognized
         for easyblock in ['ConfigureMake', 'Toolchain', 'EB_toy']:
@@ -2382,13 +2382,26 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(parse_param_value('one,two;three,four'), (None, [('one', 'two'), ('three', 'four')]))
         # dict with string values
         self.assertEqual(parse_param_value('one:1;two:2;three:3'), (None, {'one': '1', 'two': '2', 'three': '3'}))
+        # dict with list values
+        expected = {'ones': ('1', '1', '1'), 'twos': ('2', '2'), 'threes': ('3',)}
+        self.assertEqual(parse_param_value('ones:1,1,1;twos:2,2;threes:3,'), (None, expected))
+        # dict with a single entry, value can contain additional ':' characters, no problem there
+        self.assertEqual(parse_param_value('one:1:2:3'), (None, {'one': '1:2:3'}))
 
-        # specified parameters
+        # check error handling for dict with incorrect entry
+        error_pattern = "Wrong format for dictionary item 'two', should be '<key>:<format'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_param_value, 'one:1;two')
+
+        # specified parameters, of different value types
         self.assertEqual(parse_param_value('moduleclass=lib'), ('moduleclass', 'lib'))
         configopts = '--foo --bar --baz --bleh --blah'
         self.assertEqual(parse_param_value('configopts=%s' % configopts), ('configopts', configopts))
+        expected = ('sources', ('toy-0.0.tar.gz', 'toy-bis-0.0.tar.gz'))
+        self.assertEqual(parse_param_value('sources=toy-0.0.tar.gz,toy-bis-0.0.tar.gz'), expected)
+        expected = ('sanity_check_paths', {'files': ['bin/foo'], 'dirs': ['include']})
+        self.assertEqual(parse_param_value('sanity_check_paths=files:bin/foo;dirs:include'), expected)
 
-        # sanity_check_paths
+        # sanity_check_paths, files/dirs do not have to be both there
         self.assertEqual(parse_param_value('files:;dirs:'), ('sanity_check_paths', {'files': [], 'dirs': []}))
         expected = {'files': ['bin/foo', 'lib/libfoo.a'], 'dirs': ['include']}
         self.assertEqual(parse_param_value('files:bin/foo,lib/libfoo.a;dirs:include'), ('sanity_check_paths', expected))

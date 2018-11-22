@@ -234,7 +234,7 @@ def handle_search(search_query, search_filename, search_short):
 
         res = handle_cat_copy_edit(res, target=copy_path or '.')
 
-        if copy_path:
+        if res:
             print_msg("copied easyconfig files:")
             for path in res:
                 print_msg("* %s" % path, prefix=False)
