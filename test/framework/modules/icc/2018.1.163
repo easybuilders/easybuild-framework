@@ -7,7 +7,7 @@ proc ModulesHelp { } {
 
 module-whatis {C and C++ compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/}
 
-set root    /tmp/icc/2011.13.367
+set root    /tmp/icc/2018.1.163
 
 conflict    icc
 
@@ -20,8 +20,8 @@ prepend-path	PATH		$root/bin
 prepend-path	PATH		$root/bin/intel64
 
 setenv	EBROOTICC		"$root"
-setenv	EBVERSIONICC		"2011.13.367"
-setenv	EBDEVELICC		"$root/easybuild/icc-2011.13.367-easybuild-devel"
+setenv	EBVERSIONICC		"2018.1.163"
+setenv	EBDEVELICC		"$root/easybuild/icc-2018.1.163-easybuild-devel"
 
 prepend-path	INTEL_LICENSE_FILE		/tmp/license.lic
 prepend-path	NLSPATH		$root/idb/intel64/locale/%l_%t/%N

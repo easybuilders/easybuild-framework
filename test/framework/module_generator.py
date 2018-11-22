@@ -784,7 +784,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4.eb': 'gzip/1.4',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/1.4-GCC-4.6.3',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/1.5-goolf-1.4.10',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/1.5-ictce-4.1.13',
+            'gzip-1.5-intel-2018a.eb': 'gzip/1.5-intel-2018a',
             'toy-0.0.eb': 'toy/0.0',
             'toy-0.0-multiple.eb': 'toy/0.0-somesuffix',  # first block sets versionsuffix to '-somesuffix'
         }
@@ -826,7 +826,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4.eb': 'gzip/1.4',
             'gzip-1.4-GCC-4.6.3.eb': 'gnu/gzip/1.4',
             'gzip-1.5-goolf-1.4.10.eb': 'gnu/openmpi/gzip/1.5',
-            'gzip-1.5-ictce-4.1.13.eb': 'intel/intelmpi/gzip/1.5',
+            'gzip-1.5-intel-2018a.eb': 'intel/intelmpi/gzip/1.5',
             'toy-0.0.eb': 'toy/0.0',
             'toy-0.0-multiple.eb': 'toy/0.0',  # test module naming scheme ignores version suffixes
         }
@@ -844,7 +844,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/fceb41e04c26b540b7276c4246d1ecdd1e8251c9',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/ae16b3a0a330d4323987b360c0d024f244ac4498',
+            'gzip-1.5-intel-2018a.eb': 'gzip/0a4725f4720103eff8ffdadf8ffb187b988fb805',
             'toy-0.0.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
             'toy-0.0-multiple.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
         }
@@ -909,7 +909,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('gzip/goolf-1.4.10-suffix'))
         self.assertTrue(is_valid_module_name('GCC/4.7.2'))
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
-        self.assertTrue(is_valid_module_name('ictce'))
+        self.assertTrue(is_valid_module_name('intel'))
 
     def test_is_short_modname_for(self):
         """Test is_short_modname_for method of module naming schemes."""

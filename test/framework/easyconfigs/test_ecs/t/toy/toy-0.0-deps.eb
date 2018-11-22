@@ -20,7 +20,7 @@ checksums = [[
 patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 
 dependencies = [
-    ('ictce', '4.1.13', '', True),
+    ('intel', '2018a', '', True),
     ('GCC/4.7.2', EXTERNAL_MODULE),
 ]
 

@@ -76,8 +76,8 @@ from test.framework.utilities import find_full_path
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
 "GCC/4.7.2 (EXT)";
 toy;
-ictce;
-toy -> ictce;
+intel;
+toy -> intel;
 toy -> "GCC/4.7.2 (EXT)";
 }
 """
@@ -1006,8 +1006,8 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
             ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
-            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
-             {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
+            ('gzip-1.5-intel-2018a.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'intel', 'version': '2018a'}}),
         ]:
             eb_file1 = glob.glob(os.path.join(easyconfigs_path, 'v1.0', '*', '*', eb_file1))[0]
             ec1 = EasyConfig(eb_file1, validate=False)
@@ -1285,7 +1285,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 7)
-        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
+        correct_deps = ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
                         'somebuilddep/0.1']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
@@ -1453,7 +1453,7 @@ class EasyConfigTest(EnhancedTestCase):
             'g/goolf/goolf-1.4.10.eb',
             's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
-            'p/Python/Python-2.7.10-ictce-4.1.13.eb',
+            'p/Python/Python-2.7.10-intel-2018a.eb',
         ]
         for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -1716,8 +1716,8 @@ class EasyConfigTest(EnhancedTestCase):
             dep_graph(dot_file, ordered_ecs)
 
             # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/4.7.2 (EXT)', 'toy', and 'ictce/4.1.13'
-            # and 2 edges: 'toy -> ictce' and 'toy -> "GCC/4.7.2 (EXT)"'
+            # 3 nodes should be there: 'GCC/4.7.2 (EXT)', 'toy', and 'intel/2018a'
+            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/4.7.2 (EXT)"'
             dottxt = read_file(dot_file)
             self.assertEqual(dottxt, EXPECTED_DOTTXT_TOY_DEPS)
 
@@ -1737,7 +1737,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
-        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'ictce/4.1.13')
+        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'intel/2018a')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/4.7.2')
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
@@ -2007,7 +2007,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
-        shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
+        shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
         write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
 
         ec_txt = '\n'.join([

@@ -158,7 +158,13 @@ class SlurmJob(object):
         self.script = script
         self.name = name
 
-        self.job_specs = {'wrap': self.script, 'job-name': self.name}
+        self.job_specs = {
+            'job-name': self.name,
+            # pattern for output file for submitted job;
+            # SLURM replaces %x with job name, %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAF)
+            'output': '%x-%j.out',
+            'wrap': self.script,
+        }
 
         if env_vars:
             self.job_specs['export'] = ','.join(sorted(env_vars.keys()))

@@ -58,7 +58,7 @@ from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
-from easybuild.tools.github import close_pr, new_pr, merge_pr, update_pr
+from easybuild.tools.github import close_pr, list_prs, new_pr, merge_pr, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
@@ -233,6 +233,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.close_pr:
         close_pr(options.close_pr, reasons=options.close_pr_msg)
 
+    elif options.list_prs:
+        print list_prs(options.list_prs)
+
     elif options.merge_pr:
         merge_pr(options.merge_pr)
 
@@ -253,6 +256,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.list_installed_software,
         options.list_software,
         options.close_pr,
+        options.list_prs,
         options.merge_pr,
         options.review_pr,
         options.terse,
