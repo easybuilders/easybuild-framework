@@ -1565,7 +1565,6 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure start_dir is not recorded in the dumped easyconfig
         self.assertFalse('start_dir' in ec.parser.get_config_dict())
 
-
         # Check for child easyblock existence
         child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
         self.assertTrue(os.path.exists(child_easyblock))
