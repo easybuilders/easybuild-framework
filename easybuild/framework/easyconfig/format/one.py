@@ -158,7 +158,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     ordered_item_keys = REFORMAT_ORDERED_ITEM_KEYS.get(param_name, sorted(param_val.keys()))
                     for item_key in ordered_item_keys:
                         item_val = param_val[item_key]
-                        comment = self._get_item_comments(param_name, item_val, comments=comments).get(str(item_val), '')
+                        comment = self._get_item_comments(param_name, item_val,
+                                                          comments=comments).get(str(item_val), '')
                         key_pref = quote_py_str(item_key) + ': '
                         addlen = addlen + len(INDENT_4SPACES) + len(key_pref) + len(comment)
                         formatted_item_val = self._reformat_line(param_name, item_val, addlen=addlen)
@@ -265,7 +266,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         :param templ_val: known template values
         """
         # include header comments first
-        dump=[]
+        dump = []
         if comments:
             dump = self.comments['header'][:]
 
