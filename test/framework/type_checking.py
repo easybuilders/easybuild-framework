@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2016 Ghent University
+# Copyright 2015-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,8 +33,8 @@ from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
-from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT
-from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, ensure_iterable_license_specs
+from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
 from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_toolchain_dict
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
@@ -565,6 +565,27 @@ class TypeCheckingTest(EnhancedTestCase):
         for checksums in test_inputs:
             self.assertEqual(to_checksums(checksums), checksums)
 
+    def test_ensure_iterable_license_specs(self):
+        """Test ensure_iterable_license_specs function."""
+        # Test acceptable inputs
+        self.assertEqual(ensure_iterable_license_specs(None), [None])
+        self.assertEqual(ensure_iterable_license_specs('foo'), ['foo'])
+        self.assertEqual(ensure_iterable_license_specs(['foo']), ['foo'])
+        self.assertEqual(ensure_iterable_license_specs(['foo', 'bar']), ['foo', 'bar'])
+        self.assertEqual(ensure_iterable_license_specs(('foo',)), ['foo'])
+        self.assertEqual(ensure_iterable_license_specs(('foo', 'bar')), ['foo', 'bar'])
+
+        # Test unacceptable inputs
+        error_msg = "Unsupported type .* for easyconfig parameter 'license_file'!"
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, 42)
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, {'1': 'foo'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [None])
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42])
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42, 'foo'])
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [['foo']])
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [(42, 'foo')])
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42,))
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
 
 def suite():
     """ returns all the testcases in this module """

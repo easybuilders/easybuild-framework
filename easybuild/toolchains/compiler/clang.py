@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -11,7 +11,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,10 +36,15 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
+TC_CONSTANT_CLANG = "Clang"
+
+
 class Clang(Compiler):
     """Clang compiler class"""
 
     COMPILER_MODULE_NAME = ['Clang']
+    
+    COMPILER_FAMILY = TC_CONSTANT_CLANG
 
     # Don't set COMPILER_FAMILY in this class because Clang does not have
     # Fortran support, and thus it is not a complete compiler as far as
@@ -80,6 +85,7 @@ class Clang(Compiler):
         'defaultprec': [],
         'loose': ['ffast-math', 'fno-unsafe-math-optimizations'],
         'veryloose': ['ffast-math'],
+        'vectorize': {False: 'fno-vectorize', True: 'fvectorize'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)

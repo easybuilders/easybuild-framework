@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     test_report = []
     if pr_nr is not None:
         test_report.extend([
-            "Test report for https://github.com/hpcugent/easybuild-easyconfigs/pull/%s" % pr_nr,
+            "Test report for https://github.com/easybuilders/easybuild-easyconfigs/pull/%s" % pr_nr,
             "",
         ])
     test_report.extend([
@@ -169,7 +169,8 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 if isinstance(ec_res['err'], EasyBuildError):
                     test_result += '(build issue)'
                 else:
-                    test_result += '(unhandled exception: %s)' % ec_res['err'].__class__.__name__
+                    test_result += '(unhandled exception: %s)' % ec_res['err']
+                    test_result += ec_res['traceback']
             else:
                 test_result += '(unknown cause, not an exception?!)'
 

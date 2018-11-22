@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,15 +37,18 @@ This python module implements the environment modules functionality:
 """
 import os
 import re
+import shlex
 import subprocess
 from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
+from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -108,6 +111,7 @@ OUTPUT_MATCHES = {
             [^\s\(]*[^:/]             # module name must not have '(' or whitespace in it, must not end with ':' or '/'
         )                             # end named group for module name
         (?P<default>\(default\))?     # optional '(default)' that's not part of module name
+        (\([^()]+\))?                 # ignore '(...)' that is not part of module name (e.g. for symbolic versions)
         \s*$                          # ignore whitespace at the end of the line
         """, re.VERBOSE),
 }
@@ -141,6 +145,8 @@ class ModulesTool(object):
     VERSION_OPTION = '--version'
     # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
     REQ_VERSION = None
+    # maximum version allowed (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
+    MAX_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
     # modules tool user cache directory
@@ -192,15 +198,11 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
+        self.supports_depends_on = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
-
-    @property
-    def modules(self):
-        """(NO LONGER SUPPORTED!) Property providing access to 'modules' class variable"""
-        self.log.nosupport("'modules' class variable is not supported anymore, use load([<list of modules>]) instead", '2.0')
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
@@ -213,7 +215,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False, check_exit_code=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -234,14 +236,29 @@ class ModulesTool(object):
         except (OSError), err:
             raise EasyBuildError("Failed to check version: %s", err)
 
-        if self.REQ_VERSION is None:
+        if self.REQ_VERSION is None and self.MAX_VERSION is None:
             self.log.debug("No version requirement defined.")
+
+        elif build_option('modules_tool_version_check'):
+            self.log.debug("Checking whether modules tool version '%s' meets requirements", self.version)
+
+            if self.REQ_VERSION is not None:
+                self.log.debug("Required minimum version defined.")
+                if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
+                    raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
+                                         self.__class__.__name__, self.REQ_VERSION, self.version)
+                else:
+                    self.log.debug('Version %s matches requirement >= %s', self.version, self.REQ_VERSION)
+
+            if self.MAX_VERSION is not None:
+                self.log.debug("Maximum allowed version defined.")
+                if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
+                    raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
+                                         self.__class__.__name__, self.MAX_VERSION, self.version)
+                else:
+                    self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
         else:
-            if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
-                raise EasyBuildError("EasyBuild requires v%s >= v%s (no rc), found v%s",
-                                     self.__class__.__name__, self.REQ_VERSION, self.version)
-            else:
-                self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
+            self.log.debug("Skipping modules tool version '%s' requirements check", self.version)
 
         MODULE_VERSION_CACHE[self.COMMAND] = self.version
 
@@ -267,7 +284,8 @@ class ModulesTool(object):
             else:
                 out, ec = None, 1
         else:
-            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False, force_in_dry_run=True)
+            cmd = "type module"
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
@@ -313,8 +331,17 @@ class ModulesTool(object):
 
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
-    def use(self, path):
-        """Add module path via 'module use'."""
+    def use(self, path, priority=None):
+        """
+        Add path to $MODULEPATH via 'module use'.
+
+        :param path: path to add to $MODULEPATH
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        """
+        if priority:
+            self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
+                          priority, path)
+
         # make sure path exists before we add it
         mkdir(path, parents=True)
         self.run_module(['use', path])
@@ -350,13 +377,18 @@ class ModulesTool(object):
             if set_mod_paths:
                 self.set_mod_paths()
 
-    def prepend_module_path(self, path, set_mod_paths=True):
+    def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
         :param path: path to prepend to $MODULEPATH
         :param set_mod_paths: (re)set self.mod_paths
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
+        if priority:
+            self.log.info("Ignoring specified priority '%s' when prepending %s to $MODULEPATH (Lmod-specific)",
+                          priority, path)
+
         # generic approach: remove the path first (if it's there), then add it again (to the front)
         modulepath = curr_module_paths()
         if not modulepath:
@@ -431,6 +463,51 @@ class ModulesTool(object):
 
         return ans
 
+    def module_wrapper_exists(self, mod_name, modulerc_fn='.modulerc', mod_wrapper_regex_template=None):
+        """
+        Determine whether a module wrapper with specified name exists.
+        Only .modulerc file in Tcl syntax is considered here.
+        """
+        if mod_wrapper_regex_template is None:
+            mod_wrapper_regex_template = "^[ ]*module-version (?P<wrapped_mod>[^ ]*) %s$"
+
+        wrapped_mod = None
+
+        mod_dir = os.path.dirname(mod_name)
+        wrapper_regex = re.compile(mod_wrapper_regex_template % os.path.basename(mod_name), re.M)
+        for mod_path in curr_module_paths():
+            modulerc_cand = os.path.join(mod_path, mod_dir, modulerc_fn)
+            if os.path.exists(modulerc_cand):
+                self.log.debug("Found %s that may define %s as a wrapper for a module file", modulerc_cand, mod_name)
+                res = wrapper_regex.search(read_file(modulerc_cand))
+                if res:
+                    wrapped_mod = res.group('wrapped_mod')
+                    self.log.debug("Confirmed that %s is a module wrapper for %s", mod_name, wrapped_mod)
+                    break
+
+        mod_dir = os.path.dirname(mod_name)
+        if wrapped_mod is not None and not wrapped_mod.startswith(mod_dir):
+            # module wrapper uses 'short' module name of module being wrapped,
+            # so we need to correct it in case a hierarchical module naming scheme is used...
+            # e.g. 'Java/1.8.0_181' should become 'Core/Java/1.8.0_181' for wrapper 'Core/Java/1.8'
+            self.log.debug("Full module name prefix mismatch between module wrapper '%s' and wrapped module '%s'",
+                           mod_name, wrapped_mod)
+
+            mod_name_parts = mod_name.split(os.path.sep)
+            wrapped_mod_subdir = ''
+            while not os.path.join(wrapped_mod_subdir, wrapped_mod).startswith(mod_dir) and mod_name_parts:
+                wrapped_mod_subdir = os.path.join(wrapped_mod_subdir, mod_name_parts.pop(0))
+
+            full_wrapped_mod_name = os.path.join(wrapped_mod_subdir, wrapped_mod)
+            if full_wrapped_mod_name.startswith(mod_dir):
+                self.log.debug("Full module name for wrapped module %s: %s", wrapped_mod, full_wrapped_mod_name)
+                wrapped_mod = full_wrapped_mod_name
+            else:
+                raise EasyBuildError("Failed to determine full module name for module wrapped by %s: %s | %s",
+                                     mod_name, wrapped_mod_subdir, wrapped_mod)
+
+        return wrapped_mod
+
     def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
         """
         Check if modules with specified names exists.
@@ -464,19 +541,28 @@ class ModulesTool(object):
         for (mod_name, visible) in mod_names:
             if visible:
                 # module name may be partial, so also check via 'module show' as fallback
-                mods_exist.append(mod_name in avail_mod_names or mod_exists_via_show(mod_name))
+                mod_exists = mod_name in avail_mod_names or mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
-                mods_exist.append(mod_exists_via_show(mod_name))
+                mod_exists = mod_exists_via_show(mod_name)
+
+            # if no module file was found, check whether specified module name can be a 'wrapper' module...
+            if not mod_exists:
+                self.log.debug("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
+                wrapped_mod = self.module_wrapper_exists(mod_name)
+                if wrapped_mod is not None:
+                    # module wrapper only really exists if the wrapped module file is also available
+                    mod_exists = wrapped_mod in avail_mod_names or mod_exists_via_show(wrapped_mod)
+                    self.log.debug("Result for existence check of wrapped module %s: %s", wrapped_mod, mod_exists)
+
+            self.log.debug("Result for existence check of %s module: %s", mod_name, mod_exists)
+
+            mods_exist.append(mod_exists)
 
         return mods_exist
 
-    def exists(self, mod_name):
-        """NO LONGER SUPPORTED: use exist method instead"""
-        self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
-
-    def load(self, modules, mod_paths=None, purge=False, init_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, allow_reload=True):
         """
         Load all requested modules.
 
@@ -484,6 +570,7 @@ class ModulesTool(object):
         :param mod_paths: list of module paths to activate before loading
         :param purge: whether or not a 'module purge' should be run before loading
         :param init_env: original environment to restore after running 'module purge'
+        :param allow_reload: allow reloading an already loaded module
         """
         if mod_paths is None:
             mod_paths = []
@@ -505,16 +592,15 @@ class ModulesTool(object):
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             self.prepend_module_path(full_mod_path)
 
+        loaded_modules = self.loaded_modules()
         for mod in modules:
-            self.run_module('load', mod)
+            if allow_reload or mod not in loaded_modules:
+                self.run_module('load', mod)
 
     def unload(self, modules=None):
         """
         Unload all requested modules.
         """
-        if modules is None:
-            self.log.nosupport("Unloading modules listed in _modules class variable", '2.0')
-
         for mod in modules:
             self.run_module('unload', mod)
 
@@ -523,7 +609,7 @@ class ModulesTool(object):
         Purge loaded modules.
         """
         self.log.debug("List of loaded modules before purge: %s" % os.getenv('_LMFILES_'))
-        self.run_module('purge', '')
+        self.run_module('purge')
 
     def show(self, mod_name):
         """
@@ -534,7 +620,7 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -566,7 +652,7 @@ class ModulesTool(object):
         :param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
-        modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
+        modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
         modpath = self.get_value_from_modulefile(mod_name, modpath_re)
 
         if strip_ext and modpath.endswith('.lua'):
@@ -623,14 +709,6 @@ class ModulesTool(object):
         else:
             args = list(args)
 
-        module_path_key = None
-        if 'mod_paths' in kwargs:
-            module_path_key = 'mod_paths'
-        elif 'modulePath' in kwargs:
-            module_path_key = 'modulePath'
-        if module_path_key is not None:
-            self.log.nosupport("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
-
         self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
         # restore selected original environment variables before running module command
@@ -649,6 +727,12 @@ class ModulesTool(object):
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
+
+        # also catch and check exit code
+        exit_code = proc.returncode
+        if kwargs.get('check_exit_code', True) and exit_code != 0:
+            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
@@ -711,6 +795,87 @@ class ModulesTool(object):
 
         return loaded_modules
 
+    def check_loaded_modules(self):
+        """
+        Check whether any (EasyBuild-generated) modules are loaded already in the current session
+        """
+        allowed_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or [] if x]
+
+        eb_module_keys = []
+        for key in os.environ:
+            if key.startswith(ROOT_ENV_VAR_NAME_PREFIX) and key not in allowed_keys:
+                eb_module_keys.append(key)
+
+        if eb_module_keys:
+            loaded_modules = self.loaded_modules()
+
+            # try to track down modules that define the $EBROOT* environment variables that were found
+            loaded_eb_modules = []
+            for loaded_module in loaded_modules:
+                out = self.show(loaded_module)
+                for key in eb_module_keys[:]:
+                    if key in out:
+                        loaded_eb_modules.append(loaded_module)
+                        eb_module_keys.remove(key)
+
+            # warn about $EBROOT* environment variables without matching loaded module
+            if eb_module_keys:
+                tup = (ROOT_ENV_VAR_NAME_PREFIX, '$' + ', $'.join(eb_module_keys))
+                msg = "Found defined $%s* environment variables without matching loaded module: %s" % tup
+                msg_control = "\n(control action via --check-ebroot-env-vars={%s})" % ','.join(EBROOT_ENV_VAR_ACTIONS)
+                action = build_option('check_ebroot_env_vars')
+                if action == ERROR:
+                    raise EasyBuildError(msg + msg_control)
+                elif action == IGNORE:
+                    self.log.info(msg + ", but ignoring as configured")
+                elif action == UNSET:
+                    print_warning(msg + "; unsetting them")
+                    unset_env_vars(eb_module_keys)
+                else:
+                    print_warning(msg + msg_control)
+
+            if loaded_eb_modules:
+                opt = '--detect-loaded-modules={%s}' % ','.join(LOADED_MODULES_ACTIONS)
+                verbose_msg = '\n'.join([
+                    "Found one or more non-allowed loaded (EasyBuild-generated) modules in current environment:",
+                ] + ['* %s' % x for x in loaded_eb_modules] + [
+                    '',
+                    "This is not recommended since it may affect the installation procedure(s) performed by EasyBuild.",
+                    '',
+                    "To make EasyBuild allow particular loaded modules, "
+                    "use the --allow-loaded-modules configuration option.",
+                    "To specify action to take when loaded modules are detected, use %s." % opt,
+                    '',
+                    "See http://easybuild.readthedocs.io/en/latest/Detecting_loaded_modules.html for more information.",
+                ])
+
+                action = build_option('detect_loaded_modules')
+
+                if action == ERROR:
+                    raise EasyBuildError(verbose_msg)
+
+                elif action == IGNORE:
+                    msg = "Found non-allowed loaded (EasyBuild-generated) modules, but ignoring it as configured"
+                    self.log.info(msg)
+
+                elif action == PURGE:
+                    msg = "Found non-allowed loaded (EasyBuild-generated) modules (%s), running 'module purge'"
+                    print_warning(msg % ', '.join(loaded_eb_modules))
+
+                    self.log.info(msg)
+                    self.purge()
+
+                elif action == UNLOAD:
+                    msg = "Unloading non-allowed loaded (EasyBuild-generated) modules: %s"
+                    print_warning(msg % ', '.join(loaded_eb_modules))
+
+                    self.log.info(msg)
+                    self.unload(loaded_eb_modules[::-1])
+
+                else:
+                    # default behaviour is just to print out a warning and continue
+                    print_warning(verbose_msg)
+
     def read_module_file(self, mod_name):
         """
         Read module file with specified name.
@@ -719,6 +884,44 @@ class ModulesTool(object):
         self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
 
         return read_file(modfilepath)
+
+    def interpret_raw_path_lua(self, txt):
+        """Interpret raw path (Lua syntax): resolve environment variables, join paths where `pathJoin` is specified"""
+
+        if txt.startswith('"') and txt.endswith('"'):
+            # don't touch a raw string
+            res = txt
+        else:
+            # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
+            res = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
+
+            # interpret (outer) 'pathJoin' statement if found
+            path_join_prefix = 'pathJoin('
+            if res.startswith(path_join_prefix):
+                res = res[len(path_join_prefix):].rstrip(')')
+
+                # split the string at ',' and whitespace, and unquotes like the shell
+                lexer = shlex.shlex(res, posix=True)
+                lexer.whitespace += ','
+                res = os.path.join(*lexer)
+
+        return res.strip('"')
+
+    def interpret_raw_path_tcl(self, txt):
+        """Interpret raw path (TCL syntax): resolve environment variables"""
+        res = txt.strip('"')
+
+        # first interpret (outer) 'file join' statement (if any)
+        def file_join(res):
+            """Helper function to compose joined path."""
+            return os.path.join(*[x.strip('"') for x in res.groups()])
+
+        res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
+
+        # also interpret all $env(...) parts
+        res = re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), res)
+
+        return res
 
     def modpath_extensions_for(self, mod_names):
         """
@@ -737,25 +940,36 @@ class ModulesTool(object):
 
         # regex for $MODULEPATH extensions;
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
-        # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        # or 'prepend_path("MODULEPATH", ...) in Lua modules
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
-            r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
+            r'^\s*module\s+use\s+(?P<tcl_use>.+)',                         # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+(?P<tcl_prepend>.+)',        # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_prepend>.+)\)',  # prepend to $MODULEPATH in Lua modules
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+
+            exts = []
+            for modpath_ext in modpath_ext_regex.finditer(modtxt):
+                for key, raw_ext in modpath_ext.groupdict().iteritems():
+                    if raw_ext is not None:
+                        # need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
+                        if key in ['tcl_prepend', 'tcl_use']:
+                            ext = self.interpret_raw_path_tcl(raw_ext)
+                        else:
+                            ext = self.interpret_raw_path_lua(raw_ext)
+                        exts.append(ext)
+
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:
                 # load this module, since it may extend $MODULEPATH to make other modules available
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
-                self.load([mod_name])
+                self.load([mod_name], allow_reload=False)
 
         # restore environment (modules may have been loaded above)
         restore_env(env)
@@ -826,7 +1040,8 @@ class ModulesTool(object):
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
-                self.load([dep])
+                # don't reload module if it is already loaded, since that'll mess up the order in $MODULEPATH
+                self.load([dep], allow_reload=False)
 
         # restore original environment (modules may have been loaded above)
         restore_env(env)
@@ -856,6 +1071,7 @@ class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
+    MAX_VERSION = '3.99'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def update(self):
@@ -935,11 +1151,27 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
             self.set_mod_paths()
 
 
+class EnvironmentModules(EnvironmentModulesTcl):
+    """Interface to environment modules 4.0+"""
+    COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
+    REQ_VERSION = '4.0.0'
+    MAX_VERSION = None
+    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
+
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if "_mlstatus = False" in stdout:
+            raise EasyBuildError("Failed module command detected: %s (stdout: %s, stderr: %s)", cmd, stdout, stderr)
+        else:
+            self.log.debug("No errors detected when running module command '%s'", cmd)
+
+
 class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    REQ_VERSION = '5.8'
+    REQ_VERSION = '6.5.1'
+    REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
@@ -955,10 +1187,11 @@ class Lmod(ModulesTool):
         setvar('LMOD_REDIRECT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
+        self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
-        if not 'regex' in kwargs:
+        if 'regex' not in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
         super(Lmod, self).check_module_function(*args, **kwargs)
 
@@ -1023,7 +1256,7 @@ class Lmod(ModulesTool):
             (stdout, stderr) = proc.communicate()
 
             if stderr:
-                raise EasyBuildError("An error occured when running '%s': %s", ' '.join(cmd), stderr)
+                raise EasyBuildError("An error occurred when running '%s': %s", ' '.join(cmd), stderr)
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents
@@ -1041,19 +1274,54 @@ class Lmod(ModulesTool):
                 except (IOError, OSError), err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
-    def prepend_module_path(self, path, set_mod_paths=True):
+    def use(self, path, priority=None):
+        """
+        Add path to $MODULEPATH via 'module use'.
+
+        :param path: path to add to $MODULEPATH
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        """
+        # make sure path exists before we add it
+        mkdir(path, parents=True)
+
+        if priority:
+            self.run_module(['use', '--priority', str(priority), path])
+        else:
+            self.run_module(['use', path])
+
+    def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
         :param path: path to prepend to $MODULEPATH
         :param set_mod_paths: (re)set self.mod_paths
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
-            self.use(path)
+            self.use(path, priority=priority)
             if set_mod_paths:
                 self.set_mod_paths()
+
+    def module_wrapper_exists(self, mod_name):
+        """
+        Determine whether a module wrapper with specified name exists.
+        First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
+        """
+        res = None
+
+        # first consider .modulerc.lua with Lmod 7.8 (or newer)
+        if StrictVersion(self.version) >= StrictVersion('7.8'):
+            mod_wrapper_regex_template = '^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
+            res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
+                                                          mod_wrapper_regex_template=mod_wrapper_regex_template)
+
+        # fall back to checking for .modulerc in Tcl syntax
+        if res is None:
+            res = super(Lmod, self).module_wrapper_exists(mod_name)
+
+        return res
 
     def exist(self, mod_names, skip_avail=False):
         """
@@ -1080,14 +1348,10 @@ def get_software_root(name, with_env_var=False):
     Return the software root set for a particular software name.
     """
     env_var = get_software_root_env_var_name(name)
-    legacy_key = "SOFTROOT%s" % convert_name(name, upper=True)
 
     root = None
     if env_var in os.environ:
         root = os.getenv(env_var)
-
-    elif legacy_key in os.environ:
-        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     if with_env_var:
         res = (root, env_var)
@@ -1146,15 +1410,13 @@ def get_software_version(name):
     Return the software version set for a particular software name.
     """
     env_var = get_software_version_env_var_name(name)
-    legacy_key = "SOFTVERSION%s" % convert_name(name, upper=True)
 
     version = None
     if env_var in os.environ:
         version = os.getenv(env_var)
-    elif legacy_key in os.environ:
-        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     return version
+
 
 def curr_module_paths():
     """
@@ -1179,6 +1441,9 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
+    # NoModulesTool should never be used deliberately, so remove it from the list of available module tools
+    if 'NoModulesTool' in class_dict:
+        del class_dict['NoModulesTool']
     return class_dict
 
 
@@ -1188,11 +1453,8 @@ def modules_tool(mod_paths=None, testing=False):
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
-    if modules_tool is not None:
-        modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, testing=testing)
-    else:
-        return None
+    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
+    return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 
 def reset_module_caches():
@@ -1223,3 +1485,26 @@ class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
+
+
+class NoModulesTool(ModulesTool):
+    """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
+
+    def __init__(self, *args, **kwargs):
+        self.version = None
+
+    def exist(self, mod_names, *args, **kwargs):
+        """No modules, so nothing exists"""
+        return [False]*len(mod_names)
+
+    def check_loaded_modules(self):
+        """Nothing to do since no modules"""
+        pass
+
+    def list(self):
+        """No modules loaded"""
+        return []
+
+    def available(self, *args, **kwargs):
+        """No modules, so nothing available"""
+        return []

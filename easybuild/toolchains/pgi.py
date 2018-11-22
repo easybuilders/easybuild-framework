@@ -11,7 +11,7 @@
 # the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ EasyBuild support for PGI compiler toolchain.
 
 from easybuild.toolchains.compiler.pgi import Pgi
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class PgiToolchain(Pgi):
@@ -40,4 +41,5 @@ class PgiToolchain(Pgi):
     NAME = 'PGI'
     # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
     # in particular in a hierarchical module naming scheme
-    SUBTOOLCHAIN = GCCcore.NAME
+    SUBTOOLCHAIN = [GCCcore.NAME, DUMMY_TOOLCHAIN_NAME]
+    OPTIONAL = False

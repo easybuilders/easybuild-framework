@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,9 +55,8 @@ except ImportError, err:
 
 # test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
-# the user who's repo to test
+# the user & repo to use in this test (https://github.com/hpcugent/testrepository)
 GITHUB_USER = "hpcugent"
-# the repo of this user to use in this test
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
@@ -115,15 +114,35 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_list_prs(self):
+        """Test list_prs function."""
+        if self.github_token is None:
+            print "Skipping test_list_prs, no GitHub token available?"
+            return
+
+        parameters = ('closed', 'created', 'asc')
+
+        init_config(build_options={'pr_target_account': GITHUB_USER,
+                                   'pr_target_repo': GITHUB_REPO})
+
+        expected = "PR #1: a pr"
+
+        output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(expected, output)
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
 
-        tmpdir = tempfile.mkdtemp()
-        # PR for rename of ffmpeg to FFmpeg, see https://github.com/hpcugent/easybuild-easyconfigs/pull/2481/files
-        all_ecs = [
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
+
+        # PR for rename of ffmpeg to FFmpeg,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
+        all_ecs_pr2481 = [
             'FFmpeg-2.4-intel-2014.06.eb',
             'FFmpeg-2.4-intel-2014b.eb',
             'FFmpeg-2.8-intel-2015b.eb',
@@ -131,19 +150,32 @@ class GithubTest(EnhancedTestCase):
             'OpenCV-2.4.9-intel-2014b.eb',
             'animation-2.4-intel-2015b-R-3.2.1.eb',
         ]
-        try:
-            ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
-            self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
+        # PR where also files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
+        all_ecs_pr6587 = [
+            'WIEN2k-18.1-foss-2018a.eb',
+            'WIEN2k-18.1-gimkl-2017a.eb',
+            'WIEN2k-18.1-intel-2018a.eb',
+            'libxc-4.2.3-foss-2018a.eb',
+            'libxc-4.2.3-gimkl-2017a.eb',
+            'libxc-4.2.3-intel-2018a.eb',
+        ]
 
+        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587)]:
+            try:
+                tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
+                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
+            except URLError, err:
+                print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
+
+        try:
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
             self.assertErrorRegex(EasyBuildError, err_msg, gh.fetch_easyconfigs_from_pr, 897,
                                   github_user=GITHUB_TEST_ACCOUNT)
-
         except URLError, err:
             print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
-
-        shutil.rmtree(tmpdir)
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
@@ -151,9 +183,10 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
             return
 
-        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
+        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
-        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
+        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT,
+                                         branch='develop')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
 
     def test_download_repo(self):
@@ -162,9 +195,9 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_download_repo, no GitHub token available?"
             return
 
-        # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
-        path = gh.download_repo(path=self.test_prefix)
-        repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
+        # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
+        path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
         shafile = os.path.join(repodir, 'latest-sha')
@@ -174,18 +207,20 @@ class GithubTest(EnhancedTestCase):
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
         repodir = os.path.join(self.test_prefix, account, '%s-%s' % (repo, branch))
-        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch)
+        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch, github_user=GITHUB_TEST_ACCOUNT)
 
         # put 'latest-sha' fail in place, check whether repo was (re)downloaded (should not)
         shafile = os.path.join(repodir, 'latest-sha')
         write_file(shafile, latest_sha)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertEqual(os.listdir(repodir), ['latest-sha'])
 
         # remove 'latest-sha' file and verify that download was performed
         os.remove(shafile)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue('easybuild' in os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
@@ -205,8 +240,9 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
         # poor mans mocking of getpass
+        # inject leading/trailing spaces to verify stripping of provided value
         def fake_getpass(*args, **kwargs):
-            return self.github_token
+            return ' ' + self.github_token + '  '
 
         orig_getpass = gh.getpass.getpass
         gh.getpass.getpass = fake_getpass
@@ -247,7 +283,7 @@ class GithubTest(EnhancedTestCase):
         if self.github_token is None:
             print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
             return
-        path = gh.find_easybuild_easyconfig()
+        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
@@ -267,13 +303,149 @@ class GithubTest(EnhancedTestCase):
             'validate': False,
         })
         self.mock_stdout(True)
-        ec = gh.find_software_name_for_patch('toy-0.0_typo.patch')
+        ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch')
         txt = self.get_stdout()
         self.mock_stdout(False)
 
         self.assertTrue(ec == 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
+
+    def test_check_pr_eligible_to_merge(self):
+        """Test check_pr_eligible_to_merge function"""
+        def run_check(expected_result=False):
+            """Helper function to check result of check_pr_eligible_to_merge"""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            res = gh.check_pr_eligible_to_merge(pr_data)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(res, expected_result)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertTrue(expected_warning in stderr, "Found '%s' in: %s" % (expected_warning, stderr))
+            return stderr
+
+        pr_data = {
+            'base': {
+                'ref': 'master',
+                'repo': {
+                    'name': 'easybuild-easyconfigs',
+                    'owner': {'login': 'easybuilders'},
+                },
+            },
+            'status_last_commit': None,
+            'issue_comments': [],
+            'milestone': None,
+            'number': '1234',
+            'reviews': [],
+        }
+
+        test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
+
+        expected_stdout = "Checking eligibility of easybuilders/easybuild-easyconfigs PR #1234 for merging...\n"
+
+        # target branch for PR must be develop
+        expected_warning = "* targets develop branch: FAILED; found 'master' => not eligible for merging!\n"
+        run_check()
+
+        pr_data['base']['ref'] = 'develop'
+        expected_stdout += "* targets develop branch: OK\n"
+
+        # test suite must PASS (not failed, pending or unknown) in Travis
+        tests = [
+            ('', '(result unknown)'),
+            ('foobar', '(result unknown)'),
+            ('pending', 'pending...'),
+            ('error', 'FAILED'),
+            ('failure', 'FAILED'),
+        ]
+        for status, test_result in tests:
+            pr_data['status_last_commit'] = status
+            expected_warning = test_result_warning_template % test_result
+            run_check()
+
+        pr_data['status_last_commit'] = 'success'
+        expected_stdout += "* test suite passes: OK\n"
+        expected_warning = ''
+        run_check()
+
+        # at least the last test report must be successful (and there must be one)
+        expected_warning = "* last test report is successful: (no test reports found) => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'] = [
+            {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
+            {'body': "this is just a regular comment"},
+        ]
+        expected_warning = "* last test report is successful: FAILED => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'].extend([
+            {'body': "yet another comment"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
+        ])
+        expected_stdout += "* last test report is successful: OK\n"
+        expected_warning = ''
+        run_check()
+
+        # approved style review by a human is required
+        expected_warning = "* approved review: MISSING => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        expected_stdout += "* approved review: OK (by boegel)\n"
+        expected_warning = ''
+        run_check()
+
+        # milestone must be set
+        expected_warning = "* milestone is set: no milestone found => not eligible for merging!"
+        run_check()
+
+        pr_data['milestone'] = {'title': '3.3.1'}
+        expected_stdout += "* milestone is set: OK (3.3.1)\n"
+
+        # all checks pass, PR is eligible for merging
+        expected_warning = ''
+        self.assertEqual(run_check(True), '')
+
+    def test_det_patch_specs(self):
+        """Test for det_patch_specs function."""
+
+        # robot_path build option is used by find_software_name_for_patch, which is called by det_patch_specs
+        init_config(build_options={'robot_path': []})
+
+        patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
+        file_info = {'ecs': [
+                {'name': 'A', 'patches': ['1.patch']},
+                {'name': 'B', 'patches': []},
+            ]
+        }
+        error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info)
+        self.mock_stdout(False)
+
+        file_info['ecs'].append({'name': 'C', 'patches': [('3.patch', 'subdir'), '2.patch']})
+        self.mock_stdout(True)
+        res = gh.det_patch_specs(patch_paths, file_info)
+        self.mock_stdout(False)
+
+        self.assertEqual(len(res), 3)
+        self.assertEqual(os.path.basename(res[0][0]), '1.patch')
+        self.assertEqual(res[0][1], 'A')
+        self.assertEqual(os.path.basename(res[1][0]), '2.patch')
+        self.assertEqual(res[1][1], 'C')
+        self.assertEqual(os.path.basename(res[2][0]), '3.patch')
+        self.assertEqual(res[2][1], 'C')
 
 
 def suite():

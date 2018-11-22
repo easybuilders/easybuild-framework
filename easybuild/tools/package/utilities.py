@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2016 Ghent University
+# Copyright 2015-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,14 +42,13 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import which
+from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules, quote_str
+from easybuild.tools.utilities import import_available_modules
+_log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
 
-
-_log = fancylogger.getLogger('tools.package')
 
 
 def avail_package_naming_schemes():
@@ -79,15 +78,12 @@ def package_with_fpm(easyblock):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
+
     workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
     pkgtype = build_option('package_type')
     _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
-    try:
-        origdir = os.getcwd()
-        os.chdir(workdir)
-    except OSError, err:
-        raise EasyBuildError("Failed to chdir into workdir %s: %s", workdir, err)
+    origdir = change_dir(workdir)
 
     package_naming_scheme = ActivePNS()
 
@@ -96,6 +92,26 @@ def package_with_fpm(easyblock):
     pkgrel = package_naming_scheme.release(easyblock.cfg)
 
     _log.debug("Got the PNS values name: %s version: %s release: %s", pkgname, pkgver, pkgrel)
+    cmdlist = [
+        PKG_TOOL_FPM,
+        '--workdir', workdir,
+        '--name', pkgname,
+        '--provides', pkgname,
+        '-t', pkgtype,  # target
+        '-s', 'dir',  # source
+        '--version', pkgver,
+        '--iteration', pkgrel,
+        '--description', easyblock.cfg["description"],
+        '--url', easyblock.cfg["homepage"],
+    ]
+
+    extra_pkg_options = build_option('package_tool_options')
+    if extra_pkg_options:
+        cmdlist.extend(extra_pkg_options.split(' '))
+
+    if build_option('debug'):
+        cmdlist.append('--debug')
+
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -105,58 +121,34 @@ def package_with_fpm(easyblock):
 
     _log.debug("The dependencies to be added to the package are: %s",
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
-    depstring = ''
     for dep in deps:
         if dep.get('external_module', False):
             _log.debug("Skipping dep marked as external module: %s", dep['name'])
         else:
             _log.debug("The dep added looks like %s ", dep)
             dep_pkgname = package_naming_scheme.name(dep)
-            depstring += " --depends %s" % quote_str(dep_pkgname)
+            cmdlist.extend(["--depends", dep_pkgname])
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
-    exclude_files_glob = [
+    exclude_files_globs = [
         os.path.join(log_path(), "*.log"),
         os.path.join(log_path(), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
-    exclude_files_glob = [
-        '--exclude %s' % quote_str(os.path.join(easyblock.installdir.lstrip(os.sep), x))
-        for x in exclude_files_glob
-    ]
-    _log.debug("The list of excluded files passed to fpm: %s", exclude_files_glob)
-    cmdlist = [
-        PKG_TOOL_FPM,
-        '--workdir', workdir,
-        '--name', quote_str(pkgname),
-        '--provides', quote_str(pkgname),
-        '-t', pkgtype,  # target
-        '-s', 'dir',  # source
-        '--version', pkgver,
-        '--iteration', pkgrel,
-        '--description', quote_str(easyblock.cfg["description"]),
-        '--url', quote_str(easyblock.cfg["homepage"]),
-    ]
-    cmdlist.extend(exclude_files_glob)
-
-    if build_option('debug'):
-        cmdlist.append('--debug')
+    for exclude_files_glob in exclude_files_globs:
+        cmdlist.extend(['--exclude', os.path.join(easyblock.installdir.lstrip(os.sep), exclude_files_glob)])
 
     cmdlist.extend([
-        depstring,
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
     ])
     cmd = ' '.join(cmdlist)
     _log.debug("The flattened cmdlist looks like: %s", cmd)
-    run_cmd(cmd, log_all=True, simple=True)
+    run_cmd(cmdlist, log_all=True, simple=True, shell=False)
 
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
-    try:
-        os.chdir(origdir)
-    except OSError, err:
-        raise EasyBuildError("Failed to chdir back to %s: %s", origdir, err)
+    change_dir(origdir)
 
     return workdir
 

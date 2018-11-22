@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import glob
@@ -51,17 +52,35 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 _log = fancylogger.getLogger('config', fname=False)
 
 
+ERROR = 'error'
+IGNORE = 'ignore'
+PURGE = 'purge'
+UNLOAD = 'unload'
+UNSET = 'unset'
+WARN = 'warn'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
+CONT_IMAGE_FORMAT_EXT3 = 'ext3'
+CONT_IMAGE_FORMAT_SANDBOX = 'sandbox'
+CONT_IMAGE_FORMAT_SQUASHFS = 'squashfs'
+CONT_IMAGE_FORMATS = [CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS]
+
+CONT_TYPE_DOCKER = 'docker'
+CONT_TYPE_SINGULARITY = 'singularity'
+CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
+DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
+    'containerpath': 'containers',
     'installpath': '',
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
@@ -76,6 +95,22 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
+EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
+LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
+DEFAULT_ALLOW_LOADED_MODULES = ('EasyBuild',)
+
+FORCE_DOWNLOAD_ALL = 'all'
+FORCE_DOWNLOAD_PATCHES = 'patches'
+FORCE_DOWNLOAD_SOURCES = 'sources'
+FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
+DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
+
+JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
+JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
+
+DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
+DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
+
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -86,10 +121,16 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
         args.append(path)
     return os.path.join(*args)
 
+
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
+        'backup_modules',
+        'container_base',
+        'container_image_format',
+        'container_image_name',
+        'container_tmpdir',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -98,18 +139,18 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
+        'force_download',
         'from_pr',
         'git_working_dirs_path',
-        'pr_branch_name',
-        'pr_target_account',
-        'pr_target_branch',
-        'pr_target_repo',
         'github_user',
         'github_org',
         'group',
+        'hooks',
         'ignore_dirs',
         'job_backend_config',
         'job_cores',
+        'job_deps_type',
+        'job_max_jobs',
         'job_max_walltime',
         'job_output_dir',
         'job_polling_interval',
@@ -119,7 +160,12 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_cmd_template',
         'only_blocks',
         'optarch',
+        'package_tool_options',
         'parallel',
+        'pr_branch_name',
+        'pr_target_account',
+        'pr_target_branch',
+        'pr_target_repo',
         'rpath_filter',
         'regtest_output_dir',
         'skip',
@@ -134,16 +180,21 @@ BUILD_OPTIONS_CMDLINE = {
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'consider_archived_easyconfigs',
+        'container_build_image',
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'enforce_checksums',
         'extended_dry_run',
         'experimental',
         'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
+        'ignore_checksums',
         'install_latest_eb_release',
+        'lib64_fallback_sanity_check',
+        'logtostdout',
         'minimal_toolchains',
         'module_only',
         'package',
@@ -151,24 +202,38 @@ BUILD_OPTIONS_CMDLINE = {
         'rebuild',
         'robot',
         'rpath',
+        'search_paths',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',
         'sticky_bit',
+        'trace',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
         'use_f90cache',
         'use_existing_modules',
+        'set_default_module',
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',
+        'modules_tool_version_check',
+        'pre_create_installdir',
     ],
-    'warn': [
+    WARN: [
+        'check_ebroot_env_vars',
+        'detect_loaded_modules',
         'strict',
+    ],
+    DEFAULT_CONT_TYPE: [
+        'container_type',
+    ],
+    DEFAULT_MAX_FAIL_RATIO_PERMS: [
+        'max_fail_ratio_adjust_permissions',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
@@ -184,7 +249,10 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     'defaultopt': [
         'default_opt_level',
-    ]
+    ],
+    DEFAULT_ALLOW_LOADED_MODULES: [
+        'allow_loaded_modules',
+    ],
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -200,6 +268,7 @@ BUILD_OPTIONS_OTHER = {
     False: [
         'dry_run',
         'recursive_mod_unload',
+        'mod_depends_on',
         'retain_all_deps',
         'silent',
         'try_to_generate',
@@ -249,6 +318,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
     REQUIRED = [
         'buildpath',
         'config',
+        'containerpath',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -335,11 +405,13 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
             retain_all_deps = True
 
-        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
-                                      cmdline_options.dry_run, cmdline_options.dry_run_short,
-                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.containerize,
+                                      cmdline_options.dep_graph, cmdline_options.dry_run,
+                                      cmdline_options.dry_run_short, cmdline_options.extended_dry_run,
+                                      cmdline_options.dump_env_script, cmdline_options.new_pr,
+                                      cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
-            _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
+            _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
@@ -349,6 +421,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             'check_osdeps': not cmdline_options.ignore_osdeps,
             'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
             'recursive_mod_unload': cmdline_options.recursive_module_unload,
+            'mod_depends_on': cmdline_options.module_depends_on,
             'retain_all_deps': retain_all_deps,
             'validate': not cmdline_options.force,
             'valid_module_classes': module_classes(),
@@ -370,13 +443,17 @@ def init_build_options(build_options=None, cmdline_options=None):
 
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
+
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
     elif 'default' in kwargs:
         return kwargs['default']
     else:
-        raise EasyBuildError("Undefined build option: %s", key)
+        error_msg = "Undefined build option: '%s'. " % key
+        error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
+        error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
+        raise EasyBuildError(error_msg)
 
 
 def build_path():
@@ -453,6 +530,13 @@ def package_path():
     Return the path where built packages are copied to
     """
     return ConfigurationVariables()['packagepath']
+
+
+def container_path():
+    """
+    Return the path for container recipes & images
+    """
+    return ConfigurationVariables()['containerpath']
 
 
 def get_modules_tool():

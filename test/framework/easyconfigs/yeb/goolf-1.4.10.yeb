@@ -34,7 +34,7 @@ dependencies:
       toolchain: *comp
     - *blaslib: *blasver
       versionsuffix: *blas_suff
-      toolchain: *comp_mpi_tc
+      toolchain: *comp
     - FFTW: 3.3.3
       toolchain: *comp_mpi_tc
     - ScaLAPACK: 2.0.2

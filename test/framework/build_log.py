@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2016 Ghent University
+# Copyright 2015-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,12 +31,12 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from datetime import datetime, timedelta
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_msg, print_warning, time_str_since
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -112,8 +112,15 @@ class BuildLogTest(EnhancedTestCase):
         log.error("err: %s", 'msg: %s')
         stderr = self.get_stderr()
         self.mock_stderr(False)
-        # no output to stderr (should all go to log file)
-        self.assertEqual(stderr, '')
+
+        more_info = "see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        expected_stderr = '\n\n'.join([
+            "\nWARNING: Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
+            "\nWARNING: Deprecated functionality, will no longer work in v2.0: onemorewarning",
+            "\nWARNING: Deprecated functionality, will no longer work in v2.0: lastwarning",
+        ]) + '\n\n'
+        self.assertEqual(stderr, expected_stderr)
+
         try:
             log.exception("oops")
         except EasyBuildError:
@@ -164,6 +171,21 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
+        write_file(tmplog, '')
+        logToFile(tmplog, enable=True)
+
+        # also test use of 'more_info' named argument for log.deprecated
+        self.mock_stderr(True)
+        log.deprecated("\nthis is just a test\n", newer_ver, more_info="(see URLGOESHERE for more information)")
+        self.mock_stderr(False)
+        logtxt = read_file(tmplog)
+        expected_logtxt = '\n'.join([
+            "[WARNING] :: Deprecated functionality, will no longer work in v10000001: ",
+            "this is just a test",
+            "(see URLGOESHERE for more information)",
+        ])
+        self.assertTrue(logtxt.strip().endswith(expected_logtxt))
+
     def test_log_levels(self):
         """Test whether log levels are respected"""
         fd, tmplog = tempfile.mkstemp()
@@ -209,10 +231,63 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
+    def test_print_warning(self):
+        """Test print_warning"""
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        print_warning('You have been warned.')
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertEqual(stderr, "\nWARNING: You have been warned.\n\n")
+        self.assertEqual(stdout, '')
+
+    def test_print_msg(self):
+        """Test print_msg"""
+        def run_check(msg, expected_stdout='', expected_stderr='', **kwargs):
+            """Helper function to check stdout/stderr produced via print_msg"""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            print_msg(msg, **kwargs)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertEqual(stderr, expected_stderr)
+
+        run_check("testing, 1, 2, 3", expected_stdout="== testing, 1, 2, 3\n")
+        run_check("testing, 1, 2, 3", expected_stdout="== testing, 1, 2, 3", newline=False)
+        run_check("testing, 1, 2, 3", expected_stdout="testing, 1, 2, 3\n", prefix=False)
+        run_check("testing, 1, 2, 3", expected_stdout="testing, 1, 2, 3", prefix=False, newline=False)
+        run_check("testing, 1, 2, 3", expected_stderr="== testing, 1, 2, 3\n", stderr=True)
+        run_check("testing, 1, 2, 3", expected_stderr="== testing, 1, 2, 3", stderr=True, newline=False)
+        run_check("testing, 1, 2, 3", expected_stderr="testing, 1, 2, 3\n", stderr=True, prefix=False)
+        run_check("testing, 1, 2, 3", expected_stderr="testing, 1, 2, 3", stderr=True, prefix=False, newline=False)
+        run_check("testing, 1, 2, 3", silent=True)
+        run_check("testing, 1, 2, 3", silent=True, stderr=True)
+
+    def test_time_str_since(self):
+        """Test time_str_since"""
+        self.assertEqual(time_str_since(datetime.now()), '< 1s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1.1)), '00h00m01s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=37.1)), '00h00m37s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=60.1)), '00h01m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=81.1)), '00h01m21s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1358.1)), '00h22m38s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3600.1)), '01h00m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3960.1)), '01h06m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=4500.1)), '01h15m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=12305.1)), '03h25m05s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=54321.1)), '15h05m21s')
+
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

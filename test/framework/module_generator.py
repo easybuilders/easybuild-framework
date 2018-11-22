@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,21 +32,23 @@ import glob
 import os
 import sys
 import tempfile
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import curr_module_paths
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModulesC, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
-
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -72,17 +74,27 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
 
-        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
-        gzip_txt += "- Homepage: http://www.gzip.org/"
+        descr = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+        homepage = "http://www.gzip.org/"
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
-                "    puts stderr { %s" % gzip_txt,
+                "    puts stderr {",
+                '',
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
                 "    }",
                 "}",
                 '',
-                "module-whatis {Description: %s}" % gzip_txt,
+                "module-whatis {Description: %s}" % descr,
+                "module-whatis {Homepage: %s}" % homepage,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -92,9 +104,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help([[%s]])' % gzip_txt,
+                "help([==[",
                 '',
-                "whatis([[Description: %s]])" % gzip_txt,
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
+                ']==])',
+                '',
+                "whatis([==[Description: %s]==])" % descr,
+                "whatis([==[Homepage: %s]==])" % homepage,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -110,7 +133,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
-                "    puts stderr { %s" % gzip_txt,
+                "    puts stderr {",
+                '',
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
                 "    }",
                 "}",
                 '',
@@ -125,10 +157,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help([[%s]])' % gzip_txt,
+                "help([==[",
                 '',
-                "whatis([[foo]])",
-                "whatis([[bar]])",
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
+                ']==])',
+                '',
+                "whatis([==[foo]==])",
+                "whatis([==[bar]==])",
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -138,6 +180,60 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
+
+    def test_set_default_module(self):
+        """
+        Test load part in generated module file.
+        """
+
+        # note: the lua modulefiles are only supported by Lmod. Therefore,
+        # skipping when it is not the case
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua and not isinstance(self.modtool, Lmod):
+            return
+
+        # creating base path
+        base_path = os.path.join(self.test_prefix, 'all')
+        mkdir(base_path)
+
+        # creating package module
+        module_name = 'foobar_mod'
+        modules_base_path = os.path.join(base_path, module_name)
+        mkdir(modules_base_path)
+
+        # creating two empty modules
+        txt = self.modgen.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+        txt += self.modgen.get_description()
+        txt += self.modgen.set_environment('foo', 'bar')
+
+        version_one = '1.0'
+        version_one_path = os.path.join(modules_base_path, version_one + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(version_one_path, txt)
+
+        version_two = '2.0'
+        version_two_path = os.path.join(modules_base_path, version_two + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(version_two_path, txt)
+
+        # using base_path to possible module load
+        self.modtool.use(base_path)
+
+        # setting foo version as default
+        self.modgen.set_as_default(modules_base_path, version_one)
+        self.modtool.load([module_name])
+        full_module_name = module_name + '/' + version_one
+
+        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.modtool.purge()
+
+        # setting bar version as default
+        self.modgen.set_as_default(modules_base_path, version_two)
+        self.modtool.load([module_name])
+        full_module_name = module_name + '/' + version_two
+
+        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.modtool.purge()
+
 
     def test_load(self):
         """Test load part in generated module file."""
@@ -163,6 +259,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends-on
+            if self.modtool.supports_depends_on:
+                expected = '\n'.join([
+                    '',
+                    "depends-on mod_name",
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
+            else:
+                expected = "depends-on statements in generated module are not supported by modules tool"
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -174,16 +286,106 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
-            # with recursive unloading: no if isloaded guard
+            # with recursive unloading: if isloaded guard with unload
+            # check
             expected = '\n'.join([
                 '',
-                'load("mod_name")',
+                'if not isloaded("mod_name") or mode() == "unload" then',
+                '    load("mod_name")',
+                'end',
                 '',
             ])
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends_on
+            if self.modtool.supports_depends_on:
+                expected = '\n'.join([
+                    '',
+                    'depends_on("mod_name")',
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
+            else:
+                expected = "depends_on statements in generated module are not supported by modules tool"
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
+
+    def test_modulerc(self):
+        """Test modulerc method."""
+        self.assertErrorRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
+
+        arg = {'foo': 'bar'}
+        error_pattern = "Incorrect module_version spec, expected keys"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
+
+        mod_ver_spec = {'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'}
+        modulerc_path = os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC)
+
+        # with Lmod 6.x, both .modulerc and wrapper module must be in the same location
+        if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) < LooseVersion('7.0'):
+            error = "Expected module file .* not found; "
+            error += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory"
+            self.assertErrorRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        # if the wrapped module file is in place, everything should be fine
+        write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+
+        # first, check raw contents of generated .modulerc file
+        expected = '\n'.join([
+            '#%Module',
+            "module-version test/1.2.3.4.5 1.2.3",
+        ])
+
+        # two exceptions: EnvironmentModulesC, or Lmod 7.8 (or newer) and Lua syntax
+        if self.modtool.__class__ == EnvironmentModulesC:
+            expected = '\n'.join([
+                '#%Module',
+                'if {"test/1.2.3" eq [module-info version test/1.2.3]} {',
+                '    module-version test/1.2.3.4.5 1.2.3',
+                '}',
+            ])
+        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) >= LooseVersion('7.8'):
+                expected = 'module_version("test/1.2.3.4.5", "1.2.3")'
+
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
+
+        self.modtool.use(self.test_prefix)
+
+        # 'show' picks up on symbolic versions, regardless of modules tool being used
+        self.assertEqual(self.modtool.exist(['test/1.2.3.4.5', 'test/1.2.3.4', 'test/1.2.3']), [True, False, True])
+
+        # loading of module with symbolic version works
+        self.modtool.load(['test/1.2.3'])
+        # test/1.2.3.4.5 is actually loaded (rather than test/1.2.3)
+        res = self.modtool.list()
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
+
+        # overwriting existing .modulerc requires --force or --rebuild
+        error_msg = "Found existing .modulerc at .*, not overwriting without --force or --rebuild"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        init_config(build_options={'force': True})
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
+
+        init_config(build_options={})
+        self.assertErrorRegex(EasyBuildError, error_msg, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+
+        init_config(build_options={'rebuild': True})
+        modulerc = self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
+        self.assertEqual(modulerc, expected)
+        self.assertEqual(read_file(modulerc_path), expected)
 
     def test_unload(self):
         """Test unload part in generated module file."""
@@ -245,6 +447,54 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
 
+    def test_append_paths(self):
+        """Test generating append-paths statements."""
+        # test append_paths
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = ''.join([
+                "append-path\tkey\t\t$root/path1\n",
+                "append-path\tkey\t\t$root/path2\n",
+                "append-path\tkey\t\t$root\n",
+            ])
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+
+            expected = "append-path\tbar\t\t$root/foo\n"
+            self.assertEqual(expected, self.modgen.append_paths("bar", "foo"))
+
+            res = self.modgen.append_paths("key", ["/abs/path"], allow_abs=True)
+            self.assertEqual("append-path\tkey\t\t/abs/path\n", res)
+
+            res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
+            self.assertEqual("append-path\tkey\t\t1234@example.com\n", res)
+
+        else:
+            expected = ''.join([
+                'append_path("key", pathJoin(root, "path1"))\n',
+                'append_path("key", pathJoin(root, "path2"))\n',
+                'append_path("key", root)\n',
+            ])
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+
+            expected = 'append_path("bar", pathJoin(root, "foo"))\n'
+            self.assertEqual(expected, self.modgen.append_paths("bar", "foo"))
+
+            expected = 'append_path("key", "/abs/path")\n'
+            self.assertEqual(expected, self.modgen.append_paths("key", ["/abs/path"], allow_abs=True))
+
+            res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
+            self.assertEqual('append_path("key", "1234@example.com")\n', res)
+
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
+                                              "which only expects relative paths." % self.modgen.app.installdir,
+                              self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths
@@ -289,9 +539,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
+    def test_det_user_modpath(self):
+        """Test for generic det_user_modpath method."""
+        # None by default
+        self.assertEqual(self.modgen.det_user_modpath(None), None)
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules" "all"')
+        else:
+            self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules", "all"')
+
+        # result is affected by --suffix-modules-path
+        # {RUNTIME_ENV::FOO} gets translated into Tcl/Lua syntax for resolving $FOO at runtime
+        init_config(build_options={'suffix_modules_path': ''})
+        user_modpath = 'my/{RUNTIME_ENV::TEST123}/modules'
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
+        else:
+            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", os.getenv("TEST123"), "modules"')
 
     def test_use(self):
         """Test generating module use statements."""
@@ -340,8 +609,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual('$env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
-            self.assertEqual('$env(HOME)', self.modgen.getenv_cmd('HOME'))
+            self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
+            self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
         else:
             self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))
@@ -360,7 +629,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_conditional_statement(self):
         """Test formatting of conditional statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            simple_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar")
+            cond = "is-loaded foo"
+            load = "module load bar"
+
+            simple_cond = self.modgen.conditional_statement(cond, load)
             expected = '\n'.join([
                 "if { [ is-loaded foo ] } {",
                 "    module load bar",
@@ -369,7 +641,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(simple_cond, expected)
 
-            neg_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", negative=True)
+            neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
                 "if { ![ is-loaded foo ] } {",
                 "    module load bar",
@@ -378,7 +650,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(neg_cond, expected)
 
-            if_else_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", else_body='puts "foo"')
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='puts "foo"')
             expected = '\n'.join([
                 "if { [ is-loaded foo ] } {",
                 "    module load bar",
@@ -389,8 +661,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(if_else_cond, expected)
 
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='puts "foo"', indent=False)
+            expected = '\n'.join([
+                "if { [ is-loaded foo ] } {",
+                "module load bar",
+                "} else {",
+                'puts "foo"',
+                '}',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
         elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            simple_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")')
+            cond = 'isloaded("foo")'
+            load = 'load("bar")'
+
+            simple_cond = self.modgen.conditional_statement(cond, load)
             expected = '\n'.join([
                 'if isloaded("foo") then',
                 '    load("bar")',
@@ -399,7 +685,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(simple_cond, expected)
 
-            neg_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', negative=True)
+            neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
                 'if not isloaded("foo") then',
                 '    load("bar")',
@@ -408,7 +694,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(neg_cond, expected)
 
-            if_else_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', else_body='load("bleh")')
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='load("bleh")')
             expected = '\n'.join([
                 'if isloaded("foo") then',
                 '    load("bar")',
@@ -418,34 +704,46 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
             ])
             self.assertEqual(if_else_cond, expected)
+
+            if_else_cond = self.modgen.conditional_statement(cond, load, else_body='load("bleh")', indent=False)
+            expected = '\n'.join([
+                'if isloaded("foo") then',
+                'load("bar")',
+                'else',
+                'load("bleh")',
+                'end',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
         else:
             self.assertTrue(False, "Unknown module syntax")
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = "\nif { [ module-info mode load ] } {\n    puts stderr \"test\"\n}\n"
+            expected = "\nif { [ module-info mode load ] } {\nputs stderr \"test\"\n}\n"
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
             tcl_load_msg = '\n'.join([
                 '',
                 "if { [ module-info mode load ] } {",
-                "    puts stderr \"test \\$test \\$test",
-                "    test \\$foo \\$bar\"",
+                "puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
                 "}",
                 '',
             ])
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
         else:
-            expected = '\nif mode() == "load" then\n    io.stderr:write([==[test]==])\nend\n'
+            expected = '\nif mode() == "load" then\nio.stderr:write([==[test]==])\nend\n'
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
             lua_load_msg = '\n'.join([
                 '',
                 'if mode() == "load" then',
-                '    io.stderr:write([==[test $test \\$test',
-                '    test $foo \\$bar]==])',
+                'io.stderr:write([==[test $test \\$test',
+                'test $foo \\$bar]==])',
                 'end',
                 '',
             ])
@@ -486,7 +784,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4.eb': 'gzip/1.4',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/1.4-GCC-4.6.3',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/1.5-goolf-1.4.10',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/1.5-ictce-4.1.13',
+            'gzip-1.5-intel-2018a.eb': 'gzip/1.5-intel-2018a',
             'toy-0.0.eb': 'toy/0.0',
             'toy-0.0-multiple.eb': 'toy/0.0-somesuffix',  # first block sets versionsuffix to '-somesuffix'
         }
@@ -528,7 +826,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4.eb': 'gzip/1.4',
             'gzip-1.4-GCC-4.6.3.eb': 'gnu/gzip/1.4',
             'gzip-1.5-goolf-1.4.10.eb': 'gnu/openmpi/gzip/1.5',
-            'gzip-1.5-ictce-4.1.13.eb': 'intel/intelmpi/gzip/1.5',
+            'gzip-1.5-intel-2018a.eb': 'intel/intelmpi/gzip/1.5',
             'toy-0.0.eb': 'toy/0.0',
             'toy-0.0-multiple.eb': 'toy/0.0',  # test module naming scheme ignores version suffixes
         }
@@ -546,9 +844,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/fceb41e04c26b540b7276c4246d1ecdd1e8251c9',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/ae16b3a0a330d4323987b360c0d024f244ac4498',
-            'toy-0.0.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
-            'toy-0.0-multiple.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
+            'gzip-1.5-intel-2018a.eb': 'gzip/0a4725f4720103eff8ffdadf8ffb187b988fb805',
+            'toy-0.0.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
+            'toy-0.0-multiple.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
         }
         test_mns()
 
@@ -611,7 +909,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('gzip/goolf-1.4.10-suffix'))
         self.assertTrue(is_valid_module_name('GCC/4.7.2'))
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
-        self.assertTrue(is_valid_module_name('ictce'))
+        self.assertTrue(is_valid_module_name('intel'))
 
     def test_is_short_modname_for(self):
         """Test is_short_modname_for method of module naming schemes."""

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +42,8 @@ import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import _easyconfig_files_cache, process_easyconfig, EasyConfig
-from easybuild.framework.easyconfig.tools import find_resolved_modules, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
+from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
 from easybuild.framework.easyconfig.tools import skip_available
@@ -50,11 +51,11 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import copy_file, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
-from easybuild.tools.robot import check_conflicts, resolve_dependencies
+from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies
 from test.framework.utilities import find_full_path
 
 
@@ -203,12 +204,12 @@ class RobotTest(EnhancedTestCase):
         self.assertFalse('toy/.0.0-deps' in full_mod_names)
 
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool, retain_all_deps=True)
-        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
+        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) intel/2018a (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
         full_mod_names = [ec['full_mod_name'] for ec in res]
         self.assertTrue('toy/.0.0-deps' in full_mod_names)
-        self.assertTrue('ictce/4.1.13' in full_mod_names)
+        self.assertTrue('intel/2018a' in full_mod_names)
 
         # here we have included a dependency in the easyconfig list
         easyconfig['full_mod_name'] = 'gzip/1.4'
@@ -248,7 +249,7 @@ class RobotTest(EnhancedTestCase):
         MockModule.avail_modules = [
             'GCC/4.7.2',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'FFTW/3.3.3-gompi-1.4.10',
             'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
         ]
@@ -330,7 +331,7 @@ class RobotTest(EnhancedTestCase):
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 4)
         # goolf should be first, the software itself second
-        self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['full_mod_name'])
+        self.assertEqual('OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', res[0]['full_mod_name'])
         self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['full_mod_name'])
         self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
@@ -441,12 +442,12 @@ class RobotTest(EnhancedTestCase):
         # all modules in the dep graph, in order
         all_mods_ordered = [
             'GCC/4.7.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'hwloc/1.6.2-GCC-4.7.2',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'gompi/1.4.10',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
-            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'SQLite/3.8.10.2-GCC-4.7.2',
+            'gompi/1.4.10',
+            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'FFTW/3.3.3-gompi-1.4.10',
             'goolf/1.4.10',
             'bar/1.2.3-goolf-1.4.10',
@@ -463,7 +464,7 @@ class RobotTest(EnhancedTestCase):
             'gompi/1.4.10',
             'goolf/1.4.10',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'SQLite/3.8.10.2-GCC-4.7.2',
         ]
@@ -553,7 +554,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(test_ecs_path, 'i', 'ictce', 'ictce-4.1.13.eb'), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         args = [
@@ -571,7 +572,7 @@ class RobotTest(EnhancedTestCase):
 
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
-            (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
+            (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
         ]
         for path_prefix, module in modules:
@@ -581,7 +582,7 @@ class RobotTest(EnhancedTestCase):
 
         # test using archived easyconfigs
         args = [
-            'ictce-3.2.2.u3.eb',
+            'intel-2012a.eb',
             '--dry-run',
             '--debug',
             '--robot',
@@ -591,8 +592,36 @@ class RobotTest(EnhancedTestCase):
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/ictce-3.2.2.u3.eb \(module: ictce/3.2.2.u3\)", re.M)
+        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+
+    def test_search_paths(self):
+        """Test search_paths command line argument."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        test_ec = 'toy-0.0-deps.eb'
+        shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
+        self.assertFalse(os.path.exists(test_ec))
+
+        args = [
+            '--search-paths=%s' % self.test_prefix,  # add to search path
+            '--tmpdir=%s' % self.test_prefix,
+            '--search',
+            'toy',
+        ]
+        self.mock_stdout(True)
+        _ = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        outtxt = self.get_stdout()
+        self.mock_stdout(False)
+
+        # Make sure we found the copied file
+        regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
+        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
 
     def test_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
@@ -607,7 +636,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(test_ecs_path, 'i', 'ictce', 'ictce-4.1.13.eb'), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         gompi_2015a_txt = '\n'.join([
@@ -624,7 +653,7 @@ class RobotTest(EnhancedTestCase):
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
             'FFTW-3.3.4-gompi-2015a.eb',
             'gompi-2015a-test.eb',  # relative path, available in robot search path
@@ -639,7 +668,7 @@ class RobotTest(EnhancedTestCase):
 
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
-            (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
+            (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
             ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
@@ -659,9 +688,20 @@ class RobotTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
 
+        goolfc_hierarchy = get_toolchain_hierarchy({'name': 'goolfc', 'version': '2.6.10'})
+        self.assertEqual(goolfc_hierarchy, [
+            {'name': 'GCC', 'version': '4.8.2'},
+            {'name': 'golf', 'version': '2.6.10'},
+            {'name': 'gcccuda', 'version': '2.6.10'},
+            {'name': 'golfc', 'version': '2.6.10'},
+            {'name': 'gompic', 'version': '2.6.10'},
+            {'name': 'goolfc', 'version': '2.6.10'},
+        ])
+
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
         self.assertEqual(goolf_hierarchy, [
             {'name': 'GCC', 'version': '4.7.2'},
+            {'name': 'golf', 'version': '1.4.10'},
             {'name': 'gompi', 'version': '1.4.10'},
             {'name': 'goolf', 'version': '1.4.10'},
         ])
@@ -671,6 +711,103 @@ class RobotTest(EnhancedTestCase):
             {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
             {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
         ])
+
+        # test also --try-toolchain* case, where we want more detailed information
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        get_toolchain_hierarchy.clear()
+
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, incl_capabilities=True)
+        expected = [
+            {
+                'name': 'GCC',
+                'version': '4.7.2',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'golf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+            {
+                'name': 'gompi',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'goolf',
+                'version': '1.4.10',
+                'comp_family': 'GCC',
+                'mpi_family': 'OpenMPI',
+                'lapack_family': 'OpenBLAS',
+                'blas_family': 'OpenBLAS',
+                'cuda': None
+            },
+        ]
+        self.assertEqual(goolf_hierarchy, expected)
+
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+            {
+                'name': 'iimpi',
+                'version': '5.5.3-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': 'IntelMPI',
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None
+            },
+        ]
+        self.assertEqual(iimpi_hierarchy, expected)
+
+        iccifortcuda_hierarchy = get_toolchain_hierarchy({'name': 'iccifortcuda', 'version': 'test'},
+                                                         incl_capabilities=True)
+        expected = [
+            {
+                'name': 'iccifort',
+                'version': '2013.5.192-GCC-4.8.3',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': None,
+            },
+            {
+                'name': 'iccifortcuda',
+                'version': 'test',
+                'comp_family': 'Intel',
+                'mpi_family': None,
+                'lapack_family': None,
+                'blas_family': None,
+                'cuda': True,
+            },
+        ]
+        self.assertEqual(iccifortcuda_hierarchy, expected)
 
         # test also including dummy
         init_config(build_options={
@@ -727,6 +864,20 @@ class RobotTest(EnhancedTestCase):
             {'name': 'GCC', 'version': '4.9.3-2.25'},
             {'name': 'gmvapich2', 'version': '15.11'},
         ])
+
+        # put faulty goolf easyconfig in place to test error reporting
+        broken_gompi = os.path.join(self.test_prefix, 'gompi-1.4.10.eb')
+        copy_file(os.path.join(test_easyconfigs, 'g', 'gompi', 'gompi-1.4.10.eb'), broken_gompi)
+        ectxt = read_file(broken_gompi)
+        ectxt += "\ndependencies += [('GCC', '4.6.4')]"
+        write_file(broken_gompi, ectxt)
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': [self.test_prefix, test_easyconfigs],
+        })
+        tc = {'name': 'gompi', 'version': '1.4.10'}
+        error_msg = "Multiple versions of GCC found in dependencies of toolchain gompi: 4.6.4, 4.7.2"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_toolchain_hierarchy, tc)
 
     def test_find_resolved_modules(self):
         """Test find_resolved_modules function."""
@@ -808,6 +959,44 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual([dep['name'] for dep in new_easyconfigs[0]['dependencies']], ['foo', 'bar'])
 
         self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
+
+    def test_tweak_robotpath(self):
+        """Test that the robot correctly resolves the dependencies of tweaked easyconfigs. Tweaked
+        easyconfigs take priority, but tweaked dependencies are only used on an as-needed basis"""
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # Create directories to store the tweaked easyconfigs
+        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
+
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': robot_path,
+            'check_osdeps': False,
+        })
+
+        # Parse the easyconfig that we want to tweak
+        untweaked_openmpi = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb')
+        easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi, False)])
+
+        # Tweak the version of the easyconfig
+        easyconfigs = tweak(easyconfigs, {'toolchain_version': '4.7.2'}, self.modtool, targetdirs=tweaked_ecs_paths)
+
+        # Check that all expected tweaked easyconfigs exists
+        tweaked_openmpi = os.path.join(tweaked_ecs_paths[0], 'OpenMPI-1.6.4-GCC-4.7.2.eb')
+        tweaked_hwloc = os.path.join(tweaked_ecs_paths[1], 'hwloc-1.6.2-GCC-4.7.2.eb')
+        self.assertTrue(os.path.isfile(tweaked_openmpi))
+        self.assertTrue(os.path.isfile(tweaked_hwloc))
+
+        # Check that the robotpath is correctly configured to pick up the right versions of the easyconfigs
+        res = resolve_dependencies(easyconfigs, self.modtool, retain_all_deps=True)
+        specs = [ec['spec'] for ec in res]
+        # Check it picks up the tweaked OpenMPI
+        self.assertTrue(tweaked_openmpi in specs)
+        # Check it picks up the untweaked dependency of the tweaked OpenMPI
+        untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb')
+        self.assertTrue(untweaked_hwloc in specs)
 
     def test_robot_find_minimal_toolchain_of_dependency(self):
         """Test robot_find_minimal_toolchain_of_dependency."""
@@ -911,7 +1100,7 @@ class RobotTest(EnhancedTestCase):
 
         expected_dep_versions = [
             '1.6.4-GCC-4.7.2',
-            '0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            '0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             '2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             '3.8.10.2-goolf-1.4.10',
         ]
@@ -1034,15 +1223,40 @@ class RobotTest(EnhancedTestCase):
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
 
+    def test_check_conflicts_wrapper_deps(self):
+        """Test check_conflicts when dependency 'wrappers' are involved."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        wrapper_ec_txt = '\n'.join([
+            "easyblock = 'ModuleRC'",
+            "name = 'toy'",
+            "version = '0'",
+            "homepage = 'https://example.com'",
+            "description = 'Just A Wrapper'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+            "dependencies = [('toy', '0.0')]",
+        ])
+        wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
+        write_file(wrapper_ec, wrapper_ec_txt)
+
+        ecs, _ = parse_easyconfigs([(toy_ec, False), (wrapper_ec, False)])
+        self.mock_stderr(True)
+        res = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        self.assertFalse(res)
+
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
-        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-ictce-4.1.13.eb')
+        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-intel-2018a.eb')
         gzip_ectxt = read_file(gzip_ec)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        tc_spec = "toolchain = {'name': 'ictce', 'version': '3.2.2.u3'}"
+        tc_spec = "toolchain = {'name': 'intel', 'version': '2012a'}"
         regex = re.compile("^toolchain = .*", re.M)
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
@@ -1056,8 +1270,8 @@ class RobotTest(EnhancedTestCase):
             'robot_path': [test_ecs],
         })
         res = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-        self.assertEqual([ec['full_mod_name'] for ec in res], ['ictce/3.2.2.u3', 'gzip/1.5-ictce-3.2.2.u3'])
-        expected = os.path.join(test_ecs, '__archive__', 'i', 'ictce', 'ictce-3.2.2.u3.eb')
+        self.assertEqual([ec['full_mod_name'] for ec in res], ['intel/2012a', 'gzip/1.5-intel-2012a'])
+        expected = os.path.join(test_ecs, '__archive__', 'i', 'intel', 'intel-2012a.eb')
         self.assertTrue(os.path.samefile(res[0]['spec'], expected))
 
 

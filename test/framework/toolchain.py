@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,10 +32,10 @@ import os
 import re
 import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from itertools import product
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, write_file, which
+from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -192,7 +192,7 @@ class ToolchainTest(EnhancedTestCase):
         for k, v in tc.variables.items():
             for x in v:
                 idx = id(x)
-                if not idx in ids:
+                if idx not in ids:
                     ids.append(idx)
                 else:
                     pass_by_value = False
@@ -237,7 +237,7 @@ class ToolchainTest(EnhancedTestCase):
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.set_options({'lowopt': True, 'opt':True})
+        tc.set_options({'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -246,7 +246,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.set_options({'noopt': True, 'lowopt':True})
+        tc.set_options({'noopt': True, 'lowopt': True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -255,7 +255,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
+        tc.set_options({'noopt': True, 'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -276,7 +276,7 @@ class ToolchainTest(EnhancedTestCase):
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
                 flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP[opt]
                 for var in flag_vars:
-                    flags = tc.get_variable(var)
+                    flags = tc.get_variable(var).split()
                     if enable:
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
@@ -289,21 +289,25 @@ class ToolchainTest(EnhancedTestCase):
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (unique options)
-        for opt in ['unroll', 'optarch', 'openmp']:
+        for opt in ['unroll', 'optarch', 'openmp', 'vectorize']:
             for enable in [True, False]:
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 if opt == 'optarch':
-                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+                    option = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
                 else:
-                    flag = '-%s' % tc.options.options_map[opt]
+                    option = tc.options.options_map[opt]
+                if not isinstance(option, dict):
+                    option = {True: option}
                 for var in flag_vars:
                     flags = tc.get_variable(var)
-                    if enable:
-                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
-                    else:
-                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                    for key, value in option.items():
+                        flag = "-%s" % value
+                        if enable == key:
+                            self.assertTrue(flag in flags, "%s: %s means %s in %s" % (opt, enable, flag, flags))
+                        else:
+                            self.assertTrue(flag not in flags, "%s: %s means no %s in %s" % (opt, enable, flag, flags))
                 self.modtool.purge()
 
     def test_override_optarch(self):
@@ -340,7 +344,7 @@ class ToolchainTest(EnhancedTestCase):
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
                 'gompi': ('1.3.12', "-march=x86-64 -mtune=generic"),
-                'iccifort': ('2011.13.367', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
+                'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
             }
             for tcopt_optarch in [False, True]:
                 for tcname in tcs:
@@ -382,6 +386,103 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
         self.modtool.purge()
 
+    def test_compiler_dependent_optarch(self):
+        """Test whether specifying optarch on a per compiler basis works."""
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
+        intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
+        gcc_options = [('gccflag', 'gccflag'), ('march=nocona', 'march=nocona'), ('', '')]
+        gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
+        toolchains = [
+            ('iccifort', '2018.1.163'),
+            ('GCC', '4.7.2'),
+            ('GCCcore', '6.2.0'),
+            ('PGI', '16.7-GCC-5.4.0-2.26'),
+        ]
+        enabled = [True, False]
+
+        test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
+
+        for intel_flags, gcc_flags, gcccore_flags, (toolchain, toolchain_ver), enable in test_cases:
+
+            intel_flags, intel_flags_exp = intel_flags
+            gcc_flags, gcc_flags_exp = gcc_flags
+            gcccore_flags, gcccore_flags_exp = gcccore_flags
+
+            optarch_var = {}
+            optarch_var['Intel'] = intel_flags
+            optarch_var['GCC'] = gcc_flags
+            optarch_var['GCCcore'] = gcccore_flags
+            build_options = {'optarch': optarch_var}
+            init_config(build_options=build_options)
+            tc = self.get_toolchain(toolchain, version=toolchain_ver)
+            tc.set_options({'optarch': enable})
+            tc.prepare()
+            flags = None
+            if toolchain == 'iccifort':
+                flags = intel_flags_exp
+            elif toolchain == 'GCC':
+                flags = gcc_flags_exp
+            elif toolchain == 'GCCcore':
+                flags = gcccore_flags_exp
+            else:  # PGI as an example of compiler not set
+                # default optarch flag, should be the same as the one in
+                # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
+                flags = ''
+
+            optarch_flags = tc.options.options_map['optarch']
+
+            self.assertEquals(flags, optarch_flags)
+
+            # Also check that it is correctly passed to xFLAGS, honoring 'enable'
+            if flags == '':
+                blacklist = [
+                    intel_options[0][1],
+                    intel_options[1][1],
+                    gcc_options[0][1],
+                    gcc_options[1][1],
+                    gcccore_options[0][1],
+                    gcccore_options[1][1],
+                    'xHost',  # default optimal for Intel
+                    'march=native',  # default optimal for GCC
+                ]
+            else:
+                blacklist = [flags]
+
+            for var in flag_vars:
+                set_flags = tc.get_variable(var)
+
+                # Check that the correct flags are there
+                if enable and flags != '':
+                    error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
+                    self.assertTrue(flags in set_flags, "optarch: True means '%s' in '%s'")
+
+                # Check that there aren't any unexpected flags
+                else:
+                    for blacklisted_flag in blacklist:
+                        error_msg = "optarch: False means no '%s' in '%s'" % (blacklisted_flag, set_flags)
+                        self.assertFalse(blacklisted_flag in set_flags, error_msg)
+
+            self.modtool.purge()
+
+    def test_easyconfig_optarch_flags(self):
+        """Test whether specifying optarch flags in the easyconfigs works."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        toy_txt = read_file(eb_file)
+
+        # check that an optarch map raises an error
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:march=sandrybridge;Intel:xAVX'}")
+        msg = "syntax is not allowed"
+        self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
+
+        # check that setting optarch flags work
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'march=sandybridge'}")
+        out = self.eb_main([test_ec], raise_error=True, do_build=True)
+        regex = re.compile("_set_optimal_architecture: using march=sandybridge as optarch for x86_64")
+        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
@@ -407,20 +508,20 @@ class ToolchainTest(EnhancedTestCase):
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
-        # check default precision: no specific flag for GCC
+        # check default precision: -fno-math-errno flag for GCC
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -march=native")
+            self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
 
         # check other precision flags
         prec_flags = {
-            'ieee': "-mieee-fp -fno-trapping-math",
+            'ieee': "-fno-math-errno -mieee-fp -fno-trapping-math",
             'strict': "-mieee-fp -mno-recip",
             'precise': "-mno-recip",
-            'loose': "-mrecip -mno-ieee-fp",
-            'veryloose': "-mrecip=all -mno-ieee-fp",
+            'loose': "-fno-math-errno -mrecip -mno-ieee-fp",
+            'veryloose': "-fno-math-errno -mrecip=all -mno-ieee-fp",
         }
         for prec in prec_flags:
             for enable in [True, False]:
@@ -429,9 +530,9 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
+                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native %s" % prec_flags[prec])
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native")
+                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -468,7 +569,7 @@ class ToolchainTest(EnhancedTestCase):
         # check another one
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
 
@@ -498,7 +599,7 @@ class ToolchainTest(EnhancedTestCase):
         # check another one
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
         self.assertEqual(tc.blas_family(), 'IntelMKL')
         self.assertEqual(tc.lapack_family(), 'IntelMKL')
@@ -510,8 +611,10 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
+        archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -fopenmp" % archflags
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
+            r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -531,7 +634,7 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def setup_sandbox_for_intel_fftw(self, moddir, imklver='10.3.12.361'):
+    def setup_sandbox_for_intel_fftw(self, moddir, imklver='2018.1.163'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # create dummy imkl module and put required lib*.a files in place
@@ -558,12 +661,12 @@ class ToolchainTest(EnhancedTestCase):
             for fftlib in fftw_libs:
                 write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
 
-    def test_ictce_toolchain(self):
-        """Test for ictce toolchain."""
+    def test_intel_toolchain(self):
+        """Test for intel toolchain."""
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
 
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'icc')
@@ -573,7 +676,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('FC'), 'ifort')
         self.modtool.purge()
 
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         opts = {'usempi': True}
         tc.set_options(opts)
         tc.prepare()
@@ -590,7 +693,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPIFC'), 'mpiifort')
         self.modtool.purge()
 
-        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc = self.get_toolchain("intel", version="2018a")
         opts = {'usempi': True, 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -619,7 +722,7 @@ class ToolchainTest(EnhancedTestCase):
         modules.modules_tool().purge()
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
         self.modtool.prepend_module_path(self.test_prefix)
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         opts = {'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -656,15 +759,27 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
-        self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
 
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2018a')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
 
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
 
+        # test specifying custom template for MPI commands
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
 
@@ -678,6 +793,7 @@ class ToolchainTest(EnhancedTestCase):
                 'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
+                'build_only': False,
             },
         ]
         tc.add_dependencies(deps)
@@ -695,6 +811,7 @@ class ToolchainTest(EnhancedTestCase):
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
                 'external_module_metadata': {},
+                'build_only': False,
             },
             # no metadata available
             {
@@ -704,6 +821,7 @@ class ToolchainTest(EnhancedTestCase):
                 'short_mod_name': 'toy/0.0',
                 'external_module': True,
                 'external_module_metadata': {},
+                'build_only': False,
             }
         ]
         tc = self.get_toolchain('GCC', version='4.6.4')
@@ -724,7 +842,8 @@ class ToolchainTest(EnhancedTestCase):
                 'name': ['toy', 'foobar'],
                 'version': ['1.2.3', '4.5'],
                 'prefix': 'FOOBAR_PREFIX',
-            }
+            },
+            'build_only': False,
         }
         tc = self.get_toolchain('GCC', version='4.6.4')
         tc.add_dependencies(deps)
@@ -742,24 +861,25 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_old_new_iccifort(self):
         """Test whether preparing for old/new Intel compilers works correctly."""
-        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.3.12.361')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2018.1.163')
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
         self.modtool.prepend_module_path(self.test_prefix)
 
         # incl. -lguide
-        libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
-        libblas_mt_ictce3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
+        libblas_mt_intel3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_intel3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
-        libblas_mt_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
-        libblas_mt_ictce4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+        libblas_mt_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_intel4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
 
         # incl. -lmkl_solver*
-        libscalack_ictce3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
-        libscalack_ictce3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalack_intel3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
+        libscalack_intel3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
 
         # no -lmkl_solver*
-        libscalack_ictce4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
+        libscalack_intel4 += "-lmkl_core"
 
         libblas_mt_goolfc = "-lopenblas -lgfortran"
         libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
@@ -771,36 +891,36 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
+        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
-        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
+        self.assertTrue(libscalack_intel3 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
+        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
-        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
+        self.assertTrue(libscalack_intel3 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
-        tc = self.get_toolchain('ictce', version='4.1.13')
+        libscalack_intel4 = libscalack_intel4.replace('_lp64', '_ilp64')
+        tc = self.get_toolchain('intel', version='2018a')
         opts = {'i8': True}
         tc.set_options(opts)
         tc.prepare()
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
@@ -818,9 +938,9 @@ class ToolchainTest(EnhancedTestCase):
 
         tc_cflags = {
             'CrayCCE': "-O2 -homp -craype-verbose",
-            'CrayGNU': "-O2 -fopenmp -craype-verbose",
+            'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-            'GCC': "-O2 -test -fopenmp",
+            'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
         }
 
@@ -829,7 +949,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayGNU', '2015.06-XC'),
             ('CrayIntel', '2015.06-XC'),
             ('GCC', '4.7.2'),
-            ('iccifort', '2011.13.367'),
+            ('iccifort', '2018.1.163'),
         ]
 
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
@@ -859,7 +979,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CC'), 'pgcc')
         self.assertEqual(tc.get_variable('CXX'), 'pgCC')
         self.assertEqual(tc.get_variable('F77'), 'pgf77')
-        self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+        self.assertEqual(tc.get_variable('F90'), 'pgf90')
         self.assertEqual(tc.get_variable('FC'), 'pgfortran')
         self.modtool.purge()
 
@@ -870,7 +990,7 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(tc.get_variable('CC'), 'pgcc')
             self.assertEqual(tc.get_variable('CXX'), 'pgc++')
             self.assertEqual(tc.get_variable('F77'), 'pgf77')
-            self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+            self.assertEqual(tc.get_variable('F90'), 'pgf90')
             self.assertEqual(tc.get_variable('FC'), 'pgfortran')
 
     def test_pgi_imkl(self):
@@ -906,6 +1026,22 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_compiler_cache(self):
         """Test ccache"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            eb_file,
+            "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
+            "--force",
+            "--debug",
+            "--disable-cleanup-tmpdir",
+        ]
+
+        ccache = which('ccache')
+        if ccache is None:
+            msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
+            self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
+
         # generate shell script to mock ccache/f90cache
         for cache_tool in ['ccache', 'f90cache']:
             path = os.path.join(self.test_prefix, 'scripts')
@@ -929,19 +1065,8 @@ class ToolchainTest(EnhancedTestCase):
 
         prepped_path_envvar = os.environ['PATH']
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         ccache_dir = os.path.join(self.test_prefix, 'ccache')
         mkdir(ccache_dir, parents=True)
-
-        args = [
-            eb_file,
-            "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
-            "--force",
-            "--debug",
-            "--disable-cleanup-tmpdir",
-        ]
 
         out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
 
@@ -953,6 +1078,7 @@ class ToolchainTest(EnhancedTestCase):
             regex = re.compile(pattern)
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
+        # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
         for comp in ['gcc', 'g++', 'gfortran']:
             self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
@@ -980,10 +1106,21 @@ class ToolchainTest(EnhancedTestCase):
         """Test rpath_args.py script"""
         script = find_eb_script('rpath_args.py')
 
+        rpath_inc = ','.join([
+            os.path.join(self.test_prefix, 'lib'),
+            os.path.join(self.test_prefix, 'lib64'),
+            '$ORIGIN',
+            '$ORIGIN/../lib',
+            '$ORIGIN/../lib64',
+        ])
+
         # simplest possible compiler command
-        out, ec = run_cmd("%s gcc '' -c foo.c" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' '%s' -c foo.c" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -992,26 +1129,28 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
-        # linker command, --enable-new-dtags should be filtered out
-        out, ec = run_cmd("%s ld '' --enable-new-dtags foo.o" % script, simple=False)
+        # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
+        out, ec = run_cmd("%s ld '' '%s' --enable-new-dtags foo.o" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
-        expected = '\n'.join([
-            "CMD_ARGS=('foo.o')",
-            "RPATH_ARGS='--disable-new-dtags -rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
-            ''
-        ])
         cmd_args = [
+            "'-rpath=%s/lib'" % self.test_prefix,
+            "'-rpath=%s/lib64'" % self.test_prefix,
+            "'-rpath=$ORIGIN'",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
             "'--disable-new-dtags'",
             "'foo.o'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test passing no arguments
-        out, ec = run_cmd("%s gcc ''" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' '%s'" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -1019,9 +1158,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test passing a single empty argument
-        out, ec = run_cmd("%s ld.gold '' ''" % script, simple=False)
+        out, ec = run_cmd("%s ld.gold '' '%s' ''" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-rpath=%s/lib'" % self.test_prefix,
+            "'-rpath=%s/lib64'" % self.test_prefix,
+            "'-rpath=$ORIGIN'",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
@@ -1030,9 +1172,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument
-        out, ec = run_cmd("%s gcc '' foo.c -L/foo -lfoo" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' '%s' foo.c -L/foo -lfoo" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -1044,9 +1189,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # relative paths passed to -L are *not* RPATH'ed in
-        out, ec = run_cmd("%s gcc '' foo.c -L../lib -lfoo" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' '%s' foo.c -L../lib -lfoo" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -1057,9 +1205,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument, with value separated by a space
-        out, ec = run_cmd("%s gcc '' foo.c -L   /foo -lfoo" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' '%s' foo.c -L   /foo -lfoo" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -1071,9 +1222,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # multiple -L arguments, order should be preserved
-        out, ec = run_cmd("%s ld '' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % script, simple=False)
+        cmd = "%s ld '' '%s' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % (script, rpath_inc)
+        out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-rpath=%s/lib'" % self.test_prefix,
+            "'-rpath=%s/lib64'" % self.test_prefix,
+            "'-rpath=$ORIGIN'",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
@@ -1092,9 +1247,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test specifying of custom rpath filter
-        out, ec = run_cmd("%s ld '/fo.*,/bar.*' -L/foo foo.o -L/lib64 -lfoo -L/bar -lbar" % script, simple=False)
+        cmd = "%s ld '/fo.*,/bar.*' '%s' -L/foo foo.o -L/lib64 -lfoo -L/bar -lbar" % (script, rpath_inc)
+        out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-rpath=%s/lib'" % self.test_prefix,
+            "'-rpath=%s/lib64'" % self.test_prefix,
+            "'-rpath=$ORIGIN'",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
@@ -1125,9 +1284,12 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,-rpath',
             '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
         ])
-        out, ec = run_cmd("%s icc '' %s" % (script, args), simple=False)
+        out, ec = run_cmd("%s icc '' '%s' %s" % (script, rpath_inc, args), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -1165,11 +1327,14 @@ class ToolchainTest(EnhancedTestCase):
             '-o build/version.o',
             '../../gcc/version.c',
         ]
-        cmd = "%s g++ '' %s" % (script, ' '.join(args))
+        cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, ' '.join(args))
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
 
         cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
@@ -1187,7 +1352,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
-        cmd = "%s g++ '' -v" % script
+        cmd = "%s g++ '' '%s' -v" % (script, rpath_inc)
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         self.assertEqual(out.strip(), "CMD_ARGS=('-v')")
@@ -1239,8 +1404,6 @@ class ToolchainTest(EnhancedTestCase):
         # no -rpath for /bar because of rpath filter
         out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
         expected = ' '.join([
-            '-Wl,-rpath=$ORIGIN/../lib',
-            '-Wl,-rpath=$ORIGIN/../lib64',
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=/foo',
             '%(user)s.c',
@@ -1261,10 +1424,91 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res[1], fake_gcc))
         self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
 
+    def test_prepare_openmpi_tmpdir(self):
+        """Test handling of long $TMPDIR path for OpenMPI 2.x"""
+
+        def prep():
+            """Helper function: create & prepare toolchain"""
+            self.modtool.unload(['gompi', 'OpenMPI', 'hwloc', 'GCC'])
+            tc = self.get_toolchain('gompi', version='1.3.12')
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            tc.prepare()
+            stderr = self.get_stderr().strip()
+            stdout = self.get_stdout().strip()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            return tc, stdout, stderr
+
+        orig_tmpdir = os.environ.get('TMPDIR')
+        if len(orig_tmpdir) > 40:
+            # we need to make sure we have a short $TMPDIR for this test...
+            orig_tmpdir = tempfile.mkdtemp(prefix='/tmp/')
+            mkdir(orig_tmpdir)
+            os.environ['TMPDIR'] = orig_tmpdir
+
+        long_tmpdir = os.path.join(self.test_prefix, 'verylongdirectorythatmaycauseproblemswithopenmpi2')
+
+        # $TMPDIR is left untouched with OpenMPI 1.6.4
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        # ... even with long $TMPDIR
+        os.environ['TMPDIR'] = long_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        tmp_modules = os.path.join(self.test_prefix, 'modules')
+        mkdir(tmp_modules)
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
+        ompi_mod_txt = read_file(openmpi_module)
+        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
+
+        self.modtool.use(tmp_modules)
+
+        # $TMPDIR is left untouched with OpenMPI 2.x if $TMPDIR is sufficiently short
+        os.environ['TMPDIR'] = orig_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        # warning is printed and $TMPDIR is set to shorter path if existing $TMPDIR is too long
+        os.environ['TMPDIR'] = long_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        regex = re.compile("^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{6}$")
+        self.assertTrue(regex.match(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # new $TMPDIR should be /tmp/xxxxxx
+        tmpdir = os.environ.get('TMPDIR')
+        self.assertTrue(tmpdir.startswith('/tmp'))
+        self.assertEqual(len(tmpdir), 11)
+
+        # also test cleanup method to ensure short $TMPDIR is cleaned up properly
+        self.assertTrue(os.path.exists(tmpdir))
+        tc.cleanup()
+        self.assertFalse(os.path.exists(tmpdir))
+
+        # we may have created our own short tmpdir above, so make sure to clean things up...
+        shutil.rmtree(orig_tmpdir)
+
 
 def suite():
     """ return all the tests"""
     return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

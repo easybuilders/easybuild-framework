@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ from distutils.version import LooseVersion
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root, get_software_version
-from easybuild.tools.toolchain.compiler import Compiler
+from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
 
 TC_CONSTANT_GCC = "GCC"
@@ -61,10 +61,12 @@ class Gcc(Compiler):
         'lto': 'flto',
         'ieee': ['mieee-fp', 'fno-trapping-math'],
         'strict': ['mieee-fp', 'mno-recip'],
-        'precise':['mno-recip'],
-        'defaultprec':[],
-        'loose': ['mrecip', 'mno-ieee-fp'],
-        'veryloose': ['mrecip=all', 'mno-ieee-fp'],
+        'precise': ['mno-recip'],
+        'defaultprec': ['fno-math-errno'],
+        'loose': ['fno-math-errno', 'mrecip', 'mno-ieee-fp'],
+        'veryloose': ['fno-math-errno', 'mrecip=all', 'mno-ieee-fp'],
+        'vectorize': {False: 'fno-tree-vectorize', True: 'ftree-vectorize'},
+        DEFAULT_OPT_LEVEL: ['O2', 'ftree-vectorize'],
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)

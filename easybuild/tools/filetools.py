@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,11 @@ Set of file tools.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Sotiris Fragkiskos (NTUA, CERN)
 :author: Davide Vanzo (ACCRE, Vanderbilt University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
+import datetime
+import difflib
 import fileinput
 import glob
 import hashlib
@@ -57,6 +61,11 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 
+try:
+    import requests
+    HAVE_REQUESTS = True
+except ImportError:
+    HAVE_REQUESTS = False
 
 _log = fancylogger.getLogger('filetools', fname=False)
 
@@ -101,16 +110,46 @@ STRING_ENCODING_CHARMAP = {
 }
 
 
-# default checksum for source and patch files
-DEFAULT_CHECKSUM = 'md5'
+CHECKSUM_TYPE_MD5 = 'md5'
+CHECKSUM_TYPE_SHA256 = 'sha256'
+DEFAULT_CHECKSUM = CHECKSUM_TYPE_MD5
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
-    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
+    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
+    CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
+    'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
     'size': lambda p: os.path.getsize(p),
+}
+CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
+
+EXTRACT_CMDS = {
+    # gzipped or gzipped tarball
+    '.gtgz':    "tar xzf %(filepath)s",
+    '.gz':      "gunzip -c %(filepath)s > %(target)s",
+    '.tar.gz':  "tar xzf %(filepath)s",
+    '.tgz':     "tar xzf %(filepath)s",
+    # bzipped or bzipped tarball
+    '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
+    '.tar.bz2': "tar xjf %(filepath)s",
+    '.tb2':     "tar xjf %(filepath)s",
+    '.tbz':     "tar xjf %(filepath)s",
+    '.tbz2':    "tar xjf %(filepath)s",
+    # xzipped or xzipped tarball
+    '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
+    '.txz':     "unxz %(filepath)s --stdout | tar x",
+    '.xz':      "unxz %(filepath)s",
+    # tarball
+    '.tar':     "tar xf %(filepath)s",
+    # zip file
+    '.zip':     "unzip -qq %(filepath)s",
+    # iso file
+    '.iso':     "7z x %(filepath)s",
+    # tar.Z: using compress (LZW)
+    '.tar.z':   "tar xZf %(filepath)s",
 }
 
 
@@ -121,7 +160,7 @@ class ZlibChecksum(object):
     """
     def __init__(self, algorithm):
         self.algorithm = algorithm
-        self.checksum = algorithm(r'')  # use the same starting point as the module
+        self.checksum = algorithm(b'')  # use the same starting point as the module
         self.blocksize = 64  # The same as md5/sha1
 
     def update(self, data):
@@ -154,13 +193,36 @@ def read_file(path, log_error=True):
     return txt
 
 
-def write_file(path, txt, append=False, forced=False):
-    """Write given contents to file at given path (overwrites current file contents!)."""
+def write_file(path, txt, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
+    """
+    Write given contents to file at given path;
+    overwrites current file contents without backup by default!
 
+    :param path: location of file
+    :param txt: contents to write to file
+    :param append: append to existing file rather than overwrite
+    :param forced: force actually writing file in (extended) dry run mode
+    :param backup: back up existing file before overwriting or modifying it
+    :param always_overwrite: don't require --force to overwrite an existing file
+    :param verbose: be verbose, i.e. inform where backup file was created
+    """
     # early exit in 'dry run' mode
     if not forced and build_option('extended_dry_run'):
         dry_run_msg("file written: %s" % path, silent=build_option('silent'))
         return
+
+    if os.path.exists(path):
+        if not append:
+            if always_overwrite or build_option('force'):
+                _log.info("Overwriting existing file %s", path)
+            else:
+                raise EasyBuildError("File exists, not overwriting it without --force: %s", path)
+
+        if backup:
+            backed_up_fp = back_up_file(path)
+            _log.info("Existing file %s backed up to %s", path, backed_up_fp)
+            if verbose:
+                print_msg("Backup of %s created at %s" % (path, backed_up_fp))
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
@@ -169,6 +231,38 @@ def write_file(path, txt, append=False, forced=False):
             handle.write(txt)
     except IOError, err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
+
+
+def resolve_path(path):
+    """
+    Return fully resolved path for given path.
+
+    :param path: path that (maybe) contains symlinks
+    """
+    try:
+        resolved_path = os.path.realpath(path)
+    except (AttributeError, OSError) as err:
+        raise EasyBuildError("Resolving path %s failed: %s", path, err)
+
+    return resolved_path
+
+
+def symlink(source_path, symlink_path, use_abspath_source=True):
+    """
+    Create a symlink at the specified path to the given path.
+
+    :param source_path: source file path
+    :param symlink_path: symlink file path
+    :param use_abspath_source: resolves the absolute path of source_path
+    """
+    if use_abspath_source:
+        source_path = os.path.abspath(source_path)
+
+    try:
+        os.symlink(source_path, symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
+    except OSError as err:
+        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def remove_file(path):
@@ -180,10 +274,67 @@ def remove_file(path):
         return
 
     try:
-        if os.path.exists(path):
+        # note: file may also be a broken symlink...
+        if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
-        raise EasyBuildError("Failed to remove %s: %s", path, err)
+        raise EasyBuildError("Failed to remove file %s: %s", path, err)
+
+
+def remove_dir(path):
+    """Remove directory at specified path."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        return
+
+    try:
+        if os.path.exists(path):
+            rmtree2(path)
+    except OSError, err:
+        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+
+
+def remove(paths):
+    """
+    Remove single file/directory or list of files and directories
+
+    :param paths: path(s) to remove
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Removing %d files & directories", len(paths))
+
+    for path in paths:
+        if os.path.isfile(path):
+            remove_file(path)
+        elif os.path.isdir(path):
+            remove_dir(path)
+        else:
+            raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
+
+
+def change_dir(path):
+    """
+    Change to directory at specified location.
+
+    :param path: location to change to
+    :return: previous location we were in
+    """
+    # determining the current working directory can fail if we're in a non-existing directory
+    try:
+        cwd = os.getcwd()
+    except OSError as err:
+        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
+        cwd = None
+
+    try:
+        os.chdir(path)
+    except OSError as err:
+        raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+
+    return cwd
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
@@ -206,11 +357,8 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     abs_dest = os.path.abspath(dest)
 
     # change working directory
-    try:
-        _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
-        os.chdir(abs_dest)
-    except OSError, err:
-        raise EasyBuildError("Can't change to directory %s: %s", abs_dest, err)
+    _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
+    change_dir(abs_dest)
 
     if not cmd:
         cmd = extract_cmd(fn, overwrite=overwrite)
@@ -286,40 +434,57 @@ def is_alt_pypi_url(url):
     return res
 
 
+def pypi_source_urls(pkg_name):
+    """
+    Fetch list of source URLs (incl. source filename) for specified Python package from PyPI, using 'simple' PyPI API.
+    """
+    # example: https://pypi.python.org/simple/easybuild
+    # see also:
+    # - https://www.python.org/dev/peps/pep-0503/
+    # - https://wiki.python.org/moin/PyPISimple
+    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+
+    tmpdir = tempfile.mkdtemp()
+    urls_html = os.path.join(tmpdir, '%s_urls.html' % pkg_name)
+    if download_file(os.path.basename(urls_html), simple_url, urls_html) is None:
+        print("Failed to download %s to determine available PyPI URLs for %s" % (simple_url, pkg_name))
+        _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
+        res = []
+    else:
+        parsed_html = ElementTree.parse(urls_html)
+        if hasattr(parsed_html, 'iter'):
+            res = [a.attrib['href'] for a in parsed_html.iter('a')]
+        else:
+            res = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+
+    # links are relative, transform them into full URLs; for example:
+    # from: ../../packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
+    # to: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
+    res = [re.sub('.*/packages/', 'https://pypi.python.org/packages/', x) for x in res]
+
+    return res
+
+
 def derive_alt_pypi_url(url):
-    """Derive alternate PyPI URL for given URL, using 'simple' PyPI API."""
-    # see also https://www.python.org/dev/peps/pep-0503/
+    """Derive alternate PyPI URL for given URL."""
     alt_pypi_url = None
 
     # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
     pkg_name, pkg_source = url.strip().split('/')[-2:]
 
-    # e.g. https://pypi.python.org/simple/easybuild
-    # cfr. https://wiki.python.org/moin/PyPISimple
-    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+    cand_urls = pypi_source_urls(pkg_name)
 
-    tmpdir = tempfile.mkdtemp()
-    links_html = os.path.join(tmpdir, '%s_links.html' % pkg_name)
-    res = download_file(os.path.basename(links_html), simple_url, links_html)
-    if res is None:
-        _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
-    else:
-        parsed_html = ElementTree.parse(links_html)
-        if hasattr(parsed_html, 'iter'):
-            links = [a.attrib['href'] for a in parsed_html.iter('a')]
-        else:
-            links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+    # md5 for old PyPI, sha256 for new PyPi (Warehouse)
+    regex = re.compile('.*/%s(?:#md5=[a-f0-9]{32}|#sha256=[a-f0-9]{64})$' % pkg_source.replace('.', '\\.'), re.M)
+    for cand_url in cand_urls:
+        res = regex.match(cand_url)
+        if res:
+            # e.g.: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
+            alt_pypi_url = res.group(0).split('#sha256')[0].split('#md5')[0]
+            break
 
-        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
-        for link in links:
-            res = regex.match(link)
-            if res:
-                # e.g. .../5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
-                alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
-                break
-
-        if not alt_pypi_url:
-            _log.debug("Failed to extract hash using pattern '%s' from list of links: %s", regex.pattern, links)
+    if not alt_pypi_url:
+        _log.debug("Failed to extract hash using pattern '%s' from list of URLs: %s", regex.pattern, cand_urls)
 
     return alt_pypi_url
 
@@ -346,26 +511,47 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild'})
-    
+    headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
+    # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
+    url_req = urllib2.Request(url, headers=headers)
+    used_urllib = urllib2
+
     while not downloaded and attempt_cnt < max_attempts:
         try:
-            # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url_req, timeout=timeout)
-            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
-            write_file(path, url_fd.read(), forced=forced)
+            if used_urllib is urllib2:
+                # urllib2 does the right thing for http proxy setups, urllib does not!
+                url_fd = urllib2.urlopen(url_req, timeout=timeout)
+                status_code = url_fd.getcode()
+            else:
+                response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                status_code = response.status_code
+                response.raise_for_status()
+                url_fd = response.raw
+                url_fd.decode_content = True
+            _log.debug('response code for given url %s: %s' % (url, status_code))
+            write_file(path, url_fd.read(), forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
-        except urllib2.HTTPError as err:
-            if 400 <= err.code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+        except used_urllib.HTTPError as err:
+            if used_urllib is urllib2:
+                status_code = err.code
+            if 400 <= status_code <= 499:
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
             else:
-                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
+                _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
                 attempt_cnt += 1
         except IOError as err:
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
+            error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
+                                  "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
+            if error_re.match(str(err)):
+                if not HAVE_REQUESTS:
+                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
+                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
+                _log.info("Downloading using requests package instead of urllib2")
+                used_urllib = requests
             attempt_cnt += 1
         except Exception, err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
@@ -488,7 +674,19 @@ def find_eb_script(script_name):
 
     script_loc = os.path.join(eb_dir, 'scripts', script_name)
     if not os.path.exists(script_loc):
-        raise EasyBuildError("Script '%s' not found at expected location: %s", script_name, script_loc)
+        prev_script_loc = script_loc
+
+        # fallback mechanism: check in location relative to location of 'eb'
+        eb_path = resolve_path(which('eb'))
+        if eb_path is None:
+            _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+        else:
+            install_prefix = os.path.dirname(os.path.dirname(eb_path))
+            script_loc = os.path.join(install_prefix, 'easybuild', 'scripts', script_name)
+
+        if not os.path.exists(script_loc):
+            raise EasyBuildError("Script '%s' not found at expected location: %s or %s",
+                                 script_name, prev_script_loc, script_loc)
 
     return script_loc
 
@@ -498,7 +696,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     Compute checksum of specified file.
 
     :param path: Path of file to compute checksum for
-    :param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
+    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
@@ -509,7 +707,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     except IOError, err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
     except MemoryError, err:
-        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        _log.warning("A memory error occurred when computing the checksum for %s: %s" % (path, err))
         checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum
@@ -528,7 +726,7 @@ def calc_block_checksum(path, algorithm):
 
     try:
         f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), r''):
+        for block in iter(lambda: f.read(blocksize), b''):
             algorithm.update(block)
         f.close()
     except IOError, err:
@@ -544,9 +742,12 @@ def verify_checksum(path, checksums):
     :param file: path of file to verify checksum of
     :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
-    # if no checksum is provided, pretend checksum to be valid
+    # if no checksum is provided, pretend checksum to be valid, unless presence of checksums to verify is enforced
     if checksums is None:
-        return True
+        if build_option('enforce_checksums'):
+            raise EasyBuildError("Missing checksum for %s", os.path.basename(path))
+        else:
+            return True
 
     # make sure we have a list of checksums
     if not isinstance(checksums, list):
@@ -554,8 +755,14 @@ def verify_checksum(path, checksums):
 
     for checksum in checksums:
         if isinstance(checksum, basestring):
-            # default checksum type unless otherwise specified is MD5 (most common(?))
-            typ = DEFAULT_CHECKSUM
+            # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
+            if len(checksum) == 64:
+                typ = CHECKSUM_TYPE_SHA256
+            elif len(checksum) == 32:
+                typ = CHECKSUM_TYPE_MD5
+            else:
+                raise EasyBuildError("Length of checksum '%s' (%d) does not match with either MD5 (32) or SHA256 (64)",
+                                     checksum, len(checksum))
         elif isinstance(checksum, tuple) and len(checksum) == 2:
             typ, checksum = checksum
         else:
@@ -570,6 +777,21 @@ def verify_checksum(path, checksums):
 
     # if we land here, all checksums have been verified to be correct
     return True
+
+
+def is_sha256_checksum(value):
+    """Check whether provided string is a SHA256 checksum."""
+    res = False
+    if isinstance(value, basestring):
+        if re.match('^[0-9a-f]{64}$', value):
+            res = True
+            _log.debug("String value '%s' has the correct format to be a SHA256 checksum", value)
+        else:
+            _log.debug("String value '%s' does NOT have the correct format to be a SHA256 checksum", value)
+    else:
+        _log.debug("Non-string value %s is not a SHA256 checksum", value)
+
+    return res
 
 
 def find_base_dir():
@@ -595,10 +817,7 @@ def find_base_dir():
         if not os.path.isdir(new_dir):
             break
 
-        try:
-            os.chdir(new_dir)
-        except OSError, err:
-            raise EasyBuildError("Changing to dir %s from current dir %s failed: %s", new_dir, os.getcwd(), err)
+        change_dir(new_dir)
         lst = get_local_dirs_purged()
 
     # make sure it's a directory, and not a (single) file that was in a tarball for example
@@ -610,49 +829,32 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(filepath, overwrite=False):
-    """
-    Determines the file type of file at filepath, returns extract cmd based on file suffix
-    """
-    filename = os.path.basename(filepath)
-
-    extract_cmds = {
-        # gzipped or gzipped tarball
-        '.gtgz':    "tar xzf %(filepath)s",
-        '.gz':      "gunzip -c %(filepath)s > %(target)s",
-        '.tar.gz':  "tar xzf %(filepath)s",
-        '.tgz':     "tar xzf %(filepath)s",
-        # bzipped or bzipped tarball
-        '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
-        '.tar.bz2': "tar xjf %(filepath)s",
-        '.tb2':     "tar xjf %(filepath)s",
-        '.tbz':     "tar xjf %(filepath)s",
-        '.tbz2':    "tar xjf %(filepath)s",
-        # xzipped or xzipped tarball
-        '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-        '.txz':     "unxz %(filepath)s --stdout | tar x",
-        '.xz':      "unxz %(filepath)s",
-        # tarball
-        '.tar':     "tar xf %(filepath)s",
-        # zip file
-        '.zip':     "unzip -qq -o %(filepath)s" if overwrite else "unzip -qq %(filepath)s",
-        # iso file
-        '.iso':     "7z x %(filepath)s",
-        # tar.Z: using compress (LZW)
-        '.tar.z':   "tar xZf %(filepath)s",
-    }
-
-    suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
-    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in suffixes])
+def find_extension(filename):
+    """Find best match for filename extension."""
+    # sort by length, so longest file extensions get preference
+    suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
+    pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
         ext = res.group('ext')
     else:
         raise EasyBuildError('Unknown file type for file %s', filename)
 
+    return ext
+
+
+def extract_cmd(filepath, overwrite=False):
+    """
+    Determines the file type of file at filepath, returns extract cmd based on file suffix
+    """
+    filename = os.path.basename(filepath)
+    ext = find_extension(filename)
     target = filename.rstrip(ext)
 
-    cmd_tmpl = extract_cmds[ext.lower()]
+    cmd_tmpl = EXTRACT_CMDS[ext.lower()]
+    if overwrite:
+        if 'unzip -qq' in cmd_tmpl:
+            cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
 
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
@@ -751,17 +953,29 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         if build_option('extended_dry_run'):
             dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
         else:
-            try:
-                shutil.copy2(patch_file, dest)
-                _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-                # early exit, work is done after copying
-                return True
-            except IOError, err:
-                raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
+            copy_file(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+            # early exit, work is done after copying
+            return True
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
+
+    # Attempt extracting the patch if it ends in .patch.gz, .patch.bz2, .patch.xz
+    # split in name + extension
+    apatch_root, apatch_file = os.path.split(apatch)
+    apatch_name, apatch_extension = os.path.splitext(apatch_file)
+    # Supports only bz2, gz and xz. zip can be archives which are not supported.
+    if apatch_extension in ['.gz', '.bz2', '.xz']:
+        # split again to get the second extension
+        apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
+        if apatch_subextension == ".patch":
+            workdir = tempfile.mkdtemp(prefix='eb-patch-')
+            _log.debug("Extracting the patch to: %s", workdir)
+            # extracting the patch
+            apatch_dir = extract_file(apatch, workdir)
+            apatch = os.path.join(apatch_dir, apatch_name)
 
     if level is None and build_option('extended_dry_run'):
         level = '<derived>'
@@ -789,7 +1003,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
+    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
 
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
@@ -851,11 +1065,16 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=True):
+                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
     """
     Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
+
+    if skip_symlinks is not None:
+        depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
+        depr_msg += "(symlinks are never followed anymore)"
+        _log.deprecated(depr_msg, '4.0')
 
     name = os.path.abspath(name)
 
@@ -865,14 +1084,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         for root, dirs, files in os.walk(name):
             paths = []
             if not onlydirs:
-                if skip_symlinks:
-                    for path in files:
-                        if os.path.islink(os.path.join(root, path)):
-                            _log.debug("Not adjusting permissions for symlink %s", path)
-                        else:
-                            paths.append(path)
-                else:
-                    paths.extend(files)
+                paths.extend(files)
             if not onlyfiles:
                 # os.walk skips symlinked dirs by default, i.e., no special handling needed here
                 paths.extend(dirs)
@@ -889,26 +1101,30 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     for path in allpaths:
 
         try:
-            if relative:
+            # don't change permissions if path is a symlink, since we're not checking where the symlink points to
+            # this is done because of security concerns (symlink may point out of installation directory)
+            # (note: os.lchmod is not supported on Linux)
+            if not os.path.islink(path):
+                if relative:
 
-                # relative permissions (add or remove)
-                perms = os.stat(path)[stat.ST_MODE]
+                    # relative permissions (add or remove)
+                    perms = os.lstat(path)[stat.ST_MODE]
 
-                if add:
-                    os.chmod(path, perms | permissionBits)
+                    if add:
+                        os.chmod(path, perms | permissionBits)
+                    else:
+                        os.chmod(path, perms & ~permissionBits)
+
                 else:
-                    os.chmod(path, perms & ~permissionBits)
-
-            else:
-                # hard permissions bits (not relative)
-                os.chmod(path, permissionBits)
+                    # hard permissions bits (not relative)
+                    os.chmod(path, permissionBits)
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
-                cur_gid = os.stat(path).st_gid
+                cur_gid = os.lstat(path).st_gid
                 if not cur_gid == group_id:
                     _log.debug("Changing group id of %s to %s" % (path, group_id))
-                    os.chown(path, -1, group_id)
+                    os.lchown(path, -1, group_id)
                 else:
                     _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
 
@@ -925,7 +1141,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
 
     # we ignore some errors, but if there are to many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))
-    max_fail_ratio = 0.5
+    max_fail_ratio = float(build_option('max_fail_ratio_adjust_permissions'))
     if fail_ratio > max_fail_ratio:
         raise EasyBuildError("%.2f%% of permissions/owner operations failed (more than %.2f%%), "
                              "something must be wrong...", 100 * fail_ratio, 100 * max_fail_ratio)
@@ -1046,15 +1262,6 @@ def weld_paths(path1, path2):
     return os.path.join(path1, path2_tail)
 
 
-def symlink(source_path, symlink_path):
-    """Create a symlink at the specified path to the given path."""
-    try:
-        os.symlink(os.path.abspath(source_path), symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
-
-
 def path_matches(path, paths):
     """Check whether given path matches any of the provided paths."""
     if not os.path.exists(path):
@@ -1086,6 +1293,49 @@ def rmtree2(path, n=3):
         _log.info("Path %s successfully removed." % path)
 
 
+def find_backup_name_candidate(src_file):
+    """Returns a non-existing file to be used as destination for backup files"""
+
+    # e.g. 20170817234510 on Aug 17th 2017 at 23:45:10
+    timestamp = datetime.datetime.now()
+    dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+    while os.path.exists(dst_file):
+        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, timestamp)
+        time.sleep(1)
+        timestamp = datetime.datetime.now()
+        dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+
+    return dst_file
+
+
+def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
+    """
+    Backs up a file appending a backup extension and timestamp to it (if there is already an existing backup).
+
+    :param src_file: file to be back up
+    :param backup_extension: extension to use for the backup file (can be empty or None)
+    :param hidden: make backup hidden (leading dot in filename)
+    :param strip_fn: strip specified trailing substring from filename of backup
+    :return: location of backed up file
+    """
+    fn_prefix, fn_suffix = '', ''
+    if hidden:
+        fn_prefix = '.'
+    if backup_extension:
+        fn_suffix = '.%s' % backup_extension
+
+    src_dir, src_fn = os.path.split(src_file)
+    if strip_fn:
+        src_fn = src_fn.rstrip(strip_fn)
+
+    backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
+
+    copy_file(src_file, backup_fp)
+    _log.info("File %s backed up in %s", src_file, backup_fp)
+
+    return backup_fp
+
+
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
 
@@ -1103,16 +1353,10 @@ def move_logs(src_logfile, target_logfile):
 
             # retain old logs
             if os.path.exists(new_log_path):
-                i = 0
-                oldlog_backup = "%s_%d" % (new_log_path, i)
-                while os.path.exists(oldlog_backup):
-                    i += 1
-                    oldlog_backup = "%s_%d" % (new_log_path, i)
-                shutil.move(new_log_path, oldlog_backup)
-                _log.info("Moved existing log file %s to %s" % (new_log_path, oldlog_backup))
+                back_up_file(new_log_path)
 
             # move log to target path
-            shutil.move(app_log, new_log_path)
+            move_file(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
             if zip_log_cmd:
@@ -1185,6 +1429,8 @@ def copytree(src, dst, symlinks=False, ignore=None):
     XXX Consider this example code rather than the ultimate tool.
 
     """
+    _log.deprecated("Use 'copy_dir' rather than 'copytree'", '4.0')
+
     class Error(EnvironmentError):
         pass
     try:
@@ -1403,7 +1649,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
 def copy_file(path, target_path, force_in_dry_run=False):
     """
-    Copy a file from path to target_path
+    Copy a file from specified location to specified location
+
     :param path: the original filepath
     :param target_path: path to copy the file to
     :param force_in_dry_run: force running the command during dry run
@@ -1412,8 +1659,166 @@ def copy_file(path, target_path, force_in_dry_run=False):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
-            mkdir(os.path.dirname(target_path), parents=True)
-            shutil.copy2(path, target_path)
+            if os.path.exists(target_path) and os.path.samefile(path, target_path):
+                _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            else:
+                mkdir(os.path.dirname(target_path), parents=True)
+                shutil.copy2(path, target_path)
+                _log.info("%s copied to %s", path, target_path)
+        except (IOError, OSError, shutil.Error) as err:
+            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+
+def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
+    """
+    Copy a directory from specified location to specified location
+
+    :param path: the original directory path
+    :param target_path: path to copy the directory to
+    :param force_in_dry_run: force running the command during dry run
+
+    Additional specified named arguments are passed down to shutil.copytree
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("copied directory %s to %s" % (path, target_path))
+    else:
+        try:
+            if os.path.exists(target_path):
+                raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
+
+            shutil.copytree(path, target_path, **kwargs)
             _log.info("%s copied to %s", path, target_path)
-        except OSError as err:
-            raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
+
+
+def copy(paths, target_path, force_in_dry_run=False):
+    """
+    Copy single file/directory or list of files and directories to specified location
+
+    :param paths: path(s) to copy
+    :param target_path: target location
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Copying %d files & directories to %s", len(paths), target_path)
+
+    for path in paths:
+        full_target_path = os.path.join(target_path, os.path.basename(path))
+        mkdir(os.path.dirname(full_target_path), parents=True)
+
+        if os.path.isfile(path):
+            copy_file(path, full_target_path, force_in_dry_run=force_in_dry_run)
+        elif os.path.isdir(path):
+            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
+        else:
+            raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
+
+
+def get_source_tarball_from_git(filename, targetdir, git_config):
+    """
+    Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
+
+    :param filename: name of the archive to save the code to (must be .tar.gz)
+    :param targetdir: target directory where to save the archive to
+    :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
+    """
+    # sanity check on git_config value being passed
+    if not isinstance(git_config, dict):
+        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
+
+    # Making a copy to avoid modifying the object with pops
+    git_config = git_config.copy()
+    tag = git_config.pop('tag', None)
+    url = git_config.pop('url', None)
+    repo_name = git_config.pop('repo_name', None)
+    commit = git_config.pop('commit', None)
+    recursive = git_config.pop('recursive', False)
+
+    # input validation of git_config dict
+    if git_config:
+        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
+
+    if not repo_name:
+        raise EasyBuildError("repo_name not specified in git_config parameter")
+
+    if not tag and not commit:
+        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
+
+    if tag and commit:
+        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+
+    if not url:
+        raise EasyBuildError("url not specified in git_config parameter")
+
+    if not filename.endswith('.tar.gz'):
+        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
+
+    # prepare target directory and clone repository
+    mkdir(targetdir, parents=True)
+    targetpath = os.path.join(targetdir, filename)
+
+    # compose 'git clone' command, and run it
+    clone_cmd = ['git', 'clone']
+
+    if tag:
+        clone_cmd.extend(['--branch', tag])
+
+    if recursive:
+        clone_cmd.append('--recursive')
+
+    clone_cmd.append('%s/%s.git' % (url, repo_name))
+
+    tmpdir = tempfile.mkdtemp()
+    cwd = change_dir(tmpdir)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # if a specific commit is asked for, check it out
+    if commit:
+        checkout_cmd = ['git', 'checkout', commit]
+        if recursive:
+            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
+
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+
+    # create an archive and delete the git repo directory
+    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+
+    # cleanup (repo_name dir does not exist in dry run mode)
+    change_dir(cwd)
+    remove(tmpdir)
+
+    return targetpath
+
+
+def move_file(path, target_path, force_in_dry_run=False):
+    """
+    Move a file from path to target_path
+
+    :param path: the original filepath
+    :param target_path: path to move the file to
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("moved file %s to %s" % (path, target_path))
+    else:
+        # remove first to ensure portability (shutil.move might fail when overwriting files in some systems)
+        remove_file(target_path)
+        try:
+            mkdir(os.path.dirname(target_path), parents=True)
+            shutil.move(path, target_path)
+            _log.info("%s moved to %s", path, target_path)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to move %s to %s: %s", path, target_path, err)
+
+
+def diff_files(path1, path2):
+    """
+    Return unified diff between two files
+    """
+    file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
+    file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
+    return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
