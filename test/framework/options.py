@@ -2450,7 +2450,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args + ['--extended-dry-run'], do_build=True, raise_error=True, testing=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
-        print stdout
         self.assertEqual(len(stdout), 0)
 
         msg_regexs = [
