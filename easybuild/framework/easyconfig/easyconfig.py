@@ -901,6 +901,8 @@ class EasyConfig(object):
         try:
             ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
         except NotImplementedError as err:
+            # need to restore enable_templating value in case this method is caught in a try/except block and ignored
+            # (the ability to dump is not a hard requirement for build success)
             self.enable_templating = orig_enable_templating
             raise NotImplementedError(err)
 
