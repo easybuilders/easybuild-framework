@@ -1562,7 +1562,9 @@ class ToyBuildTest(EnhancedTestCase):
         # Check that the toytoy easyblock is recorded in the reprod easyconfig
         ec = EasyConfig(reprod_ec)
         self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
-        # make sure start_dir is not recorded in the dumped easyconfig
+
+        # make sure start_dir is not recorded in the dumped easyconfig, this does not appear in the original easyconfig
+        # and is representative of values that are (typically) set by the easyblock steps (which are also dumped)
         self.assertFalse('start_dir' in ec.parser.get_config_dict())
 
         # Check for child easyblock existence
