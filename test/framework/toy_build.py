@@ -1551,7 +1551,9 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(hooks_file, hooks_file_txt)
 
         # also use the easyblock with inheritance to fully test
+        self.mock_stdout(True)
         self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy', '--hooks=%s' % hooks_file])
+        self.mock_stdout(False)
 
         # Check whether easyconfig is dumped to reprod/ subdir
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')

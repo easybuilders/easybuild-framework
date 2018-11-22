@@ -59,8 +59,6 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
-from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -2878,8 +2876,6 @@ def build_and_install_one(ecdict, init_env):
     # successful (non-dry-run) build
     if result and not dry_run:
 
-        ec_filename = '%s-%s%s' % (app.name, det_full_ec_version(app.cfg), get_format_extension(spec))
-
         if app.cfg['stop']:
             ended = 'STOPPED'
             if app.builddir is not None:
@@ -2927,7 +2923,7 @@ def build_and_install_one(ecdict, init_env):
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
 
-        newspec = os.path.join(new_log_dir, ec_filename)
+        newspec = os.path.join(new_log_dir, app.cfg.filename())
         copy_file(spec, newspec)
         _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
@@ -2989,22 +2985,6 @@ def build_and_install_one(ecdict, init_env):
     return (success, application_log, errormsg)
 
 
-def get_format_extension(spec):
-    """
-    Get the extension format to use for a given spec
-    :param spec: path to easyconfig (in any format)
-    :return: format extension for file type
-    """
-    yeb_format = is_yeb_format(spec, None)
-    extension = ''
-    if yeb_format:
-        extension = YEB_FORMAT_EXTENSION
-    else:
-        extension = EB_FORMAT_EXTENSION
-
-    return extension
-
-
 def reproduce_build(app, reprod_dir_root):
     """
     Create reproducability files (processed easyconfig and easyblocks used) from class instance
@@ -3015,7 +2995,7 @@ def reproduce_build(app, reprod_dir_root):
     :return reprod_dir: directory containing reproducability files
     """
 
-    ec_filename = '%s-%s%s' % (app.name, det_full_ec_version(app.cfg), get_format_extension(app.cfg.path))
+    ec_filename = app.cfg.filename()
 
     reprod_dir = os.path.join(reprod_dir_root, 'reprod')
     reprod_spec = os.path.join(reprod_dir, ec_filename)
@@ -3048,6 +3028,7 @@ def reproduce_build(app, reprod_dir_root):
                   reprod_hooks_dir)
 
     return reprod_dir
+
 
 def get_easyblock_instance(ecdict):
     """
