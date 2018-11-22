@@ -802,6 +802,8 @@ def parse_param_value(string):
 def create_new_easyconfig(path, args):
     """Create new easyconfig file based on specified information."""
 
+    _log.experimental("Generating easyconfig using 'eb --new'")
+
     specs = {}
 
     # handle values that start with 'http' first

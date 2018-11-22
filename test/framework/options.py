@@ -3887,7 +3887,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         change_dir(self.test_prefix)
         self.mock_stdout(True)
         self.mock_stderr(True)
-        self.eb_main(['--new'] + args, raise_error=True)
+        self.eb_main(['--new', '--experimental'] + args, raise_error=True)
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
