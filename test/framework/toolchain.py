@@ -464,6 +464,25 @@ class ToolchainTest(EnhancedTestCase):
 
             self.modtool.purge()
 
+    def test_easyconfig_optarch_flags(self):
+        """Test whether specifying optarch flags in the easyconfigs works."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        toy_txt = read_file(eb_file)
+
+        # check that an optarch map raises an error
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:march=sandrybridge;Intel:xAVX'}")
+        msg = "syntax is not allowed"
+        self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
+
+        # check that setting optarch flags work
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'march=sandybridge'}")
+        out = self.eb_main([test_ec], raise_error=True, do_build=True)
+        regex = re.compile("_set_optimal_architecture: using march=sandybridge as optarch for x86_64")
+        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
