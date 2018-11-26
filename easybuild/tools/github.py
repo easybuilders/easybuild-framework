@@ -1007,10 +1007,12 @@ def check_unmerged_pr_deps(pr_body, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCONF
     pr_requirements = re.search('[Rr]equires .*', pr_body)
     if pr_requirements:
         pr_deps = {}
-        pr_deps['easybuild-framework'] = re.findall('(?:framework/pull/)(\d+)', pr_requirements.group())
-        pr_deps['easybuild-easyblocks'] = re.findall('(?:blocks/pull/)(\d+)', pr_requirements.group())
-        pr_deps['easybuild-easyconfigs'] = re.findall('(?: #|~~#)(\d+)', pr_requirements.group())
-        for pr_dep_repo in pr_deps.keys():
+        for pr_dep_repo in ['easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs']:
+            if pr_dep_repo == repo:
+                pr_deps[pr_dep_repo] = re.findall('(?: #|~~#)(\d+)', pr_requirements.group())
+            else:
+                pr_deps[pr_dep_repo] = re.findall('(?:%s/pull/)(\d+)' % pr_dep_repo, pr_requirements.group())
+
             for pr_dep in pr_deps[pr_dep_repo]:
                 if not is_pr_merged(pr_dep, account=account, repo=pr_dep_repo, github_user=github_user):
                     unmerged_pr_deps.append('%s#%s' % (pr_dep_repo, pr_dep))
