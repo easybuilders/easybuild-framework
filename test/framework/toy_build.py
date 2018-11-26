@@ -215,8 +215,8 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.copy2(os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb'), ec_file)
 
         modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
-        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0"'
-        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\]==\]'
+        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0\n\s*"'
+        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
 
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
@@ -268,6 +268,23 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # newline between "I AM toy v0.0" (modloadmsg) and "oh hai!" (mod*footer) is added automatically
+        expected = "\nTHANKS FOR LOADING ME\nI AM toy v0.0\n"
+
+        # with module files in Tcl syntax, a newline is added automatically
+        if get_module_syntax() == 'Tcl':
+            expected += "\n"
+
+        expected += "oh hai!"
+
+        # setting $LMOD_QUIET results in suppression of printed message with Lmod & module files in Tcl syntax
+        if 'LMOD_QUIET' in os.environ:
+            del os.environ['LMOD_QUIET']
+
+        self.modtool.use(os.path.join(self.test_installpath, 'modules', 'all'))
+        out = self.modtool.run_module('load', 'toy/0.0-tweaked', return_output=True)
+        self.assertTrue(out.strip().endswith(expected))
 
     def test_toy_buggy_easyblock(self):
         """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
@@ -1070,12 +1087,14 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_module)
 
         modloadmsg_tcl = [
-            r'    puts stderr "THANKS FOR LOADING ME',
-            r'    I AM toy v0.0"',
+            r'puts stderr "THANKS FOR LOADING ME',
+            r'I AM toy v0.0',
+            '"',
         ]
         modloadmsg_lua = [
-            r'    io.stderr:write\(\[==\[THANKS FOR LOADING ME',
-            r'    I AM toy v0.0\]==\]\)',
+            r'io.stderr:write\(\[==\[THANKS FOR LOADING ME',
+            r'I AM toy v0.0',
+            '\]==\]\)',
         ]
 
         help_txt = '\n'.join([
@@ -1196,7 +1215,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # install dummy modules
         modulepath = os.path.join(self.test_prefix, 'modules')
-        for mod in ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
+        for mod in ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
@@ -1205,7 +1224,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
-        mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
+        mods = ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
         self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
@@ -1258,7 +1277,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
         self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
 
         os.remove(toy_mod)
@@ -1269,7 +1288,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
         self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
 
         os.remove(toy_mod)
@@ -1303,7 +1322,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
         os.remove(toy_mod)
         os.remove(toy_core_mod)
@@ -1328,7 +1347,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
-            self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+            self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
@@ -1513,9 +1532,31 @@ class ToyBuildTest(EnhancedTestCase):
         # this test doesn't check for anything specific to using minimal toolchains, only side-effects
         self.test_toy_build(extra_args=['--minimal-toolchains'])
 
+    def test_reproducability(self):
+        """Test toy build produces expected reproducability files"""
+        # use the easyblock with inheritance to fully test
+        self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
         # also check whether easyconfig is dumped to reprod/ subdir
-        reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
+        reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
+
         self.assertTrue(os.path.exists(reprod_ec))
+
+        # Check that the toytoy easyblock is recorded in the reprod easyconfig
+        ec = EasyConfig(reprod_ec)
+        self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
+
+        # Check for easyblock existence
+        child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
+        self.assertTrue(os.path.exists(child_easyblock))
+        # Check for parent easyblock existence
+        parent_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
+        self.assertTrue(os.path.exists(parent_easyblock))
+
+        # Make sure framework easyblock modules are not included
+        for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
+            path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
+            self.assertFalse(os.path.exists(path))
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
@@ -1624,6 +1665,17 @@ class ToyBuildTest(EnhancedTestCase):
         # all is fine is lib64 fallback check is enabled (which it is by default)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+        # also check with 'lib' in sanity check dirs (special case)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
         # also check other way around (lib64 -> lib)
         ectxt = read_file(ec_file)
         ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
@@ -1635,6 +1687,26 @@ class ToyBuildTest(EnhancedTestCase):
                               extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        # also check with 'lib64' in sanity check dirs (special case)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib64' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        # check whether fallback works for files that's more than 1 subdir deep
+        ectxt = read_file(ec_file)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
+        postinstallcmd = "mkdir -p %(installdir)s/lib64/test && "
+        postinstallcmd += "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/test/libtoy.a"
+        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+        write_file(test_ec, ectxt)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
     def test_toy_dumped_easyconfig(self):

@@ -36,6 +36,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 :author: Maxime Boissonneault (Compute Canada)
+:author: Davide Vanzo (Vanderbilt University)
 """
 
 import copy
@@ -1122,8 +1123,12 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
-        if self.cfg['modloadmsg']:
-            lines.append(self.module_generator.msg_on_load(self.cfg['modloadmsg']))
+        modloadmsg = self.cfg['modloadmsg']
+        if modloadmsg:
+            # add trailing newline to prevent that shell prompt is 'glued' to module load message
+            if not modloadmsg.endswith('\n'):
+                modloadmsg += '\n'
+            lines.append(self.module_generator.msg_on_load(modloadmsg))
 
         if self.cfg['modtclfooter']:
             if isinstance(self.module_generator, ModuleGeneratorTcl):
@@ -1669,9 +1674,13 @@ class EasyBlock(object):
         for mod_symlink_path in mod_symlink_paths:
             pardirs.append(os.path.join(install_path('mod'), mod_symlink_path, mod_subdir))
 
-        self.log.info("Checking dirs that need to be created: %s" % pardirs)
-        for pardir in pardirs:
-            mkdir(pardir, parents=True)
+        # skip directory creation if pre-create-installdir is set to False
+        if build_option('pre_create_installdir'):
+            self.log.info("Checking dirs that need to be created: %s" % pardirs)
+            for pardir in pardirs:
+                mkdir(pardir, parents=True)
+        else:
+            self.log.info("Skipped installation dirs check per user request")
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -2291,10 +2300,10 @@ class EasyBlock(object):
                 # for library files in lib/, also consider fallback to lib64/ equivalent (and vice versa)
                 if not found and build_option('lib64_fallback_sanity_check'):
                     xs_alt = None
-                    if all(x.startswith('lib/') for x in xs):
-                        xs_alt = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
-                    elif all(x.startswith('lib64/') for x in xs):
-                        xs_alt = [os.path.join('lib', *os.path.split(x)[1:]) for x in xs]
+                    if all(x.startswith('lib/') or x == 'lib' for x in xs):
+                        xs_alt = [os.path.join('lib64', *x.split(os.path.sep)[1:]) for x in xs]
+                    elif all(x.startswith('lib64/') or x == 'lib64' for x in xs):
+                        xs_alt = [os.path.join('lib', *x.split(os.path.sep)[1:]) for x in xs]
 
                     if xs_alt:
                         self.log.info("%s not found at %s in %s, consider fallback locations: %s",
@@ -2815,12 +2824,14 @@ def build_and_install_one(ecdict, init_env):
 
     # load easyblock
     easyblock = build_option('easyblock')
-    if not easyblock:
+    if easyblock:
+        # set the value in the dict so this is included in the reproducability dump of the easyconfig
+        ecdict['ec']['easyblock'] = easyblock
+    else:
         easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
 
     try:
         app_class = get_easyblock_class(easyblock, name=name)
-
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
@@ -2850,7 +2861,6 @@ def build_and_install_one(ecdict, init_env):
         errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
         _log.warning(errormsg)
         result = False
-    app.close_log()
 
     ended = 'ended'
 
@@ -2884,12 +2894,8 @@ def build_and_install_one(ecdict, init_env):
 
             # for reproducability we dump out the fully processed easyconfig since the contents can be affected
             # by subtoolchain resolution (and related options) and/or hooks
-            reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-            try:
-                app.cfg.dump(reprod_spec)
-                _log.info("Dumped fully processed easyconfig to %s", reprod_spec)
-            except NotImplementedError as err:
-                _log.warn("Unable to dumped fully processed easyconfig to %s: %s", reprod_spec, err)
+            reprod_dir = reproduce_build(app, new_log_dir)
+            _log.info("Wrote files for reproducability to %s", reprod_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -2907,6 +2913,7 @@ def build_and_install_one(ecdict, init_env):
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
         # cleanup logs
+        app.close_log()
         log_fn = os.path.basename(get_log_filename(app.name, app.version))
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
@@ -2972,6 +2979,41 @@ def build_and_install_one(ecdict, init_env):
 
     return (success, application_log, errormsg)
 
+
+def reproduce_build(app, reprod_dir_root):
+    """
+    Create reproducability files (processed easyconfig and easyblocks used) from class instance
+
+    :param app: easyblock class instance
+    :param reprod_dir_root: root directory in which to create the 'reprod' directory
+
+    :return reprod_dir: directory containing reproducability files
+    """
+
+    ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
+    reprod_dir = os.path.join(reprod_dir_root, 'reprod')
+    reprod_spec = os.path.join(reprod_dir, ec_filename)
+    try:
+        app.cfg.dump(reprod_spec)
+        _log.info("Dumped easyconfig instance to %s", reprod_spec)
+    except NotImplementedError as err:
+        _log.warn("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
+
+    # also archive the relevant easyblocks
+    reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
+    for easyblock_class in inspect.getmro(type(app)):
+        easyblock_path = inspect.getsourcefile(easyblock_class)
+        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+        # if we reach EasyBlock or ExtensionEasyBlock class, we are done
+        # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
+        if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+            break
+        else:
+            copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
+            _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
+
+    return reprod_dir
 
 def get_easyblock_instance(ecdict):
     """

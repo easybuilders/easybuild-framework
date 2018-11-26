@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,27 +23,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for ictce compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
-Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
+EasyBuild support for building and installing foofoo, implemented as an easyblock
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+@author: Alan O'Cais (Juelich Supercomputing Centre)
 """
 
-from easybuild.toolchains.iimpi import Iimpi
-from easybuild.toolchains.iimkl import Iimkl
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.easyblocks.toy import EB_toy
+from easybuild.framework.easyconfig import CUSTOM
 
 
-class Ictce(Iimpi, IntelMKL, IntelFFTW):
-    """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
-    """
-    NAME = 'ictce'
-    SUBTOOLCHAIN = [Iimpi.NAME, Iimkl.NAME]
+class EB_toytoy(EB_toy):
+    """Support for building/installing toy."""
 
-    def is_deprecated(self):
-        """Return whether or not this toolchain is deprecated."""
-        return True
+    @staticmethod
+    def extra_options():
+        """Custom easyconfig parameters for toytoy."""
+        extra_vars = {
+            'toytoy_extra1': [None, "first toytoy-specific easyconfig parameter", CUSTOM],
+         }
+        return EB_toy.extra_options(extra_vars)

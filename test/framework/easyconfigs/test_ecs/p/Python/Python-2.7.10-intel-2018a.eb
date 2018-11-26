@@ -7,7 +7,7 @@ homepage = 'http://python.org/'
 description = """Python is a programming language that lets you work more quickly and integrate your systems
 more effectively."""
 
-toolchain = {'name': 'ictce', 'version': '4.1.13'}
+toolchain = {'name': 'intel', 'version': '2018a'}
 toolchainopts = {'pic': True, 'opt': True, 'optarch': True}
 
 numpyversion = '1.9.2'

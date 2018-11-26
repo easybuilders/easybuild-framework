@@ -105,6 +105,9 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
+JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
+
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
 
@@ -146,6 +149,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_dirs',
         'job_backend_config',
         'job_cores',
+        'job_deps_type',
         'job_max_jobs',
         'job_max_walltime',
         'job_output_dir',
@@ -217,6 +221,8 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',
+        'modules_tool_version_check',
+        'pre_create_installdir',
     ],
     WARN: [
         'check_ebroot_env_vars',
@@ -437,13 +443,17 @@ def init_build_options(build_options=None, cmdline_options=None):
 
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
+
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
     elif 'default' in kwargs:
         return kwargs['default']
     else:
-        raise EasyBuildError("Undefined build option: %s", key)
+        error_msg = "Undefined build option: '%s'. " % key
+        error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
+        error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
+        raise EasyBuildError(error_msg)
 
 
 def build_path():
