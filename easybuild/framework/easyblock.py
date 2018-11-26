@@ -2898,7 +2898,7 @@ def build_and_install_one(ecdict, init_env):
             # move the reproducability files to the final log directory
             archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
             if os.path.exists(archive_reprod_dir):
-                print_warning("Reproducability directory %s already exists, backing up" % archive_reprod_dir)
+                _log.info("Reproducability directory %s already exists, backing up" % archive_reprod_dir)
                 backup_dir = find_backup_name_candidate(archive_reprod_dir)
                 copy_dir(archive_reprod_dir, backup_dir)
                 rmtree2(archive_reprod_dir)
