@@ -38,6 +38,7 @@ from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obta
 from easybuild.framework.easyconfig.tweak import check_capability_mapping, match_minimum_tc_specs
 from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain, map_common_versionsuffixes
 from easybuild.framework.easyconfig.tweak import get_matching_easyconfig_candidates, map_toolchain_hierarchies
+from easybuild.framework.easyconfig.tweak import find_potential_version_mappings
 from easybuild.framework.easyconfig.tweak import map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -315,6 +316,28 @@ class TweakTest(EnhancedTestCase):
         possible_mappings = map_common_versionsuffixes('gzip', gcc_binutils_tc, toolchain_mapping)
         expected_mappings = {'-gzip-1.4': '-gzip-1.6'}
         self.assertEqual(possible_mappings, expected_mappings)
+
+    def test_find_potential_version_mappings(self):
+        """Test ability to find potential version mappings of a dependency for a given toolchain mapping"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+        })
+        get_toolchain_hierarchy.clear()
+
+        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
+        iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
+        # The below mapping includes a binutils mapping (2.26 to 2.25)
+        tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
+        ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        parsed_ec = process_easyconfig(ec_spec)[0]
+        gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip']
+        potential_versions = find_potential_version_mappings(gzip_dep[0], tc_mapping, [])
+        # Should see version 1.6 of gzip with iccifort toolchain
+        expected_dep_path = os.path.join(test_easyconfigs, 'g', 'gzip',
+                                         'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb')
+        self.assertEqual(potential_versions[0]['path'], expected_dep_path)
 
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""
