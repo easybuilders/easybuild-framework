@@ -1024,13 +1024,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     versionprefix = dep.get('versionprefix', '')
     prefix_to_version = ''.join([x for x in [dep['name'] + '-', versionprefix] if x])
     # Figure out the main versionsuffix (altered depending on toolchain in the loop below)
-    if 'versionsuffix' in dep:
-        if dep['versionsuffix'] in versonsuffix_mapping:
-            versionsuffix = versonsuffix_mapping[dep['versionsuffix']]
-        else:
-            versionsuffix = dep['versionsuffix']
-    else:
-        versionsuffix = ''
+    versionsuffix = versonsuffix_mapping.get(dep.get('versionsuffix', None), '')
     for toolchain in toolchain_hierarchy:
         candidate_ver = '.*'  # using regex for *
 
@@ -1050,12 +1044,13 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
             # Get the version from the path
             filename = os.path.basename(path)
             # Find the version sandwiched between our known values
-            try:
-                regex = '^%s(.+?)%s' % (prefix_to_version, full_versionsuffix)
-                version = re.search(regex, filename).group(1)
-            except AttributeError:
-                raise EasyBuildError("Somethings wrong, could not extract version from %s using %s",
-                                     filename, regex)
+            regex = re.compile('^%s(.+?)%s' % (versionprefix, full_versionsuffix))
+            res = regex.search(filename)
+            if res:
+                version = res.group(1)
+            else:
+                raise EasyBuildError("Failed to determine version from '%s' using regex pattern '%s'", filename,
+                                     regex.pattern)
             potential_version_matches.append({'version': version, 'path': path, 'toolchain': toolchain})
-    _log.debug("Found possible dependency upgrades: %s\n", potential_version_matches)
+    _log.debug("Found possible dependency upgrades: %s", potential_version_matches)
     return potential_version_matches
