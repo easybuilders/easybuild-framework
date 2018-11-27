@@ -966,9 +966,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             # Replace the binutils version (if necessary)
             if 'binutils' in toolchain_mapping and (dep['name'] == 'binutils' and dep_tc_name == GCCcore.NAME):
                 orig_dep.update(toolchain_mapping['binutils'])
-                # set module names
-                orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
-                orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
+                dep_changed = True
             elif update_dep_versions:
                 # Search for available updates for this dependency:
                 # First get all candidate paths for this (include search through subtoolchains)
@@ -981,15 +979,19 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                     if LooseVersion(candidate['version']) > LooseVersion(highest_version):
                         highest_version = candidate['version']
                 if highest_version != dep['version']:
-                    _log.info("Increasing version to %s for dependency %s.", highest_version, orig_dep['name'])
+                    _log.info("Upgrading version of %s dependency from %s to %s", dep['name'], dep['version'],
+                              highest_version)
                     _log.info("Depending on your configuration, this will be resolved with one of the following "
                               "easyconfigs: %s", '\n'.join(cand['path'] for cand in potential_version_matches
                                                            if cand['version'] == highest_version))
                     orig_dep['version'] = highest_version
                     if orig_dep['versionsuffix'] in versonsuffix_mapping:
                         orig_dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
-                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
-                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
+                    dep_changed = True
+
+            if dep_changed:
+                orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
+                orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
 
     # Determine the name of the modified easyconfig and dump it to target_dir
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
