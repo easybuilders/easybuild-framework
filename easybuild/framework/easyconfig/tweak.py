@@ -964,6 +964,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             if dep_tc_name in toolchain_mapping:
                 orig_dep['toolchain'] = toolchain_mapping[dep_tc_name]
             # Replace the binutils version (if necessary)
+            dep_changed = False
             if 'binutils' in toolchain_mapping and (dep['name'] == 'binutils' and dep_tc_name == GCCcore.NAME):
                 orig_dep.update(toolchain_mapping['binutils'])
                 dep_changed = True
