@@ -93,7 +93,7 @@ class ScriptsTest(EnhancedTestCase):
             'F': '1',  # FFTW
             'G': '11',  # GCC, GCCcore, gcccuda, gmvapich2, golf, golfc, gompic, gompi, goolf, goolfc, gzip
             'H': '1',  # hwloc
-            'I': '8',  # icc, iccifort, iccifortcuda, ictce, ifort, iimpi, imkl, impi
+            'I': '8',  # icc, iccifort, iccifortcuda, intel, ifort, iimpi, imkl, impi
             'M': '1',  # MVAPICH2
             'O': '2',  # OpenMPI, OpenBLAS
             'P': '1',  # Python

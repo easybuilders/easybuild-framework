@@ -5,10 +5,8 @@ env:
     # purposely specifying slowest builds first, to gain time overall
     - LMOD_VERSION=6.5.1
     - LMOD_VERSION=6.5.1 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - LMOD_VERSION=6.6.3
-    - LMOD_VERSION=6.6.3 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - LMOD_VERSION=7.7.16
-    - LMOD_VERSION=7.7.16 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - LMOD_VERSION=7.8.5
+    - LMOD_VERSION=7.8.5 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=4.0.0 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules
@@ -107,10 +105,9 @@ script:
     - EB_BOOTSTRAP_EXPECTED="20180925.01 d29478d5131fbf560a3806ef2613dc24e653c2857967788aace05107f614913b"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
-    # don't test bootstrap script when using Lmod 6.5.1 for now, since EasyBuild 3.7.0 requires Lmod 6.6.3...
-    - if [ -z "$LMOD_VERSION" ] || [ "x$LMOD_VERSION" != 'x6.5.1' ]; then python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap; fi
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
     - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all
-    - if [ -z "$LMOD_VERSION" ] || [ "x$LMOD_VERSION" != 'x6.5.1' ]; then module load EasyBuild; eb --version; fi
+    - module load EasyBuild; eb --version

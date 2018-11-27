@@ -145,7 +145,7 @@ class DocsTest(EnhancedTestCase):
             r'homepage: http://www.gzip.org/',
             r'',
             r"  \* gzip v1.4: GCC/4.6.3, dummy",
-            r"  \* gzip v1.5: goolf/1.4.10, ictce/4.1.13",
+            r"  \* gzip v1.5: goolf/1.4.10, intel/2018a",
             '',
         ]))
         txt = list_software(output_format='txt', detailed=True)
@@ -213,12 +213,12 @@ class DocsTest(EnhancedTestCase):
             r'',
             r'\*homepage\*: http://www.gzip.org/',
             r'',
-            r'=======    ==================================',
-            r'version    toolchain                         ',
-            r'=======    ==================================',
-            r'``1.4``    ``GCC/4.6.3``, ``dummy``          ',
-            r'``1.5``    ``goolf/1.4.10``, ``ictce/4.1.13``',
-            r'=======    ==================================',
+            r'=======    =================================',
+            r'version    toolchain                        ',
+            r'=======    =================================',
+            r'``1.4``    ``GCC/4.6.3``, ``dummy``         ',
+            r'``1.5``    ``goolf/1.4.10``, ``intel/2018a``',
+            r'=======    =================================',
         ]))
         txt = list_software(output_format='rst', detailed=True)
         self.assertTrue(expected.match(txt), "Pattern '%s' found in: %s" % (expected.pattern, txt))

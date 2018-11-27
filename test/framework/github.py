@@ -114,11 +114,31 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_list_prs(self):
+        """Test list_prs function."""
+        if self.github_token is None:
+            print "Skipping test_list_prs, no GitHub token available?"
+            return
+
+        parameters = ('closed', 'created', 'asc')
+
+        init_config(build_options={'pr_target_account': GITHUB_USER,
+                                   'pr_target_repo': GITHUB_REPO})
+
+        expected = "PR #1: a pr"
+
+        output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(expected, output)
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
+
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
 
         # PR for rename of ffmpeg to FFmpeg,
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files

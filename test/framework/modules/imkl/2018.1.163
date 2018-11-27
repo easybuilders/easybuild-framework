@@ -17,16 +17,16 @@ set root	/tmp/eb-bI0pBy/eb-DmuEpJ/eb-leoYDw/eb-UtJJqp/tmp8P3FOY
 
 conflict    imkl
 
-if { ![is-loaded icc/2011.13.367] } {
-    module load icc/2011.13.367
+if { ![is-loaded icc/2018.1.163] } {
+    module load icc/2018.1.163
 }
 
-if { ![is-loaded ifort/2011.13.367] } {
-    module load ifort/2011.13.367
+if { ![is-loaded ifort/2018.1.163] } {
+    module load ifort/2018.1.163
 }
 
-if { ![is-loaded impi/4.1.0.027] } {
-    module load impi/4.1.0.027
+if { ![is-loaded impi/2018.1.163] } {
+    module load impi/2018.1.163
 }
 
 prepend-path	CPATH		$root/mkl/include
@@ -42,8 +42,8 @@ prepend-path	PATH		$root/mkl/bin
 prepend-path	PATH		$root/mkl/bin/intel64
 
 setenv	EBROOTIMKL		"$root"
-setenv	EBVERSIONIMKL		"10.3.12.361"
-setenv	EBDEVELIMKL		"$root/easybuild/imkl-10.3.12.361-easybuild-devel"
+setenv	EBVERSIONIMKL		"2018.1.163"
+setenv	EBDEVELIMKL		"$root/easybuild/imkl-2018.1.163-easybuild-devel"
 
 prepend-path	INTEL_LICENSE_FILE		/tmp/license.lic
 prepend-path	NLSPATH		$root/idb/intel64/locale/%l_%t/%N

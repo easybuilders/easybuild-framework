@@ -53,6 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, 
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
+from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -75,8 +76,8 @@ from test.framework.utilities import find_full_path
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
 "GCC/4.7.2 (EXT)";
 toy;
-ictce;
-toy -> ictce;
+intel;
+toy -> intel;
 toy -> "GCC/4.7.2 (EXT)";
 }
 """
@@ -344,7 +345,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
-            '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
+            '           "f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
             '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
             '       ],',
@@ -366,7 +367,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['name'], 'ext2')
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
-            'checksums': ['6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09',
+            'checksums': ['f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156',
                           'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
             'patches': ['toy-0.0.eb'],
             'source_tmpl': 'gzip-1.4.eb',
@@ -1005,8 +1006,8 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
             ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
-            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
-             {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
+            ('gzip-1.5-intel-2018a.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'intel', 'version': '2018a'}}),
         ]:
             eb_file1 = glob.glob(os.path.join(easyconfigs_path, 'v1.0', '*', '*', eb_file1))[0]
             ec1 = EasyConfig(eb_file1, validate=False)
@@ -1284,7 +1285,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 7)
-        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
+        correct_deps = ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
                         'somebuilddep/0.1']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
@@ -1381,6 +1382,18 @@ class EasyConfigTest(EnhancedTestCase):
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
+        # for unallowed duplicates
+        ec.update('configopts', 'SOME_VALUE')
+        configopts_tmp = ec['configopts']
+        ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
+        self.assertEquals(ec['configopts'], configopts_tmp)
+
+        # for unallowed duplicates when a list is used
+        ec.update('patches', ['foo2.patch', 'bar2.patch'])
+        patches_tmp = copy.deepcopy(ec['patches'])
+        ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
+        self.assertEquals(ec['patches'], patches_tmp)
+
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1430,38 +1443,53 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump(self):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'check_osdeps': False,
+        }
+        init_config(build_options=build_options)
         ecfiles = [
             't/toy/toy-0.0.eb',
             'g/goolf/goolf-1.4.10.eb',
             's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
+            'p/Python/Python-2.7.10-intel-2018a.eb',
         ]
         for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
             ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
+            ec.enable_templating = False
             ecdict = ec.asdict()
             ec.dump(test_ec)
             # dict representation of EasyConfig instance should not change after dump
             self.assertEqual(ecdict, ec.asdict())
             ectxt = read_file(test_ec)
 
-            patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
+            patterns = [
+                r"^name = ['\"]",
+                r"^version = ['0-9\.]",
+                r'^description = ["\']',
+                r"^toolchain = {'name': .*, 'version': .*}",
+            ]
             for pattern in patterns:
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
             # parse result again
             dumped_ec = EasyConfig(test_ec)
+            dumped_ec.enable_templating = False
 
             # check that selected parameters still have the same value
             params = [
                 'name',
                 'toolchain',
                 'dependencies',  # checking this is important w.r.t. filtered hidden dependencies being restored in dump
+                'exts_list',  # exts_lists (in Python easyconfig) use another layer of templating so shouldn't change
             ]
             for param in params:
-                self.assertEqual(ec[param], dumped_ec[param])
+                if param in ec:
+                    self.assertEqual(ec[param], dumped_ec[param])
 
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
@@ -1486,7 +1514,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",
@@ -1496,6 +1524,7 @@ class EasyConfigTest(EnhancedTestCase):
             "]",
             '',
             "foo_extra1 = 'foobar'",
+            '',
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1506,7 +1535,10 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt = read_file(testec)
         self.assertEqual(rawtxt, ectxt)
 
-        dumped_ec = EasyConfig(testec)
+        # check parsing of dumped easyconfig
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
@@ -1573,7 +1605,9 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
         # reparsing the dumped easyconfig file should work
-        ecbis = EasyConfig(testec)
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
@@ -1631,7 +1665,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(ectxt.endswith("# trailing comment"))
 
         # reparsing the dumped easyconfig file should work
-        ecbis = EasyConfig(testec)
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
 
     def test_to_template_str(self):
         """ Test for to_template_str method """
@@ -1680,8 +1716,8 @@ class EasyConfigTest(EnhancedTestCase):
             dep_graph(dot_file, ordered_ecs)
 
             # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/4.7.2 (EXT)', 'toy', and 'ictce/4.1.13'
-            # and 2 edges: 'toy -> ictce' and 'toy -> "GCC/4.7.2 (EXT)"'
+            # 3 nodes should be there: 'GCC/4.7.2 (EXT)', 'toy', and 'intel/2018a'
+            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/4.7.2 (EXT)"'
             dottxt = read_file(dot_file)
             self.assertEqual(dottxt, EXPECTED_DOTTXT_TOY_DEPS)
 
@@ -1701,7 +1737,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
-        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'ictce/4.1.13')
+        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'intel/2018a')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/4.7.2')
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
@@ -1851,7 +1887,7 @@ class EasyConfigTest(EnhancedTestCase):
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
         self.assertEqual(res, {'ecs': [], 'new': [], 'new_file_in_existing_folder': [],
-                               'new_folder': [], 'paths_in_repo': []})
+                               'new_folder': [], 'paths': [], 'paths_in_repo': []})
         self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
@@ -1868,7 +1904,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = copy_easyconfigs(ecs_to_copy, target_dir)
         self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'new_file_in_existing_folder',
-                                              'new_folder', 'paths_in_repo'])
+                                              'new_folder', 'paths', 'paths_in_repo'])
         self.assertEqual(len(res['ecs']), len(test_ecs))
         self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
         self.assertTrue(all(res['new']))
@@ -1900,7 +1936,7 @@ class EasyConfigTest(EnhancedTestCase):
         # copy single easyconfig with buildstats included for running further tests
         res = copy_easyconfigs([toy_ec], target_dir)
 
-        self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1])
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1, 1])
         self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
 
         # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
@@ -1971,7 +2007,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
-        shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
+        shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
         write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
 
         ec_txt = '\n'.join([
@@ -2310,6 +2346,16 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(res)
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
         self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz: "))
+
+    def test_deprecated(self):
+        """Test use of 'deprecated' easyconfig parameter."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_txt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt + "\ndeprecated = 'this is just a test'")
+
+        error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
 
 def suite():
