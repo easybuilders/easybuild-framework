@@ -441,7 +441,8 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
                 cnt = len(archived_hits)
                 lines.extend([
                     '',
-                    "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
+                    "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them"
+                    % cnt,
                 ])
 
         print '\n'.join(lines)
