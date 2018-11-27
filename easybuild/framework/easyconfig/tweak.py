@@ -1045,7 +1045,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
             # Get the version from the path
             filename = os.path.basename(path)
             # Find the version sandwiched between our known values
-            regex = re.compile('^%s(.+?)%s' % (versionprefix, full_versionsuffix))
+            regex = re.compile('^%s(.+?)%s' % (prefix_to_version, full_versionsuffix))
             res = regex.search(filename)
             if res:
                 version = res.group(1)
