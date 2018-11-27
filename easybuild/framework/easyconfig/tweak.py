@@ -1003,7 +1003,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
 
                     # prepend/append version prefix/suffix
                     depver = ''.join([x for x in ['^', versionprefix, candidate_ver, full_versionsuffix] if x])
-                    cand_paths = search_easyconfigs(depver, return_robot_list=True)
+                    cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False)
                     # Add them to the possibilities
                     for path in cand_paths:
                         # Get the version from the path
