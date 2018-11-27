@@ -1024,7 +1024,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     versionprefix = dep.get('versionprefix', '')
     prefix_to_version = ''.join([x for x in [dep['name'] + '-', versionprefix] if x])
     # Figure out the main versionsuffix (altered depending on toolchain in the loop below)
-    versionsuffix = versonsuffix_mapping.get(dep.get('versionsuffix', None), '')
+    versionsuffix = dep.get('versionsuffix', '')
     for toolchain in toolchain_hierarchy:
         candidate_ver = '.*'  # using regex for *
 
