@@ -95,18 +95,16 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     target_toolchain = {}
     src_to_dst_tc_mapping = {}
     revert_to_regex = False
-    if 'upgrade_deps' in build_specs:
-        upgrade_dependencies = build_specs['upgrade_deps']
-    else:
-        upgrade_dependencies = False
+    update_dependencies = build_specs.get('update_deps', None)
 
-    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs or upgrade_dependencies:
+    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs or update_dependencies:
         keys = build_specs.keys()
 
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
         # supported
-        if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'upgrade_deps'] for key in keys):
-            print_warning("Combining --try-toolchain* with other build options is not fully supported: using regex")
+        if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'update_deps'] for key in keys):
+            print_warning("Combining --try-toolchain* or --try-update-deps with other build options is not fully " +
+                          "supported: using regex")
             revert_to_regex = True
 
         if not revert_to_regex:
@@ -192,7 +190,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 if tc_name in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         tweaked_ecs_path,
-                                                                        update_dep_versions=upgrade_dependencies)
+                                                                        update_dep_versions=update_dependencies)
                     # Need to update the toolchain in the build_specs to match the toolchain mapping
                     keys = verification_build_specs.keys()
                     if 'toolchain_name' in keys:
@@ -821,20 +819,19 @@ def map_versionsuffixes_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(software_name, software_version_stub, original_toolchain, toolchain_mapping):
+    def cache_aware_func(software_name, original_toolchain, toolchain_mapping):
         """Look up original_toolchain in cache first, determine and cache it if not available yet."""
         # No need for toolchain_mapping to change to be part of the key, it is unique in this context
-        cache_key = (software_name, software_version_stub, original_toolchain['name'], original_toolchain['version'])
+        cache_key = (software_name, original_toolchain['name'], original_toolchain['version'])
 
         # fetch from cache if available, cache it if it's not
         if cache_key in cache:
             _log.debug("Using cache to return version suffix mapping for toolchain %s: %s", str(cache_key),
                        cache[cache_key])
-            return cache[cache_key]
         else:
-            versionsuffix_mappings = func(software_name, software_version_stub, original_toolchain, toolchain_mapping)
+            versionsuffix_mappings = func(software_name, original_toolchain, toolchain_mapping)
             cache[cache_key] = versionsuffix_mappings
-            return cache[cache_key]
+        return cache[cache_key]
 
     # Expose clear method of cache to wrapped function
     cache_aware_func.clear = cache.clear
@@ -843,12 +840,11 @@ def map_versionsuffixes_cache(func):
 
 
 @map_versionsuffixes_cache
-def map_common_versionsuffixes(software_name, software_version_stub, original_toolchain, toolchain_mapping):
+def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapping):
     """
     Create a mapping of common versionssuffixes (like `-Python-%(pyvers)`) between toolchains
 
     :param software_name: Name of software
-    :param software_version_stub: initial characters of version
     :param original_toolchain: original toolchain
     :param toolchain_mapping: toolchain mapping from that containing original to target
     :return: dictionary of possible mappings
@@ -858,62 +854,72 @@ def map_common_versionsuffixes(software_name, software_version_stub, original_to
 
     versionsuffix_mappings = {}
 
-    # Find highest value in the target
-    target_version = '0'
+    # Find highest value in the target (for each major version)
+    target_versions = {}
     for toolchain in target_toolchain_hierarchy:
-        if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
-            toolchain_suffix = EB_FORMAT_EXTENSION
-        else:
-            toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
-        regex_search_query = '^%s-%s.*' % (software_name, software_version_stub) + toolchain_suffix
-        versionprefix_name = '%s-' % software_name
-
-        cand_paths = search_easyconfigs(regex_search_query, return_robot_list=True)
+        prefix_stub = '%s-' % software_name
+        cand_paths, toolchain_suffix = get_matching_easyconfig_candidates(prefix_stub, toolchain)
         for path in cand_paths:
             # Get the version from the path
             filename = os.path.basename(path)
             # Find the version sandwiched between our known values
             try:
-                regex = '%s(.*)%s' % (versionprefix_name, toolchain_suffix)
+                regex = '%s(.*)%s' % (prefix_stub, toolchain_suffix)
                 version = re.search(regex, filename).group(1)
-                if LooseVersion(version) > LooseVersion(target_version):
-                    target_version = version
+                major_version = version.split('.')[0]
+                # We make a list for all major values, make sure the major value in the list is initialised to zero
+                if major_version not in target_versions:
+                    target_versions[major_version] = version
+                elif LooseVersion(version) > LooseVersion(target_versions[major_version]):
+                    target_versions[major_version] = version
             except AttributeError:
                 raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
                                      regex)
 
     # Now map all matching versions in the source toolchain to this target
-    if target_version > 0:
-        source_versions = set()
-        for toolchain in orig_toolchain_hierarchy:
-            if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
-                toolchain_suffix = EB_FORMAT_EXTENSION
-            else:
-                toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
-            regex_search_query = '^%s-%s.*' % (software_name, software_version_stub) + toolchain_suffix
-            versionprefix_name = '%s-' % software_name
+    for major_version, target_version in target_versions.iteritems():
+        if target_version > 0:
+            source_versions = set()
+            for toolchain in orig_toolchain_hierarchy:
+                prefix_stub = '%s-%s' % (software_name, major_version)
+                cand_paths, toolchain_suffix = get_matching_easyconfig_candidates(prefix_stub, toolchain)
 
-            cand_paths = search_easyconfigs(regex_search_query, return_robot_list=True)
-            for path in cand_paths:
-                # Get the version from the path
-                filename = os.path.basename(path)
-                # Find the version sandwiched between our known values
-                try:
-                    regex = '%s(.*)%s' % (versionprefix_name, toolchain_suffix)
-                    version = re.search(regex, filename).group(1)
-                    if LooseVersion(version) < LooseVersion(target_version):
-                        source_versions.add(version)
-                except AttributeError:
-                    raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
-                                         regex)
+                for path in cand_paths:
+                    # Get the version from the path
+                    filename = os.path.basename(path)
+                    # Find the version sandwiched between our known values
+                    try:
+                        regex = '%s-(.*)%s' % (software_name, toolchain_suffix)
+                        version = re.search(regex, filename).group(1)
+                        if LooseVersion(version) < LooseVersion(target_version):
+                            source_versions.add(version)
+                    except AttributeError:
+                        raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
+                                             regex)
 
-        # Finally we add to the mapping
-        for source_version in source_versions:
-            versionsuffix_mappings['-%s-%s' % (software_name, source_version)] = '-%s-%s' % (software_name,
-                                                                                             target_version)
+            # Finally we add to the mapping
+            for source_version in source_versions:
+                versionsuffix_mappings['-%s-%s' % (software_name, source_version)] = '-%s-%s' % (software_name,
+                                                                                                 target_version)
 
     _log.info("Identified version suffix mappings: %s", versionsuffix_mappings)
     return versionsuffix_mappings
+
+
+def get_matching_easyconfig_candidates(prefix_stub, toolchain):
+    """
+
+    :param prefix_stub: stub used in regex (e.g., 'Python-' or 'Python-2')
+    :param toolchain: the toolchain to use with the search
+    :return: list of candidate paths, toolchain_suffix of candidates
+    """
+    if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
+        toolchain_suffix = EB_FORMAT_EXTENSION
+    else:
+        toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
+    regex_search_query = '^%s.*' % prefix_stub + toolchain_suffix
+    cand_paths = search_easyconfigs(regex_search_query, consider_extra_paths=False, print_result=False)
+    return cand_paths, toolchain_suffix
 
 
 def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None, update_dep_versions=False):
@@ -930,9 +936,8 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
 
     # There are some common versionsuffixes (like '-Python-(%pyver)s') that also need dynamic searching/updating
-    versonsuffix_mapping = map_common_versionsuffixes('Python', '2', parsed_ec['ec']['toolchain'], toolchain_mapping)
-    versonsuffix_mapping.update(map_common_versionsuffixes('Python', '3', parsed_ec['ec']['toolchain'],
-                                                           toolchain_mapping))
+    versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['ec']['toolchain'], toolchain_mapping)
+
     if update_dep_versions:
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         if parsed_ec['ec']['versionsuffix'] in versonsuffix_mapping:

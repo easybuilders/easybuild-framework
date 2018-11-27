@@ -379,7 +379,8 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False, filename_only=False, terse=False, return_robot_list=False):
+def search_easyconfigs(query, short=False, filename_only=False, terse=False, consider_extra_paths=True,
+                       print_result=True):
     """
     Search for easyconfigs, if a query is provided.
 
@@ -387,16 +388,17 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, ret
     :param short: figure out common prefix of hits, use variable to factor it out
     :param filename_only: only print filenames, not paths
     :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
-    :param return_robot_list: return the list rather than print it out
+    :param consider_extra_paths: consider all paths when searching
+    :param print_result: print the list of easyconfigs
 
-    :return: return a list of paths for the query iff return_robot_list else no return value
+    :return: return a list of paths for the query
     """
     search_path = build_option('robot_path')
     if not search_path:
         search_path = [os.getcwd()]
     extra_search_paths = build_option('search_paths')
     # If we're returning a list of possible resolutions by the robot, don't include the extra_search_paths
-    if extra_search_paths and not return_robot_list:
+    if extra_search_paths and consider_extra_paths:
         search_path.extend(extra_search_paths)
 
     ignore_dirs = build_option('ignore_dirs')
@@ -413,39 +415,41 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, ret
         else:
             hits.append(hit)
 
-    # if requested return the matches as a list
-    if return_robot_list:
-        if build_option('consider_archived_easyconfigs'):
-            return hits + archived_hits
+    if print_result:
+        # check whether only filenames should be printed
+        if filename_only:
+            hits = [os.path.basename(hit) for hit in hits]
+            archived_hits = [os.path.basename(hit) for hit in archived_hits]
+
+        # prepare output format
+        if terse:
+            lines, tmpl = [], '%s'
         else:
-            return hits
+            lines = ['%s=%s' % var_def for var_def in var_defs]
+            tmpl = ' * %s'
 
-    # check whether only filenames should be printed
-    if filename_only:
-        hits = [os.path.basename(hit) for hit in hits]
-        archived_hits = [os.path.basename(hit) for hit in archived_hits]
+        # non-archived hits are shown first
+        lines.extend(tmpl % hit for hit in hits)
 
-    # prepare output format
-    if terse:
-        lines, tmpl = [], '%s'
+        # also take into account archived hits
+        if archived_hits:
+            if build_option('consider_archived_easyconfigs'):
+                if not terse:
+                    lines.extend(['', "Matching archived easyconfigs:", ''])
+                lines.extend(tmpl % hit for hit in archived_hits)
+            elif not terse:
+                cnt = len(archived_hits)
+                lines.extend([
+                    '',
+                    "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
+                ])
+
+        print '\n'.join(lines)
+
+    # if requested return the matches as a list
+    if build_option('consider_archived_easyconfigs'):
+        final_hits = hits + archived_hits
     else:
-        lines = ['%s=%s' % var_def for var_def in var_defs]
-        tmpl = ' * %s'
+        final_hits = hits
 
-    # non-archived hits are shown first
-    lines.extend(tmpl % hit for hit in hits)
-
-    # also take into account archived hits
-    if archived_hits:
-        if build_option('consider_archived_easyconfigs'):
-            if not terse:
-                lines.extend(['', "Matching archived easyconfigs:", ''])
-            lines.extend(tmpl % hit for hit in archived_hits)
-        elif not terse:
-            cnt = len(archived_hits)
-            lines.extend([
-                '',
-                "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
-            ])
-
-    print '\n'.join(lines)
+    return final_hits

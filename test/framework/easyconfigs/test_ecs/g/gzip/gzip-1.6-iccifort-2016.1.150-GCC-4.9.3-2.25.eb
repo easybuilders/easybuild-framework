@@ -12,7 +12,7 @@
 easyblock = 'ConfigureMake'
 
 name = 'gzip'
-version = '1.4'
+version = '1.6'
 
 homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
