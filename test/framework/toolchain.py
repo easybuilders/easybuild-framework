@@ -796,8 +796,7 @@ class ToolchainTest(EnhancedTestCase):
                 'build_only': False,
             },
         ]
-        tc.add_dependencies(deps)
-        tc.prepare()
+        tc.prepare(deps=deps)
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
 
@@ -825,8 +824,7 @@ class ToolchainTest(EnhancedTestCase):
             }
         ]
         tc = self.get_toolchain('GCC', version='4.6.4')
-        tc.add_dependencies(deps)
-        tc.prepare()
+        tc.prepare(deps=deps)
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertTrue(os.environ['EBROOTTOY'].endswith('software/toy/0.0'))
@@ -846,9 +844,8 @@ class ToolchainTest(EnhancedTestCase):
             'build_only': False,
         }
         tc = self.get_toolchain('GCC', version='4.6.4')
-        tc.add_dependencies(deps)
         os.environ['FOOBAR_PREFIX'] = '/foo/bar'
-        tc.prepare()
+        tc.prepare(deps=deps)
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertEqual(os.environ['EBROOTTOY'], '/foo/bar')

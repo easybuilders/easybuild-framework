@@ -1345,8 +1345,7 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PI_PREFIX'] = '/test/prefix/PI'
         os.environ['TEST_INC'] = '/test/prefix/test/include'
         ec.toolchain.dry_run = True
-        ec.toolchain.add_dependencies(ec.dependencies())
-        ec.toolchain.prepare(silent=True)
+        ec.toolchain.prepare(deps=ec.dependencies(), silent=True)
 
         self.assertEqual(os.environ.get('EBROOTBAR'), '/foo/bar')
         self.assertEqual(os.environ.get('EBROOTFOO'), '/foo/bar')
