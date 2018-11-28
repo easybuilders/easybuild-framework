@@ -927,9 +927,8 @@ def get_matching_easyconfig_candidates(prefix_stub, toolchain):
     else:
         toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
     regex_search_query = '^%s.*' % prefix_stub + toolchain_suffix
-    cand_paths = search_easyconfigs(regex_search_query, consider_extra_paths=False, print_result=False)
-    # The stubs have to be an exact match
-    cand_paths = [path for path in cand_paths if prefix_stub in path]
+    cand_paths = search_easyconfigs(regex_search_query, consider_extra_paths=False, print_result=False,
+                                    case_sensitive=True)
     return cand_paths, toolchain_suffix
 
 
@@ -1057,7 +1056,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
 
         # prepend/append version prefix/suffix
         depver = ''.join([x for x in ['^', prefix_to_version, candidate_ver, full_versionsuffix] if x])
-        cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False)
+        cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False, case_sensitive=True)
         # Add them to the possibilities
         for path in cand_paths:
             # Get the version from the path

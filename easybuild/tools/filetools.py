@@ -595,7 +595,8 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False,
+                case_sensitive=False):
     """
     Search for files using in specified paths using specified search query (regular expression)
 
@@ -613,8 +614,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         raise EasyBuildError("search_file: ignore_dirs (%s) should be of type list, not %s",
                              ignore_dirs, type(ignore_dirs))
 
-    # compile regex, case-insensitive
-    query = re.compile(query, re.I)
+    if case_sensitive:
+        query = re.compile(query)
+    else:# compile regex, case-insensitive
+        query = re.compile(query, re.I)
 
     var_defs = []
     hits = []

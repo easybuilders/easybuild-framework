@@ -380,7 +380,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
 
 
 def search_easyconfigs(query, short=False, filename_only=False, terse=False, consider_extra_paths=True,
-                       print_result=True):
+                       print_result=True, case_sensitive=False):
     """
     Search for easyconfigs, if a query is provided.
 
@@ -390,6 +390,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
     :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
     :param consider_extra_paths: consider all paths when searching
     :param print_result: print the list of easyconfigs
+    :param case_sensitive: boolean to decide whether search is case sensitive
 
     :return: return a list of paths for the query
     """
@@ -405,7 +406,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
 
     # note: don't pass down 'filename_only' here, we need the full path to filter out archived easyconfigs
     var_defs, _hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, terse=terse,
-                                  silent=True, filename_only=False)
+                                  silent=True, filename_only=False, case_sensitive=case_sensitive)
 
     # filter out archived easyconfigs, these are handled separately
     hits, archived_hits = [], []

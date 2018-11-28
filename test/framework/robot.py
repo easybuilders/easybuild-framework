@@ -1285,6 +1285,15 @@ class RobotTest(EnhancedTestCase):
                                                                           'binutils-2.26-GCCcore-4.9.3.eb']]
         self.assertEqual(paths, ref_paths)
 
+        paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False)
+        ref_paths = [os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
+                     os.path.join(test_ecs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb')]
+        self.assertEqual(paths, ref_paths)
+
+        # Now do a case sensitive search
+        paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False, case_sensitive=True)
+        ref_paths = [os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb')]
+        self.assertEqual(paths, ref_paths)
 
 def suite():
     """ returns all the testcases in this module """
