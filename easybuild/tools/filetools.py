@@ -616,7 +616,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
 
     if case_sensitive:
         query = re.compile(query)
-    else:# compile regex, case-insensitive
+    else:
+        # compile regex, case-insensitive
         query = re.compile(query, re.I)
 
     var_defs = []
