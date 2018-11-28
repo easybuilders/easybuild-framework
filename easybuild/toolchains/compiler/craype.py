@@ -122,11 +122,13 @@ class CrayPECompiler(Compiler):
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; define $CRAYPE_LINK_TYPE if 'dynamic' toolchain option is enabled."""
-        super(CrayPECompiler, self).prepare(*args, **kwargs)
+        res = super(CrayPECompiler, self).prepare(*args, **kwargs)
 
         if self.options['dynamic'] or self.options['shared']:
             self.log.debug("Enabling building of shared libs/dynamically linked executables via $CRAYPE_LINK_TYPE")
             env.setvar('CRAYPE_LINK_TYPE', 'dynamic')
+
+        return res
 
 
 class CrayPEGCC(CrayPECompiler):

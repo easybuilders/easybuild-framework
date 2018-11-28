@@ -703,7 +703,7 @@ class Toolchain(object):
             raise EasyBuildError('Not all dependencies have a matching toolchain version')
 
         if loadmod:
-            self._load_modules(deps, silent=silent)
+            self._load_modules(tcdeps, silent=silent)
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 
