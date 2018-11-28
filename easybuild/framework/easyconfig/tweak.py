@@ -81,6 +81,9 @@ def ec_filename_for(path):
 
 def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
+    # keep track of originally listed easyconfigs (via their path)
+    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
+
     tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     if targetdirs is not None:
         tweaked_ecs_path, tweaked_ecs_deps_path = targetdirs
@@ -151,12 +154,15 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
 
             # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
             # We can leave any dependencies they may have as they will only be used if required (or originally listed)
-            _log.debug("Filtering out toolchain hierarchy for %s", source_toolchain)
-
+            _log.debug("Filtering out toolchain hierarchy and dependencies for %s", source_toolchain)
+            path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
+            toolchain_ec = process_easyconfig(path)
+            toolchain_deps = resolve_dependencies(toolchain_ec, modtool, retain_all_deps=True)
+            toolchain_dep_names = [dep['ec']['name'] for dep in toolchain_deps if
+                                   dep['spec'] not in listed_ec_paths]
             i = 0
             while i < len(orig_ecs):
-                tc_names = [tc['name'] for tc in get_toolchain_hierarchy(source_toolchain)]
-                if orig_ecs[i]['ec']['name'] in tc_names:
+                if orig_ecs[i]['ec']['name'] in toolchain_dep_names:
                     # drop elements in toolchain hierarchy
                     del orig_ecs[i]
                 else:
@@ -169,9 +175,6 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         # in that case, do not construct full dependency graph
         orig_ecs = easyconfigs
         _log.debug("Software name/version found, so not applying build specifications recursively: %s" % build_specs)
-
-    # keep track of originally listed easyconfigs (via their path)
-    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
@@ -210,7 +213,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
-                                                                        targetdir=tweaked_ecs_deps_path)
+                                                                        targetdir=tweaked_ecs_deps_path,
+                                                                        update_dep_versions=update_dependencies)
             else:
                 new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
@@ -907,7 +911,6 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
             for source_version in source_versions:
                 versionsuffix_mappings['-%s-%s' % (software_name, source_version)] = '-%s-%s' % (software_name,
                                                                                                  target_version)
-
     _log.info("Identified version suffix mappings: %s", versionsuffix_mappings)
     return versionsuffix_mappings
 
@@ -926,7 +929,7 @@ def get_matching_easyconfig_candidates(prefix_stub, toolchain):
     regex_search_query = '^%s.*' % prefix_stub + toolchain_suffix
     cand_paths = search_easyconfigs(regex_search_query, consider_extra_paths=False, print_result=False)
     # The stubs have to be an exact match
-    cand_paths = [path for path in cand_paths if path.startswith(prefix_stub)]
+    cand_paths = [path for path in cand_paths if prefix_stub in path]
     return cand_paths, toolchain_suffix
 
 
@@ -948,8 +951,6 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     if update_dep_versions:
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['ec']['toolchain'], toolchain_mapping)
-        if parsed_ec['ec']['versionsuffix'] in versonsuffix_mapping:
-            parsed_ec['ec']['versionsuffix'] = versonsuffix_mapping[parsed_ec['ec']['versionsuffix']]
 
     # Replace the toolchain if the mapping exists
     tc_name = parsed_ec['ec']['toolchain']['name']
@@ -988,13 +989,14 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                     if LooseVersion(candidate['version']) > LooseVersion(highest_version):
                         highest_version = candidate['version']
                 if highest_version != dep['version']:
-                    _log.info("Upgrading version of %s dependency from %s to %s", dep['name'], dep['version'],
+                    _log.info("Updating version of %s dependency from %s to %s", dep['name'], dep['version'],
                               highest_version)
                     _log.info("Depending on your configuration, this will be resolved with one of the following "
                               "easyconfigs: %s", '\n'.join(cand['path'] for cand in potential_version_matches
                                                            if cand['version'] == highest_version))
                     orig_dep['version'] = highest_version
                     if orig_dep['versionsuffix'] in versonsuffix_mapping:
+                        dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
                         orig_dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
                     dep_changed = True
 
@@ -1003,6 +1005,8 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
 
     # Determine the name of the modified easyconfig and dump it to target_dir
+    if parsed_ec['ec']['versionsuffix'] in versonsuffix_mapping:
+        parsed_ec['ec']['versionsuffix'] = versonsuffix_mapping[parsed_ec['ec']['versionsuffix']]
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
@@ -1028,6 +1032,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     dep_tc_name = dep['toolchain']['name']
     if dep_tc_name in toolchain_mapping:
         search_toolchain = toolchain_mapping[dep_tc_name]
+    else:
+        # dummy
+        search_toolchain = dep['toolchain']
     toolchain_hierarchy = get_toolchain_hierarchy(search_toolchain)
     # Figure out what precedes the version
     versionprefix = dep.get('versionprefix', '')
@@ -1037,7 +1044,6 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     # If versionsuffix is in our mapping then we expect it to be updated
     if versionsuffix in versonsuffix_mapping:
         versionsuffix = versonsuffix_mapping[versionsuffix]
-
     for toolchain in toolchain_hierarchy:
         candidate_ver = '.*'  # using regex for *
 
