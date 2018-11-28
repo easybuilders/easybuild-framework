@@ -1046,32 +1046,37 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     # If versionsuffix is in our mapping then we expect it to be updated
     if versionsuffix in versonsuffix_mapping:
         versionsuffix = versonsuffix_mapping[versionsuffix]
-    for toolchain in toolchain_hierarchy:
-        candidate_ver = '.*'  # using regex for *
 
-        # determine main install version based on toolchain
-        if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
-            toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
-        else:
-            toolchain_suffix = ''
-        full_versionsuffix = ''.join([x for x in [toolchain_suffix, versionsuffix, EB_FORMAT_EXTENSION]
-                                      if x])
+    # the candidate version is a regex string, let's be conservative and search for a minor version upgrade first
+    # only if that fails will we try a global search, i.e, a major version upgrade (assumes major.minor.XXX versioning)
+    major_version = dep['version'].split('.')[0]
+    for candidate_ver in ['%s.*' % major_version, '.*']:
+        if not potential_version_matches:
+            for toolchain in toolchain_hierarchy:
+                # determine main install version based on toolchain
+                if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+                    toolchain_suffix = "-%s-%s" % (toolchain['name'], toolchain['version'])
+                else:
+                    toolchain_suffix = ''
+                full_versionsuffix = ''.join([x for x in [toolchain_suffix, versionsuffix, EB_FORMAT_EXTENSION]
+                                              if x])
 
-        # prepend/append version prefix/suffix
-        depver = ''.join([x for x in ['^', prefix_to_version, candidate_ver, full_versionsuffix] if x])
-        cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False, case_sensitive=True)
-        # Add them to the possibilities
-        for path in cand_paths:
-            # Get the version from the path
-            filename = os.path.basename(path)
-            # Find the version sandwiched between our known values
-            regex = re.compile('^%s(.+?)%s' % (prefix_to_version, full_versionsuffix))
-            res = regex.search(filename)
-            if res:
-                version = res.group(1)
-            else:
-                raise EasyBuildError("Failed to determine version from '%s' using regex pattern '%s'", filename,
-                                     regex.pattern)
-            potential_version_matches.append({'version': version, 'path': path, 'toolchain': toolchain})
+                # prepend/append version prefix/suffix
+                depver = ''.join([x for x in ['^', prefix_to_version, candidate_ver, full_versionsuffix] if x])
+                cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False,
+                                                case_sensitive=True)
+                # Add them to the possibilities
+                for path in cand_paths:
+                    # Get the version from the path
+                    filename = os.path.basename(path)
+                    # Find the version sandwiched between our known values
+                    regex = re.compile('^%s(.+?)%s' % (prefix_to_version, full_versionsuffix))
+                    res = regex.search(filename)
+                    if res:
+                        version = res.group(1)
+                    else:
+                        raise EasyBuildError("Failed to determine version from '%s' using regex pattern '%s'", filename,
+                                             regex.pattern)
+                    potential_version_matches.append({'version': version, 'path': path, 'toolchain': toolchain})
     _log.debug("Found possible dependency upgrades: %s", potential_version_matches)
     return potential_version_matches
