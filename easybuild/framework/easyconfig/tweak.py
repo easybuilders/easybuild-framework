@@ -155,11 +155,14 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
             # We can leave any dependencies they may have as they will only be used if required (or originally listed)
             _log.debug("Filtering out toolchain hierarchy and dependencies for %s", source_toolchain)
-            path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
-            toolchain_ec = process_easyconfig(path)
-            toolchain_deps = resolve_dependencies(toolchain_ec, modtool, retain_all_deps=True)
-            toolchain_dep_names = [dep['ec']['name'] for dep in toolchain_deps if
-                                   dep['spec'] not in listed_ec_paths]
+            if source_toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+                path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
+                toolchain_ec = process_easyconfig(path)
+                toolchain_deps = resolve_dependencies(toolchain_ec, modtool, retain_all_deps=True)
+                toolchain_dep_names = [dep['ec']['name'] for dep in toolchain_deps if
+                                       dep['spec'] not in listed_ec_paths]
+            else:
+                toolchain_dep_names = []
             i = 0
             while i < len(orig_ecs):
                 if orig_ecs[i]['ec']['name'] in toolchain_dep_names:
