@@ -1047,10 +1047,20 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     if versionsuffix in versonsuffix_mapping:
         versionsuffix = versonsuffix_mapping[versionsuffix]
 
-    # the candidate version is a regex string, let's be conservative and search for a minor version upgrade first
-    # only if that fails will we try a global search, i.e, a major version upgrade (assumes major.minor.XXX versioning)
-    major_version = dep['version'].split('.')[0]
-    for candidate_ver in ['%s.*' % major_version, '.*']:
+    # the candidate version is a regex string, let's be conservative and search for patch upgrade first, if that doesn't
+    # work look for a minor version upgrade and if that fails will we try a global search, i.e, a major version upgrade
+    # (assumes major.minor.XXX versioning)
+    candidate_ver_list = []
+    version_components = dep['version'].split('.')
+    major_version = version_components[0]
+    # This doesn't work well with the versionsuffix mapping which isn't clever enough for this so ignoring
+    # if len(version_components) > 1:
+    #     minor_version = version_components[1]
+    #     candidate_ver_list.append('%s\.%s.*' % (major_version, minor_version))
+    candidate_ver_list.append('%s.*' % major_version)
+    candidate_ver_list.append('.*')
+
+    for candidate_ver in candidate_ver_list:
         if not potential_version_matches:
             for toolchain in toolchain_hierarchy:
                 # determine main install version based on toolchain
