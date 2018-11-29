@@ -150,16 +150,16 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_load_module(self):
         """Test load_module method."""
-        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        # copy OpenMPI module used in gompi/2018a to fiddle with it, i.e. to fake bump OpenMPI version used in it
         tmp_modules = os.path.join(self.test_prefix, 'modules')
         mkdir(tmp_modules)
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
         copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
 
-        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '2.1.2-GCC-6.4.0-2.28')
         ompi_mod_txt = read_file(openmpi_module)
-        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
+        write_file(openmpi_module, ompi_mod_txt.replace('2.1.2', '2.0.2'))
 
         self.modtool.use(tmp_modules)
 
@@ -172,7 +172,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'gompi', 'version': '1.3.12'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -556,9 +556,9 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
-            "   ('FFTW', '3.3.3'),",
+            "   ('FFTW', '3.3.7'),",
             ']',
         ])
         self.writeEC()
@@ -571,11 +571,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
         mod_dep_txt = eb.make_module_dep()
-        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4']:
+        for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
-        regex = re.compile('load.*FFTW/3.3.3')
+        regex = re.compile('load.*FFTW/3.3.7')
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
@@ -599,11 +599,11 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "toolchain = {'name': 'foss', 'version': '2018a'}",
             'dependencies = [',
-            "   ('GCC', '4.7.2', '', True),"
-            "   ('hwloc', '1.6.2', '', ('GCC', '4.7.2')),",
-            "   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),"
+            "   ('GCC', '6.4.0-2.28', '', True),"
+            "   ('hwloc', '1.11.8', '', ('GCC', '6.4.0-2.28')),",
+            "   ('OpenMPI', '2.1.2', '', ('GCC', '6.4.0-2.28')),"
             ']',
         ])
         self.writeEC()
@@ -612,9 +612,12 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
 
+        # toolchain must be loaded such that dependencies are accessible
+        self.modtool.load(['foss/2018a'])
+
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
         mod_dep_txt = eb.make_module_dep()
-        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4', 'hwloc/1.6.2']:
+        for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2', 'hwloc/1.11.8']:
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
@@ -688,7 +691,6 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
-        deps = [('GCC', '4.6.4')]
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -698,10 +700,10 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = [('GCC', '4.6.4'), ('toy', '0.0-deps')]",
-            "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
+            "dependencies = [('GCC', '6.4.0-2.28'), ('toy', '0.0-deps')]",
+            "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
-            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '1.6.4-GCC-4.6.4')]",
+            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
@@ -758,7 +760,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in [('GCC', '4.6.4')]:
+        for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -776,7 +778,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in [('OpenMPI', '1.6.4-GCC-4.6.4')]:
+        for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -1070,7 +1072,7 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options={'validate': False})
 
         # check that check_readiness step works (adding dependencies, etc.)
-        ec_file = 'OpenMPI-1.6.4-GCC-4.6.4.eb'
+        ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
         topdir = os.path.dirname(os.path.abspath(__file__))
         ec_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'o', 'OpenMPI', ec_file)
         ec = EasyConfig(ec_path)
@@ -1089,7 +1091,7 @@ class EasyBlockTest(EnhancedTestCase):
         try:
             eb.check_readiness_step()
         except EasyBuildError, err:
-            err_regex = re.compile("Missing modules for one or more dependencies: nosuchsoftware/1.2.3-GCC-4.6.4")
+            err_regex = re.compile("Missing modules for one or more dependencies: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
@@ -1165,7 +1167,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         toy_patches = [
             'toy-0.0_fix-silly-typo-in-printf-statement.patch',  # test for applying patch
-            ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
+            ('toy-extra.txt', 'toy-0.0'),  # test for patch-by-copy
         ]
         self.assertEqual(ec['ec']['patches'], toy_patches)
 
@@ -1191,7 +1193,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
@@ -1311,7 +1313,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.cfg['allow_system_deps'] = [('Python', '1.2.3')]
 
-        init_config(build_options={'extra_modules': ['GCC/4.7.2']})
+        init_config(build_options={'extra_modules': ['GCC/6.4.0-2.28']})
 
         eb.prepare_step()
 
@@ -1319,12 +1321,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBROOTPYTHON'), 'Python')
         self.assertEqual(os.environ.get('EBVERSIONPYTHON'), '1.2.3')
         self.assertEqual(len(self.modtool.list()), 1)
-        self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/4.7.2')
+        self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/6.4.0-2.28')
 
     def test_checksum_step(self):
         """Test checksum step"""
         testdir = os.path.abspath(os.path.dirname(__file__))
-        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -1344,7 +1346,7 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
         eb.fetch_sources()
-        error_msg  ="Checksum verification for .*/toy-0.0.tar.gz using .* failed"
+        error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
 
         # also check verification of checksums for extensions, which is part of fetch_extension_sources
@@ -1380,13 +1382,13 @@ class EasyBlockTest(EnhancedTestCase):
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""
         testdir = os.path.abspath(os.path.dirname(__file__))
-        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
 
         def run_checks():
-            expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-1.3.12-test.eb: "
+            expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-2018a-test.eb: "
             expected += "found 1 sources + 1 patches vs 1 checksums"
             self.assertEqual(res[0], expected)
             self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz:"))
@@ -1501,6 +1503,7 @@ class EasyBlockTest(EnhancedTestCase):
 def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

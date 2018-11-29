@@ -145,7 +145,7 @@ class DocsTest(EnhancedTestCase):
             r'homepage: http://www.gzip.org/',
             r'',
             r"  \* gzip v1.4: GCC/4.6.3, dummy",
-            r"  \* gzip v1.5: goolf/1.4.10, intel/2018a",
+            r"  \* gzip v1.5: foss/2018a, intel/2018a",
             '',
         ]))
         txt = list_software(output_format='txt', detailed=True)
@@ -213,12 +213,12 @@ class DocsTest(EnhancedTestCase):
             r'',
             r'\*homepage\*: http://www.gzip.org/',
             r'',
-            r'=======    =================================',
-            r'version    toolchain                        ',
-            r'=======    =================================',
-            r'``1.4``    ``GCC/4.6.3``, ``dummy``         ',
-            r'``1.5``    ``goolf/1.4.10``, ``intel/2018a``',
-            r'=======    =================================',
+            r'=======    ===============================',
+            r'version    toolchain                      ',
+            r'=======    ===============================',
+            r'``1.4``    ``GCC/4.6.3``, ``dummy``       ',
+            r'``1.5``    ``foss/2018a``, ``intel/2018a``',
+            r'=======    ===============================',
         ]))
         txt = list_software(output_format='rst', detailed=True)
         self.assertTrue(expected.match(txt), "Pattern '%s' found in: %s" % (expected.pattern, txt))
@@ -252,11 +252,11 @@ class DocsTest(EnhancedTestCase):
             '',
             'homepage: https://easybuilders.github.io/easybuild',
             '',
-            "  * toy v0.0: dummy, gompi/1.3.12",
+            "  * toy v0.0: dummy, gompi/2018a",
             "  * toy v0.0 (versionsuffix: '-deps'): dummy",
             "  * toy v0.0 (versionsuffix: '-iter'): dummy",
             "  * toy v0.0 (versionsuffix: '-multiple'): dummy",
-            "  * toy v0.0 (versionsuffix: '-test'): gompi/1.3.12",
+            "  * toy v0.0 (versionsuffix: '-test'): gompi/2018a",
         ]
         txt = list_software(output_format='txt', detailed=True)
         lines = txt.split('\n')
@@ -271,15 +271,15 @@ class DocsTest(EnhancedTestCase):
             '',
             '*homepage*: https://easybuilders.github.io/easybuild',
             '',
-            '=======    =============    ===========================',
-            'version    versionsuffix    toolchain                  ',
-            '=======    =============    ===========================',
-            '``0.0``                     ``dummy``, ``gompi/1.3.12``',
-            '``0.0``    ``-deps``        ``dummy``                  ',
-            '``0.0``    ``-iter``        ``dummy``                  ',
-            '``0.0``    ``-multiple``    ``dummy``                  ',
-            '``0.0``    ``-test``        ``gompi/1.3.12``           ',
-            '=======    =============    ===========================',
+            '=======    =============    ==========================',
+            'version    versionsuffix    toolchain                 ',
+            '=======    =============    ==========================',
+            '``0.0``                     ``dummy``, ``gompi/2018a``',
+            '``0.0``    ``-deps``        ``dummy``                 ',
+            '``0.0``    ``-iter``        ``dummy``                 ',
+            '``0.0``    ``-multiple``    ``dummy``                 ',
+            '``0.0``    ``-test``        ``gompi/2018a``           ',
+            '=======    =============    ==========================',
         ]
         txt = list_software(output_format='rst', detailed=True)
         lines = txt.split('\n')

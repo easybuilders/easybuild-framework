@@ -769,7 +769,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         def test_mns():
             """Test default module naming scheme."""
             # test default naming scheme
-            for ec_file in [f for f in ec_files if not 'broken' in os.path.basename(f)]:
+            for ec_file in [f for f in ec_files if 'broken' not in os.path.basename(f)]:
                 ec_path = os.path.abspath(ec_file)
                 ecs = process_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
@@ -783,7 +783,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'GCC-4.6.3.eb': 'GCC/4.6.3',
             'gzip-1.4.eb': 'gzip/1.4',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/1.4-GCC-4.6.3',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/1.5-goolf-1.4.10',
+            'gzip-1.5-foss-2018a.eb': 'gzip/1.5-foss-2018a',
             'gzip-1.5-intel-2018a.eb': 'gzip/1.5-intel-2018a',
             'toy-0.0.eb': 'toy/0.0',
             'toy-0.0-multiple.eb': 'toy/0.0-somesuffix',  # first block sets versionsuffix to '-somesuffix'
@@ -815,7 +815,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         err_pattern = 'nosucheasyconfigparameteravailable'
-        ec_file = os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file = os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
 
         # test simple custom module naming scheme
@@ -825,15 +825,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'GCC-4.6.3.eb': 'GCC/4.6.3',
             'gzip-1.4.eb': 'gzip/1.4',
             'gzip-1.4-GCC-4.6.3.eb': 'gnu/gzip/1.4',
-            'gzip-1.5-goolf-1.4.10.eb': 'gnu/openmpi/gzip/1.5',
+            'gzip-1.5-foss-2018a.eb': 'gnu/openmpi/gzip/1.5',
             'gzip-1.5-intel-2018a.eb': 'intel/intelmpi/gzip/1.5',
             'toy-0.0.eb': 'toy/0.0',
             'toy-0.0-multiple.eb': 'toy/0.0',  # test module naming scheme ignores version suffixes
         }
         test_mns()
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
-        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/1.4.10')
+        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/2018a')
 
         # test module naming scheme using all available easyconfig parameters
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeMore'
@@ -843,7 +843,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'GCC-4.6.3.eb': 'GCC/5e4c8db5c005867c2aa9c1019500ed2cb1b4cf29',
             'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/fceb41e04c26b540b7276c4246d1ecdd1e8251c9',
+            'gzip-1.5-foss-2018a.eb': 'gzip/65dc39f92bf634667c478c50e43f0cda96b093a9',
             'gzip-1.5-intel-2018a.eb': 'gzip/0a4725f4720103eff8ffdadf8ffb187b988fb805',
             'toy-0.0.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
             'toy-0.0-multiple.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
@@ -852,7 +852,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # test determining module name for dependencies (i.e. non-parsed easyconfigs)
         # using a module naming scheme that requires all easyconfig parameters
-        ec2mod_map['gzip-1.5-goolf-1.4.10.eb'] = 'gzip/.fceb41e04c26b540b7276c4246d1ecdd1e8251c9'
+        ec2mod_map['gzip-1.5-foss-2018a.eb'] = 'gzip/.65dc39f92bf634667c478c50e43f0cda96b093a9'
         for dep_ec, dep_spec in [
             ('GCC-4.6.3.eb', {
                 'name': 'GCC',
@@ -861,11 +861,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'hidden': False,
             }),
-            ('gzip-1.5-goolf-1.4.10.eb', {
+            ('gzip-1.5-foss-2018a.eb', {
                 'name': 'gzip',
                 'version': '1.5',
                 'versionsuffix': '',
-                'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+                'toolchain': {'name': 'foss', 'version': '2018a'},
                 'hidden': True,
             }),
             ('toy-0.0-multiple.eb', {
@@ -879,9 +879,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # determine full module name
             self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'), hidden=True)
-        self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-goolf-1.4.10.eb'])
-        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/a86eb41d8f9c1d6f2d3d61cdb8f420cc2a21cada')
+        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'), hidden=True)
+        self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-foss-2018a.eb'])
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/0c5d3fad1328e36c93258863f21234f4ff3f7a3f')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
@@ -906,7 +906,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(not is_valid_module_name('foo\0bar'))
 
         # valid module name must be accepted
-        self.assertTrue(is_valid_module_name('gzip/goolf-1.4.10-suffix'))
+        self.assertTrue(is_valid_module_name('gzip/foss-2018a-suffix'))
         self.assertTrue(is_valid_module_name('GCC/4.7.2'))
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
         self.assertTrue(is_valid_module_name('intel'))
@@ -919,7 +919,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ('OpenMPI/1.6.4-GCC-4.7.2-no-OFED', 'OpenMPI', True),
             ('BLACS/1.1-gompi-1.1.0-no-OFED', 'BLACS', True),
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'ScaLAPACK', True),
-            ('netCDF-C++/4.2-goolf-1.4.10', 'netCDF-C++', True),
+            ('netCDF-C++/4.2-foss-2018a', 'netCDF-C++', True),
             ('gcc/4.7.2', 'GCC', False),
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
             ('apps/blacs/1.1', 'BLACS', False),
@@ -966,20 +966,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
         impi_ec = 'impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb'
         imkl_ec = 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'
         test_ecs = {
-            'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core', ['Compiler/GCC/4.7.2'],
-                             ['Compiler/GCC/4.7.2'], ['Core']),
-            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2', ['MPI/GCC/4.7.2/OpenMPI/1.6.4'],
-                                           ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4', [],
-                                         [], ['Core']),
-            'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core', [],
-                                [], ['Core']),
+            'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', 'Core', ['Compiler/GCC/6.4.0-2.28'],
+                                  ['Compiler/GCC/6.4.0-2.28'], ['Core']),
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2', 'Compiler/GCC/6.4.0-2.28',
+                                                ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2'],
+                                                ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2'], ['Core']),
+            'gzip-1.5-foss-2018a.eb': ('gzip/1.5', 'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2', [],
+                                       [], ['Core']),
+            'foss-2018a.eb': ('foss/2018a', 'Core', [],
+                              [], ['Core']),
             'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver],
                                             ['Compiler/intel/%s' % iccver], ['Core']),
             'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core', ['Compiler/intel/2013.3.163'],
                                     ['Compiler/intel/2013.3.163'], ['Core']),
-            'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2', ['Compiler/GCC-CUDA/4.8.2-5.5.22'],
-                                         ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
+            'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
+                                              ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'],
+                                              ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'], ['Core']),
             'CUDA-5.5.22.eb': ('CUDA/5.5.22', 'Core', [],
                                [], ['Core']),
             'CUDA-5.5.22-iccifort-2013.5.192-GCC-4.8.3.eb': ('CUDA/5.5.22', 'Compiler/intel/2013.5.192-GCC-4.8.3',
@@ -1007,33 +1009,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts)
         test_ecs = {
-            'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core/compiler',
-                             ['Compiler/GCC/4.7.2/%s' % c for c in moduleclasses],
-                             ['Compiler/GCC/4.7.2']),
-            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2/mpi',
-                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4/%s' % c for c in moduleclasses],
-                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4']),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/tools',
-                             [], []),
-            'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core/toolchain',
-                             [], []),
+            'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', 'Core/compiler',
+                                  ['Compiler/GCC/6.4.0-2.28/%s' % c for c in moduleclasses],
+                                  ['Compiler/GCC/6.4.0-2.28']),
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2', 'Compiler/GCC/6.4.0-2.28/mpi',
+                                                ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/%s' % c for c in moduleclasses],
+                                                ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2']),
+            'gzip-1.5-foss-2018a.eb': ('gzip/1.5', 'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/tools',
+                                       [], []),
+            'foss-2018a.eb': ('foss/2018a', 'Core/toolchain',
+                              [], []),
             'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core/compiler',
-                             ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses],
-                             ['Compiler/intel/%s' % iccver]),
+                                            ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses],
+                                            ['Compiler/intel/%s' % iccver]),
             'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core/compiler',
-                             ['Compiler/intel/2013.3.163/%s' % c for c in moduleclasses],
-                             ['Compiler/intel/2013.3.163']),
-            'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2/system',
-                             ['Compiler/GCC-CUDA/4.8.2-5.5.22/%s' % c for c in moduleclasses],
-                             ['Compiler/GCC-CUDA/4.8.2-5.5.22']),
+                                    ['Compiler/intel/2013.3.163/%s' % c for c in moduleclasses],
+                                    ['Compiler/intel/2013.3.163']),
+            'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28/system',
+                                              ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85/%s' % c for c in moduleclasses],
+                                              ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85']),
             impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s/mpi' % iccver,
-                             ['MPI/intel/%s/impi/4.1.3.049/%s' % (iccver, c) for c in moduleclasses],
-                             ['MPI/intel/%s/impi/4.1.3.049' % iccver]),
+                      ['MPI/intel/%s/impi/4.1.3.049/%s' % (iccver, c) for c in moduleclasses],
+                      ['MPI/intel/%s/impi/4.1.3.049' % iccver]),
             imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049/numlib' % iccver,
-                             [], []),
+                      [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
-            test_ec(ecfile, *mns_vals, init_modpaths = ['Core/%s' % c for c in moduleclasses])
+            test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-4.1.3.049.eb'))
@@ -1043,10 +1045,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         test_ecs = {
-            'GCC-4.7.2.eb':               ('compiler/GCC/4.7.2',          '', [], [], []),
-            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('mpi/OpenMPI/1.6.4-GCC-4.7.2', '', [], [], []),
-            'gzip-1.5-goolf-1.4.10.eb':   ('tools/gzip/1.5-goolf-1.4.10', '', [], [], []),
-            'goolf-1.4.10.eb':            ('toolchain/goolf/1.4.10',      '', [], [], []),
+            'GCC-6.4.0-2.28.eb':               ('compiler/GCC/6.4.0-2.28',          '', [], [], []),
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('mpi/OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
+            'gzip-1.5-foss-2018a.eb':   ('tools/gzip/1.5-foss-2018a', '', [], [], []),
+            'foss-2018a.eb':            ('toolchain/foss/2018a',      '', [], [], []),
             'impi-4.1.3.049.eb':          ('mpi/impi/4.1.3.049',          '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
@@ -1056,10 +1058,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         test_ecs = {
-            'GCC-4.7.2.eb': ('GCC/4.7.2', '', [], [], []),
-            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4-GCC-4.7.2', '', [], [], []),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5-goolf-1.4.10', '', [], [], []),
-            'goolf-1.4.10.eb': ('goolf/1.4.10', '', [], [], []),
+            'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', '', [], [], []),
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
+            'gzip-1.5-foss-2018a.eb': ('gzip/1.5-foss-2018a', '', [], [], []),
+            'foss-2018a.eb': ('foss/2018a', '', [], [], []),
             'impi-4.1.3.049.eb': ('impi/4.1.3.049', '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
