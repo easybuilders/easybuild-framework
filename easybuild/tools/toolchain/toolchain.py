@@ -120,6 +120,7 @@ class Toolchain(object):
         """
         self.base_init()
 
+        self.dependencies = []
         self.toolchain_dep_mods = []
         self.cached_compilers = set()
 
@@ -740,7 +741,7 @@ class Toolchain(object):
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
 
-        return tcdeps
+        self.dependencies = tcdeps
 
     def comp_cache_compilers(self, cache_tool):
         """

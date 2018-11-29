@@ -72,7 +72,7 @@ class OpenMPI(Mpi):
         """
         Prepare for using OpenMPI library in toolchain environment
         """
-        res = super(OpenMPI, self).prepare(*args, **kwargs)
+        super(OpenMPI, self).prepare(*args, **kwargs)
 
         # OpenMPI 2.x trips if path specified in $TMPDIR is too long
         # see https://www.open-mpi.org/faq/?category=osx#startup-errors-with-open-mpi-2.0.x
@@ -85,8 +85,6 @@ class OpenMPI(Mpi):
                 warn_msg = "Long $TMPDIR path may cause problems with OpenMPI 2.x, using shorter path: %s" % tmpdir
                 self.log.warning(warn_msg)
                 print_warning(warn_msg)
-
-        return res
 
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands (depends on OpenMPI version) and add OMPI_* variables to set."""

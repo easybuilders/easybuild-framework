@@ -185,9 +185,6 @@ class EasyBlock(object):
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
 
-        # list of dependencies to load in generated module + build dependencies
-        self.dependencies = []
-
         # list of locations to include in RPATH filter used by toolchain
         self.rpath_filter_dirs = []
 
@@ -1014,8 +1011,8 @@ class EasyBlock(object):
 
         # include load/unload statements for dependencies
         deps = []
-        self.log.debug("List of deps considered to load in generated module: %s", self.dependencies)
-        for dep in self.dependencies:
+        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
+        for dep in self.toolchain.dependencies:
             if dep['build_only']:
                 self.log.debug("Skipping build dependency %s", dep)
             else:
@@ -1828,10 +1825,8 @@ class EasyBlock(object):
         self.rpath_include_dirs.append('$ORIGIN/../lib64')
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        deps = self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
-                                      rpath_filter_dirs=self.rpath_filter_dirs,
-                                      rpath_include_dirs=self.rpath_include_dirs)
-        self.dependencies = deps
+        self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
+                               rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
