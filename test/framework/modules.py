@@ -684,9 +684,11 @@ class ModulesTest(EnhancedTestCase):
         deps = ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2', 'FFTW/3.3.7', 'OpenBLAS/0.2.20',
                 'ScaLAPACK/2.0.2-OpenBLAS-0.2.20']
         core = os.path.join(mod_prefix, 'Core')
-        path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'foss/2018a', os.path.join(core, 'toolchain'), deps)
+        tc = os.path.join(core, 'toolchain')
+        path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'foss/2018a', tc, deps)
         self.assertEqual(path, [])
-        path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/6.4.0-2.28', os.path.join(core, 'compiler'), [])
+        comp = os.path.join(core, 'compiler')
+        path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/6.4.0-2.28', comp, [])
         self.assertEqual(path, [])
 
         # toolchain module must be loaded to determine path to top of module tree for non-Core modules
@@ -761,7 +763,8 @@ class ModulesTest(EnhancedTestCase):
         # GCC/6.4.0-2.28 is available (note: also as non-Core module outside of hierarchy)
         self.modtool.load(['GCC/6.4.0-2.28'])
 
-        # OpenMPI/2.1.2 is *not* available with current $MODULEPATH (loaded GCC/6.4.0-2.28 was not a hierarchical module)
+        # OpenMPI/2.1.2 is *not* available with current $MODULEPAT
+        # (loaded GCC/6.4.0-2.28 was not a hierarchical module)
         if isinstance(self.modtool, Lmod):
             # OpenMPI/2.1.2 exists, but is not available for load;
             # exact error message depends on Lmod version

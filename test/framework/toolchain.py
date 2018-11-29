@@ -383,7 +383,6 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
-        print 'CFLAGS', os.environ['CFLAGS']
         self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
         self.modtool.purge()
 

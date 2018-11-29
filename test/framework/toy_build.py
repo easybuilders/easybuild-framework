@@ -917,7 +917,8 @@ class ToyBuildTest(EnhancedTestCase):
             ])
             write_file(gcc_mod + '.lua', gcc_mod_txt)
 
-            # create minimal OpenMPI module that extends $MODULEPATH with MPI/GCC/6.4.0-2.28/OpenMPi/2.1.2 in both locations
+            # create minimal OpenMPI module that extends $MODULEPATH
+            # with MPI/GCC/6.4.0-2.28/OpenMPi/2.1.2 in both locations
             openmpi_mod_txt = '\n'.join([
                 'setenv("EBROOTOPENMPI", "/tmp/software/Compiler/GCC/6.4.0-2.28/OpenMPI/2.1.2")',
                 'setenv("EBVERSIONOPENMPI", "2.1.2")',

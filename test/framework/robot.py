@@ -41,7 +41,7 @@ import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
-from easybuild.framework.easyconfig.easyconfig import _easyconfig_files_cache, process_easyconfig, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
@@ -89,6 +89,7 @@ class MockModule(modules.ModulesTool):
         else:
             txt = 'Module %s not found' % modname
         return txt
+
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
@@ -279,7 +280,8 @@ class RobotTest(EnhancedTestCase):
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
         res = resolve_dependencies(ecs, self.modtool)
 
-        # there should only be three retained builds, foo + foss dep and the additional build (even though a module is available)
+        # there should only be three retained builds:
+        # foo + foss dep and the additional build (even though a module is available)
         self.assertEqual(len(res), 3)
         # foss should be first, the software itself second
         self.assertEqual('this/is/already/there', res[0]['full_mod_name'])
@@ -544,7 +546,6 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue('impi/4.1.3.049' in mods)
         self.assertTrue('gzip/1.4' in mods)
 
-
     def test_det_easyconfig_paths(self):
         """Test det_easyconfig_paths function (without --from-pr)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -595,7 +596,6 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-
     def test_search_paths(self):
         """Test search_paths command line argument."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -614,14 +614,13 @@ class RobotTest(EnhancedTestCase):
             'toy',
         ]
         self.mock_stdout(True)
-        _ = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
         outtxt = self.get_stdout()
         self.mock_stdout(False)
 
         # Make sure we found the copied file
         regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
-
 
     def test_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
@@ -1279,6 +1278,7 @@ class RobotTest(EnhancedTestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
