@@ -117,9 +117,9 @@ class EasyBuildLibTest(EnhancedTestCase):
 
         modtool = modules_tool()
         modtool.use(test_mods_path)
-        self.assertTrue('GCC/4.7.2' in modtool.available())
-        modtool.load(['GCC/4.7.2'])
-        self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/4.7.2'}])
+        self.assertTrue('GCC/6.4.0-2.28' in modtool.available())
+        modtool.load(['GCC/6.4.0-2.28'])
+        self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
 
 
 def suite():

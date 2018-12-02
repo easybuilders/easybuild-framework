@@ -790,13 +790,13 @@ class FileToolsTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         other_toy_ecs = [
             os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb'),
-            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'),
         ]
 
         # default (colored)
         toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
         lines = multidiff(toy_ec, other_toy_ecs).split('\n')
-        expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb"
+        expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-2018a-test.eb"
 
         red = "\x1b[0;41m"
         green = "\x1b[0;42m"
@@ -828,19 +828,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
-        self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb")
+        self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-2018a-test.eb")
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
         self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
         self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
 
-        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
-        expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy"
+        # different toolchain in toy-0.0-gompi-2018a-test: '+' line with squigly line underneath to mark removed chars
+        expected = "7 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
         self.assertTrue(lines[7].startswith(expected))
         expected = "  ?                       ^^ ^^ "
         self.assertTrue(lines[8].startswith(expected))
-        # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
+        # different toolchain in toy-0.0-gompi-2018a-test: '-' line with squigly line underneath to mark added chars
         expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
         self.assertTrue(lines[9].startswith(expected))
         expected = "  ?                       ^^ ^^ "
@@ -1266,15 +1266,15 @@ class FileToolsTest(EnhancedTestCase):
         target_dir = os.path.join(self.test_prefix, 'GCC')
         self.assertFalse(os.path.exists(target_dir))
 
-        self.assertTrue(os.path.exists(os.path.join(to_copy, 'GCC-4.7.2.eb')))
+        self.assertTrue(os.path.exists(os.path.join(to_copy, 'GCC-6.4.0-2.28.eb')))
 
-        ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '4.7.2' in x])
+        ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertTrue(os.path.exists(target_dir))
         expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb',
-                    'GCC-4.9.3-2.26.eb']
+                    'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
-        # GCC-4.7.2.eb should not get copied, since it's specified as file too ignore
-        self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-4.7.2.eb')))
+        # GCC-6.4.0-2.28.eb should not get copied, since it's specified as file too ignore
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb')))
 
         # clean error when trying to copy a file with copy_dir
         src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
@@ -1496,18 +1496,20 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 4)
+        self.assertEqual(len(hits), 5)
         self.assertTrue(all(os.path.exists(p) for p in hits))
-        self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
-        self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
-        self.assertTrue(hits[2].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
-        self.assertTrue(hits[3].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
+        self.assertTrue(hits[0].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
+        self.assertTrue(hits[1].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
+        self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
+        self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
-                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb', 'hwloc-1.8-gcccuda-2.6.10.eb'])
+        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1516,25 +1518,28 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
-                                '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb', '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb', '$CFGS1/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-7.3.0-2.30.eb', '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2018a.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
         self.assertEqual(var_defs, [])
         expected = [
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
-                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb', 'hwloc-1.8-gcccuda-2.6.10.eb'])
+        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""

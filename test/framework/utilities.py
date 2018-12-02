@@ -316,17 +316,17 @@ class EnhancedTestCase(_EnhancedTestCase):
         self.reset_modulepath([mod_prefix, os.path.join(mod_prefix, 'Core')])
 
         # tweak use statements in modules to ensure correct paths
-        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         for modfile in [
-            os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Core', 'GCC', '6.4.0-2.28'),
             os.path.join(mod_prefix, 'Core', 'GCC', '4.8.3'),
             os.path.join(mod_prefix, 'Core', 'icc', '2013.5.192-GCC-4.8.3'),
             os.path.join(mod_prefix, 'Core', 'ifort', '2013.5.192-GCC-4.8.3'),
-            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
             os.path.join(mod_prefix, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'),
-            os.path.join(mpi_pref, 'FFTW', '3.3.3'),
-            os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
-            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
+            os.path.join(mpi_pref, 'FFTW', '3.3.7'),
+            os.path.join(mpi_pref, 'OpenBLAS', '0.2.20'),
+            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.20'),
         ]:
             for line in fileinput.input(modfile, inplace=1):
                 line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
@@ -336,10 +336,10 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # make sure paths for 'module use' commands exist; required for modulecmd
         mod_subdirs = [
-            os.path.join('Compiler', 'GCC', '4.7.2'),
+            os.path.join('Compiler', 'GCC', '6.4.0-2.28'),
             os.path.join('Compiler', 'GCC', '4.8.3'),
             os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
-            os.path.join('MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join('MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
             os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
         ]
         for mod_subdir in mod_subdirs:
@@ -357,7 +357,7 @@ class EnhancedTestCase(_EnhancedTestCase):
                                         'modules', 'CategorizedHMNS', mod_subdir)
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make C/Tcl modules happy
-        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         mkdir(os.path.join(mpi_pref, 'base'))
 
         # make sure only modules in the CategorizedHMNS are available
@@ -366,8 +366,8 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # tweak use statements in modules to ensure correct paths
         for modfile in [
-            os.path.join(mod_prefix, 'Core', 'compiler', 'GCC', '4.7.2'),
-            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'mpi', 'OpenMPI', '1.6.4'),
+            os.path.join(mod_prefix, 'Core', 'compiler', 'GCC', '6.4.0-2.28'),
+            os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'mpi', 'OpenMPI', '2.1.2'),
         ]:
             for line in fileinput.input(modfile, inplace=1):
                 line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
