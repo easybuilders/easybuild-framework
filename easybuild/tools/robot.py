@@ -279,7 +279,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
     being_installed = [p['full_mod_name'] for p in easyconfigs]
-    avail_modules = [m for m in avail_modules if not m in being_installed]
+    avail_modules = [m for m in avail_modules if m not in being_installed]
 
     _log.debug('easyconfigs before resolving deps: %s' % easyconfigs)
 
@@ -352,7 +352,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                         verify_easyconfig_filename(path, cand_dep, parsed_ec=processed_ecs)
 
                         for ec in processed_ecs:
-                            if not ec in easyconfigs + additional:
+                            if ec not in easyconfigs + additional:
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
@@ -379,8 +379,15 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False, filename_only=False, terse=False):
-    """Search for easyconfigs, if a query is provided."""
+def search_easyconfigs(query, short=False, filename_only=False, terse=False, return_hits=False):
+    """
+    Search for easyconfigs, if a query is provided.
+
+    :param short: generate short output, by figuring out common prefix among hits
+    :param filename_only: only return filenames, not file paths
+    :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
+    :param return_hits: return list of search hits, rather than printing them
+    """
     search_path = build_option('robot_path')
     if not search_path:
         search_path = [os.getcwd()]
@@ -390,11 +397,15 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
 
     ignore_dirs = build_option('ignore_dirs')
 
+    # we need long full path results when returns list of hits
+    if return_hits:
+        filename_only, short, terse = False, False, True
+
     # note: don't pass down 'filename_only' here, we need the full path to filter out archived easyconfigs
     var_defs, _hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, terse=terse,
                                   silent=True, filename_only=False)
 
-     # filter out archived easyconfigs, these are handled separately
+    # filter out archived easyconfigs, these are handled separately
     hits, archived_hits = [], []
     for hit in _hits:
         if EASYCONFIGS_ARCHIVE_DIR in hit.split(os.path.sep):
@@ -423,6 +434,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
             if not terse:
                 lines.extend(['', "Matching archived easyconfigs:", ''])
             lines.extend(tmpl % hit for hit in archived_hits)
+            hits.extend(archived_hits)
         elif not terse:
             cnt = len(archived_hits)
             lines.extend([
@@ -430,4 +442,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
                 "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
             ])
 
-    print '\n'.join(lines)
+    if return_hits:
+        return hits
+    else:
+        print '\n'.join(lines)

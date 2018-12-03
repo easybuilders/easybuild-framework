@@ -50,12 +50,13 @@ from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, A
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, find_extension, is_patch_file, read_file, resolve_path
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -204,11 +205,12 @@ def dep_graph(filename, specs):
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
+                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
     _dep_graph_dump(dgr, filename)
 
@@ -699,3 +701,214 @@ def avail_easyblocks():
                                        easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
 
     return easyblocks
+
+
+def parse_param_value(string):
+    """Parse specified string as an easyconfig parameter value."""
+
+    def split_one(item, sep=','):
+        """Helper function to split of first part in an item, using given separator."""
+        parts = item.split(sep)
+        return (parts[0], sep.join(parts[1:]))
+
+    param, value = None, None
+
+    # separators
+    list_sep = ';'
+    tuple_sep = ','
+    dict_key_val_sep = ':'
+
+    # determine list of names of known easyblocks, so we can descriminate an easyblock name
+    easyblock_names = [e['class'] for e in avail_easyblocks().values()]
+    _log.debug("List of names for known easyblocks: %s", sorted(easyblock_names))
+
+    # regular expression to recognise a version
+    version_regex = re.compile('^[0-9][0-9.-]')
+
+    # first check whether easyconfig parameter name is specified as '<param_name>=<value>'
+    if re.match('^[a-z_]+=', string):
+        param, string = split_one(string, sep='=')
+        _log.info("Found (raw) value for '%s' easyconfig parameter: %s", param, string)
+
+    # check if the value is most likely a dictionary '<key>:<val>[;<key>:<val>]'
+    if re.match('^[a-z_]+' + dict_key_val_sep, string):
+        _log.info("String value '%s' represents a dictionary value", string)
+        value = {}
+        for item in string.split(list_sep):
+            if dict_key_val_sep in item:
+                key, val = split_one(item, sep=dict_key_val_sep)
+                # recurse to obtain parsed value for this key
+                value[key] = parse_param_value(val)[1]
+            else:
+                raise EasyBuildError("Wrong format for dictionary item '%s', should be '<key>:<format'", item)
+
+        _log.info("Parsed dictionary value: %s", value)
+
+        # if we encounter a dictionary with (only) 'files' and/or 'dirs' as key(s), it must be sanity_check_paths
+        if len(value) <= 2 and ('files' in value or 'dirs' in value):
+            param = 'sanity_check_paths'
+            for item_key, item_val in value.items():
+                # a list is expected for both keys, so make sure it's a list (no a tuple or a single string)
+                if isinstance(item_val, basestring):
+                    value[item_key] = []
+                    if item_val:
+                        value[item_key].append(item_val)
+                elif isinstance(item_val, tuple):
+                    value[item_key] = list(item_val)
+                else:
+                    raise EasyBuildError("Incorrect type of value for sanity_check_paths key '%s': %s", key, value[key])
+
+            # make sure both files/dirs keys are defined
+            value.setdefault('files', [])
+            value.setdefault('dirs', [])
+
+    # ';' is the separator for a list of items
+    elif list_sep in string:
+        # recurse for to obtain parsed value for each item in the list
+        value = [parse_param_value(x)[1] for x in string.split(list_sep) if x]
+        _log.info("String value '%s' represents a list: %s", string, value)
+
+    # ',' is the separator for a tuple
+    elif tuple_sep in string:
+        # recurse for to obtain parsed value for each item in the tuple
+        value = tuple(parse_param_value(x)[1] for x in string.split(tuple_sep) if x)
+        _log.info("String value '%s' represents a tuple: %s", string, value)
+
+    # if parameter name is not decided yet, check for a likely match for specific parameters
+    elif string in easyblock_names and param is None:
+        param, value = 'easyblock', string
+
+    elif version_regex.match(string) and param is None:
+        param, value = 'version', string
+
+    elif find_extension(string, raise_error=False) and param is None:
+        param, value = 'sources', string
+
+    # a value with 3 or more spaces should most likely remain a string
+    elif string.count(' ') >= 3 and param is None:
+        param, value = 'description', string
+
+    else:
+        value = string
+
+    if param:
+        _log.info("Found value for '%s' easyconfig parameter: %s", param, value)
+    else:
+        _log.info("Found value for unknown easyconfig parameter: %s", value)
+
+    return (param, value)
+
+
+def create_new_easyconfig(path, args):
+    """Create new easyconfig file based on specified information."""
+
+    _log.experimental("Generating easyconfig using 'eb --new'")
+
+    specs = {}
+
+    # handle values that start with 'http' first
+    # try and discriminate between homepage and source URL
+    http_args = [arg for arg in args if arg.startswith('http')]
+
+    # first, check and see if we have a full download URL provided as an argument
+    for arg in http_args:
+        maybe_filename = os.path.basename(arg)
+        ext = find_extension(maybe_filename, raise_error=False)
+        if ext:
+            specs['source_urls'] = [os.path.dirname(arg)]
+            # try to recognise downloading of source tarballs by commit ID
+            if re.search('^[0-9a-f]+\.', maybe_filename):
+                specs['sources'] = [{
+                    'download_filename': maybe_filename,
+                    'filename': '%(name)s-%(version)s' + ext,
+                }]
+            else:
+                specs['sources'] = [maybe_filename]
+            http_args.remove(arg)
+            args.remove(arg)
+            break
+
+    for arg in http_args:
+        if specs.get('homepage') is None:
+            # homepage is more like to be of form https://example.com, i.e. top-level domain
+            # if source_urls is already set, then this URL is likely to be a value for homepage
+            if '/' not in arg.split('://')[-1] or specs.get('source_urls'):
+                specs['homepage'] = arg
+                args.remove(arg)
+                # go to next iteration to avoid also using this value for 'source_urls'
+                continue
+
+        if specs.get('source_urls') is None:
+            specs['source_urls'] = [arg]
+            args.remove(arg)
+            if specs.get('homepage') is None:
+                specs['homepage'] = arg
+
+    # iterate over provided arguments, and try to figure out what they specify
+    for arg in args:
+
+        key, val = parse_param_value(arg)
+
+        # first argument is assumed to be the software name
+        if specs.get('name') is None:
+            specs['name'] = arg
+
+        elif key and specs.get(key) is None:
+
+            if key in ['builddeps', 'deps', 'source_urls', 'sources']:
+                if not isinstance(val, list):
+                    val = [val]
+
+            if key in ['builddeps', 'deps']:
+                key = key.replace('deps', 'dependencies')
+
+            specs[key] = val
+
+        # toolchain is usually specified as <toolchain_name>/<toolchain_version>, e.g. intel/2018a
+        elif isinstance(val, basestring) and '/' in val and specs.get('toolchain') is None:
+            tc_name, tc_ver = val.split('/')
+            specs['toolchain'] = {'name': tc_name, 'version': tc_ver}
+
+        else:
+            print_warning("Unhandled argument: %s" % quote_str(arg))
+
+    # make sure that at least name, version and toolchain are known
+    missing = [p for p in ['name', 'toolchain', 'version'] if specs.get(p) is None]
+    if missing:
+        raise EasyBuildError("One or more required parameters are not specified: %s", ', '.join(missing))
+
+    # inject educated guesses for some important easyconfig parameters that are not specified
+    educated_guesses = {
+        'description': "This is an example description.",
+        'homepage': 'https://example.com',
+
+        'easyblock': 'ConfigureMake',
+        'moduleclass': 'tools',
+        'sanity_check_paths': {'files': [os.path.join('bin', specs['name'])], 'dirs': []},
+
+        'source_urls': ['%(homepage)s'],
+        'sources': ['%(name)s-%(version)s.tar.gz'],
+    }
+    for key in educated_guesses:
+        if key not in specs:
+            specs[key] = educated_guesses[key]
+            print_warning("No value found for '%s' parameter, injected dummy value: %s" % (key, quote_str(specs[key])))
+
+    # create EasyConfig instance and dump easyconfig file to current directory
+    ec_raw = '\n'.join("%s = %s" % (key, quote_str(specs[key])) for key in specs)
+
+    ec, err = None, None
+    try:
+        ec = EasyConfig(None, rawtxt=ec_raw)
+    except EasyBuildError as err:
+        print_warning("Problem occured when parsing generated easyconfig file: %s" % err)
+
+    if err:
+        print_msg(ec_raw + '\n', prefix=False)
+        raise EasyBuildError("Easyconfig file with raw contents shown above NOT created because of errors: %s", err)
+    else:
+        full_ec_ver = det_full_ec_version(specs)
+        fp = os.path.join(path, '%s-%s.eb' % (specs['name'], full_ec_ver))
+
+        ec.dump(fp)
+        return fp

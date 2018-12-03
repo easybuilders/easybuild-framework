@@ -367,7 +367,7 @@ class EasyBuildOptions(GeneralOption):
             'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
                                   None, 'store_true', False),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
-                             None, 'store_true', False),
+                             None, 'store_true', False, 'E'),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
@@ -459,6 +459,7 @@ class EasyBuildOptions(GeneralOption):
                               mk_full_default_path('containerpath')),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
                                           'strlist', 'store', None),
+            'editor-command-template': ("Editor command template to use (used for --edit)", 'str', 'store', "vim %s"),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
@@ -560,6 +561,7 @@ class EasyBuildOptions(GeneralOption):
                                 None, 'store_true', False),
             'search': ("Search for easyconfig files in the robot search path, print full paths",
                        None, 'store', None, {'metavar': 'REGEX'}),
+            'search-action-limit': ("Search hit count limit to perform search action(s)", int, 'store', None),
             'search-filename': ("Search for easyconfig files in the robot search path, print only filenames",
                                 None, 'store', None, {'metavar': 'REGEX'}),
             'search-short': ("Search for easyconfig files in the robot search path, print short paths",
@@ -673,8 +675,13 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
 
         opts = OrderedDict({
+            'copy': ("Copy easyconfig file(s) to specified location (works well with --search)",
+                     None, 'store_or_None', '.', {'metavar': "PATH"}),
+            'edit': ("Edit easyconfig file (using editor specified via --editor)", None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'new': ("Create a new easyconfig file based on specified information", None, 'store_true', False, 'n'),
+            'show': ("Print contents of easyconfig file(s) (works well with --search)", None, 'store_true', False),
         })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='')

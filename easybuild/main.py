@@ -49,14 +49,14 @@ from easybuild.framework.easyblock import build_and_install_one, inject_checksum
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, create_new_easyconfig, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, edit_file, read_file, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import list_prs, new_pr, merge_pr, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
@@ -173,6 +173,73 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
+def handle_cat_copy_edit(filepaths, target=None, copy=None):
+    """Handle use of --cat, --copy and --edit."""
+
+    if copy is None:
+        copy = build_option('copy')
+
+    res = []
+    for orig_fp in filepaths:
+        if copy:
+            # if target location is an existing directory, retain filename
+            # if not, assume last part of specific location is filename
+            if os.path.isdir(target):
+                fp = os.path.join(target, os.path.basename(orig_fp))
+            else:
+                fp = target
+
+            if os.path.exists(fp) and not build_option('force'):
+                raise EasyBuildError("Not overwriting existing file %s without --force", fp)
+
+            copy_file(orig_fp, fp)
+            res.append(fp)
+        else:
+            fp = orig_fp
+
+        if build_option('edit'):
+            edit_file(fp)
+
+        if build_option('show'):
+            print_msg("Contents of easyconfig file %s:\n" % fp)
+            print_msg(read_file(fp), prefix=False)
+
+    return res
+
+
+def handle_new(tmpdir, args):
+    """Handle use of --new."""
+    tmpfp = create_new_easyconfig(tmpdir, args)
+
+    # use current directory as default location to save generated file, in case no location is specified via --copy
+    res = handle_cat_copy_edit([tmpfp], target=build_option('copy') or '.', copy=True)
+
+    print_msg("easyconfig file %s created!" % res[0])
+
+
+def handle_search(search_query, search_filename, search_short):
+    """Handle use of --search."""
+
+    copy_path = build_option('copy')
+    search_action = copy_path or build_option('show') or build_option('edit')
+    res = search_easyconfigs(search_query, short=search_short, filename_only=search_filename,
+                             terse=build_option('terse'), return_hits=search_action)
+
+    if search_action:
+        # only perform action(s) if there's a single search result, unless --force is used
+        search_action_limit = build_option('search_action_limit') or 1
+        if len(res) > search_action_limit:
+            err_msg = "Found %d results which is more than search action limit (%d), so not performing search action(s)"
+            raise EasyBuildError(err_msg, len(res), search_action_limit)
+
+        res = handle_cat_copy_edit(res, target=copy_path or '.')
+
+        if res:
+            print_msg("copied easyconfig files:")
+            for path in res:
+                print_msg("* %s" % path, prefix=False)
+
+
 def clean_exit(logfile, tmpdir, testing, silent=False):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
@@ -191,7 +258,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     init_session_state = session_state()
 
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
-    options, orig_paths = eb_go.options, eb_go.args
+    options, args = eb_go.options, eb_go.args
 
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
@@ -220,8 +287,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # search for easyconfigs, if a query is specified
     if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
+        handle_search(search_query, options.search_filename, options.search_short)
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
@@ -246,6 +312,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.list_software:
         print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
+    elif options.new:
+        handle_new(eb_tmpdir, args)
+
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.check_github,
@@ -254,6 +323,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.list_software,
         options.list_prs,
         options.merge_pr,
+        options.new,
         options.review_pr,
         options.terse,
         search_query,
@@ -274,14 +344,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     if options.install_latest_eb_release:
-        if orig_paths:
+        if args:
             raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
                                  "other easyconfigs")
         else:
             eb_file = find_easybuild_easyconfig()
-            orig_paths.append(eb_file)
+            args.append(eb_file)
 
-    categorized_paths = categorize_files_by_type(orig_paths)
+    categorized_paths = categorize_files_by_type(args)
 
     # command line options that do not require any easyconfigs to be specified
     new_update_preview_pr = options.new_pr or options.update_pr or options.preview_pr

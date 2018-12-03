@@ -49,9 +49,10 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
-from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, mkdir
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, write_file
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
+from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -749,6 +750,85 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertEqual(txt, expected)
 
+    def test_search_actions(self):
+        """Test combo of --search with --copy/--edit/--show."""
+
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        test_gcc_ecs = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb',
+                        'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb']
+
+        # too many search hits (> 1) for '^gcc-4' search query
+        error_pattern = r"Found [0-9]* results which is more than search action limit \(1\), "
+        error_pattern += "so not performing search action\(s\)"
+
+        copy = '--copy=%s' % self.test_prefix
+        search_actions_to_test = [
+            [copy],
+            ['--edit'],
+            ['--show'],
+            [copy, '--show'],
+            [copy, '--edit'],
+            ['--edit', '--show'],
+            [copy, '--edit', '--show'],
+        ]
+        for search_actions in search_actions_to_test:
+
+            args = ['--search=^gcc-4', '--editor-command-template=true %s'] + search_actions
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, testing=False, raise_error=True)
+
+            args.append('--search-action-limit=100')
+            self.mock_stdout(True)
+            self.eb_main(args, testing=False, raise_error=True)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+
+            ecs_dir = os.path.join(test_ecs, 'g', 'GCC')
+
+            if any(a.startswith('--copy') for a in search_actions):
+                self.assertTrue("== copied easyconfig files:\n" in stdout)
+                for ec in test_gcc_ecs:
+                    self.assertTrue("* %s/%s" % (self.test_prefix, ec) in stdout)
+                self.assertEqual(sorted(f for f in os.listdir(self.test_prefix) if f.startswith('GCC-')), test_gcc_ecs)
+                ecs_dir = self.test_prefix
+            else:
+                self.assertFalse("== copied easyconfig files" in stdout)
+
+            if any(a.startswith('--edit') for a in search_actions):
+                for ec in test_gcc_ecs:
+                    self.assertTrue("== editing %s/%s... done (no changes)" % (ecs_dir, ec) in stdout)
+            else:
+                self.assertFalse("== editing" in stdout)
+
+            if any(a.startswith('--show') for a in search_actions):
+                for ec in test_gcc_ecs:
+                    self.assertTrue("== Contents of easyconfig file %s/%s:" % (ecs_dir, ec) in stdout)
+            else:
+                self.assertFalse("== Contents of easyconfig file" in stdout)
+
+            # clean up and recreate test dir
+            remove_dir(self.test_prefix)
+            mkdir(self.test_prefix)
+
+        # test with search query that only returns a single result
+        args = ['--search=^gcc-4.8.3', '--copy=%s' % self.test_prefix, '--edit', '--show',
+                '--editor-command-template=true %s']
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        patterns = [
+            r"^== editing %s/GCC-4.8.3.eb... done \(no changes\)$" % self.test_prefix,
+            r"^== Contents of easyconfig file %s/GCC-4.8.3.eb:$" % self.test_prefix,
+            r'^name = "GCC"$',
+            r"^version = '4.8.3'$",
+            r"^toolchain = .*dummy",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertTrue(stdout.strip().endswith("== copied easyconfig files:\n* %s/GCC-4.8.3.eb" % self.test_prefix))
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1299,26 +1379,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         log = fancylogger.getLogger()
 
-        # force it to False
-        topt = EasyBuildOptions(
-            go_args=['--disable-experimental'],
-        )
-        try:
-            log.experimental('x')
-            # sanity check, should never be reached if it works.
-            self.assertTrue(False, "Experimental logging should be disabled by setting the --disable-experimental option")
-        except easybuild.tools.build_log.EasyBuildError, err:
-            # check error message
-            self.assertTrue('Experimental functionality.' in str(err))
+        for experimental_opt in ['--experimental', '-E']:
+            # force it to False
+            topt = EasyBuildOptions(go_args=['--disable-experimental'])
+            try:
+                log.experimental('x')
+                # sanity check, should never be reached if it works.
+                self.assertTrue(False, "Experimental logging should be disabled via --disable-experimental")
+            except easybuild.tools.build_log.EasyBuildError, err:
+                # check error message
+                self.assertTrue('Experimental functionality.' in str(err))
 
-        # toggle experimental
-        topt = EasyBuildOptions(
-            go_args=['--experimental'],
-        )
-        try:
-            log.experimental('x')
-        except easybuild.tools.build_log.EasyBuildError, err:
-            self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
+            # toggle experimental
+            EasyBuildOptions(go_args=[experimental_opt])
+            try:
+                log.experimental('x')
+            except easybuild.tools.build_log.EasyBuildError, err:
+                self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
 
         # set it back
         easybuild.tools.build_log.EXPERIMENTAL = orig_value
@@ -3806,6 +3883,282 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
         error_pattern = "Missing checksum for toy-0.0.tar.gz"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+    def run_eb_new(self, args):
+        """Helper function to run 'eb --new' with specified arguments."""
+        change_dir(self.test_prefix)
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(['--new', '--experimental'] + args, raise_error=True)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        return (stdout, stderr)
+
+    def test_new_ec(self):
+        """Test creating new easyconfigs via 'eb --new'."""
+
+        # running without any arguments results in a clean error
+        error_pattern = "One or more required parameters are not specified: %s"
+        self.assertErrorRegex(EasyBuildError, error_pattern % "name, toolchain, version", self.run_eb_new, [])
+
+        # partial specs also results in a clean error
+        self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain, version", self.run_eb_new, ['toy'])
+        self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain", self.run_eb_new, ['toy', '1.2.3'])
+        self.assertErrorRegex(EasyBuildError, error_pattern % "version", self.run_eb_new, ['toy', 'foss/2018a'])
+
+        # first argument is *always* the software name, even if it matches with a known easyblock (e.g. SCons)
+        self.assertErrorRegex(EasyBuildError, error_pattern % "toolchain, version", self.run_eb_new, ['ConfigureMake'])
+
+        # when just the required specs are specified, a lot of warnings are spit out
+        (stdout, stderr) = self.run_eb_new(['toy', '1.2.3', 'foss/2018b'])
+
+        ec_fp = os.path.join(self.test_prefix, 'toy-1.2.3-foss-2018b.eb')
+        self.assertTrue(os.path.exists(ec_fp))
+
+        expected_stdout = "== easyconfig file ./%s created!"
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec.version, '1.2.3')
+        self.assertEqual(ec['toolchain'], {'name': 'foss', 'version': '2018b'})
+        self.assertEqual(ec['easyblock'], 'ConfigureMake')  # this is the default if no easyblock is specified
+        self.assertEqual(ec['moduleclass'], 'tools')  # this is the default if no moduleclass is specified
+
+        warn_params = ['description', 'easyblock', 'homepage', 'moduleclass', 'sanity_check_paths',
+                       'sources', 'source_urls']
+        for param in warn_params:
+            self.assertTrue("WARNING: No value found for '%s' parameter, injected dummy value" % param in stderr)
+        # no unused arguments
+        self.assertFalse("WARNING: Unhandled argument" in stderr)
+
+        # --new doesn't blindly overwrite an existing easyconfig file
+        error_pattern = "Not overwriting existing file ./toy-1.2.3-foss-2018b.eb without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_eb_new, ['toy', '1.2.3', 'foss/2018b'])
+
+        # works fine with --force
+        self.assertTrue(os.path.exists(ec_fp))
+        (stdout, stderr) = self.run_eb_new(['toy', '1.2.3', 'foss/2018b', 'moduleclass=bio', '--force'])
+        self.assertTrue(os.path.exists(ec_fp))
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec.version, '1.2.3')
+        self.assertEqual(ec['toolchain'], {'name': 'foss', 'version': '2018b'})
+        self.assertEqual(ec['moduleclass'], 'bio')
+
+        remove_file(ec_fp)
+
+        # warnings are printed for arguments that can't be matched to an easyconfig parameter
+        (stdout, stderr) = self.run_eb_new(['toy', '1.2.3', 'foss/2018b', 'this_is_a_useless_value'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        self.assertTrue('WARNING: Unhandled argument: "this_is_a_useless_value"' in stderr)
+
+        # easyblock names are recognized
+        for easyblock in ['Toolchain', 'EB_toy']:
+            (stdout, stderr) = self.run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', easyblock])
+
+            ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+            self.assertTrue(os.path.exists(ec_fp))
+            self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+            self.assertFalse("WARNING: Unhandled argument" in stderr)
+
+            ec = EasyConfig(ec_fp)
+            self.assertEqual(ec.name, 'bar')
+            self.assertEqual(ec.version, '3.4.5')
+            self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+            self.assertEqual(ec['easyblock'], easyblock)
+
+            remove_file(ec_fp)
+
+        # check handling of description (first arguments with 3 or more spaces)
+        args = ['bar', '3.4.5', 'GCCcore/6.4.0', "not a description", "this is a description"]
+        (stdout, stderr) = self.run_eb_new(args)
+        ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['description'], "this is a description")
+        self.assertTrue('WARNING: Unhandled argument: "not a description"' in stderr)
+
+        remove_file(ec_fp)
+
+        # check handling of sanity_check_paths (dict value with files/dir keys)
+        tests = [
+            ('files:', {'files': [], 'dirs': []}),
+            ('dirs:', {'files': [], 'dirs': []}),
+            ('files:;dirs:', {'files': [], 'dirs': []}),
+            ('files:bin/foo', {'files': ['bin/foo'], 'dirs': []}),
+            ('dirs:include', {'files': [], 'dirs': ['include']}),
+            ('files:bin/foo,bin/bar', {'files': ['bin/foo', 'bin/bar'], 'dirs': []}),
+            ('dirs:bin,include,lib', {'files': [], 'dirs': ['bin', 'include', 'lib']}),
+            ('files:bin/foo;dirs:include', {'files': ['bin/foo'], 'dirs': ['include']}),
+            ('files:bin/foo,bin/bar;dirs:include,lib', {'files': ['bin/foo', 'bin/bar'], 'dirs': ['include', 'lib']}),
+        ]
+        for arg, expected in tests:
+            args = ['bar', '3.4.5', 'GCCcore/6.4.0', arg]
+            (stdout, stderr) = self.run_eb_new(args)
+            ec_fp = os.path.join(self.test_prefix, 'bar-3.4.5-GCCcore-6.4.0.eb')
+            self.assertTrue(os.path.exists(ec_fp))
+            self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+            ec = EasyConfig(ec_fp)
+            self.assertEqual(ec.name, 'bar')
+            self.assertEqual(ec.version, '3.4.5')
+            self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+            self.assertEqual(ec['sanity_check_paths'], expected)
+
+            remove_file(ec_fp)
+
+        # check handling of deps/builddeps
+        args = ['bar', '3.4.5', 'GCCcore/6.4.0', 'deps=toy,0.0;GCC,4.9.2', 'builddeps=gzip,1.4']
+        (stdout, stderr) = self.run_eb_new(args)
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        self.assertFalse("WARNING: Unhandled argument" in stderr)
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['easyblock'], 'ConfigureMake')  # this is the default if no easyblock is specified
+        self.assertEqual(ec['moduleclass'], 'tools')  # this is the default if no moduleclass is specified
+        self.assertEqual(len(ec['dependencies']), 2)
+        self.assertEqual(ec['dependencies'][0]['name'], 'toy')
+        self.assertEqual(ec['dependencies'][0]['version'], '0.0')
+        self.assertEqual(ec['dependencies'][1]['name'], 'GCC')
+        self.assertEqual(ec['dependencies'][1]['version'], '4.9.2')
+        self.assertEqual(len(ec['builddependencies']), 1)
+        self.assertEqual(ec['builddependencies'][0]['name'], 'gzip')
+        self.assertEqual(ec['builddependencies'][0]['version'], '1.4')
+
+        remove_file(ec_fp)
+
+        # check handling of easyconfig parameters that are specified by <name>=, which get preference
+        (stdout, stderr) = self.run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0', 'easyblock=EB_toy', 'Toolchain',
+                                            'moduleclass=lib', 'configopts="--enable-foo --with=bar=/location/of/bar"'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        self.assertTrue('WARNING: Unhandled argument: "Toolchain"' in stderr)
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['easyblock'], 'EB_toy')
+        self.assertEqual(ec['moduleclass'], 'lib')
+
+        remove_file(ec_fp)
+
+        # check handling of URLs: source_urls vs homepage
+        (stdout, stderr) = self.run_eb_new(['bar', '3.4.5', 'GCCcore/6.4.0',
+                                            'https://example.com/files/bar-3.4.5.tar.gz', 'http://example.com/bar'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), expected_stdout % os.path.basename(ec_fp))
+        ec = EasyConfig(ec_fp)
+        self.assertEqual(ec.name, 'bar')
+        self.assertEqual(ec.version, '3.4.5')
+        self.assertEqual(ec['toolchain'], {'name': 'GCCcore', 'version': '6.4.0'})
+        self.assertEqual(ec['homepage'], 'http://example.com/bar')
+        self.assertEqual(ec['source_urls'], ['https://example.com/files'])
+        self.assertEqual(ec['sources'], ['bar-3.4.5.tar.gz'])
+
+        # using an unknown easyblock means trouble
+        error_pattern = "Easyconfig file with raw contents shown above NOT created because of errors: "
+        error_pattern += "'Failed to obtain class for NoSuchEasyBlock easyblock .*'"
+        args = ['bar', '3.4.5', 'foss/2018a', 'easyblock=NoSuchEasyBlock']
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_eb_new, args)
+
+    def test_new_cat_copy_edit(self):
+        """Test combining --new with --show, --copy and --edit."""
+
+        args = ['toy', '1.2.3', 'foss/2018b']
+        ec_fp = os.path.join(self.test_prefix, 'toy-1.2.3-foss-2018b.eb')
+
+        # contents of easyconfig are printed when using --show, file still is created into current directory
+        (stdout, stderr) = self.run_eb_new(args + ['--show'])
+        self.assertTrue(os.path.exists(ec_fp))
+
+        patterns = [
+            r"== Contents of easyconfig file \./toy-1.2.3-foss-2018b.eb:\n\neasyblock = 'ConfigureMake'",
+            r"^name = 'toy'$",
+            r"^version = '1.2.3'$",
+            r"^toolchain = {'name': 'foss', 'version': '2018b'}$",
+            r"== easyconfig file ./toy-1.2.3-foss-2018b.eb created!",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' is found in: %s" % (regex.pattern, stdout))
+
+        # clean up test dir
+        remove_dir(self.test_prefix)
+        mkdir(self.test_prefix)
+
+        # check whether easyconfig file is copied when --copy is used
+        # --copy without an argument doesn't change anything, since --new always dumps easyconfig in currect dir
+        (stdout, stderr) = self.run_eb_new(args + ['--copy'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertEqual(stdout.strip(), "== easyconfig file ./toy-1.2.3-foss-2018b.eb created!")
+
+        # --copy doesn't blindly overwrite an existing easyconfig file without --force
+        error_pattern = "Not overwriting existing file ./toy-1.2.3-foss-2018b.eb without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_eb_new, args + ['--copy'])
+
+        # overwriting works fine with --force
+        write_file(ec_fp, '')
+        (stdout, stderr) = self.run_eb_new(args + ['--copy', '--force'])
+        self.assertTrue(os.path.exists(ec_fp))
+        self.assertTrue(read_file(ec_fp) != '')
+
+        remove_dir(self.test_prefix)
+        mkdir(self.test_prefix)
+
+        # if as argument is passed to --copy, the easyconfig file is created there instead
+        # (and not in the default location)
+        copy_args = [
+            os.path.join(self.test_prefix, 'test.eb'),  # non-existing file in existing directory
+            os.path.join(self.test_prefix, 'asubdir', 'test.eb'),  # non-existing file in non-existing directory
+            os.path.join(self.test_prefix, 'asubdir'),  # existing (sub)directory, no filename specified
+        ]
+        for copy_arg in copy_args:
+            if os.path.isdir(copy_arg):
+                test_ec = os.path.join(copy_arg, 'toy-1.2.3-foss-2018b.eb')
+            else:
+                test_ec = copy_arg
+
+            (stdout, stderr) = self.run_eb_new(args + ['--copy', copy_arg])
+            self.assertFalse(os.path.exists(ec_fp))
+            self.assertTrue(os.path.exists(test_ec), "%s exists" % test_ec)
+            self.assertEqual(stdout.strip(), "== easyconfig file %s created!" % test_ec)
+
+            remove_file(test_ec)
+
+            # combination of --copy and --show also works
+            (stdout, stderr) = self.run_eb_new(args + ['--show', '--copy', copy_arg])
+            self.assertFalse(os.path.exists(ec_fp))
+            self.assertTrue(os.path.exists(test_ec), "%s exists" % test_ec)
+            patterns[0] = r"== Contents of easyconfig file %s:\n\neasyblock = 'ConfigureMake'" % test_ec
+            patterns[-1] = r"== easyconfig file %s created!" % test_ec
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(stdout), "Pattern '%s' is found in: %s" % (regex.pattern, stdout))
+
+        remove_dir(self.test_prefix)
+        mkdir(self.test_prefix)
+
+        # throwing --edit in the mix
+        args.extend(['--edit', '--editor-command-template=true %s'])
+        (stdout, stderr) = self.run_eb_new(args + ['--show'])
+        self.assertTrue(os.path.exists(ec_fp))
+        patterns[0] = r"== Contents of easyconfig file \./toy-1.2.3-foss-2018b.eb:\n\neasyblock = 'ConfigureMake'"
+        patterns[-1] = r"== easyconfig file ./toy-1.2.3-foss-2018b.eb created!"
+        patterns.insert(0, r"== editing ./toy-1.2.3-foss-2018b.eb... done \(no changes\)")
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' is found in: %s" % (regex.pattern, stdout))
 
 
 def suite():

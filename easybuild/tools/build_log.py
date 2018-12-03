@@ -118,7 +118,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = common_msg + ': ' + msg
             self.warning(msg, *args, **kwargs)
         else:
-            msg = common_msg + " (use --experimental option to enable): " + msg
+            msg = common_msg + " (use --experimental or -E to enable): " + msg
             raise EasyBuildError(msg, *args)
 
     def deprecated(self, msg, ver, max_ver=None, more_info=None, *args, **kwargs):

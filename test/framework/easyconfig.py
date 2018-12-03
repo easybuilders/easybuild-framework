@@ -56,13 +56,13 @@ from easybuild.framework.easyconfig.templates import template_constant_dict, to_
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import parse_param_value
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, remove_file, symlink
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, remove_file, symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -2358,6 +2358,59 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_parse_param_value(self):
+        """Tests for parse_param_value function."""
+        self.assertEqual(parse_param_value(''), (None, ''))
+        self.assertEqual(parse_param_value('test123'), (None, 'test123'))
+
+        self.assertEqual(parse_param_value("this is a description"), ('description', "this is a description"))
+
+        self.assertEqual(parse_param_value('1.2.3'), ('version', '1.2.3'))
+
+        # names of source tarballs are recognized
+        for ext in ['tar.gz', 'gz', 'tar.bz2', 'bz2', 'zip']:
+            self.assertEqual(parse_param_value('toy-0.0.' + ext), ('sources', 'toy-0.0.' + ext))
+
+        # known easyblocks are recognized
+        for easyblock in ['ConfigureMake', 'Toolchain', 'EB_toy']:
+            self.assertEqual(parse_param_value(easyblock), ('easyblock', easyblock))
+
+        # list, tuple
+        self.assertEqual(parse_param_value('one,two,three,four'), (None, ('one', 'two', 'three', 'four')))
+        self.assertEqual(parse_param_value('one,two,,four'), (None, ('one', 'two', 'four')))
+        self.assertEqual(parse_param_value('one;two;three;four'), (None, ['one', 'two', 'three', 'four']))
+        # list of tuples
+        self.assertEqual(parse_param_value('one,two;three,four'), (None, [('one', 'two'), ('three', 'four')]))
+        # dict with string values
+        self.assertEqual(parse_param_value('one:1;two:2;three:3'), (None, {'one': '1', 'two': '2', 'three': '3'}))
+        # dict with list values
+        expected = {'ones': ('1', '1', '1'), 'twos': ('2', '2'), 'threes': ('3',)}
+        self.assertEqual(parse_param_value('ones:1,1,1;twos:2,2;threes:3,'), (None, expected))
+        # dict with a single entry, value can contain additional ':' characters, no problem there
+        self.assertEqual(parse_param_value('one:1:2:3'), (None, {'one': '1:2:3'}))
+
+        # check error handling for dict with incorrect entry
+        error_pattern = "Wrong format for dictionary item 'two', should be '<key>:<format'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_param_value, 'one:1;two')
+
+        # specified parameters, of different value types
+        self.assertEqual(parse_param_value('moduleclass=lib'), ('moduleclass', 'lib'))
+        configopts = '--foo --bar --baz --bleh --blah'
+        self.assertEqual(parse_param_value('configopts=%s' % configopts), ('configopts', configopts))
+        expected = ('sources', ('toy-0.0.tar.gz', 'toy-bis-0.0.tar.gz'))
+        self.assertEqual(parse_param_value('sources=toy-0.0.tar.gz,toy-bis-0.0.tar.gz'), expected)
+        expected = ('sanity_check_paths', {'files': ['bin/foo'], 'dirs': ['include']})
+        self.assertEqual(parse_param_value('sanity_check_paths=files:bin/foo;dirs:include'), expected)
+
+        # sanity_check_paths, files/dirs do not have to be both there
+        self.assertEqual(parse_param_value('files:;dirs:'), ('sanity_check_paths', {'files': [], 'dirs': []}))
+        expected = {'files': ['bin/foo', 'lib/libfoo.a'], 'dirs': ['include']}
+        self.assertEqual(parse_param_value('files:bin/foo,lib/libfoo.a;dirs:include'), ('sanity_check_paths', expected))
+        expected = {'files': [], 'dirs': ['lib']}
+        self.assertEqual(parse_param_value('dirs:lib'), ('sanity_check_paths', expected))
+        expected = {'files': ['bin/foo', 'bin/bar'], 'dirs': []}
+        self.assertEqual(parse_param_value('files:bin/foo,bin/bar'), ('sanity_check_paths', expected))
 
 
 def suite():

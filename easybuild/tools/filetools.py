@@ -46,6 +46,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import stat
 import sys
 import tempfile
@@ -59,7 +60,7 @@ from xml.etree import ElementTree
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools import run
+from easybuild.tools.run import run_cmd
 
 try:
     import requests
@@ -371,7 +372,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run.run_cmd(cmd, simple=True, force_in_dry_run=forced)
+    run_cmd(cmd, simple=True, force_in_dry_run=forced)
 
     return find_base_dir()
 
@@ -829,16 +830,23 @@ def find_base_dir():
     return new_dir
 
 
-def find_extension(filename):
-    """Find best match for filename extension."""
+def find_extension(filename, raise_error=True):
+    """
+    Find best match for filename extension.
+
+    :param raise_error: raise an error if no known extension was found in specified filename;
+                        if False, just returns None if no known extension was found
+    """
     # sort by length, so longest file extensions get preference
     suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
     pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
         ext = res.group('ext')
-    else:
+    elif raise_error:
         raise EasyBuildError('Unknown file type for file %s', filename)
+    else:
+        ext = None
 
     return ext
 
@@ -1003,7 +1011,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
+    out, ec = run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
 
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
@@ -1360,7 +1368,7 @@ def move_logs(src_logfile, target_logfile):
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
             if zip_log_cmd:
-                run.run_cmd("%s %s" % (zip_log_cmd, new_log_path))
+                run_cmd("%s %s" % (zip_log_cmd, new_log_path))
                 _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
 
     except (IOError, OSError), err:
@@ -1523,21 +1531,6 @@ def decode_class_name(name):
     else:
         name = name[len(EASYBLOCK_CLASS_PREFIX):]
         return decode_string(name)
-
-
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
-def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
-    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def det_size(path):
@@ -1717,6 +1710,44 @@ def copy(paths, target_path, force_in_dry_run=False):
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
+def edit_file(fp):
+    """Edit file at specified location."""
+
+    tmpl_editor_cmd = build_option('editor_command_template')
+    if not tmpl_editor_cmd:
+        raise EasyBuildError("No editor command template specified (see --editor-command-template)")
+    elif tmpl_editor_cmd.count('%s') != 1:
+        raise EasyBuildError("Editor command template should contain exactly one '%s' as placeholder for filename: '" +
+                             tmpl_editor_cmd + "'")
+
+    # read file before editing so we can detect whether or not any changes were made
+    txt = read_file(fp)
+
+    # replace placeholder %s with path of file to edit
+    cmd = []
+    for cmd_part in tmpl_editor_cmd.split(' '):
+        if cmd_part == '%s':
+            cmd.append(fp)
+        else:
+            cmd.append(cmd_part)
+
+    print_msg("editing %s... " % fp, newline=False)
+    # can't use run_cmd here, just hangs without actually bringing up the editor...
+    try:
+        exit_code = subprocess.call(cmd)
+    except OSError as err:
+        raise EasyBuildError("Editor command '%s' failed: %s", ' '.join(cmd), err)
+    if exit_code:
+        raise EasyBuildError("Editor command '%s' failed with exit code %s", ' '.join(cmd), exit_code)
+
+    if txt == read_file(fp):
+        done_msg = 'done (no changes)'
+    else:
+        done_msg = 'done (changes detected)'
+
+    print_msg(done_msg, prefix=False)
+
+
 def get_source_tarball_from_git(filename, targetdir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
@@ -1773,7 +1804,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
@@ -1781,11 +1812,11 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
     tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)
