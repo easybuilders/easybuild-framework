@@ -319,11 +319,11 @@ class EnhancedTestCase(_EnhancedTestCase):
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         for modfile in [
             os.path.join(mod_prefix, 'Core', 'GCC', '6.4.0-2.28'),
-            os.path.join(mod_prefix, 'Core', 'GCC', '4.8.3'),
-            os.path.join(mod_prefix, 'Core', 'icc', '2013.5.192-GCC-4.8.3'),
-            os.path.join(mod_prefix, 'Core', 'ifort', '2013.5.192-GCC-4.8.3'),
+            os.path.join(mod_prefix, 'Core', 'GCC', '4.9.3-2.25'),
+            os.path.join(mod_prefix, 'Core', 'icc', '2016.1.150-GCC-4.9.3-2.25'),
+            os.path.join(mod_prefix, 'Core', 'ifort', '2016.1.150-GCC-4.9.3-2.25'),
             os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
-            os.path.join(mod_prefix, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'),
+            os.path.join(mod_prefix, 'Compiler', 'intel', '2016.1.150-GCC-4.9.3-2.25', 'impi', '5.1.2.150'),
             os.path.join(mpi_pref, 'FFTW', '3.3.7'),
             os.path.join(mpi_pref, 'OpenBLAS', '0.2.20'),
             os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.20'),
@@ -337,10 +337,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         # make sure paths for 'module use' commands exist; required for modulecmd
         mod_subdirs = [
             os.path.join('Compiler', 'GCC', '6.4.0-2.28'),
-            os.path.join('Compiler', 'GCC', '4.8.3'),
-            os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+            os.path.join('Compiler', 'GCC', '4.9.3-2.25'),
+            os.path.join('Compiler', 'intel', '2016.1.150-GCC-4.9.3-2.25'),
             os.path.join('MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
-            os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
+            os.path.join('MPI', 'intel', '2016.1.150-GCC-4.9.3-2.25', 'impi', '5.1.2.150'),
         ]
         for mod_subdir in mod_subdirs:
             mkdir(os.path.join(mod_prefix, mod_subdir), parents=True)

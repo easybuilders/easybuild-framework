@@ -160,7 +160,7 @@ class TweakTest(EnhancedTestCase):
         })
         get_toolchain_hierarchy.clear()
         foss_hierarchy = get_toolchain_hierarchy({'name': 'foss', 'version': '2018a'}, incl_capabilities=True)
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '2016.01'},
                                                   incl_capabilities=True)
 
         # Hierarchies are returned with top-level toolchain last, foss has 4 elements here, intel has 2
@@ -168,16 +168,19 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(foss_hierarchy[1]['name'], 'golf')
         self.assertEqual(foss_hierarchy[2]['name'], 'gompi')
         self.assertEqual(foss_hierarchy[3]['name'], 'foss')
-        self.assertEqual(iimpi_hierarchy[0]['name'], 'iccifort')
-        self.assertEqual(iimpi_hierarchy[1]['name'], 'iimpi')
+        self.assertEqual(iimpi_hierarchy[0]['name'], 'GCCcore')
+        self.assertEqual(iimpi_hierarchy[1]['name'], 'iccifort')
+        self.assertEqual(iimpi_hierarchy[2]['name'], 'iimpi')
 
         # golf <-> iimpi (should return False)
         self.assertFalse(check_capability_mapping(foss_hierarchy[1], iimpi_hierarchy[1]), "golf requires math libs")
         # gompi <-> iimpi
-        self.assertTrue(check_capability_mapping(foss_hierarchy[2], iimpi_hierarchy[1]))
+        self.assertTrue(check_capability_mapping(foss_hierarchy[2], iimpi_hierarchy[2]))
         # GCC <-> iimpi
-        self.assertTrue(check_capability_mapping(foss_hierarchy[0], iimpi_hierarchy[1]))
+        self.assertTrue(check_capability_mapping(foss_hierarchy[0], iimpi_hierarchy[2]))
         # GCC <-> iccifort
+        self.assertTrue(check_capability_mapping(foss_hierarchy[0], iimpi_hierarchy[1]))
+        # GCC <-> GCCcore
         self.assertTrue(check_capability_mapping(foss_hierarchy[0], iimpi_hierarchy[0]))
 
     def test_match_minimum_tc_specs(self):
@@ -189,21 +192,25 @@ class TweakTest(EnhancedTestCase):
         })
         get_toolchain_hierarchy.clear()
         foss_hierarchy = get_toolchain_hierarchy({'name': 'foss', 'version': '2018a'}, incl_capabilities=True)
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '2016.01'},
                                                   incl_capabilities=True)
         # Hierarchies are returned with top-level toolchain last, foss has 4 elements here, intel has 2
         self.assertEqual(foss_hierarchy[0]['name'], 'GCC')
         self.assertEqual(foss_hierarchy[1]['name'], 'golf')
         self.assertEqual(foss_hierarchy[2]['name'], 'gompi')
         self.assertEqual(foss_hierarchy[3]['name'], 'foss')
-        self.assertEqual(iimpi_hierarchy[0]['name'], 'iccifort')
-        self.assertEqual(iimpi_hierarchy[1]['name'], 'iimpi')
+        self.assertEqual(iimpi_hierarchy[0]['name'], 'GCCcore')
+        self.assertEqual(iimpi_hierarchy[1]['name'], 'iccifort')
+        self.assertEqual(iimpi_hierarchy[2]['name'], 'iimpi')
 
-        # Compiler first
+        # base compiler first (GCCcore which maps to GCC/6.4.0-2.28)
         self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[0], foss_hierarchy),
                          {'name': 'GCC', 'version': '6.4.0-2.28'})
-        # Then MPI
+        # then iccifort (which also maps to GCC/6.4.0-2.28)
         self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[1], foss_hierarchy),
+                         {'name': 'GCC', 'version': '6.4.0-2.28'})
+        # Then MPI
+        self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[2], foss_hierarchy),
                          {'name': 'gompi', 'version': '2018a'})
         # Check against own math only subtoolchain for math
         self.assertEqual(match_minimum_tc_specs(foss_hierarchy[1], foss_hierarchy),
@@ -246,10 +253,11 @@ class TweakTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
         foss_tc = {'name': 'foss', 'version': '2018a'}
         gompi_tc = {'name': 'gompi', 'version': '2018a'}
-        iimpi_tc = {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}
+        iimpi_tc = {'name': 'iimpi', 'version': '2016.01'}
 
-        # iccifort is mapped to GCC, iimpi is mapped to gompi
+        # GCCcore is mapped to GCC, iccifort is mapped to GCC, iimpi is mapped to gompi
         expected = {
+            'GCCcore': {'name': 'GCC', 'version': '6.4.0-2.28'},
             'iccifort': {'name': 'GCC', 'version': '6.4.0-2.28'},
             'iimpi': {'name': 'gompi', 'version': '2018a'},
         }
@@ -257,8 +265,8 @@ class TweakTest(EnhancedTestCase):
 
         # GCC is mapped to iccifort, gompi is mapped to iimpi
         expected = {
-            'GCC': {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
-            'gompi': {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}
+            'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+            'gompi': {'name': 'iimpi', 'version': '2016.01'}
         }
         self.assertEqual(map_toolchain_hierarchies(gompi_tc, iimpi_tc, self.modtool), expected)
 
@@ -302,6 +310,7 @@ class TweakTest(EnhancedTestCase):
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
             self.assertTrue(key in tweaked_dict['builddependencies'][0] and
                             value == tweaked_dict['builddependencies'][0][key])
+
 
 def suite():
     """ return all the tests in this file """

@@ -705,10 +705,10 @@ class RobotTest(EnhancedTestCase):
             {'name': 'foss', 'version': '2018a'},
         ])
 
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'})
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '2016.01'})
         self.assertEqual(iimpi_hierarchy, [
-            {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
-            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+            {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+            {'name': 'iimpi', 'version': '2016.01'},
         ])
 
         # test also --try-toolchain* case, where we want more detailed information
@@ -760,12 +760,12 @@ class RobotTest(EnhancedTestCase):
         ]
         self.assertEqual(foss_hierarchy, expected)
 
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '2016.01'},
                                                   incl_capabilities=True)
         expected = [
             {
                 'name': 'iccifort',
-                'version': '2013.5.192-GCC-4.8.3',
+                'version': '2016.1.150-GCC-4.9.3-2.25',
                 'comp_family': 'Intel',
                 'mpi_family': None,
                 'lapack_family': None,
@@ -774,7 +774,7 @@ class RobotTest(EnhancedTestCase):
             },
             {
                 'name': 'iimpi',
-                'version': '5.5.3-GCC-4.8.3',
+                'version': '2016.01',
                 'comp_family': 'Intel',
                 'mpi_family': 'IntelMPI',
                 'lapack_family': None,
@@ -789,7 +789,7 @@ class RobotTest(EnhancedTestCase):
         expected = [
             {
                 'name': 'iccifort',
-                'version': '2013.5.192-GCC-4.8.3',
+                'version': '2016.1.150-GCC-4.9.3-2.25',
                 'comp_family': 'Intel',
                 'mpi_family': None,
                 'lapack_family': None,
