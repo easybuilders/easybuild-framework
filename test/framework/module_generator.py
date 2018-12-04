@@ -976,7 +976,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'foss-2018a.eb': ('foss/2018a', 'Core', [],
                               [], ['Core']),
             'icc-2016.1.150-GCC-4.9.3-2.25.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver],
-                                                ['Compiler/intel/%s' % iccver], ['Core']),
+                                                 ['Compiler/intel/%s' % iccver], ['Core']),
             'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'Core', ['Compiler/intel/2016.1.150'],
                                     ['Compiler/intel/2016.1.150'], ['Core']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
