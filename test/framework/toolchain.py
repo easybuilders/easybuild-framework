@@ -343,7 +343,7 @@ class ToolchainTest(EnhancedTestCase):
                 init_config(build_options=build_options)
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
-                'gompi': ('1.3.12', "-march=x86-64 -mtune=generic"),
+                'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
                 'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
             }
             for tcopt_optarch in [False, True]:
@@ -364,7 +364,7 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_family = lambda: st.ARM
         st.get_cpu_model = lambda: 'ARM Cortex-A53'
         st.get_cpu_vendor = lambda: st.ARM
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="4.6.4")
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
@@ -379,7 +379,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="4.6.4")
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
@@ -394,7 +394,7 @@ class ToolchainTest(EnhancedTestCase):
         gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
         toolchains = [
             ('iccifort', '2018.1.163'),
-            ('GCC', '4.7.2'),
+            ('GCC', '6.4.0-2.28'),
             ('GCCcore', '6.2.0'),
             ('PGI', '16.7-GCC-5.4.0-2.26'),
         ]
@@ -467,7 +467,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_easyconfig_optarch_flags(self):
         """Test whether specifying optarch flags in the easyconfigs works."""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12.eb')
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         toy_txt = read_file(eb_file)
@@ -555,7 +555,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_mpi_family(self):
         """Test determining MPI family."""
         # check subtoolchain w/o MPI
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="6.4.0-2.28")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), None)
         self.modtool.purge()
@@ -576,21 +576,21 @@ class ToolchainTest(EnhancedTestCase):
     def test_blas_lapack_family(self):
         """Test determining BLAS/LAPACK family."""
         # check compiler-only (sub)toolchain
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="6.4.0-2.28")
         tc.prepare()
         self.assertEqual(tc.blas_family(), None)
         self.assertEqual(tc.lapack_family(), None)
         self.modtool.purge()
 
         # check compiler/MPI-only (sub)toolchain
-        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc = self.get_toolchain('gompi', version='2018a')
         tc.prepare()
         self.assertEqual(tc.blas_family(), None)
         self.assertEqual(tc.lapack_family(), None)
         self.modtool.purge()
 
         # check full toolchain including BLAS/LAPACK
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         tc.prepare()
         self.assertEqual(tc.blas_family(), 'OpenBLAS')
         self.assertEqual(tc.lapack_family(), 'OpenBLAS')
@@ -604,9 +604,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.blas_family(), 'IntelMKL')
         self.assertEqual(tc.lapack_family(), 'IntelMKL')
 
-    def test_goolfc(self):
-        """Test whether goolfc is handled properly."""
-        tc = self.get_toolchain("goolfc", version="1.3.12")
+    def test_fosscuda(self):
+        """Test whether fosscuda is handled properly."""
+        tc = self.get_toolchain("fosscuda", version="2018a")
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10'], 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -747,7 +747,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         # missing optional toolchain elements are fine
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()
@@ -761,7 +761,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test mpi_cmd_for function."""
         self.modtool.prepend_module_path(self.test_prefix)
 
-        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc = self.get_toolchain('gompi', version='2018a')
         tc.prepare()
         self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
         self.modtool.purge()
@@ -785,19 +785,19 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
-        tc = self.get_toolchain('GCC', version='4.6.4')
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         deps = [
             {
                 'name': 'OpenMPI',
-                'version': '1.6.4',
-                'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
-                'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
+                'version': '2.1.2',
+                'full_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'short_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
                 'external_module': False,
                 'build_only': False,
             },
         ]
         tc.prepare(deps=deps)
-        mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4']
+        mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
 
     def test_prepare_deps_external(self):
@@ -805,9 +805,9 @@ class ToolchainTest(EnhancedTestCase):
         deps = [
             {
                 'name': 'OpenMPI',
-                'version': '1.6.4',
-                'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
-                'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
+                'version': '2.1.2',
+                'full_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'short_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
                 'external_module': False,
                 'external_module_metadata': {},
                 'build_only': False,
@@ -823,9 +823,9 @@ class ToolchainTest(EnhancedTestCase):
                 'build_only': False,
             }
         ]
-        tc = self.get_toolchain('GCC', version='4.6.4')
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         tc.prepare(deps=deps)
-        mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
+        mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertTrue(os.environ['EBROOTTOY'].endswith('software/toy/0.0'))
         self.assertEqual(os.environ['EBVERSIONTOY'], '0.0')
@@ -843,10 +843,10 @@ class ToolchainTest(EnhancedTestCase):
             },
             'build_only': False,
         }
-        tc = self.get_toolchain('GCC', version='4.6.4')
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         os.environ['FOOBAR_PREFIX'] = '/foo/bar'
         tc.prepare(deps=deps)
-        mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
+        mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertEqual(os.environ['EBROOTTOY'], '/foo/bar')
         self.assertEqual(os.environ['EBVERSIONTOY'], '1.2.3')
@@ -878,14 +878,14 @@ class ToolchainTest(EnhancedTestCase):
         libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
         libscalack_intel4 += "-lmkl_core"
 
-        libblas_mt_goolfc = "-lopenblas -lgfortran"
-        libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
-        libfft_mt_goolfc = "-lfftw3_omp -lfftw3 -lpthread"
+        libblas_mt_fosscuda = "-lopenblas -lgfortran"
+        libscalack_fosscuda = "-lscalapack -lopenblas -lgfortran"
+        libfft_mt_fosscuda = "-lfftw3_omp -lfftw3 -lpthread"
 
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         tc.prepare()
-        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
-        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
@@ -920,12 +920,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         tc.set_options({'openmp': True})
         tc.prepare()
-        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
-        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
-        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
 
     def test_independence(self):
         """Test independency of toolchain instances."""
@@ -945,7 +945,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayCCE', '2015.06-XC'),
             ('CrayGNU', '2015.06-XC'),
             ('CrayIntel', '2015.06-XC'),
-            ('GCC', '4.7.2'),
+            ('GCC', '6.4.0-2.28'),
             ('iccifort', '2018.1.163'),
         ]
 
@@ -1365,7 +1365,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # enable --rpath and prepare toolchain
         init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
-        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc = self.get_toolchain('gompi', version='2018a')
 
         # preparing RPATH wrappers requires --experimental, need to bypass that here
         tc.log.experimental = lambda x: x
@@ -1427,7 +1427,7 @@ class ToolchainTest(EnhancedTestCase):
         def prep():
             """Helper function: create & prepare toolchain"""
             self.modtool.unload(['gompi', 'OpenMPI', 'hwloc', 'GCC'])
-            tc = self.get_toolchain('gompi', version='1.3.12')
+            tc = self.get_toolchain('gompi', version='2018a')
             self.mock_stderr(True)
             self.mock_stdout(True)
             tc.prepare()
@@ -1446,33 +1446,6 @@ class ToolchainTest(EnhancedTestCase):
             os.environ['TMPDIR'] = orig_tmpdir
 
         long_tmpdir = os.path.join(self.test_prefix, 'verylongdirectorythatmaycauseproblemswithopenmpi2')
-
-        # $TMPDIR is left untouched with OpenMPI 1.6.4
-        tc, stdout, stderr = prep()
-        self.assertEqual(stdout, '')
-        self.assertEqual(stderr, '')
-        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
-
-        # ... even with long $TMPDIR
-        os.environ['TMPDIR'] = long_tmpdir
-        tc, stdout, stderr = prep()
-        self.assertEqual(stdout, '')
-        self.assertEqual(stderr, '')
-        self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
-        os.environ['TMPDIR'] = orig_tmpdir
-
-        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
-        tmp_modules = os.path.join(self.test_prefix, 'modules')
-        mkdir(tmp_modules)
-
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
-
-        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
-        ompi_mod_txt = read_file(openmpi_module)
-        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
-
-        self.modtool.use(tmp_modules)
 
         # $TMPDIR is left untouched with OpenMPI 2.x if $TMPDIR is sufficiently short
         os.environ['TMPDIR'] = orig_tmpdir
@@ -1497,6 +1470,35 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(tmpdir))
         tc.cleanup()
         self.assertFalse(os.path.exists(tmpdir))
+
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        # copy OpenMPI module used in gompi/2018a to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        tmp_modules = os.path.join(self.test_prefix, 'modules')
+        mkdir(tmp_modules)
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '2.1.2-GCC-6.4.0-2.28')
+        ompi_mod_txt = read_file(openmpi_module)
+        write_file(openmpi_module, ompi_mod_txt.replace('2.1.2', '1.6.4'))
+
+        self.modtool.use(tmp_modules)
+
+        # $TMPDIR is left untouched with OpenMPI 1.6.4
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        # ... even with long $TMPDIR
+        os.environ['TMPDIR'] = long_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
+        os.environ['TMPDIR'] = orig_tmpdir
 
         # we may have created our own short tmpdir above, so make sure to clean things up...
         shutil.rmtree(orig_tmpdir)
