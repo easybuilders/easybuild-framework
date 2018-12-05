@@ -574,7 +574,7 @@ class EasyConfig(object):
 
         if depr_msgs:
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
-            more_info_depr_ec = "(see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
             self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
 
     def validate(self, check_osdeps=True):

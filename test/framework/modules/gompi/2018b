@@ -1,0 +1,30 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   GNU Compiler Collection (GCC) based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)
+}
+}
+
+module-whatis {GNU Compiler Collection (GCC) based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)}
+
+set root    /prefix/software/gompi/2018b
+
+conflict    gompi
+
+if { ![is-loaded GCC/6.4.0-2.28] } {
+    module load GCC/6.4.0-2.28
+}
+
+if { ![is-loaded OpenMPI/2.1.2-GCC-6.4.0-2.28] } {
+    module load OpenMPI/2.1.2-GCC-6.4.0-2.28
+}
+
+
+setenv	EBROOTGOMPI		"$root"
+setenv	EBVERSIONGOMPI		"2018b"
+setenv	EBDEVELGOMPI		"$root/easybuild/gompi-2018b-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

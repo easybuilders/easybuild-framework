@@ -1,0 +1,33 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/
+}
+}
+
+module-whatis {The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/}
+
+set root    /prefix/software/OpenMPI/3.1.1-GCC-7.3.0-2.30
+
+conflict    OpenMPI
+
+if { ![is-loaded GCC/7.3.0-2.30] } {
+    module load GCC/7.3.0-2.30
+}
+
+if { ![is-loaded hwloc/1.11.8-GCC-7.3.0-2.30] } {
+    module load hwloc/1.11.8-GCC-7.3.0-2.30
+}
+
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+
+setenv	EBROOTOPENMPI		"$root"
+setenv	EBVERSIONOPENMPI		"3.1.1"
+setenv	EBDEVELOPENMPI		"$root/easybuild/OpenMPI-3.1.1-GCC-7.3.0-2.30-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev
