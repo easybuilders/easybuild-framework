@@ -75,7 +75,7 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_f
 from easybuild.tools.filetools import compute_checksum, copy_dir, copy_file, derive_alt_pypi_url, diff_files
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
 from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_url, is_sha256_checksum, mkdir
-from easybuild.tools.filetools import move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
+from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
 from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
@@ -2898,10 +2898,9 @@ def build_and_install_one(ecdict, init_env):
             # move the reproducability files to the final log directory
             archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
             if os.path.exists(archive_reprod_dir):
-                _log.info("Reproducability directory %s already exists, backing up" % archive_reprod_dir)
                 backup_dir = find_backup_name_candidate(archive_reprod_dir)
-                copy_dir(archive_reprod_dir, backup_dir)
-                rmtree2(archive_reprod_dir)
+                move_file(archive_reprod_dir, backup_dir)
+                _log.info("Existing reprod directory %s backed up to %s", archive_reprod_dir, backup_dir)
             copy_dir(reprod_dir, archive_reprod_dir)
             _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
 
