@@ -129,7 +129,11 @@ class RepositoryTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
         shutil.rmtree(repo.wc)
 
-    def test_hgrepo(self):
+    # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
+    # we can consider re-enabling it when moving to a more recent Ubuntu version in the Travis config
+    # (which implies dropping support for Python 2.6)
+    # cfr. https://github.com/easybuilders/easybuild-framework/pull/2678
+    def DISABLED_test_hgrepo(self):
         """Test using HgRepository."""
         # only run this test if pysvn Python module is available
         try:
