@@ -7,22 +7,22 @@ proc ModulesHelp { } {
 
 module-whatis {Description: Intel C, C++ and Fortran compilers - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/}
 
-set root    /tmp/software/Core/iccifort/2013.5.192-GCC-4.8.3
+set root    /tmp/software/Core/iccifort/2016.1.150-GCC-4.9.3-2.25
 
 conflict iccifort
 
-if { ![is-loaded icc/2013.5.192-GCC-4.8.3] } {
-    module load icc/2013.5.192-GCC-4.8.3
+if { ![is-loaded icc/2016.1.150-GCC-4.9.3-2.25] } {
+    module load icc/2016.1.150-GCC-4.9.3-2.25
 }
 
-if { ![is-loaded ifort/2013.5.192-GCC-4.8.3] } {
-    module load ifort/2013.5.192-GCC-4.8.3
+if { ![is-loaded ifort/2016.1.150-GCC-4.9.3-2.25] } {
+    module load ifort/2016.1.150-GCC-4.9.3-2.25
 }
 
 
 setenv	EBROOTICCIFORT		"$root"
-setenv	EBVERSIONICCIFORT		"2013.5.192"
-setenv	EBDEVELICCIFORT		"$root/easybuild/Core-iccifort-2013.5.192-GCC-4.8.3-easybuild-devel"
+setenv	EBVERSIONICCIFORT		"2016.1.150"
+setenv	EBDEVELICCIFORT		"$root/easybuild/Core-iccifort-2016.1.150-GCC-4.9.3-2.25-easybuild-devel"
 
 
 # Built with EasyBuild version 1.16.0dev

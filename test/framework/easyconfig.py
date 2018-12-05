@@ -2356,7 +2356,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt + "\ndeprecated = 'this is just a test'")
 
-        error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
+        error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n \(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
 

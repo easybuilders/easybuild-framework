@@ -580,11 +580,12 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.modpath_extensions_for(['GCC/6.4.0-2.28', 'OpenMPI/2.1.2', 'FFTW/3.3.7'])
         self.assertEqual(res, expected)
 
+        intel_mod_dir = os.path.join(mod_dir, 'Compiler', 'intel')
         expected = {
-            'icc/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
-            'ifort/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
+            'icc/2016.1.150-GCC-4.9.3-2.25': [os.path.join(intel_mod_dir, '2016.1.150-GCC-4.9.3-2.25')],
+            'ifort/2016.1.150-GCC-4.9.3-2.25': [os.path.join(intel_mod_dir, '2016.1.150-GCC-4.9.3-2.25')],
         }
-        res = self.modtool.modpath_extensions_for(['icc/2013.5.192-GCC-4.8.3', 'ifort/2013.5.192-GCC-4.8.3'])
+        res = self.modtool.modpath_extensions_for(['icc/2016.1.150-GCC-4.9.3-2.25', 'ifort/2016.1.150-GCC-4.9.3-2.25'])
         self.assertEqual(res, expected)
 
         # error for non-existing modules
@@ -605,7 +606,7 @@ class ModulesTest(EnhancedTestCase):
         test_modtxt = '\n'.join([
             '#%Module',
             'prepend-path PATH /example/bin',
-            "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
+            "    module use %s/Compiler/intel/2016.1.150-GCC-4.9.3-2.25" % mod_dir,  # indented without guard
             # quoted path
             'module use "%s/Compiler/GCC/6.4.0-2.28"' % mod_dir,
             # using prepend-path & quoted
@@ -623,7 +624,7 @@ class ModulesTest(EnhancedTestCase):
 
         expected = {
             test_mod: [
-                os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+                os.path.join(mod_dir, 'Compiler', 'intel', '2016.1.150-GCC-4.9.3-2.25'),
                 os.path.join(mod_dir, 'Compiler', 'GCC', '6.4.0-2.28'),
                 os.path.join(mod_dir, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
                 os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '6.4.0-2.28'),
@@ -643,7 +644,7 @@ class ModulesTest(EnhancedTestCase):
             test_modtxt = '\n'.join([
                 'prepend_path("PATH", "/example/bin")',
                 # indented without guard
-                '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
+                '   prepend_path("MODULEPATH", "%s/Compiler/intel/2016.1.150-GCC-4.9.3-2.25")' % mod_dir,
                 'prepend_path("MODULEPATH","%s/Compiler/GCC/6.4.0-2.28")' % mod_dir,
                 'prepend_path("MODULEPATH", "%s/MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2")' % mod_dir,
                 # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used

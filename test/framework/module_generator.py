@@ -962,9 +962,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths)
-        iccver = '2013.5.192-GCC-4.8.3'
-        impi_ec = 'impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb'
-        imkl_ec = 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'
+        iccver = '2016.1.150-GCC-4.9.3-2.25'
+        impi_ec = 'impi-5.1.2.150-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'
+        imkl_ec = 'imkl-11.3.1.150-iimpi-2016.01.eb'
         test_ecs = {
             'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', 'Core', ['Compiler/GCC/6.4.0-2.28'],
                                   ['Compiler/GCC/6.4.0-2.28'], ['Core']),
@@ -975,33 +975,34 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                        [], ['Core']),
             'foss-2018a.eb': ('foss/2018a', 'Core', [],
                               [], ['Core']),
-            'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver],
-                                            ['Compiler/intel/%s' % iccver], ['Core']),
-            'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core', ['Compiler/intel/2013.3.163'],
-                                    ['Compiler/intel/2013.3.163'], ['Core']),
+            'icc-2016.1.150-GCC-4.9.3-2.25.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver],
+                                                 ['Compiler/intel/%s' % iccver], ['Core']),
+            'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'Core', ['Compiler/intel/2016.1.150'],
+                                    ['Compiler/intel/2016.1.150'], ['Core']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'], ['Core']),
             'CUDA-5.5.22.eb': ('CUDA/5.5.22', 'Core', [],
                                [], ['Core']),
-            'CUDA-5.5.22-iccifort-2013.5.192-GCC-4.8.3.eb': ('CUDA/5.5.22', 'Compiler/intel/2013.5.192-GCC-4.8.3',
-                                                             ['Compiler/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22'],
-                                                             ['Compiler/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22'],
-                                                             ['Core']),
-            impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/4.1.3.049' % iccver],
-                      ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
-            imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [],
+            'CUDA-5.5.22-iccifort-2016.1.150-GCC-4.9.3-2.25.eb': ('CUDA/5.5.22',
+                                                                  'Compiler/intel/%s' % iccver,
+                                                                  ['Compiler/intel-CUDA/%s-5.5.22' % iccver],
+                                                                  ['Compiler/intel-CUDA/%s-5.5.22' % iccver],
+                                                                  ['Core']),
+            impi_ec: ('impi/5.1.2.150', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/5.1.2.150' % iccver],
+                      ['MPI/intel/%s/impi/5.1.2.150' % iccver], ['Core']),
+            imkl_ec: ('imkl/11.3.1.150', 'MPI/intel/%s/impi/5.1.2.150' % iccver, [],
                       [], ['Core']),
-            'impi-4.1.3.049-iccifortcuda-test.eb': ('impi/4.1.3.049', 'Compiler/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22',
-                                                    ['MPI/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22/impi/4.1.3.049'],
-                                                    ['MPI/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22/impi/4.1.3.049'],
+            'impi-5.1.2.150-iccifortcuda-test.eb': ('impi/5.1.2.150', 'Compiler/intel-CUDA/%s-5.5.22' % iccver,
+                                                    ['MPI/intel-CUDA/%s-5.5.22/impi/5.1.2.150' % iccver],
+                                                    ['MPI/intel-CUDA/%s-5.5.22/impi/5.1.2.150' % iccver],
                                                     ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-4.1.3.049.eb'))
+        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
@@ -1019,26 +1020,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                        [], []),
             'foss-2018a.eb': ('foss/2018a', 'Core/toolchain',
                               [], []),
-            'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core/compiler',
-                                            ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses],
-                                            ['Compiler/intel/%s' % iccver]),
-            'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core/compiler',
-                                    ['Compiler/intel/2013.3.163/%s' % c for c in moduleclasses],
-                                    ['Compiler/intel/2013.3.163']),
+            'icc-2016.1.150-GCC-4.9.3-2.25.eb': ('icc/%s' % iccver, 'Core/compiler',
+                                                 ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses],
+                                                 ['Compiler/intel/%s' % iccver]),
+            'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'Core/compiler',
+                                    ['Compiler/intel/2016.1.150/%s' % c for c in moduleclasses],
+                                    ['Compiler/intel/2016.1.150']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28/system',
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85/%s' % c for c in moduleclasses],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85']),
-            impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s/mpi' % iccver,
-                      ['MPI/intel/%s/impi/4.1.3.049/%s' % (iccver, c) for c in moduleclasses],
-                      ['MPI/intel/%s/impi/4.1.3.049' % iccver]),
-            imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049/numlib' % iccver,
+            impi_ec: ('impi/5.1.2.150', 'Compiler/intel/%s/mpi' % iccver,
+                      ['MPI/intel/%s/impi/5.1.2.150/%s' % (iccver, c) for c in moduleclasses],
+                      ['MPI/intel/%s/impi/5.1.2.150' % iccver]),
+            imkl_ec: ('imkl/11.3.1.150', 'MPI/intel/%s/impi/5.1.2.150/numlib' % iccver,
                       [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-4.1.3.049.eb'))
+        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'
@@ -1049,7 +1050,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('mpi/OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
             'gzip-1.5-foss-2018a.eb':   ('tools/gzip/1.5-foss-2018a', '', [], [], []),
             'foss-2018a.eb':            ('toolchain/foss/2018a',      '', [], [], []),
-            'impi-4.1.3.049.eb':          ('mpi/impi/4.1.3.049',          '', [], [], []),
+            'impi-5.1.2.150.eb':          ('mpi/impi/5.1.2.150',          '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
@@ -1062,7 +1063,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
             'gzip-1.5-foss-2018a.eb': ('gzip/1.5-foss-2018a', '', [], [], []),
             'foss-2018a.eb': ('foss/2018a', '', [], [], []),
-            'impi-4.1.3.049.eb': ('impi/4.1.3.049', '', [], [], []),
+            'impi-5.1.2.150.eb': ('impi/5.1.2.150', '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)

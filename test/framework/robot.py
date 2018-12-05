@@ -515,7 +515,7 @@ class RobotTest(EnhancedTestCase):
             'validate': False,
         })
 
-        impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-4.1.3.049.eb'))
+        impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-5.1.2.150.eb'))
         self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': ''}", impi_txt, re.M))
         gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
         self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': 'dummy'}", gzip_txt, re.M))
@@ -531,7 +531,7 @@ class RobotTest(EnhancedTestCase):
             # to test resolving of dependencies with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
-            "   ('impi', '4.1.3.049'),",  # has toolchain ('dummy', '')
+            "   ('impi', '5.1.2.150'),",  # has toolchain ('dummy', '')
             "   ('gzip', '1.4'),",  # has toolchain ('dummy', 'dummy')
             "]",
             # toolchain as list line, for easy modification later
@@ -543,7 +543,7 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 11)
         mods = [x['full_mod_name'] for x in res]
-        self.assertTrue('impi/4.1.3.049' in mods)
+        self.assertTrue('impi/5.1.2.150' in mods)
         self.assertTrue('gzip/1.4' in mods)
 
     def test_det_easyconfig_paths(self):
@@ -705,10 +705,11 @@ class RobotTest(EnhancedTestCase):
             {'name': 'foss', 'version': '2018a'},
         ])
 
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'})
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '2016.01'})
         self.assertEqual(iimpi_hierarchy, [
-            {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
-            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+            {'name': 'GCCcore', 'version': '4.9.3'},
+            {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+            {'name': 'iimpi', 'version': '2016.01'},
         ])
 
         # test also --try-toolchain* case, where we want more detailed information
@@ -760,12 +761,21 @@ class RobotTest(EnhancedTestCase):
         ]
         self.assertEqual(foss_hierarchy, expected)
 
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '2016.01'},
                                                   incl_capabilities=True)
         expected = [
             {
+                'name': 'GCCcore',
+                'version': '4.9.3',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'blas_family': None,
+                'lapack_family': None,
+                'cuda': None,
+            },
+            {
                 'name': 'iccifort',
-                'version': '2013.5.192-GCC-4.8.3',
+                'version': '2016.1.150-GCC-4.9.3-2.25',
                 'comp_family': 'Intel',
                 'mpi_family': None,
                 'lapack_family': None,
@@ -774,7 +784,7 @@ class RobotTest(EnhancedTestCase):
             },
             {
                 'name': 'iimpi',
-                'version': '5.5.3-GCC-4.8.3',
+                'version': '2016.01',
                 'comp_family': 'Intel',
                 'mpi_family': 'IntelMPI',
                 'lapack_family': None,
@@ -788,8 +798,17 @@ class RobotTest(EnhancedTestCase):
                                                          incl_capabilities=True)
         expected = [
             {
+                'name': 'GCCcore',
+                'version': '4.9.3',
+                'comp_family': 'GCC',
+                'mpi_family': None,
+                'blas_family': None,
+                'lapack_family': None,
+                'cuda': None,
+            },
+            {
                 'name': 'iccifort',
-                'version': '2013.5.192-GCC-4.8.3',
+                'version': '2016.1.150-GCC-4.9.3-2.25',
                 'comp_family': 'Intel',
                 'mpi_family': None,
                 'lapack_family': None,
@@ -1120,7 +1139,7 @@ class RobotTest(EnhancedTestCase):
         for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
             self.assertEqual(det_full_ec_version(dep), expected_dep_version)
 
-        # Add the gompi/1.4.10 version of SQLite as an available module
+        # Add the gompi/2018a version of SQLite as an available module
         module_parent = os.path.join(self.test_prefix, 'minimal_toolchain_modules')
         module_file = os.path.join(module_parent, 'SQLite', '3.8.10.2-gompi-2018a')
         module_txt = '\n'.join([
@@ -1250,6 +1269,11 @@ class RobotTest(EnhancedTestCase):
 
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""
+
+        # we must allow use of deprecated toolchain in this case
+        self.allow_deprecated_behaviour()
+        init_config()
+
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-intel-2018a.eb')

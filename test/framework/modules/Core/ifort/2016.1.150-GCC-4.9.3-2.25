@@ -7,13 +7,13 @@ proc ModulesHelp { } {
 
 module-whatis {Description: Fortran compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/}
 
-set root    /tmp/software/Core/ifort/2013.5.192-GCC-4.8.3
+set root    /tmp/software/Core/ifort/2016.1.150-GCC-4.9.3-2.25
 
 conflict ifort
-module use /tmp/modules/all/Compiler/intel/2013.5.192-GCC-4.8.3
+module use /tmp/modules/all/Compiler/intel/2016.1.150-GCC-4.9.3-2.25
 
-if { ![is-loaded GCC/4.8.3] } {
-    module load GCC/4.8.3
+if { ![is-loaded GCC/4.9.3-2.25] } {
+    module load GCC/4.9.3-2.25
 }
 
 prepend-path	IDB_HOME		$root/bin/intel64
@@ -25,8 +25,8 @@ prepend-path	PATH		$root/bin
 prepend-path	PATH		$root/bin/intel64
 
 setenv	EBROOTIFORT		"$root"
-setenv	EBVERSIONIFORT		"2013.5.192"
-setenv	EBDEVELIFORT		"$root/easybuild/Core-ifort-2013.5.192-GCC-4.8.3-easybuild-devel"
+setenv	EBVERSIONIFORT		"2016.1.150"
+setenv	EBDEVELIFORT		"$root/easybuild/Core-ifort-2016.1.150-GCC-4.9.3-2.25-easybuild-devel"
 
 prepend-path	INTEL_LICENSE_FILE		/tmp/license.lic
 prepend-path	NLSPATH		$root/idb/intel64/locale/%l_%t/%N

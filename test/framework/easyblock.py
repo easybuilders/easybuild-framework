@@ -1114,9 +1114,9 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options=build_options)
         self.setup_hierarchical_modules()
 
-        intel_ver = '2013.5.192-GCC-4.8.3'
-        impi_modfile_path = os.path.join('Compiler', 'intel', intel_ver, 'impi', '4.1.3.049')
-        imkl_modfile_path = os.path.join('MPI', 'intel', intel_ver, 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        intel_ver = '2016.1.150-GCC-4.9.3-2.25'
+        impi_modfile_path = os.path.join('Compiler', 'intel', intel_ver, 'impi', '5.1.2.150')
+        imkl_modfile_path = os.path.join('MPI', 'intel', intel_ver, 'impi', '5.1.2.150', 'imkl', '11.3.1.150')
         if get_module_syntax() == 'Lua':
             impi_modfile_path += '.lua'
             imkl_modfile_path += '.lua'
@@ -1126,8 +1126,8 @@ class EasyBlockTest(EnhancedTestCase):
         # since both icc/ifort and impi form the path to the top of the module tree
         iccifort_mods = ['icc', 'ifort', 'iccifort']
         tests = [
-            ('i/impi/impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, iccifort_mods),
-            ('i/imkl/imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
+            ('i/impi/impi-5.1.2.150-iccifort-2016.1.150-GCC-4.9.3-2.25.eb', impi_modfile_path, iccifort_mods),
+            ('i/imkl/imkl-11.3.1.150-iimpi-2016.01.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
         ]
         for ec_file, modfile_path, excluded_deps in tests:
             ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
@@ -1149,13 +1149,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         # modpath_extensions_for should spit out correct result, even if modules are loaded
         icc_mod = 'icc/%s' % intel_ver
-        impi_mod = 'impi/4.1.3.049'
+        impi_mod = 'impi/5.1.2.150'
         self.modtool.load([icc_mod])
         self.assertTrue(impi_modfile_path in self.modtool.show(impi_mod))
         self.modtool.load([impi_mod])
         expected = {
             icc_mod: [os.path.join(modpath, 'Compiler', 'intel', intel_ver)],
-            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '4.1.3.049')],
+            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '5.1.2.150')],
         }
         self.assertEqual(self.modtool.modpath_extensions_for([icc_mod, impi_mod]), expected)
 
