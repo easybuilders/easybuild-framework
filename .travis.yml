@@ -46,6 +46,8 @@ before_install:
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install pydot==1.1.0; else pip install pydot; fi
     # pycparser 2.19 (dep for paramiko) doesn't work with Python 2.6
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'pycparser<2.19'; fi
+    # idna 2.8 (dep for paramiko) & more recent doesn't work with Python 2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'idna<2.8'; fi
     # paramiko 2.4.0 (dep for GC3Pie) & more recent doesn't work with Python 2.6
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'paramiko<2.4.0'; fi
     # SQLAlchemy 1.2.0 (dep for GC3Pie) & more recent doesn't work with Python 2.6
