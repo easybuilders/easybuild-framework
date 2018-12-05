@@ -2365,8 +2365,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         test_ecs = [
             os.path.join('g', 'GCC', 'GCC-4.6.4.eb'),
-            os.path.join('g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'),
-            os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompic-2.6.10-OpenBLAS-0.2.8-LAPACK-3.4.2.eb'),
+            os.path.join('g', 'gzip', 'gzip-1.5-foss-2018a.eb'),
+            os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompic-2018a-OpenBLAS-0.2.20.eb'),
             os.path.join('o', 'OpenBLAS', 'OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb'),
             os.path.join('t', 'toy', 'toy-0.0.eb'),
             os.path.join('t', 'toy', 'toy-0.0-deps.eb'),
