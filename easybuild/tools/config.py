@@ -221,6 +221,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',
+        'map_toolchains',
         'modules_tool_version_check',
         'pre_create_installdir',
     ],
