@@ -188,6 +188,12 @@ class EnhancedTestCase(_EnhancedTestCase):
         self.reset_modulepath([os.path.join(testdir, 'modules')])
         reset_module_caches()
 
+    def allow_deprecated_behaviour(self):
+        """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
+        if 'EASYBUILD_DEPRECATED' in os.environ:
+            del os.environ['EASYBUILD_DEPRECATED']
+        eb_build_log.CURRENT_VERSION = self.orig_current_version
+
     def tearDown(self):
         """Clean up after running testcase."""
         super(EnhancedTestCase, self).tearDown()
@@ -199,6 +205,8 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # restore original environment
         modify_env(os.environ, self.orig_environ, verbose=False)
+
+        self.allow_deprecated_behaviour()
 
         # restore original Python search path
         sys.path = self.orig_sys_path
