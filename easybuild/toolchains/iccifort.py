@@ -28,11 +28,12 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-# Need to import the GCCcore class so I can get the name from there
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+
 
 class IccIfort(IntelIccIfort):
     """Compiler toolchain with Intel compilers (icc/ifort)."""
@@ -41,3 +42,13 @@ class IccIfort(IntelIccIfort):
     # in particular in a hierarchical module naming scheme
     SUBTOOLCHAIN = [GCCcore.NAME, DUMMY_TOOLCHAIN_NAME]
     OPTIONAL = False
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        # iccifort toolchains older than iccifort/2016.1.150-* are deprecated
+        if LooseVersion(self.version) < LooseVersion('2016.1'):
+            deprecated = True
+        else:
+            deprecated = False
+
+        return deprecated

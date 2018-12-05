@@ -74,11 +74,11 @@ from test.framework.utilities import find_full_path
 
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
-"GCC/4.7.2 (EXT)";
 toy;
+"GCC/6.4.0-2.28 (EXT)";
 intel;
 toy -> intel;
-toy -> "GCC/4.7.2 (EXT)";
+toy -> "GCC/6.4.0-2.28 (EXT)";
 }
 """
 
@@ -422,7 +422,7 @@ class EasyConfigTest(EnhancedTestCase):
         verpref = "myprefix"
         versuff = "mysuffix"
         tcname = "gompi"
-        tcver = "1.4.10"
+        tcver = "2018a"
         new_patches = ['t5.patch', 't6.patch']
         homepage = "http://www.justatest.com"
 
@@ -659,7 +659,7 @@ class EasyConfigTest(EnhancedTestCase):
         specs.update({
             'patches': new_patches[:],
             'builddependencies': [('testbuildonly', '4.5.6')],
-            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
+            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '2018a'))],
             'hiddendependencies': [('test', '3.2.1'), ('testbuildonly', '4.5.6')],
         })
         parsed_deps = [
@@ -681,11 +681,11 @@ class EasyConfigTest(EnhancedTestCase):
                 'name': 'bar',
                 'version': '666',
                 'versionsuffix': '-bleh',
-                'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+                'toolchain': {'name': 'gompi', 'version': '2018a'},
                 'toolchain_inherited': False,
                 'dummy': False,
-                'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
-                'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'short_mod_name': 'bar/666-gompi-2018a-bleh',
+                'full_mod_name': 'bar/666-gompi-2018a-bleh',
                 'build_only': False,
                 'hidden': False,
                 'external_module': False,
@@ -1004,8 +1004,8 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
-            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb',
-             {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
+            ('gzip-1.5-foss-2018a.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'foss', 'version': '2018a'}}),
             ('gzip-1.5-intel-2018a.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'intel', 'version': '2018a'}}),
         ]:
@@ -1030,7 +1030,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         for ec_file, correct_name, correct_easyblock in [
             (toy_ec_file, 'toy', None),
-            (os.path.join(test_ecs_dir, 'g', 'goolf', 'goolf-1.4.10.eb'), 'goolf', 'Toolchain'),
+            (os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb'), 'foss', 'Toolchain'),
         ]:
             name, easyblock = fetch_parameters_from_easyconfig(read_file(ec_file), ['name', 'easyblock'])
             self.assertEqual(name, correct_name)
@@ -1114,13 +1114,15 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        ec = EasyConfig(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
-        self.assertEqual(['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)], ['GCC/4.7.2'])
+        ec = EasyConfig(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        tc_compilers = ['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)]
+        self.assertEqual(tc_compilers, ['GCC/6.4.0-2.28'])
         self.assertEqual(det_toolchain_mpi(ec)['name'], 'OpenMPI')
 
-        ec = EasyConfig(os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'))
+        ec = EasyConfig(os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
         tc_comps = det_toolchain_compilers(ec)
-        self.assertEqual(['/'.join([x['name'], x['version']]) for x in tc_comps], ['GCC/4.6.4'])
+        expected = ['GCC/6.4.0-2.28']
+        self.assertEqual(['/'.join([x['name'], x['version'] + x['versionsuffix']]) for x in tc_comps], expected)
         self.assertEqual(det_toolchain_mpi(ec), None)
 
         ec = EasyConfig(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
@@ -1130,7 +1132,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_filter_deps(self):
         """Test filtered dependencies."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        ec_file = os.path.join(test_ecs_dir, 'g', 'goolf', 'goolf-1.4.10.eb')
+        ec_file = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         ec = EasyConfig(ec_file)
         deps = sorted([dep['name'] for dep in ec.dependencies()])
         self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
@@ -1164,7 +1166,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         ec_file = os.path.join(self.test_prefix, 'test.eb')
-        shutil.copy2(os.path.join(test_ecs_dir, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb'), ec_file)
+        shutil.copy2(os.path.join(test_ecs_dir, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'), ec_file)
 
         ec_txt = read_file(ec_file)
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
@@ -1272,7 +1274,7 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt += "  ('hidden/.1.2.3', EXTERNAL_MODULE), "
         ectxt += "]"
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
-        ectxt += "\ntoolchain = {'name': 'GCC', 'version': '4.7.2'}"
+        ectxt += "\ntoolchain = {'name': 'GCC', 'version': '6.4.0-2.28'}"
         write_file(toy_ec, ectxt)
 
         ec = EasyConfig(toy_ec)
@@ -1285,7 +1287,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 7)
-        correct_deps = ['intel/2018a', 'GCC/4.7.2', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
+        correct_deps = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
                         'somebuilddep/0.1']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
@@ -1450,8 +1452,8 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
         ecfiles = [
             't/toy/toy-0.0.eb',
-            'g/goolf/goolf-1.4.10.eb',
-            's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
+            'f/foss/foss-2018a.eb',
+            's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
             'p/Python/Python-2.7.10-intel-2018a.eb',
         ]
@@ -1716,8 +1718,8 @@ class EasyConfigTest(EnhancedTestCase):
             dep_graph(dot_file, ordered_ecs)
 
             # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/4.7.2 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/4.7.2 (EXT)"'
+            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
             dottxt = read_file(dot_file)
             self.assertEqual(dottxt, EXPECTED_DOTTXT_TOY_DEPS)
 
@@ -1738,7 +1740,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'intel/2018a')
-        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/6.4.0-2.28')
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
@@ -1764,7 +1766,7 @@ class EasyConfigTest(EnhancedTestCase):
         # tweak version to 4.5.0, GCC/4.x easyconfigs are found as closest match
         ec['version'] = '4.5.0'
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
-        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb']
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb']
         self.assertEqual(res, expected)
 
         ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
@@ -1778,7 +1780,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['toolchain'] = {'name': 'gompi', 'version': '1.5.16'}
         ec['versionsuffix'] = '-foobar'
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
-        self.assertEqual(res, ['toy-0.0-gompi-1.3.12-test.eb', 'toy-0.0-gompi-1.3.12.eb'])
+        self.assertEqual(res, ['toy-0.0-gompi-2018a-test.eb', 'toy-0.0-gompi-2018a.eb'])
 
         # restore original versionsuffix => matching versionsuffix wins over matching toolchain (name)
         ec['versionsuffix'] = '-deps'
@@ -1892,9 +1894,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         # copy test easyconfigs, purposely under a different name
         test_ecs = [
-            ('g/GCC/GCC-4.6.3.eb', 'GCC.eb'),
-            ('o/OpenMPI/OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
-            ('t/toy/toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+            ('g/GCC/GCC-6.4.0-2.28.eb', 'GCC.eb'),
+            ('o/OpenMPI/OpenMPI-2.1.2-GCC-6.4.0-2.28.eb', 'openmpi164.eb'),
+            ('t/toy/toy-0.0-gompi-2018a-test.eb', 'foo.eb'),
             ('t/toy/toy-0.0.eb', 'TOY.eb'),
         ]
         ecs_to_copy = []
@@ -1908,7 +1910,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(res['ecs']), len(test_ecs))
         self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
         self.assertTrue(all(res['new']))
-        expected = os.path.join(target_dir, 'easybuild', 'easyconfigs', 'g', 'GCC', 'GCC-4.6.3.eb')
+        expected = os.path.join(target_dir, 'easybuild', 'easyconfigs', 'g', 'GCC', 'GCC-6.4.0-2.28.eb')
         self.assertTrue(os.path.samefile(res['paths_in_repo'][0], expected))
 
         # check whether easyconfigs were copied (unmodified) to correct location
@@ -1964,15 +1966,15 @@ class EasyConfigTest(EnhancedTestCase):
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
 
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
             'name': 'gzip',
             'nameletter': 'g',
-            'toolchain_name': 'goolf',
-            'toolchain_version': '1.4.10',
+            'toolchain_name': 'foss',
+            'toolchain_version': '2018a',
             'version': '1.5',
             'version_major': '1',
             'version_major_minor': '1.5',
@@ -2006,9 +2008,9 @@ class EasyConfigTest(EnhancedTestCase):
         """Test whether handling of templates defined by dependencies is done correctly."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
-        pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
+        pyec = os.path.join(self.test_prefix, 'Python-2.7.10-foss-2018a.eb')
         shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
-        write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
+        write_file(pyec, "\ntoolchain = {'name': 'foss', 'version': '2018a'}", append=True)
 
         ec_txt = '\n'.join([
             "easyblock = 'ConfigureMake'",
@@ -2017,7 +2019,7 @@ class EasyConfigTest(EnhancedTestCase):
             "versionsuffix = '-Python-%(pyver)s'",
             "homepage = 'http://example.com'",
             "description = 'test'",
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "toolchain = {'name': 'foss', 'version': '2018a'}",
             "dependencies = [('Python', '2.7.10'), ('pytest', '1.2.3', versionsuffix)]",
         ])
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -2030,10 +2032,10 @@ class EasyConfigTest(EnhancedTestCase):
             "versionsuffix = '-Python-%(pyver)s'",
             "homepage = 'http://example.com'",
             "description = 'test'",
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "toolchain = {'name': 'foss', 'version': '2018a'}",
             "dependencies = [('Python', '2.7.10')]",
         ])
-        write_file(os.path.join(self.test_prefix, 'pytest-1.2.3-goolf-1.4.10-Python-2.7.10.eb'), pytest_ec_txt)
+        write_file(os.path.join(self.test_prefix, 'pytest-1.2.3-foss-2018a-Python-2.7.10.eb'), pytest_ec_txt)
 
         build_options = {
             'external_modules_metadata': ConfigObj(),
@@ -2049,8 +2051,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # verify module names of dependencies, by accessing raw config via _.config
         expected = [
-            'MPI/GCC/4.7.2/OpenMPI/1.6.4/Python/2.7.10',
-            'MPI/GCC/4.7.2/OpenMPI/1.6.4/pytest/1.2.3-Python-2.7.10',
+            'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/Python/2.7.10',
+            'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/pytest/1.2.3-Python-2.7.10',
         ]
         dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
         self.assertEqual(dep_full_mod_names, expected)
@@ -2142,25 +2144,25 @@ class EasyConfigTest(EnhancedTestCase):
         subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
         optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
 
-        current_tc = {'name': 'goolfc', 'version': '2.6.10'}
+        current_tc = {'name': 'fosscuda', 'version': '2018a'}
         # missing gompic and double golfc should both give exceptions
-        cands = [{'name': 'golfc', 'version': '2.6.10'},
-                 {'name': 'golfc', 'version': '2.6.11'}]
+        cands = [{'name': 'golfc', 'version': '2018a'},
+                 {'name': 'golfc', 'version': '2018.01'}]
         self.assertErrorRegex(EasyBuildError,
-                              "No version found for subtoolchain gompic in dependencies of goolfc",
+                              "No version found for subtoolchain gompic in dependencies of fosscuda",
                               det_subtoolchain_version, current_tc, 'gompic', optional_toolchains, cands)
         self.assertErrorRegex(EasyBuildError,
-                              "Multiple versions of golfc found in dependencies of toolchain goolfc: 2.6.10, 2.6.11",
+                              "Multiple versions of golfc found in dependencies of toolchain fosscuda: 2018.01, 2018a",
                               det_subtoolchain_version, current_tc, 'golfc', optional_toolchains, cands)
 
         # missing candidate for golfc, ok for optional
-        cands = [{'name': 'gompic', 'version': '2.6.10'}]
+        cands = [{'name': 'gompic', 'version': '2018a'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
-        self.assertEqual(versions, ['2.6.10', None])
+        self.assertEqual(versions, ['2018a', None])
 
         # 'dummy', 'dummy' should be ok: return None for GCCcore, and None or '' for 'dummy'.
-        current_tc = {'name': 'GCC', 'version': '4.8.2'}
+        current_tc = {'name': 'GCC', 'version': '6.4.0-2.28'}
         cands = [{'name': 'dummy', 'version': 'dummy'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
@@ -2183,11 +2185,11 @@ class EasyConfigTest(EnhancedTestCase):
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         toy_ec_name = os.path.basename(toy_ec)
         specs = {
             'name': 'toy',
-            'toolchain': {'name': 'gompi', 'version': '1.3.12'},
+            'toolchain': {'name': 'gompi', 'version': '2018a'},
             'version': '0.0',
             'versionsuffix': '-test'
         }
@@ -2202,9 +2204,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         # incorrect spec
         specs['versionsuffix'] = ''
-        error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-1.3.12.eb' " % toy_ec_name
+        error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-2018a.eb' " % toy_ec_name
         error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
-        error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
+        error_pattern += "toolchain name, version: 'gompi', '2018a'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
         specs['versionsuffix'] = '-test'
 
@@ -2212,15 +2214,15 @@ class EasyConfigTest(EnhancedTestCase):
         toy_txt = read_file(toy_ec)
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_txt)
-        error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-1.3.12-test.eb' "
+        error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-2018a-test.eb' "
         error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
-        error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
+        error_pattern += "toolchain name, version: 'gompi', '2018a'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
         # incorrect file contents
         error_pattern = r"Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
         toy_txt = toy_txt.replace("versionsuffix = '-test'", "versionsuffix = ''")
-        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-gompi-2018a-test.eb')
         write_file(toy_ec, toy_txt)
         error_pattern = "Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
@@ -2337,7 +2339,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(check_sha256_checksums(ecs), [])
 
         # also test toy easyconfig with extensions, for which some checksums are missing
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         ecs, _ = parse_easyconfigs([(toy_ec, False)])
         ecs = [ec['ec'] for ec in ecs]
 
@@ -2354,7 +2356,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt + "\ndeprecated = 'this is just a test'")
 
-        error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n\(see also"
+        error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n \(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
     def test_filename(self):

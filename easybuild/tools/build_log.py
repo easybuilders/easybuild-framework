@@ -226,7 +226,7 @@ def stop_logging(logfile, logtostdout=False):
         fancylogger.logToFile(logfile, enable=False)
 
 
-def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=False):
+def print_msg(msg, *args, **kwargs):
     """
     Print a message.
 
@@ -236,6 +236,17 @@ def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=Fal
     :param newline: end message with newline
     :param stderr: print to stderr rather than stdout
     """
+    if args:
+        msg = msg % args
+
+    log = kwargs.pop('log', None)
+    silent = kwargs.pop('silent', False)
+    prefix = kwargs.pop('prefix', True)
+    newline = kwargs.pop('newline', True)
+    stderr = kwargs.pop('stderr', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_msg: %s", kwargs)
+
     if log:
         log.info(msg)
     if not silent:
@@ -272,9 +283,16 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
     DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
 
 
-def dry_run_msg(msg, silent=False):
+def dry_run_msg(msg, *args, **kwargs):
     """Print dry run message."""
     # replace fake build/install dir in dry run message with original value
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to dry_run_msg: %s", kwargs)
+
     for dry_run_var in [DRY_RUN_BUILD_DIR, DRY_RUN_MODULES_INSTALL_DIR, DRY_RUN_SOFTWARE_INSTALL_DIR]:
         if dry_run_var is not None:
             msg = dry_run_var[0].sub(dry_run_var[1], msg)
@@ -282,31 +300,56 @@ def dry_run_msg(msg, silent=False):
     print_msg(msg, silent=silent, prefix=False)
 
 
-def dry_run_warning(msg, silent=False):
+def dry_run_warning(msg, *args, **kwargs):
     """Print dry run message."""
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to dry_run_warning: %s", kwargs)
+
     dry_run_msg("\n!!!\n!!! WARNING: %s\n!!!\n" % msg, silent=silent)
 
 
-def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
+def print_error(msg, *args, **kwargs):
     """
     Print error message and exit EasyBuild
     """
+    if args:
+        msg = msg % args
+
+    log = kwargs.pop('log', None)
+    exitCode = kwargs.pop('exitCode', 1)
+    opt_parser = kwargs.pop('opt_parser', None)
+    exit_on_error = kwargs.pop('exit_on_error', True)
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_error: %s", kwargs)
+
     if exit_on_error:
         if not silent:
             if opt_parser:
                 opt_parser.print_shorthelp()
-            sys.stderr.write("ERROR: %s\n" % message)
+            sys.stderr.write("ERROR: %s\n" % msg)
         sys.exit(exitCode)
     elif log is not None:
-        raise EasyBuildError(message)
+        raise EasyBuildError(msg)
 
 
-def print_warning(message, silent=False):
+def print_warning(msg, *args, **kwargs):
     """
     Print warning message.
     """
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
+
     if not silent:
-        sys.stderr.write("\nWARNING: %s\n\n" % message)
+        sys.stderr.write("\nWARNING: %s\n\n" % msg)
 
 
 def time_str_since(start_time):

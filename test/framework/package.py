@@ -181,12 +181,13 @@ class PackageTest(EnhancedTestCase):
         """Test use of ActivePNS."""
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb'), validate=False)
+        test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+        ec = EasyConfig(test_ec, validate=False)
 
         pns = ActivePNS()
 
         # default: EasyBuild package naming scheme, pkg release 1
-        self.assertEqual(pns.name(ec), 'OpenMPI-1.6.4-GCC-4.6.4')
+        self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
         self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
         self.assertEqual(pns.release(ec), '1')
 
@@ -200,7 +201,7 @@ class PackageTest(EnhancedTestCase):
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), validate=False)
+        ec = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
 
         mock_fpm(self.test_prefix)
 
@@ -219,14 +220,10 @@ class PackageTest(EnhancedTestCase):
 
         # package using default packaging configuration (FPM to build RPM packages)
         pkgdir = package(easyblock)
-        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-2018a-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
 
         fpm_output = read_file(os.path.join(self.test_prefix, FPM_OUTPUT_FILE))
         pkgtxt = read_file(pkgfile)
-        #print "The FPM output"
-        #print fpm_output
-        #print "The Package File"
-        #print pkgtxt
 
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
@@ -238,10 +235,11 @@ class PackageTest(EnhancedTestCase):
         pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
-        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
-        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.MULTILINE)
+        res = no_logfiles_regex.search(pkgtxt)
+        self.assertFalse(res, "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
-        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
+        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
         replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
         replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
@@ -254,7 +252,7 @@ class PackageTest(EnhancedTestCase):
         easyblock_desc = EB_toy(ec_desc)
         easyblock_desc.run_all_steps(False)
         pkgdir = package(easyblock_desc)
-        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-2018a-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.isfile(pkgfile))
         pkgtxt = read_file(pkgfile)
         regex_pkg = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
