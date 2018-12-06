@@ -148,8 +148,8 @@ EXTRACT_CMDS = {
     '.zip':     "unzip -qq %(filepath)s",
     # iso file
     '.iso':     "7z x %(filepath)s",
-    # tar.Z: using compress (LZW)
-    '.tar.z':   "tar xZf %(filepath)s",
+    # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
+    '.tar.z':   "tar xzf %(filepath)s",
 }
 
 
