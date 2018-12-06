@@ -866,6 +866,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s\)$" % (mark, ec, mod), re.M)
             self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
 
+    def test_try_toolchain_mapping(self):
+        """Test mapping of subtoolchains with --try-toolchain."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+
+        args = [
+            gzip_ec,
+            '--try-toolchain=iccifort,2016.1.150-GCC-4.9.3-2.25',
+            '--dry-run',
+        ]
+
+        # by default, toolchain mapping is enabled
+        # if it fails, an error is printed
+        error_pattern = "Toolchain iccifort is not equivalent to toolchain foss in terms of capabilities."
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True, do_build=True)
+
+        # can continue anyway using --disable-map-toolchains
+        args.append('--disable-map-toolchains')
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+
+        patterns = [
+            r"^ \* \[ \] .*/iccifort-2016.1.150-GCC-4.9.3-2.25.eb \(module: iccifort/.*\)$",
+            r"^ \* \[ \] .*/gzip-1.5-iccifort-2016.1.150-GCC-4.9.3-2.25.eb \(module: gzip/1.5-iccifort.*\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+
+        anti_patterns = [
+            r"^ \* \[.\] .*-foss-2018a",
+            r"^ \* \[.\] .*-gompi-2018a",
+            r"^ \* \[.\] .*-GCC.*6\.4\.0",
+        ]
+        for anti_pattern in anti_patterns:
+            regex = re.compile(anti_pattern, re.M)
+            self.assertFalse(regex.search(outtxt), "Pattern '%s' NOT found in: %s" % (regex.pattern, outtxt))
+
     def test_dry_run_hierarchical(self):
         """Test dry run using a hierarchical module naming scheme."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
