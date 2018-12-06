@@ -160,8 +160,23 @@ class GithubTest(EnhancedTestCase):
             'libxc-4.2.3-gimkl-2017a.eb',
             'libxc-4.2.3-intel-2018a.eb',
         ]
+        # PR where files are renamed
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
+        all_ecs_pr7159 = [
+            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
+            'OpenFOAM-5.0-20180108-foss-2018a.eb',
+            'OpenFOAM-5.0-20180108-intel-2018a.eb',
+            'OpenFOAM-6-foss-2018b.eb',
+            'OpenFOAM-6-intel-2018a.eb',
+            'OpenFOAM-v1806-foss-2018b.eb',
+            'PETSc-3.9.3-foss-2018a.eb',
+            'SCOTCH-6.0.6-foss-2018a.eb',
+            'SCOTCH-6.0.6-foss-2018b.eb',
+            'SCOTCH-6.0.6-intel-2018a.eb',
+            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        ]
 
-        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587)]:
+        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
