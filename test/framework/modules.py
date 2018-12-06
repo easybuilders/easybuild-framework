@@ -149,11 +149,11 @@ class ModulesTest(EnhancedTestCase):
         # exists also works on lists of module names
         # list should be sufficiently long, since for short lists 'show' is always used
         mod_names = ['OpenMPI/2.1.2-GCC-6.4.0-2.28', 'foo/1.2.3', 'GCC',
-                     'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED',
-                     'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
+                     'ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20'
+                     'ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20',
                      'Compiler/GCC/6.4.0-2.28/OpenMPI/2.1.2', 'toy/.0.0-deps']
-        self.assertEqual(self.modtool.exist(mod_names), [True, False, True, False, True, True, True])
-        self.assertEqual(self.modtool.exist(mod_names, skip_avail=True), [True, False, True, False, True, True, True])
+        self.assertEqual(self.modtool.exist(mod_names), [True, False, True, False, True, True])
+        self.assertEqual(self.modtool.exist(mod_names, skip_avail=True), [True, False, True, False, True, True])
 
         # verify whether checking for existence of a module wrapper works
         self.modtool.unuse(test_modules_path)

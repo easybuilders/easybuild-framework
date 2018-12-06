@@ -915,15 +915,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test is_short_modname_for method of module naming schemes."""
         test_cases = [
             ('GCC/4.7.2', 'GCC', True),
-            ('gzip/1.6-gompi-1.4.10', 'gzip', True),
-            ('OpenMPI/1.6.4-GCC-4.7.2-no-OFED', 'OpenMPI', True),
-            ('BLACS/1.1-gompi-1.1.0-no-OFED', 'BLACS', True),
-            ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'ScaLAPACK', True),
+            ('gzip/1.6-gompi-2018a', 'gzip', True),
+            ('OpenMPI/2.1.2-GCC-6.4.0-2.28', 'OpenMPI', True),
+            ('ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20', 'ScaLAPACK', True),
             ('netCDF-C++/4.2-foss-2018a', 'netCDF-C++', True),
             ('gcc/4.7.2', 'GCC', False),
-            ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
-            ('apps/blacs/1.1', 'BLACS', False),
-            ('lib/math/BLACS-stable/1.1', 'BLACS', False),
+            ('ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20', 'OpenBLAS', False),
+            ('apps/openblas/0.2.20', 'OpenBLAS', False),
+            ('lib/math/OpenBLAS-stable/0.2.20', 'OpenBLAS', False),
             # required so PrgEnv can be listed versionless as external module in Cray toolchains
             ('PrgEnv', 'PrgEnv', True),
         ]
