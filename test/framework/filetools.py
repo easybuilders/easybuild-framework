@@ -93,7 +93,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
-            ('test.tar.Z', "tar xZf test.tar.Z"),
+            ('test.tar.Z', "tar xzf test.tar.Z"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
