@@ -373,10 +373,10 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
-            "   ('FFTW', '3.3.1'),",
-            "   ('LAPACK', '3.4.0'),",
+            "   ('FFTW', '3.3.7'),",
+            "   ('OpenBLAS', '0.2.20'),",
             ']',
         ])
         self.writeEC()
@@ -387,23 +387,23 @@ class EasyBlockTest(EnhancedTestCase):
             expected_default = re.compile(r'\n'.join([
                 r'setenv\s+EBROOTPI\s+\"\$root"',
                 r'setenv\s+EBVERSIONPI\s+"3.14"',
-                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-2018a-easybuild-devel"',
             ]))
             expected_alt = re.compile(r'\n'.join([
                 r'setenv\s+EBROOTPI\s+"/opt/software/tau/6.28"',
                 r'setenv\s+EBVERSIONPI\s+"6.28"',
-                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-2018a-easybuild-devel"',
             ]))
         elif get_module_syntax() == 'Lua':
             expected_default = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", root\)',
                 r'setenv\("EBVERSIONPI", "3.14"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
             expected_alt = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", "/opt/software/tau/6.28"\)',
                 r'setenv\("EBVERSIONPI", "6.28"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
@@ -416,7 +416,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
 
-        installver = '3.14-gompi-1.1.0-no-OFED'
+        installver = '3.14-gompi-2018a'
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
         self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
@@ -462,10 +462,10 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
-            "   ('FFTW', '3.3.1'),",
-            "   ('LAPACK', '3.4.0'),",
+            "   ('FFTW', '3.3.7'),",
+            "   ('OpenBLAS', '0.2.20'),",
             ']',
         ])
         self.writeEC()
@@ -476,34 +476,34 @@ class EasyBlockTest(EnhancedTestCase):
 
         if get_module_syntax() == 'Tcl':
             tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/1.1.0-no-OFED ] } {",
-                "    module load gompi/1.1.0-no-OFED",
+                "if { ![ is-loaded gompi/2018a ] } {",
+                "    module load gompi/2018a",
                 "}",
             ])
             fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
-                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                "    module load FFTW/3.3.7-gompi-2018a",
                 "}",
             ])
             lapack_load = '\n'.join([
-                "if { ![ is-loaded LAPACK/3.4.0-gompi-1.1.0-no-OFED ] } {",
-                "    module load LAPACK/3.4.0-gompi-1.1.0-no-OFED",
+                "if { ![ is-loaded OpenBLAS/0.2.20-gompi-2018a ] } {",
+                "    module load OpenBLAS/0.2.20-gompi-2018a",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
-                'if not isloaded("gompi/1.1.0-no-OFED") then',
-                '    load("gompi/1.1.0-no-OFED")',
+                'if not isloaded("gompi/2018a") then',
+                '    load("gompi/2018a")',
                 'end',
             ])
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
-                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
+                '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
             ])
             lapack_load = '\n'.join([
-                'if not isloaded("LAPACK/3.4.0-gompi-1.1.0-no-OFED") then',
-                '    load("LAPACK/3.4.0-gompi-1.1.0-no-OFED")',
+                'if not isloaded("OpenBLAS/0.2.20-gompi-2018a") then',
+                '    load("OpenBLAS/0.2.20-gompi-2018a")',
                 'end',
             ])
         else:
@@ -514,21 +514,21 @@ class EasyBlockTest(EnhancedTestCase):
 
         # provide swap info for FFTW to trigger an extra 'unload FFTW'
         unload_info = {
-            'FFTW/3.3.1-gompi-1.1.0-no-OFED': 'FFTW',
+            'FFTW/3.3.7-gompi-2018a': 'FFTW',
         }
 
         if get_module_syntax() == 'Tcl':
             fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
                 "    module unload FFTW",
-                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "    module load FFTW/3.3.7-gompi-2018a",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
                 '    unload("FFTW")',
-                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
             ])
         else:
@@ -1472,7 +1472,6 @@ class EasyBlockTest(EnhancedTestCase):
     def test_avail_easyblocks(self):
         """Test avail_easyblocks function."""
         easyblocks = avail_easyblocks()
-        print easyblocks
 
         self.assertTrue(all(key.startswith('easybuild.easyblocks') for key in easyblocks))
 
