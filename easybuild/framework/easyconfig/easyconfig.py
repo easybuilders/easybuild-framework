@@ -53,7 +53,8 @@ from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
-from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
@@ -411,6 +412,16 @@ class EasyConfig(object):
         self.mod_subdir = mns.det_module_subdir(self)
 
         self.software_license = None
+
+    def filename(self):
+        """Determine correct filename for this easyconfig file."""
+
+        if is_yeb_format(self.path, self.rawtxt):
+            ext = YEB_FORMAT_EXTENSION
+        else:
+            ext = EB_FORMAT_EXTENSION
+
+        return '%s-%s%s' % (self.name, det_full_ec_version(self), ext)
 
     def extend_params(self, extra, overwrite=True):
         """Extend list of known parameters via provided list of extra easyconfig parameters."""
@@ -898,7 +909,14 @@ class EasyConfig(object):
             if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
                 templ_val[self.template_values[key]] = key
 
-        ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        try:
+            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        except NotImplementedError as err:
+            # need to restore enable_templating value in case this method is caught in a try/except block and ignored
+            # (the ability to dump is not a hard requirement for build success)
+            self.enable_templating = orig_enable_templating
+            raise NotImplementedError(err)
+
         self.log.debug("Dumped easyconfig: %s", ectxt)
 
         if build_option('dump_autopep8'):
@@ -1754,7 +1772,7 @@ def det_file_info(paths, target_dir):
             file_info['ecs'].append(ecs[0]['ec'])
 
             soft_name = file_info['ecs'][-1].name
-            ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
+            ec_filename = file_info['ecs'][-1].filename()
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 

@@ -1535,9 +1535,28 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_reproducability(self):
         """Test toy build produces expected reproducability files"""
-        # use the easyblock with inheritance to fully test
-        self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
-        # also check whether easyconfig is dumped to reprod/ subdir
+
+        # We need hooks for a complete test
+        hooks_filename = 'my_hooks.py'
+        hooks_file = os.path.join(self.test_prefix, hooks_filename)
+        hooks_file_txt = '\n'.join([
+            "import os",
+            '',
+            "def start_hook():",
+            "   print('start hook triggered')",
+            '',
+            "def pre_configure_hook(self):",
+            "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
+            '',
+        ])
+        write_file(hooks_file, hooks_file_txt)
+
+        # also use the easyblock with inheritance to fully test
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy', '--hooks=%s' % hooks_file])
+        self.mock_stdout(False)
+
+        # Check whether easyconfig is dumped to reprod/ subdir
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
         reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
 
@@ -1547,7 +1566,11 @@ class ToyBuildTest(EnhancedTestCase):
         ec = EasyConfig(reprod_ec)
         self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
 
-        # Check for easyblock existence
+        # make sure start_dir is not recorded in the dumped easyconfig, this does not appear in the original easyconfig
+        # and is representative of values that are (typically) set by the easyblock steps (which are also dumped)
+        self.assertFalse('start_dir' in ec.parser.get_config_dict())
+
+        # Check for child easyblock existence
         child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
         self.assertTrue(os.path.exists(child_easyblock))
         # Check for parent easyblock existence
@@ -1558,6 +1581,10 @@ class ToyBuildTest(EnhancedTestCase):
         for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
             path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
             self.assertFalse(os.path.exists(path))
+
+        # Make sure hooks are also copied
+        reprod_hooks = os.path.join(reprod_dir, 'hooks', hooks_filename)
+        self.assertTrue(os.path.exists(reprod_hooks))
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""

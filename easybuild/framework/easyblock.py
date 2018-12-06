@@ -72,10 +72,11 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_logs, read_file, remove_file, rmtree2
-from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import compute_checksum, copy_dir, copy_file, derive_alt_pypi_url, diff_files
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
+from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_url, is_sha256_checksum, mkdir
+from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
+from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -2855,6 +2856,10 @@ def build_and_install_one(ecdict, init_env):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        if not dry_run:
+            # create our reproducability files before carrying out the easyblock steps
+            reprod_dir_root = os.path.dirname(app.logfile)
+            reprod_dir = reproduce_build(app, reprod_dir_root)
         result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
         first_n = 300
@@ -2871,8 +2876,6 @@ def build_and_install_one(ecdict, init_env):
 
     # successful (non-dry-run) build
     if result and not dry_run:
-
-        ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
 
         if app.cfg['stop']:
             ended = 'STOPPED'
@@ -2892,10 +2895,14 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # for reproducability we dump out the fully processed easyconfig since the contents can be affected
-            # by subtoolchain resolution (and related options) and/or hooks
-            reprod_dir = reproduce_build(app, new_log_dir)
-            _log.info("Wrote files for reproducability to %s", reprod_dir)
+            # move the reproducability files to the final log directory
+            archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
+            if os.path.exists(archive_reprod_dir):
+                backup_dir = find_backup_name_candidate(archive_reprod_dir)
+                move_file(archive_reprod_dir, backup_dir)
+                _log.info("Existing reprod directory %s backed up to %s", archive_reprod_dir, backup_dir)
+            copy_dir(reprod_dir, archive_reprod_dir)
+            _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -2918,7 +2925,7 @@ def build_and_install_one(ecdict, init_env):
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
 
-        newspec = os.path.join(new_log_dir, ec_filename)
+        newspec = os.path.join(new_log_dir, app.cfg.filename())
         copy_file(spec, newspec)
         _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
@@ -2990,7 +2997,7 @@ def reproduce_build(app, reprod_dir_root):
     :return reprod_dir: directory containing reproducability files
     """
 
-    ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+    ec_filename = app.cfg.filename()
 
     reprod_dir = os.path.join(reprod_dir_root, 'reprod')
     reprod_spec = os.path.join(reprod_dir, ec_filename)
@@ -3013,7 +3020,15 @@ def reproduce_build(app, reprod_dir_root):
             copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
             _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
 
+    # if there is a hook file we should also archive it
+    hooks_path = build_option('hooks')
+    if hooks_path:
+        target = os.path.join(reprod_dir, 'hooks', os.path.basename(hooks_path))
+        copy_file(hooks_path, target)
+        _log.info("Dumped hooks file %s which is (potentially) required for reproduction to %s", hooks_path, target)
+
     return reprod_dir
+
 
 def get_easyblock_instance(ecdict):
     """
