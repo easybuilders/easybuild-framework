@@ -140,7 +140,8 @@ class ParallelBuildTest(EnhancedTestCase):
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
-        self.assertEqual(len(jobs), 3)
+        # only one job submitted since foss/2018a module is already available
+        self.assertEqual(len(jobs), 1)
         regex = re.compile("echo '.*/gzip-1.5-foss-2018a.eb'")
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
@@ -316,6 +317,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        foss_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a.eb')
 
         build_options = {
             'external_modules_metadata': {},
@@ -324,21 +326,25 @@ class ParallelBuildTest(EnhancedTestCase):
             'validate': False,
             'job_cores': 3,
             'job_max_walltime': 5,
+            'force': True,
         }
         init_config(args=['--job-backend=Slurm'], build_options=build_options)
 
-        easyconfigs = process_easyconfig(test_ec)
+        easyconfigs = process_easyconfig(test_ec) + process_easyconfig(foss_ec)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         self.mock_stdout(True)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.mock_stdout(False)
 
+        # jobs are submitted for OpenBLAS (missing module), foss & gzip (listed easyconfigs)
         self.assertEqual(len(jobs), 3)
 
+        self.assertEqual(jobs[0].job_specs['job-name'], 'OpenBLAS-0.2.20-GCC-6.4.0-2.28')
+
         # last job (gzip) has a dependency on second-to-last job (foss)
-        self.assertEqual(jobs[-2].job_specs['job-name'], 'foss-2018a')
+        self.assertEqual(jobs[1].job_specs['job-name'], 'foss-2018a')
         expected = {
-            'dependency': 'afterok:%s' % jobs[-2].jobid,
+            'dependency': 'afterok:%s' % jobs[1].jobid,
             'hold': True,
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,

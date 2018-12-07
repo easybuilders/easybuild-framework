@@ -92,9 +92,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc, None)
         self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
 
-    def test_goalf_toolchain(self):
-        """Test for goalf toolchain."""
-        self.get_toolchain("goalf", version="1.1.0-no-OFED")
+    def test_foss_toolchain(self):
+        """Test for foss toolchain."""
+        self.get_toolchain("foss", version="2018a")
 
     def test_get_variable_dummy_toolchain(self):
         """Test get_variable on dummy toolchain"""
@@ -112,7 +112,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'gcc')
@@ -123,10 +123,9 @@ class ToolchainTest(EnhancedTestCase):
 
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
-        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
-        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpifort')
 
         self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
@@ -135,22 +134,21 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'usempi': True})
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
-        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
-        self.assertEqual(tc.get_variable('F77'), 'mpif77')
-        self.assertEqual(tc.get_variable('F90'), 'mpif90')
-        self.assertEqual(tc.get_variable('FC'), 'mpif90')
+        self.assertEqual(tc.get_variable('F77'), 'mpifort')
+        self.assertEqual(tc.get_variable('F90'), 'mpifort')
+        self.assertEqual(tc.get_variable('FC'), 'mpifort')
 
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
-        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpifort')
 
         self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
@@ -159,7 +157,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -171,7 +169,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
         ldflags = tc.get_variable('LDFLAGS', typ=list)
@@ -184,7 +182,7 @@ class ToolchainTest(EnhancedTestCase):
         Check that elements of variables are passed by value, not by reference,
         which is required to ensure correctness.
         """
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
         pass_by_value = True
@@ -208,7 +206,7 @@ class ToolchainTest(EnhancedTestCase):
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default optimization flag (e.g. -O2)
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -217,7 +215,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
-            tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+            tc = self.get_toolchain('foss', version='2018a')
             for enable in [True, False]:
                 tc.set_options({opt: enable})
                 tc.prepare()
@@ -236,7 +234,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
@@ -245,7 +243,7 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(flag in flags)
         self.modtool.purge()
 
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'noopt': True, 'lowopt': True})
         tc.prepare()
         for var in flag_vars:
@@ -254,7 +252,7 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(flag in flags)
         self.modtool.purge()
 
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'noopt': True, 'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
@@ -270,7 +268,7 @@ class ToolchainTest(EnhancedTestCase):
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
@@ -291,7 +289,7 @@ class ToolchainTest(EnhancedTestCase):
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp', 'vectorize']:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
                 if opt == 'optarch':
@@ -317,7 +315,7 @@ class ToolchainTest(EnhancedTestCase):
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({'optarch': enable})
                 tc.prepare()
                 flag = None
@@ -491,7 +489,7 @@ class ToolchainTest(EnhancedTestCase):
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -509,7 +507,7 @@ class ToolchainTest(EnhancedTestCase):
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default precision: -fno-math-errno flag for GCC
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -525,7 +523,7 @@ class ToolchainTest(EnhancedTestCase):
         }
         for prec in prec_flags:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({prec: enable})
                 tc.prepare()
                 for var in flag_vars:
@@ -548,7 +546,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_comp_family(self):
         """Test determining compiler family."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
         self.assertEqual(tc.comp_family(), "GCC")
 
@@ -561,7 +559,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         # check full toolchain including MPI
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "OpenMPI")
         self.modtool.purge()
@@ -732,17 +730,13 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
         self.modtool.purge()
 
         # toolchain modules missing a toolchain element should fail verification
         error_msg = "List of toolchain dependency modules and toolchain definition do not match"
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenFFTW")
-        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
-        self.modtool.purge()
-
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenBLACS")
+        tc = self.get_toolchain('foss', version='2018a-brokenFFTW')
         self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
         self.modtool.purge()
 

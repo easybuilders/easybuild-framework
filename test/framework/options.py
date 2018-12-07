@@ -1527,7 +1527,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
             self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
-        for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,2018a,-no-OFED']:
+        for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,2018a,-a-suffix']:
             allargs = args + [extra_arg]
             self.assertErrorRegex(EasyBuildError, "problems validating the options", self.eb_main, allargs, raise_error=True)
 
