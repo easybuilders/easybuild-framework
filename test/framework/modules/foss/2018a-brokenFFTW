@@ -35,9 +35,9 @@ if { ![is-loaded ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20] } {
 }
 
 
-setenv	EBROOTFOSSCUDA		"$root"
-setenv	EBVERSIONFOSSCUDA		"2018a"
-setenv	EBDEVELFOSSCUDA		"$root/easybuild/foss-2018a-easybuild-devel"
+setenv	EBROOTFOSS		"$root"
+setenv	EBVERSIONFOSS		"2018a"
+setenv	EBDEVELFOSS		"$root/easybuild/foss-2018a-easybuild-devel"
 
 
 # built with EasyBuild version 1.4.0dev
