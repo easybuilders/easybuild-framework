@@ -1537,7 +1537,9 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt = read_file(test_ec)
 
         # easyconfig parameters should be properly ordered/grouped in dumped easyconfig
-        expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '', 'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '', 'foo_extra1', '', 'moduleclass', '']
+        expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '',
+                    'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '',
+                    'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 
     def test_dump_autopep8(self):
