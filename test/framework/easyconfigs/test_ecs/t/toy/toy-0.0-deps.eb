@@ -20,8 +20,8 @@ checksums = [[
 patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 
 dependencies = [
-    ('ictce', '4.1.13', '', True),
-    ('GCC/4.7.2', EXTERNAL_MODULE),
+    ('intel', '2018a', '', True),
+    ('GCC/6.4.0-2.28', EXTERNAL_MODULE),
 ]
 
 sanity_check_paths = {

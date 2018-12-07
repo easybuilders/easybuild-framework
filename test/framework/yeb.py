@@ -84,10 +84,10 @@ class YebTest(EnhancedTestCase):
         test_files = [
             'bzip2-1.0.6-GCC-4.9.2',
             'gzip-1.6-GCC-4.9.2',
-            'goolf-1.4.10',
-            'ictce-4.1.13',
-            'SQLite-3.8.10.2-goolf-1.4.10',
-            'Python-2.7.10-ictce-4.1.13',
+            'foss-2018a',
+            'intel-2018a',
+            'SQLite-3.8.10.2-foss-2018a',
+            'Python-2.7.10-intel-2018a',
             'CrayCCE-5.1.29',
             'toy-0.0',
         ]
@@ -98,7 +98,6 @@ class YebTest(EnhancedTestCase):
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)
 
-            no_match = False
             for key in sorted(ec_yeb.asdict()):
                 eb_val = ec_eb[key]
                 yeb_val = ec_yeb[key]

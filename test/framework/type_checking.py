@@ -67,17 +67,17 @@ class TypeCheckingTest(EnhancedTestCase):
         """Test check_type_of_param_value function for toolchain."""
 
         # check type checking of toolchain (non-trivial type: dict with only name/version keys & string values)
-        toolchain = {'name': 'goolf', 'version': '1.4.10'}
+        toolchain = {'name': 'foss', 'version': '2018a'}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
         # check type checking of toolchain (non-trivial type: dict with name/version keys & string values + hidden spec)
-        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': True}
+        toolchain = {'name': 'foss', 'version': '2018a', 'hidden': True}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
-        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': False}
+        toolchain = {'name': 'foss', 'version': '2018a', 'hidden': False}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
         # missing 'version' key
         self.assertEqual(check_type_of_param_value('toolchain', {'name': 'intel'}), (False, None))
         # non-string value for 'version'
-        toolchain = {'name': 'goolf', 'version': 100}
+        toolchain = {'name': 'foss', 'version': 100}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (False, None))
 
         # check auto-converting of toolchain value

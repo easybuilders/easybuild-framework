@@ -114,11 +114,31 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_list_prs(self):
+        """Test list_prs function."""
+        if self.github_token is None:
+            print "Skipping test_list_prs, no GitHub token available?"
+            return
+
+        parameters = ('closed', 'created', 'asc')
+
+        init_config(build_options={'pr_target_account': GITHUB_USER,
+                                   'pr_target_repo': GITHUB_REPO})
+
+        expected = "PR #1: a pr"
+
+        output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(expected, output)
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
+
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
 
         # PR for rename of ffmpeg to FFmpeg,
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
@@ -140,8 +160,23 @@ class GithubTest(EnhancedTestCase):
             'libxc-4.2.3-gimkl-2017a.eb',
             'libxc-4.2.3-intel-2018a.eb',
         ]
+        # PR where files are renamed
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
+        all_ecs_pr7159 = [
+            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
+            'OpenFOAM-5.0-20180108-foss-2018a.eb',
+            'OpenFOAM-5.0-20180108-intel-2018a.eb',
+            'OpenFOAM-6-foss-2018b.eb',
+            'OpenFOAM-6-intel-2018a.eb',
+            'OpenFOAM-v1806-foss-2018b.eb',
+            'PETSc-3.9.3-foss-2018a.eb',
+            'SCOTCH-6.0.6-foss-2018a.eb',
+            'SCOTCH-6.0.6-foss-2018b.eb',
+            'SCOTCH-6.0.6-intel-2018a.eb',
+            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        ]
 
-        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587)]:
+        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)

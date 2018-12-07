@@ -40,7 +40,7 @@ import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
-from easybuild.framework.easyblock import EasyBlock, FETCH_STEP
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -50,8 +50,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
-from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
-from easybuild.tools.github import fetch_github_token
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -471,7 +471,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tcs = {
             'dummy': [],
             'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
-            'ictce': ['icc', 'ifort', 'imkl', 'impi'],
+            'intel': ['icc', 'ifort', 'imkl', 'impi'],
         }
         for tc, tcelems in tcs.items():
             res = re.findall("^\s*%s: .*" % tc, logtxt, re.M)
@@ -582,6 +582,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
                 r'\|-- Toolchain',
@@ -589,6 +590,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
             ])
             regex = re.compile(expected, re.M)
@@ -605,12 +607,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
-        for pat in [
-                    r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
-                    r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
-                    r"|--\s+bar\s+\(easybuild.easyblocks.generic.bar\)\n",
-                   ]:
-
+        patterns = [
+            r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
+            r"\|--\s+EB_foo\s+\(easybuild.easyblocks.foo @ .*/sandbox/easybuild/easyblocks/f/foo.py\)\n" +
+            r"\|\s+\|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo @ .*/sandbox/easybuild/easyblocks/f/foofoo.py\)\n",
+            r"\|--\s+bar\s+\(easybuild.easyblocks.generic.bar @ .*/sandbox/easybuild/easyblocks/generic/bar.py\)\n",
+        ]
+        for pat in patterns:
             msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
             self.assertTrue(re.search(pat, logtxt), msg)
 
@@ -646,17 +649,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        for ec in ['GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.9.2.eb']:
+        for ec in ['GCC-4.8.2.eb', 'GCC-4.9.2.eb']:
             regex = re.compile(r" \* \S*%s$" % ec, re.M)
             self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
 
         gcc_ecs = [
             'GCC-4.6.3.eb',
             'GCC-4.6.4.eb',
-            'GCC-4.7.2.eb',
             'GCC-4.8.2.eb',
             'GCC-4.8.3.eb',
             'GCC-4.9.2.eb',
+            'GCC-6.4.0-2.28.eb',
         ]
 
         # test --search-filename
@@ -720,13 +723,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
-        args = ['--search-filename=^ictce']
+        args = ['--search-filename=^intel']
         self.mock_stdout(True)
         self.eb_main(args, testing=False)
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
-            ' * ictce-4.1.13.eb',
+            ' * intel-2018a.eb',
             '',
             "Note: 1 matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them",
         ])
@@ -738,11 +741,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
-            ' * ictce-4.1.13.eb',
+            ' * intel-2018a.eb',
             '',
             "Matching archived easyconfigs:",
             '',
-            ' * ictce-3.2.2.u3.eb',
+            ' * intel-2012a.eb',
         ])
         self.assertEqual(txt, expected)
 
@@ -827,8 +830,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        eb1 = os.path.join(test_ecs, 'f', 'FFTW', 'FFTW-3.3.3-gompi-1.4.10.eb')
-        eb2 = os.path.join(test_ecs, 's', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb')
+        eb1 = os.path.join(test_ecs, 'f', 'FFTW', 'FFTW-3.3.7-gompi-2018a.eb')
+        eb2 = os.path.join(test_ecs, 's', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -840,28 +843,65 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--debug',
             '--force',
             '--robot=%s' % test_ecs,
-            '--try-toolchain=gompi,1.3.12',
+            '--try-toolchain=gompi,2018b',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn)
 
-        scalapack_ver = '2.0.2-gompi-1.3.12-OpenBLAS-0.2.6-LAPACK-3.4.2'
+        scalapack_ver = '2.0.2-gompi-2018b-OpenBLAS-0.2.20'
         ecs_mods = [
             # GCC/OpenMPI dependencies are there, but part of toolchain => 'x'
-            ("GCC-4.6.4.eb", "GCC/4.6.4", 'x'),
-            ("OpenMPI-1.6.4-GCC-4.6.4.eb", "OpenMPI/1.6.4-GCC-4.6.4", 'x'),
+            ("GCC-7.3.0-2.30.eb", "GCC/7.3.0-2.30", 'x'),
+            ("OpenMPI-3.1.1-GCC-7.3.0-2.30.eb", "OpenMPI/3.1.1-GCC-7.3.0-2.30", 'x'),
             # OpenBLAS dependency is listed, but not there => ' '
-            # toolchain used for OpenBLAS is mapped to GCC/4.6.4 subtoolchain in gompi/1.3.12
-            # (rather than the original GCC/4.7.2 as subtoolchain of gompi/1.4.10)
-            ("OpenBLAS-0.2.6-GCC-4.6.4-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-GCC-4.6.4-LAPACK-3.4.2", ' '),
+            # toolchain used for OpenBLAS is mapped to GCC/7.3.0-2.30 subtoolchain in gompi/2018b
+            # (rather than the original GCC/6.4.0-2.28 as subtoolchain of gompi/2018a)
+            ("OpenBLAS-0.2.20-GCC-7.3.0-2.30.eb", "OpenBLAS/0.2.20-GCC-7.3.0-2.30", ' '),
             # both FFTW and ScaLAPACK are listed => 'F'
             ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
-            ("FFTW-3.3.3-gompi-1.3.12.eb", "FFTW/3.3.3-gompi-1.3.12", 'F'),
+            ("FFTW-3.3.7-gompi-2018b.eb", "FFTW/3.3.7-gompi-2018b", 'F'),
         ]
         for ec, mod, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s\)$" % (mark, ec, mod), re.M)
             self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+    def test_try_toolchain_mapping(self):
+        """Test mapping of subtoolchains with --try-toolchain."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+
+        args = [
+            gzip_ec,
+            '--try-toolchain=iccifort,2016.1.150-GCC-4.9.3-2.25',
+            '--dry-run',
+        ]
+
+        # by default, toolchain mapping is enabled
+        # if it fails, an error is printed
+        error_pattern = "Toolchain iccifort is not equivalent to toolchain foss in terms of capabilities."
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True, do_build=True)
+
+        # can continue anyway using --disable-map-toolchains
+        args.append('--disable-map-toolchains')
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+
+        patterns = [
+            r"^ \* \[ \] .*/iccifort-2016.1.150-GCC-4.9.3-2.25.eb \(module: iccifort/.*\)$",
+            r"^ \* \[ \] .*/gzip-1.5-iccifort-2016.1.150-GCC-4.9.3-2.25.eb \(module: gzip/1.5-iccifort.*\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+
+        anti_patterns = [
+            r"^ \* \[.\] .*-foss-2018a",
+            r"^ \* \[.\] .*-gompi-2018a",
+            r"^ \* \[.\] .*-GCC.*6\.4\.0",
+        ]
+        for anti_pattern in anti_patterns:
+            regex = re.compile(anti_pattern, re.M)
+            self.assertFalse(regex.search(outtxt), "Pattern '%s' NOT found in: %s" % (regex.pattern, outtxt))
 
     def test_dry_run_hierarchical(self):
         """Test dry run using a hierarchical module naming scheme."""
@@ -869,8 +909,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            'gzip-1.5-goolf-1.4.10.eb',
-            'OpenMPI-1.6.4-GCC-4.7.2.eb',
+            'gzip-1.5-foss-2018a.eb',
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=HierarchicalMNS',
@@ -882,17 +922,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ecs_mods = [
             # easyconfig, module subdir, (short) module name
-            ("GCC-4.7.2.eb", "Core", "GCC/4.7.2", 'x'),  # already present but not listed, so 'x'
-            ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "hwloc/1.6.2", 'x'),
-            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
-            ("gompi-1.4.10.eb", "Core", "gompi/1.4.10", 'x'),
-            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "Compiler/GCC/4.7.2",
-             "OpenBLAS/0.2.6-LAPACK-3.4.2", ' '),
-            ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "FFTW/3.3.3", 'x'),
-            ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
-             "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
-            ("goolf-1.4.10.eb", "Core", "goolf/1.4.10", 'x'),
-            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "gzip/1.5", ' '),  # listed but not there: ' '
+            ("GCC-6.4.0-2.28.eb", "Core", "GCC/6.4.0-2.28", 'x'),  # already present but not listed, so 'x'
+            ("hwloc-1.11.8-GCC-6.4.0-2.28.eb", "Compiler/GCC/6.4.0-2.28", "hwloc/1.11.8", 'x'),
+            # already present and listed, so 'F'
+            ("OpenMPI-2.1.2-GCC-6.4.0-2.28.eb", "Compiler/GCC/6.4.0-2.28", "OpenMPI/2.1.2", 'F'),
+            ("gompi-2018a.eb", "Core", "gompi/2018a", 'x'),
+            ("OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb", "Compiler/GCC/6.4.0-2.28", "OpenBLAS/0.2.20", ' '),
+            ("FFTW-3.3.7-gompi-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2", "FFTW/3.3.7", 'x'),
+            ("ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2",
+             "ScaLAPACK/2.0.2-OpenBLAS-0.2.20", 'x'),
+            ("foss-2018a.eb", "Core", "foss/2018a", 'x'),
+            # listed but not there: ' '
+            ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2", "gzip/1.5", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
@@ -908,8 +949,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.setup_categorized_hmns_modules()
         args = [
-            'gzip-1.5-goolf-1.4.10.eb',
-            'OpenMPI-1.6.4-GCC-4.7.2.eb',
+            'gzip-1.5-foss-2018a.eb',
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=CategorizedHMNS',
@@ -921,17 +962,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ecs_mods = [
             # easyconfig, module subdir, (short) module name, mark
-            ("GCC-4.7.2.eb", "Core/compiler", "GCC/4.7.2", 'x'),  # already present but not listed, so 'x'
-            ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/system", "hwloc/1.6.2", 'x'),
-            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/mpi", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
-            ("gompi-1.4.10.eb", "Core/toolchain", "gompi/1.4.10", 'x'),
-            ("OpenBLAS-0.2.6-GCC-4.7.2-LAPACK-3.4.2.eb", "Compiler/GCC/4.7.2/numlib",
-             "OpenBLAS/0.2.6-LAPACK-3.4.2", ' '),
-            ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib", "FFTW/3.3.3", 'x'),
-            ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
-             "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
-            ("goolf-1.4.10.eb", "Core/toolchain", "goolf/1.4.10", 'x'),
-            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/tools", "gzip/1.5", ' '),  # listed but not there: ' '
+            ("GCC-6.4.0-2.28.eb", "Core/compiler", "GCC/6.4.0-2.28", 'x'),  # already present but not listed, so 'x'
+            ("hwloc-1.11.8-GCC-6.4.0-2.28.eb", "Compiler/GCC/6.4.0-2.28/system", "hwloc/1.11.8", 'x'),
+            # already present and listed, so 'F'
+            ("OpenMPI-2.1.2-GCC-6.4.0-2.28.eb", "Compiler/GCC/6.4.0-2.28/mpi", "OpenMPI/2.1.2", 'F'),
+            ("gompi-2018a.eb", "Core/toolchain", "gompi/2018a", 'x'),
+            ("OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb", "Compiler/GCC/6.4.0-2.28/numlib",
+             "OpenBLAS/0.2.20", 'x'),
+            ("FFTW-3.3.7-gompi-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/numlib", "FFTW/3.3.7", 'x'),
+            ("ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/numlib",
+             "ScaLAPACK/2.0.2-OpenBLAS-0.2.20", 'x'),
+            ("foss-2018a.eb", "Core/toolchain", "foss/2018a", 'x'),
+            # listed but not there: ' '
+            ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/tools", "gzip/1.5", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
@@ -1196,7 +1239,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if get_module_syntax() == 'Lua':
                 toy_module += '.lua'
             toy_module_txt = read_file(toy_module)
-            is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
+            is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
             self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
 
     def test_tmpdir(self):
@@ -1343,7 +1386,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Deprecated logging should work')
 
-        stderr_regex = re.compile("^Deprecated functionality, will no longer work in")
+        stderr_regex = re.compile("^\nWARNING: Deprecated functionality, will no longer work in")
         self.assertTrue(stderr_regex.search(stderr), "Pattern '%s' found in: %s" % (stderr_regex.pattern, stderr))
 
         # force it to current version, which should result in deprecation
@@ -1451,19 +1494,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ([], 'toy/0.0'),
             # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
             # to doing a simple regex substitution on the toolchain
-            (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
-            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
+            (['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # --try-toolchain is overridden by --toolchain
-            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
+            (['--try-toolchain=gompi,2018a', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
-            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
             # to doing a simple regex substitution on the toolchain
-            (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
+            (['--try-software-version=1.2.3', '--try-toolchain=gompi,2018a'], 'toy/1.2.3-gompi-2018a'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
             (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
-            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
+            (['--try-toolchain=gompi,2018a', '--toolchain=dummy,dummy'], 'toy/0.0'),
             # tweak existing list-typed value (patches)
             (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
             # append to existing list-typed value (patches)
@@ -1474,8 +1517,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-amend=versionsuffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
             # only --try causes other build specs to be included too
             # --try-toolchain* has a different branch to all other try options, combining defaults back to regex
-            (['--try-software=foo,1.2.3', '--toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
-            (['--software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            (['--try-software=foo,1.2.3', '--toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
+            (['--software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
             (['--software=foo,1.2.3', '--try-amend=versionsuffix=-test'], 'foo/1.2.3-test'),
         ]
 
@@ -1484,12 +1527,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
             self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
-        for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,1.4.10,-no-OFED']:
+        for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,2018a,-no-OFED']:
             allargs = args + [extra_arg]
             self.assertErrorRegex(EasyBuildError, "problems validating the options", self.eb_main, allargs, raise_error=True)
 
         # no --try used, so no tweaked easyconfig files are generated
-        allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,1.4.10']
+        allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
     def test_recursive_try(self):
@@ -1507,7 +1550,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--sourcepath=%s' % sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
-            '--try-toolchain=gompi,1.4.10',
+            '--try-toolchain=gompi,2018a',
             '--robot=%s' % ecs_path,
             '--ignore-osdeps',
             '--dry-run',
@@ -1515,22 +1558,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
-            # toolchain GCC/4.7.2 (subtoolchain of gompi/1.4.10) should be listed (and present)
+            # toolchain GCC/4.7.2 (subtoolchain of gompi/2018a) should be listed (and present)
 
-            tc_regex = re.compile("^ \* \[x\] .*/GCC-4.7.2.eb \(module: .*GCC/4.7.2\)$", re.M)
+            tc_regex = re.compile("^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
             # both toy and gzip dependency should be listed with new toolchains
-            # in this case we map original toolchain `dummy` to the compiler-only GCC subtoolchain of gompi/1.4.10
+            # in this case we map original toolchain `dummy` to the compiler-only GCC subtoolchain of gompi/2018a
             # since this subtoolchain already has sufficient capabilities (we do not map higher than necessary)
             for ec_name in ['gzip-1.4', 'toy-0.0']:
-                ec = '%s-GCC-4.7.2.eb' % ec_name
+                ec = '%s-GCC-6.4.0-2.28.eb' % ec_name
                 if extra_args:
                     mod = ec_name.replace('-', '/')
                 else:
-                    mod = '%s-GCC-4.7.2' % ec_name.replace('-', '/')
+                    mod = '%s-GCC-6.4.0-2.28' % ec_name.replace('-', '/')
                 mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
-                #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
         # clear fictious dependency
@@ -1541,7 +1583,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no recursive try if --(try-)software(-X) is involved
         for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
             outtxt = self.eb_main(args + extra_args, raise_error=True)
-            for mod in ['toy/1.2.3-gompi-1.4.10', 'gompi/1.4.10', 'GCC/4.7.2']:
+            for mod in ['toy/1.2.3-gompi-2018a', 'gompi/2018a', 'GCC/6.4.0-2.28']:
                 mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
             for mod in ['gompi/1.2.3', 'GCC/1.2.3']:
@@ -1579,7 +1621,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_filter_deps(self):
         """Test use of --filter-deps."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g', 'goolf', 'goolf-1.4.10.eb')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a.eb')
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         args = [
             ec_file,
@@ -1589,7 +1631,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--dry-run',
         ]
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
-        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+
+        # note: using loose regex pattern when we expect no match, strict pattern when we do expect a match
+        self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
@@ -1597,16 +1641,91 @@ class CommandLineOptionsTest(EnhancedTestCase):
         open(self.logfile, 'w').write('')
 
         # filter deps (including a non-existing dep, i.e. zlib)
-        args.append('--filter-deps=FFTW,ScaLAPACK,zlib')
+        args.extend(['--filter-deps', 'FFTW,ScaLAPACK,zlib'])
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
-        self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertFalse(re.search('module: FFTW/3.3.7-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # filter specific version of deps
+        args[-1] = 'FFTW=3.2.3,zlib,ScaLAPACK=2.0.2'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        args[-1] = 'zlib,FFTW=3.3.7,ScaLAPACK=2.0.1'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # filter deps with version range: only filter FFTW 3.x, ScaLAPACK 1.x
+        args[-1] = 'zlib,ScaLAPACK=]1.0:2.0[,FFTW=[3.0:4.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # also test open ended ranges
+        args[-1] = 'zlib,ScaLAPACK=[1.0:,FFTW=:4.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        args[-1] = 'zlib,ScaLAPACK=[2.1:,FFTW=:3.0['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        # test corner cases where version to filter in equal to low/high range limit
+        args[-1] = 'FFTW=[3.3.7:4.0],zlib,ScaLAPACK=[1.0:2.0.2]'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # FFTW & ScaLAPACK versions are not included in range, so no filtering
+        args[-1] = 'FFTW=]3.3.7:4.0],zlib,ScaLAPACK=[1.0:2.0.2['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+
+        # also test mix of ranges & specific versions
+        args[-1] = 'FFTW=3.3.7,zlib,ScaLAPACK=[1.0:2.0.2['
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        open(self.logfile, 'w').write('')
+        args[-1] = 'FFTW=]3.3.7:4.0],zlib,ScaLAPACK=2.0.2'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
     def test_hide_deps(self):
         """Test use of --hide-deps."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g', 'goolf', 'goolf-1.4.10.eb')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a.eb')
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         args = [
             ec_file,
@@ -1616,10 +1735,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--dry-run',
         ]
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
-        self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', outtxt))
-        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: GCC/6.4.0-2.28', outtxt))
+        self.assertTrue(re.search('module: OpenMPI/2.1.2-GCC-6.4.0-2.28', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.20-GCC-6.4.0-2.28', outtxt))
+        self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         # zlib is not a dep at all
         self.assertFalse(re.search('module: zlib', outtxt))
@@ -1630,11 +1749,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # hide deps (including a non-existing dep, i.e. zlib)
         args.append('--hide-deps=FFTW,ScaLAPACK,zlib')
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
-        self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
-        self.assertTrue(re.search('module: OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', outtxt))
-        self.assertFalse(re.search(r'module: FFTW/3\.3\.3-gompi', outtxt))
-        self.assertTrue(re.search(r'module: FFTW/\.3\.3\.3-gompi', outtxt))
+        self.assertTrue(re.search('module: GCC/6.4.0-2.28', outtxt))
+        self.assertTrue(re.search('module: OpenMPI/2.1.2-GCC-6.4.0-2.28', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.20-GCC-6.4.0-2.28', outtxt))
+        self.assertFalse(re.search(r'module: FFTW/3\.3\.7-gompi', outtxt))
+        self.assertTrue(re.search(r'module: FFTW/\.3\.3\.7-gompi', outtxt))
         self.assertFalse(re.search(r'module: ScaLAPACK/2\.0\.2-gompi', outtxt))
         self.assertTrue(re.search(r'module: ScaLAPACK/\.2\.0\.2-gompi', outtxt))
         # zlib is not a dep at all
@@ -1759,7 +1878,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ecfiles = [
             'g/GCC/GCC-4.6.3.eb',
-            'i/ictce/ictce-4.1.13.eb',
+            'i/intel/intel-2018a.eb',
             't/toy/toy-0.0-deps.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
         ]
@@ -2261,16 +2380,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         self.mock_stdout(True)
-        # PR for zlib 1.2.8 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1484
+        # PR for CMake 3.12.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6660
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            '--review-pr=1484',
+            '--review-pr=6660',
         ]
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        regex = re.compile(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8")
+        regex = re.compile(r"^Comparing CMake-3.12.1-\S* with CMake-3.12.1-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_set_tmpdir(self):
@@ -2327,19 +2446,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "version = '1.2.3'",
             "homepage = 'http://example.com'",
             "description = 'this is just a test'",
-            "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
-            # hwloc-1.6.2-gompi-1.4.10.eb is *not* available, but hwloc-1.6.2-GCC-4.7.2.eb is,
-            # and GCC/4.7.2 is a subtoolchain of gompi/1.4.10
-            "dependencies = [('hwloc', '1.6.2'), ('SQLite', '3.8.10.2')]",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
+            # hwloc-1.11.8-gompi-2018a.eb is *not* available, but hwloc-1.11.8-GCC-6.4.0-2.28.eb is,
+            # and GCC/6.4.0-2.28 is a subtoolchain of gompi/2018a
+            "dependencies = [('hwloc', '1.11.8'), ('SQLite', '3.8.10.2')]",
         ])
         write_file(ec_file, ectxt)
 
         # check requirements for test
         init_config([], build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
-        self.assertFalse(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-gompi-1.4.10') or 'nosuchfile'))
-        self.assertTrue(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-GCC-4.7.2')))
-        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-gompi-1.4.10')))
-        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-GCC-4.7.2')))
+        self.assertFalse(os.path.exists(robot_find_easyconfig('hwloc', '1.11.8-gompi-2018a') or 'nosuchfile'))
+        self.assertTrue(os.path.exists(robot_find_easyconfig('hwloc', '1.11.8-GCC-6.4.0-2.28')))
+        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-gompi-2018a')))
+        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-GCC-6.4.0-2.28')))
 
         args = [
             ec_file,
@@ -2351,8 +2470,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        sqlite_regex = re.compile("hwloc-1.6.2-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| hwloc/", re.M)
-        sqlite_regex = re.compile("SQLite-3.8.10.2-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| SQLite/", re.M)
+        comp = 'Compiler/GCC/6.4.0-2.28'
+        sqlite_regex = re.compile("hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: %s \| hwloc/" % comp, re.M)
+        sqlite_regex = re.compile("SQLite-3.8.10.2-GCC-6.4.0-2.28.eb \(module: %s \| SQLite/" % comp, re.M)
         self.assertTrue(sqlite_regex.search(txt), "Pattern '%s' found in: %s" % (sqlite_regex.pattern, txt))
 
     def test_extended_dry_run(self):
@@ -2496,7 +2616,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(topdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         # purposely picked one with non-default toolchain/versionsuffix
-        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), toy_ec)
 
         # modify file to mock archived easyconfig
         toy_ec_txt = read_file(toy_ec)
@@ -2534,10 +2654,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^Opening pull request \[DRY RUN\]",
             r"^\* target: easybuilders/easybuild-easyconfigs:develop",
             r"^\* from: %s/easybuild-easyconfigs:.*_new_pr_toy00" % GITHUB_TEST_ACCOUNT,
-            r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
+            r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0\"",
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
             r"^\s*1 file(s?) changed",
         ]
         self._assert_regexs(regexs, txt)
@@ -2558,7 +2678,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs[-1] = r"^\s*2 files changed"
-        regexs.remove(r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"")
+        regexs.remove(r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0\"")
         regexs.append(r"^\* title: \"just a test\"")
         regexs.append(r".*/bzip2-1.0.6.eb\s*\|")
         regexs.append(r".*[0-9]+ deletions\(-\)")
@@ -2586,7 +2706,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"moar letters foar teh lettre box",  # also description (see --pr-descr)
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
             r".*/bzip2-1.0.6.eb\s*\|",
             r"^\s*2 files changed",
             r".*[0-9]+ deletions\(-\)",
@@ -2651,7 +2771,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #2237: develop",
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
             r"^\s*1 file(s?) changed",
             "^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
             r"^Updated easybuilders/easybuild-easyconfigs PR #2237 by pushing to branch easybuilders/develop \[DRY RUN\]",
@@ -2666,7 +2786,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs.extend([
             r"Full patch:",
-            r"^\+\+\+\s*.*toy-0.0-gompi-1.3.12-test.eb",
+            r"^\+\+\+\s*.*toy-0.0-gompi-2018a-test.eb",
             r"^\+name = 'toy'",
         ])
         self._assert_regexs(regexs, txt)
@@ -3011,9 +3131,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_dump_env_config(self):
         """Test for --dump-env-config."""
 
-        fftw = 'FFTW-3.3.3-gompi-1.4.10'
+        fftw = 'FFTW-3.3.7-gompic-2018a'
         gcc = 'GCC-4.9.2'
-        openmpi = 'OpenMPI-1.6.4-GCC-4.7.2'
+        openmpi = 'OpenMPI-2.1.2-GCC-4.6.4'
         args = ['%s.eb' % ec for ec in [fftw, gcc, openmpi]] + ['--dump-env-script']
 
         os.chdir(self.test_prefix)
@@ -3042,8 +3162,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
         txt = read_file(env_script)
         patterns = [
-            "module load GCC/4.7.2",  # loading of toolchain module
-            "module load hwloc/1.6.2-GCC-4.7.2",  # loading of dependency module
+            "module load GCC/4.6.4",  # loading of toolchain module
+            "module load hwloc/1.11.8-GCC-4.6.4",  # loading of dependency module
             # defining build env
             "export FC='gfortran'",
             "export CFLAGS='-O2 -ftree-vectorize -march=native -fno-math-errno'",
@@ -3054,8 +3174,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         out, ec = run_cmd("function module { echo $@; } && source %s && echo FC: $FC" % env_script, simple=False)
         expected_out = '\n'.join([
-            "load GCC/4.7.2",
-            "load hwloc/1.6.2-GCC-4.7.2",
+            "load GCC/4.6.4",
+            "load hwloc/1.11.8-GCC-4.6.4",
             "FC: gfortran",
         ])
         self.assertEqual(out.strip(), expected_out)
@@ -3195,6 +3315,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.options.terminal_supports_colors = lambda _: False
         self.assertFalse(use_color('auto'))
 
+    def test_list_prs(self):
+        """Test --list-prs."""
+        args = ['--list-prs', 'foo']
+        error_msg = "must be one of \['open', 'closed', 'all'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,foo']
+        error_msg = "must be one of \['created', 'updated', 'popularity', 'long-running'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,created,foo']
+        error_msg = "must be one of \['asc', 'desc'\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'open,created,asc,foo']
+        error_msg = "must be in the format 'state\[,order\[,direction\]\]"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--list-prs', 'closed,updated,asc']
+        txt, _ = self._run_mock_eb(args, testing=False)
+        expected = "Listing PRs with parameters: direction=asc, per_page=100, sort=updated, state=closed"
+        self.assertTrue(expected in txt)
+
     def test_list_software(self):
         """Test --list-software and --list-installed-software."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'v1.0')
@@ -3222,7 +3365,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\*GCC\*', txt, re.M))
         self.assertTrue(re.search('^``4.6.3``\s+``dummy``', txt, re.M))
         self.assertTrue(re.search('^\*gzip\*', txt, re.M))
-        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``ictce/4.1.13``', txt, re.M))
+        self.assertTrue(re.search('^``1.5``\s+``foss/2018a``,\s+``intel/2018a``', txt, re.M))
 
         args = [
             '--list-installed-software',
@@ -3448,7 +3591,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         if get_module_syntax() == 'Lua':
             self.assertTrue(os.path.islink(os.path.join(toy_mod_dir, 'default')))
-            toy_mod_filename = '0.0-deps.lua'
             self.assertEqual(os.readlink(os.path.join(toy_mod_dir, 'default')), '0.0-deps.lua')
         elif get_module_syntax() == 'Tcl':
             toy_dot_version = os.path.join(toy_mod_dir, '.version')
@@ -3461,7 +3603,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_inject_checksums(self):
         """Test for --inject-checksums"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         # checksums are injected in existing easyconfig, so test with a copy
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -3668,7 +3810,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_enforce_checksums(self):
         """Test effect of --enforce-checksums"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         args = [

@@ -46,13 +46,15 @@ import re
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
+from distutils.version import LooseVersion
 
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
-from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
@@ -72,6 +74,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -384,6 +387,9 @@ class EasyConfig(object):
         self.build_specs = build_specs
         self.parse()
 
+        # check whether this easyconfig file is deprecated, and act accordingly if so
+        self.check_deprecated(self.path)
+
         # perform validations
         self.validation = build_option('validate') and validate
         if self.validation:
@@ -406,6 +412,16 @@ class EasyConfig(object):
         self.mod_subdir = mns.det_module_subdir(self)
 
         self.software_license = None
+
+    def filename(self):
+        """Determine correct filename for this easyconfig file."""
+
+        if is_yeb_format(self.path, self.rawtxt):
+            ext = YEB_FORMAT_EXTENSION
+        else:
+            ext = EB_FORMAT_EXTENSION
+
+        return '%s-%s%s' % (self.name, det_full_ec_version(self), ext)
 
     def extend_params(self, extra, overwrite=True):
         """Extend list of known parameters via provided list of extra easyconfig parameters."""
@@ -442,15 +458,22 @@ class EasyConfig(object):
 
         return ec
 
-    def update(self, key, value):
+    def update(self, key, value, allow_duplicate=True):
         """
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
         if isinstance(prev_value, basestring):
-            self[key] = '%s %s ' % (prev_value, value)
+            if allow_duplicate or value not in prev_value:
+                self[key] = '%s %s ' % (prev_value, value)
         elif isinstance(prev_value, list):
-            self[key] = prev_value + value
+            if allow_duplicate:
+                self[key] = prev_value + value
+            else:
+                for item in value:
+                    # add only those items that aren't already in the list
+                    if item not in prev_value:
+                        self[key] = prev_value + [item]
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
@@ -533,6 +556,26 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def check_deprecated(self, path):
+        """Check whether this easyconfig file is deprecated."""
+
+        depr_msgs = []
+
+        deprecated = self['deprecated']
+        if deprecated:
+            if isinstance(deprecated, basestring):
+                depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
+            else:
+                raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
+
+        if self.toolchain.is_deprecated():
+            depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
+
+        if depr_msgs:
+            depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
 
     def validate(self, check_osdeps=True):
         """
@@ -673,6 +716,91 @@ class EasyConfig(object):
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
+    def parse_version_range(self, version_spec):
+        """Parse provided version specification as a version range."""
+        res = {}
+        range_sep = ':'  # version range separator (e.g. ]1.0:2.0])
+
+        if range_sep in version_spec:
+            # remove range characters to obtain lower/upper version limits
+            version_limits = version_spec.translate(None, '][').split(range_sep)
+            if len(version_limits) == 2:
+                res['lower'], res['upper'] = version_limits
+                if res['lower'] and res['upper'] and LooseVersion(res['lower']) > LooseVersion('upper'):
+                    raise EasyBuildError("Incorrect version range, found lower limit > higher limit: %s", version_spec)
+            else:
+                raise EasyBuildError("Incorrect version range, expected lower/upper limit: %s", version_spec)
+
+            res['excl_lower'] = version_spec[0] == ']'
+            res['excl_upper'] = version_spec[-1] == '['
+
+        else:  # strict version spec (not a range)
+            res['lower'] = res['upper'] = version_spec
+            res['excl_lower'] = res['excl_upper'] = False
+
+        return res
+
+    def parse_filter_deps(self):
+        """Parse specifications for which dependencies should be filtered."""
+        res = {}
+
+        separator = '='
+        for filter_dep_spec in build_option('filter_deps') or []:
+            if separator in filter_dep_spec:
+                dep_specs = filter_dep_spec.split(separator)
+                if len(dep_specs) == 2:
+                    dep_name, dep_version_spec = dep_specs
+                else:
+                    raise EasyBuildError("Incorrect specification for dependency to filter: %s", filter_dep_spec)
+
+                res[dep_name] = self.parse_version_range(dep_version_spec)
+            else:
+                res[filter_dep_spec] = {'always_filter': True}
+
+        return res
+
+    def filter_deps(self, deps):
+        """Filter dependencies according to 'filter-deps' configuration setting."""
+
+        retained_deps = []
+        filter_deps_specs = self.parse_filter_deps()
+
+        for dep in deps:
+            filter_dep = False
+
+            # figure out whether this dependency should be filtered
+            if dep['name'] in filter_deps_specs:
+
+                filter_spec = filter_deps_specs[dep['name']]
+
+                if filter_spec.get('always_filter', False):
+                    filter_dep = True
+                else:
+                    version = LooseVersion(dep['version'])
+                    lower = LooseVersion(filter_spec['lower']) if filter_spec['lower'] else None
+                    upper = LooseVersion(filter_spec['upper']) if filter_spec['upper'] else None
+
+                    # assume dep is filtered before checking version range
+
+                    filter_dep = True
+
+                    # if version is lower than lower limit: no filtering
+                    if lower:
+                        if version < lower or (filter_spec['excl_lower'] and version == lower):
+                            filter_dep = False
+
+                    # if version is higher than upper limit: no filtering
+                    if upper:
+                        if version > upper or (filter_spec['excl_upper'] and version == upper):
+                            filter_dep = False
+
+            if filter_dep:
+                self.log.info("filtered out dependency %s", dep)
+            else:
+                retained_deps.append(dep)
+
+        return retained_deps
+
     def dependencies(self, build_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
@@ -687,19 +815,12 @@ class EasyConfig(object):
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
-        self.log.debug("Dependencies BEFORE filtering: %s" % deps)
-        filter_deps = build_option('filter_deps')
-        if filter_deps:
-            filtered_deps = []
-            for dep in deps:
-                if dep['name'] not in filter_deps:
-                    filtered_deps.append(dep)
-                else:
-                    self.log.info("filtered out dependency %s" % dep)
-            self.log.debug("Dependencies AFTER filtering: %s" % filtered_deps)
-            deps = filtered_deps
+        self.log.debug("Dependencies BEFORE filtering: %s", deps)
 
-        return deps
+        retained_deps = self.filter_deps(deps)
+        self.log.debug("Dependencies AFTER filtering: %s", retained_deps)
+
+        return retained_deps
 
     def builddependencies(self):
         """
@@ -759,9 +880,12 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
-    def dump(self, fp):
+    def dump(self, fp, always_overwrite=True, backup=False):
         """
         Dump this easyconfig to file, with the given filename.
+
+        :param always_overwrite: overwrite existing file at specified location without use of --force
+        :param backup: create backup of existing file before overwriting it
         """
         orig_enable_templating = self.enable_templating
 
@@ -785,7 +909,14 @@ class EasyConfig(object):
             if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
                 templ_val[self.template_values[key]] = key
 
-        ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        try:
+            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        except NotImplementedError as err:
+            # need to restore enable_templating value in case this method is caught in a try/except block and ignored
+            # (the ability to dump is not a hard requirement for build success)
+            self.enable_templating = orig_enable_templating
+            raise NotImplementedError(err)
+
         self.log.debug("Dumped easyconfig: %s", ectxt)
 
         if build_option('dump_autopep8'):
@@ -797,7 +928,7 @@ class EasyConfig(object):
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
-        write_file(fp, ectxt.strip())
+        write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
         self.enable_templating = orig_enable_templating
 
@@ -1641,7 +1772,7 @@ def det_file_info(paths, target_dir):
             file_info['ecs'].append(ecs[0]['ec'])
 
             soft_name = file_info['ecs'][-1].name
-            ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
+            ec_filename = file_info['ecs'][-1].filename()
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 

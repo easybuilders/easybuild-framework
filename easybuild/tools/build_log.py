@@ -41,7 +41,7 @@ from datetime import datetime
 from vsc.utils import fancylogger
 from vsc.utils.exceptions import LoggedException
 
-from easybuild.tools.version import VERSION
+from easybuild.tools.version import VERSION, this_is_easybuild
 
 
 # EasyBuild message prefix
@@ -121,7 +121,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, ver, max_ver=None, *args, **kwargs):
+    def deprecated(self, msg, ver, max_ver=None, more_info=None, *args, **kwargs):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
@@ -129,12 +129,13 @@ class EasyBuildLog(fancylogger.FancyLogger):
         :param ver: if max_ver is None: threshold for EasyBuild version to determine warning vs exception
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
+        :param more_info: additional message with instructions where to get more information
         """
         # provide log_callback function that both logs a warning and prints to stderr
         def log_callback_warning_and_print(msg):
             """Log warning message, and also print it to stderr."""
             self.warning(msg)
-            sys.stderr.write(msg + '\n')
+            sys.stderr.write('\nWARNING: ' + msg + '\n\n')
 
         kwargs['log_callback'] = log_callback_warning_and_print
 
@@ -142,7 +143,10 @@ class EasyBuildLog(fancylogger.FancyLogger):
         kwargs['exception'] = EasyBuildError
 
         if max_ver is None:
-            msg += "; see %s for more information" % DEPRECATED_DOC_URL
+            if more_info:
+                msg += more_info
+            else:
+                msg += "; see %s for more information" % DEPRECATED_DOC_URL
             fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
         else:
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
@@ -204,6 +208,16 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
     return log, logfile
 
 
+def log_start(log, eb_command_line, eb_tmpdir):
+    """Log startup info."""
+    log.info(this_is_easybuild())
+
+    # log used command line
+    log.info("Command line: %s", ' '.join(eb_command_line))
+
+    log.info("Using %s as temporary directory", eb_tmpdir)
+
+
 def stop_logging(logfile, logtostdout=False):
     """Stop logging."""
     if logtostdout:
@@ -212,14 +226,7 @@ def stop_logging(logfile, logtostdout=False):
         fancylogger.logToFile(logfile, enable=False)
 
 
-def get_log(name=None):
-    """
-    (NO LONGER SUPPORTED!) Generate logger object
-    """
-    log.nosupport("Use of get_log function", '2.0')
-
-
-def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=False):
+def print_msg(msg, *args, **kwargs):
     """
     Print a message.
 
@@ -229,6 +236,17 @@ def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=Fal
     :param newline: end message with newline
     :param stderr: print to stderr rather than stdout
     """
+    if args:
+        msg = msg % args
+
+    log = kwargs.pop('log', None)
+    silent = kwargs.pop('silent', False)
+    prefix = kwargs.pop('prefix', True)
+    newline = kwargs.pop('newline', True)
+    stderr = kwargs.pop('stderr', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_msg: %s", kwargs)
+
     if log:
         log.info(msg)
     if not silent:
@@ -265,9 +283,16 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
     DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
 
 
-def dry_run_msg(msg, silent=False):
+def dry_run_msg(msg, *args, **kwargs):
     """Print dry run message."""
     # replace fake build/install dir in dry run message with original value
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to dry_run_msg: %s", kwargs)
+
     for dry_run_var in [DRY_RUN_BUILD_DIR, DRY_RUN_MODULES_INSTALL_DIR, DRY_RUN_SOFTWARE_INSTALL_DIR]:
         if dry_run_var is not None:
             msg = dry_run_var[0].sub(dry_run_var[1], msg)
@@ -275,31 +300,56 @@ def dry_run_msg(msg, silent=False):
     print_msg(msg, silent=silent, prefix=False)
 
 
-def dry_run_warning(msg, silent=False):
+def dry_run_warning(msg, *args, **kwargs):
     """Print dry run message."""
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to dry_run_warning: %s", kwargs)
+
     dry_run_msg("\n!!!\n!!! WARNING: %s\n!!!\n" % msg, silent=silent)
 
 
-def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
+def print_error(msg, *args, **kwargs):
     """
     Print error message and exit EasyBuild
     """
+    if args:
+        msg = msg % args
+
+    log = kwargs.pop('log', None)
+    exitCode = kwargs.pop('exitCode', 1)
+    opt_parser = kwargs.pop('opt_parser', None)
+    exit_on_error = kwargs.pop('exit_on_error', True)
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_error: %s", kwargs)
+
     if exit_on_error:
         if not silent:
             if opt_parser:
                 opt_parser.print_shorthelp()
-            sys.stderr.write("ERROR: %s\n" % message)
+            sys.stderr.write("ERROR: %s\n" % msg)
         sys.exit(exitCode)
     elif log is not None:
-        raise EasyBuildError(message)
+        raise EasyBuildError(msg)
 
 
-def print_warning(message, silent=False):
+def print_warning(msg, *args, **kwargs):
     """
     Print warning message.
     """
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
+
     if not silent:
-        sys.stderr.write("\nWARNING: %s\n\n" % message)
+        sys.stderr.write("\nWARNING: %s\n\n" % msg)
 
 
 def time_str_since(start_time):
