@@ -473,6 +473,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
             tc_load = '\n'.join([
@@ -717,6 +719,8 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
 
         modpath = os.path.join(eb.make_module_step(), name, version)
         if get_module_syntax() == 'Lua':
