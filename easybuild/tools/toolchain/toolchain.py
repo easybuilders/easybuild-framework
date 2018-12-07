@@ -516,9 +516,9 @@ class Toolchain(object):
         # append toolchain module to list of modules
         self.modules.append(tc_mod)
 
-    def _load_dependencies_modules(self, dependencies, silent=False):
+    def _load_dependencies_modules(self, silent=False):
         """Load modules for dependencies, and handle special cases like external modules."""
-        dep_mods = [dep['short_mod_name'] for dep in dependencies]
+        dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
 
         if self.dry_run:
             dry_run_msg("\nLoading modules for dependencies...\n", silent=silent)
@@ -526,7 +526,7 @@ class Toolchain(object):
             mods_exist = self.modules_tool.exist(dep_mods)
 
             # load available modules for dependencies, simulate load for others
-            for dep, dep_mod_exists in zip(dependencies, mods_exist):
+            for dep, dep_mod_exists in zip(self.dependencies, mods_exist):
                 mod_name = dep['short_mod_name']
                 if dep_mod_exists:
                     self.modules_tool.load([mod_name])
@@ -542,8 +542,8 @@ class Toolchain(object):
             self.log.debug("Loading modules for dependencies: %s", dep_mods)
             self.modules_tool.load(dep_mods)
 
-            if dependencies:
-                build_dep_mods = [dep['short_mod_name'] for dep in dependencies if dep['build_only']]
+            if self.dependencies:
+                build_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if dep['build_only']]
                 if build_dep_mods:
                     trace_msg("loading modules for build dependencies:")
                     for dep_mod in build_dep_mods:
@@ -551,7 +551,7 @@ class Toolchain(object):
                 else:
                     trace_msg("(no build dependencies specified)")
 
-                run_dep_mods = [dep['short_mod_name'] for dep in dependencies if not dep['build_only']]
+                run_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if not dep['build_only']]
                 if run_dep_mods:
                     trace_msg("loading modules for (runtime) dependencies:")
                     for dep_mod in run_dep_mods:
@@ -563,7 +563,7 @@ class Toolchain(object):
         self.modules.extend(dep_mods)
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
-        for dep in [d for d in dependencies if d['external_module']]:
+        for dep in [d for d in self.dependencies if d['external_module']]:
             mod_name = dep['full_mod_name']
             metadata = dep['external_module_metadata']
             self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
@@ -576,7 +576,7 @@ class Toolchain(object):
             for name, version in zip(names, versions):
                 self._simulated_load_dependency_module(name, version, metadata, verbose=True)
 
-    def _load_modules(self, dependencies, silent=False):
+    def _load_modules(self, silent=False):
         """Load modules for toolchain and dependencies."""
         if self.modules_tool is None:
             raise EasyBuildError("No modules tool defined in Toolchain instance.")
@@ -591,12 +591,12 @@ class Toolchain(object):
                     dry_run_msg("(no modules are loaded for a dummy-dummy toolchain)", silent=silent)
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self._load_dependencies_modules(dependencies, silent=silent)
+                self._load_dependencies_modules(silent=silent)
         else:
             # load the toolchain and dependencies modules
             self.log.debug("Loading toolchain module and dependencies...")
             self._load_toolchain_module(silent=silent)
-            self._load_dependencies_modules(dependencies, silent=silent)
+            self._load_dependencies_modules(silent=silent)
 
         # include list of loaded modules in dry run output
         if self.dry_run:
@@ -697,14 +697,14 @@ class Toolchain(object):
         # do all dependencies have a toolchain version?
         if deps is None:
             deps = []
-        tcdeps = self._check_dependencies(deps)
-        if not len(deps) == len(tcdeps):
+        self.dependencies = self._check_dependencies(deps)
+        if not len(deps) == len(self.dependencies):
             self.log.debug("dep %s (%s)" % (len(deps), deps))
-            self.log.debug("tc.dep %s (%s)" % (len(tcdeps), tcdeps))
+            self.log.debug("tc.dep %s (%s)" % (len(self.dependencies), self.dependencies))
             raise EasyBuildError('Not all dependencies have a matching toolchain version')
 
         if loadmod:
-            self._load_modules(tcdeps, silent=silent)
+            self._load_modules(silent=silent)
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 
@@ -725,7 +725,7 @@ class Toolchain(object):
                 self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
                 # add LDFLAGS and CPPFLAGS from dependencies to self.vars
-                self._add_dependency_variables(deps=tcdeps)
+                self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
@@ -740,8 +740,6 @@ class Toolchain(object):
                 self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
-
-        self.dependencies = tcdeps
 
     def comp_cache_compilers(self, cache_tool):
         """
@@ -877,7 +875,7 @@ class Toolchain(object):
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
-    def _add_dependency_variables(self, names=None, cpp=None, ld=None, deps=None):
+    def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
             names should be a list of strings containing the name of the dependency
         """
@@ -895,7 +893,9 @@ class Toolchain(object):
                 if p not in ld_paths:
                     ld_paths.append(p)
 
-        if names:
+        if not names:
+            deps = self.dependencies
+        else:
             deps = [{'name': name} for name in names if name is not None]
 
         # collect software install prefixes for dependencies
