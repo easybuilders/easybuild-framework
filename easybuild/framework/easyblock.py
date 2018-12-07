@@ -1511,13 +1511,8 @@ class EasyBlock(object):
                               if isinstance(self.cfg[opt], (list, tuple))])
         return iter_cnt
 
-    #
-    # STEP FUNCTIONS
-    #
-    def check_readiness_step(self):
-        """
-        Verify if all is ok to start build.
-        """
+    def set_parallel(self):
+        """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
         if self.cfg['parallel']:
@@ -1532,6 +1527,15 @@ class EasyBlock(object):
 
         self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
         self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
+
+    #
+    # STEP FUNCTIONS
+    #
+    def check_readiness_step(self):
+        """
+        Verify if all is ok to start build.
+        """
+        self.set_parallel()
 
         # check whether modules are loaded
         loadedmods = self.modules_tool.loaded_modules()
