@@ -417,6 +417,16 @@ class Toolchain(object):
 
         return deps
 
+    def add_dependencies(self, dependencies):
+        """
+        [DEPRECATED] Verify if the given dependencies exist, and return them.
+
+        This method is deprecated.
+        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
+        """
+        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
+        self.dependencies = self._check_dependencies(dependencies)
+
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
         # default: assume every element is required
