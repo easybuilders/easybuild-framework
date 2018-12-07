@@ -1493,6 +1493,53 @@ class EasyConfigTest(EnhancedTestCase):
                 if param in ec:
                     self.assertEqual(ec[param], dumped_ec[param])
 
+    def test_dump_order(self):
+        """Test order of easyconfig parameters in dumped easyconfig."""
+        rawtxt = '\n'.join([
+            "homepage = 'http://foo.com/'",
+            '',
+            "name = 'foo'",
+            "versionsuffix = '_bar'",
+            '',
+            'patches = ["one.patch"]',
+            "easyblock = 'EB_foo'",
+            '',
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            '',
+            'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
+            "dependencies = [",
+            "    ('GCC', '4.6.4', '-test'),",
+            "    ('MPICH', '1.8', '', ('GCC', '4.6.4')),",
+            "    ('bar', '1.0'),",
+            "    ('foobar/1.2.3', EXTERNAL_MODULE),",
+            "]",
+            "version = '0.0.1'",
+            'description = "foo description"',
+            '',
+            'source_urls = ["http://example.com"]',
+            "foo_extra1 = 'foobar'",
+            '',
+            'sources = [SOURCE_TAR_GZ]',
+            'moduleclass = "tools"',
+        ])
+
+        param_regex = re.compile('^(?P<param>[a-z0-9_]+) = |^$', re.M)
+
+        # make sure regex finds all easyconfig parameters in the order they appear in the easyconfig
+        expected = ['homepage', '', 'name', 'versionsuffix', '', 'patches', 'easyblock', '', 'toolchain', '',
+                    'checksums', 'dependencies', 'version', 'description', '', 'source_urls', 'foo_extra1',
+                    '', 'sources', 'moduleclass']
+        self.assertEqual(param_regex.findall(rawtxt), expected)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(test_ec)
+        ectxt = read_file(test_ec)
+
+        # easyconfig parameters should be properly ordered/grouped in dumped easyconfig
+        expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '', 'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '', 'foo_extra1', '', 'moduleclass', '']
+        self.assertEqual(param_regex.findall(ectxt), expected)
+
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
         try:
