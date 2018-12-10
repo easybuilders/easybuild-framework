@@ -876,7 +876,6 @@ class ToolchainTest(EnhancedTestCase):
         libblas_mt_intel4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
 
         libfft_intel4 = libblas_intel4.replace('-lmkl_intel_lp64', '-lfftw3xc_intel -lmkl_intel_lp64')
-        libfft_mt_intel4 = libblas_mt_intel4.replace('-lmkl_intel_lp64', '-lfftw3xc_intel -lmkl_intel_lp64')
         libfft_mt_intel4 = "-Wl,-Bstatic -Wl,--start-group -lfftw3xc_intel -lmkl_intel_lp64 -lmkl_intel_thread"
         libfft_mt_intel4 += " -lmkl_core -liomp5 -lpthread -Wl,--end-group -Wl,-Bdynamic"
 
