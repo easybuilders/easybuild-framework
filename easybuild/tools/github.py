@@ -103,9 +103,12 @@ HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
-VALID_CLOSE_PR_REASONS = {'archived': 'uses an archived toolchain',
-                          'inactive': 'no activity for > 6 months',
-                          'obsolete': 'obsoleted by more recent PRs'}
+VALID_CLOSE_PR_REASONS = {
+    'archived': 'uses an archived toolchain',
+    'inactive': 'no activity for > 6 months',
+    'obsolete': 'obsoleted by more recent PRs',
+}
+
 
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
@@ -1738,8 +1741,11 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
 
     if full:
         # also fetch status of last commit
-        pr_head_sha = pr_data['head']['sha']
-        status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
+
+        def status_url(gh):
+            """Helper function to grab status of latest commit."""
+            return gh.repos[pr_target_account][pr_target_repo].commits[pr_data['head']['sha']].status
+
         status, status_data = github_api_get_request(status_url, github_user)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
@@ -1747,7 +1753,10 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
         pr_data['status_last_commit'] = status_data['state']
 
         # also fetch comments
-        comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
+        def comments_url(gh):
+            """Helper function to grab comments for this PR."""
+            return gh.repos[pr_target_account][pr_target_repo].issues[pr].comments
+
         status, comments_data = github_api_get_request(comments_url, github_user)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
@@ -1755,7 +1764,10 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
         pr_data['issue_comments'] = comments_data
 
         # also fetch reviews
-        reviews_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
+        def reviews_url(gh):
+            """Helper function to grab reviews for this PR"""
+            return gh.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
+
         status, reviews_data = github_api_get_request(reviews_url, github_user)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",

@@ -28,14 +28,11 @@ Unit tests for talking to GitHub.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import glob
 import os
 import random
 import re
-import shutil
 import string
 import sys
-import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from urllib2 import URLError
@@ -74,7 +71,8 @@ class GithubTest(EnhancedTestCase):
         if self.github_token is None:
             self.ghfs = None
         else:
-            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT, None, self.github_token)
+            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT,
+                                    None, self.github_token)
 
     def test_walk(self):
         """test the gitubfs walk function"""
@@ -125,6 +123,18 @@ class GithubTest(EnhancedTestCase):
         self.assertEquals(gh.HTTP_STATUS_OK, status)
         self.assertEquals(pr_data['number'], 1)
         self.assertEquals(pr_data['title'], "a pr")
+        self.assertFalse(any(key in pr_data for key in ['issue_comments', 'review', 'status_last_commit']))
+
+        status, pr_data, pr_url = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
+        self.assertEquals(gh.HTTP_STATUS_OK, status)
+        self.assertEquals(pr_data['number'], 2)
+        self.assertEquals(pr_data['title'], "an open pr (do not close this please)")
+        self.assertTrue(pr_data['issue_comments'])
+        self.assertEquals(pr_data['issue_comments'][0]['body'], "this is a test")
+        self.assertTrue(pr_data['reviews'])
+        self.assertEquals(pr_data['reviews'][0]['state'], "APPROVED")
+        self.assertEquals(pr_data['reviews'][0]['user']['login'], 'boegel')
+        self.assertEqual(pr_data['status_last_commit'], 'pending')
 
     def test_list_prs(self):
         """Test list_prs function."""
@@ -463,6 +473,7 @@ class GithubTest(EnhancedTestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
