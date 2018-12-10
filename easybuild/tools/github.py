@@ -383,16 +383,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     github_account = build_option('pr_target_account')
     github_repo = GITHUB_EASYCONFIGS_REPO
 
-    def pr_url(gh):
-        """Utility function to fetch data for a specific PR."""
-        return gh.repos[github_account][github_repo].pulls[pr]
-
     _log.debug("Fetching easyconfigs from %s/%s PR #%s into %s", github_account, github_repo, pr, path)
-
-    status, pr_data = github_api_get_request(pr_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, github_account, github_repo, status, pr_data)
+    pr_data, _ = fetch_pr_data(pr, github_account, github_repo, github_user)
 
     pr_merged = pr_data['merged']
     pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
@@ -412,23 +404,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
-
-    for key, val in sorted(pr_data.items()):
-        _log.debug("\n%s:\n\n%s\n", key, val)
-
-    # obtain last commit
-    # get all commits, increase to (max of) 100 per page
-    if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
-        raise EasyBuildError("PR #%s contains more than %s commits, can't obtain last commit",
-                             pr, GITHUB_MAX_PER_PAGE)
-
-    status, commits_data = github_api_get_request(lambda gh: pr_url(gh).commits, github_user,
-                                                  per_page=GITHUB_MAX_PER_PAGE)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, github_account, github_repo, status, commits_data)
-    last_commit = commits_data[-1]
-    _log.debug("Commits: %s, last commit: %s", commits_data, last_commit['sha'])
 
     final_path = None
 
@@ -456,7 +431,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         for patched_file in patched_files:
             # path to patch file, incl. subdir it is in
             fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
-            sha = last_commit['sha']
+            sha = pr_data['head']['sha']
             full_url = URL_SEPARATOR.join([GITHUB_RAW, github_account, github_repo, sha, patched_file])
             _log.info("Downloading %s from %s", fn, full_url)
             download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
@@ -1015,15 +990,16 @@ def reasons_for_closing(pr_data):
 
     if pr_data['issue_comments']:
         last_comment = pr_data['issue_comments'][-1]
-        print_msg("Last comment on %s, by %s, was:\n\n%s" %
-                  (last_comment['updated_at'].replace('T', ' at ')[:-1], last_comment['user']['login'],
-                   last_comment['body']), prefix=False)
+        timestamp = last_comment['updated_at'].replace('T', ' at ')[:-1]
+        username = last_comment['user']['login']
+        print_msg("Last comment on %s, by %s, was:\n\n%s" % (timestamp, username, last_comment['body']), prefix=False)
 
     if pr_data['reviews']:
         last_review = pr_data['reviews'][-1]
-        print_msg("Last reviewed on %s by %s, state %s\n\n%s" %
-                  (last_review['submitted_at'].replace('T', ' at '), last_review['user']['login'],
-                   last_review['state'], last_review['body']), prefix=False)
+        timestamp = last_review['submitted_at'].replace('T', ' at ')[:-1]
+        username = last_review['user']['login']
+        state, body = last_review['state'], last_review['body']
+        print_msg("Last reviewed on %s by %s, state %s\n\n%s" % (timestamp, username, state, body), prefix=False)
 
     possible_reasons = []
 
@@ -1076,7 +1052,7 @@ def reasons_for_closing(pr_data):
     if uses_archived_tc:
         possible_reasons.append('archived')
 
-    if any([ec['name'] in pr_data['title'] for ec in obsoleted]):
+    if any([e['name'] in pr_data['title'] for e in obsoleted]):
         possible_reasons.append('obsolete')
 
     return possible_reasons
@@ -1093,7 +1069,7 @@ def close_pr(pr, reasons):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     if pr_data['state'] == GITHUB_STATE_CLOSED:
         raise EasyBuildError("PR #%d from %s/%s is already closed.", pr, pr_target_account, pr_target_repo)
@@ -1155,14 +1131,7 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    def pr_url(gh):
-        """Utility function to fetch data for PRs."""
-        return gh.repos[pr_target_account][pr_target_repo].pulls
-
-    status, pr_data = github_api_get_request(pr_url, github_user=github_user, **parameters)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get PR data from %s/%s (parameters: %s, status: %d %s)",
-                             pr_target_account, pr_target_repo, parameters, status, pr_data)
+    pr_data, _ = fetch_pr_data(None, pr_target_account, pr_target_repo, github_user, **parameters)
 
     lines = []
     for pr in pr_data:
@@ -1182,48 +1151,13 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
+    pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
     print_msg(msg, prefix=False)
     if pr_data['user']['login'] == github_user:
         raise EasyBuildError("Please do not merge your own PRs!")
-
-    pr_head_sha = pr_data['head']['sha']
-
-    def status_url(gh):
-        """Utility function to fetch status of specific commit."""
-        return gh.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
-
-    # also fetch status of last commit
-    status, status_data = github_api_get_request(status_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, status_data)
-    pr_data['status_last_commit'] = status_data['state']
-
-    def comments_url(gh):
-        """Utility function to fetch comments for a specific PR."""
-        return gh.repos[pr_target_account][pr_target_repo].issues[pr].comments
-
-    # also fetch comments
-    status, comments_data = github_api_get_request(comments_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, comments_data)
-    pr_data['issue_comments'] = comments_data
-
-    def reviews_url(gh):
-        """Utility function to fetch reviews for a specific PR."""
-        return gh.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
-
-    # also fetch reviews
-    status, reviews_data = github_api_get_request(reviews_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, reviews_data)
-    pr_data['reviews'] = reviews_data
 
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -1243,7 +1177,7 @@ def merge_pr(pr):
         else:
             body = {
                 'commit_message': pr_data['title'],
-                'sha': pr_head_sha,
+                'sha': pr_data['head']['sha'],
             }
             github_api_put_request(merge_url, github_user, body=body)
     else:
@@ -1386,7 +1320,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
     account = pr_data['head']['label'].split(':')[0]
@@ -1727,14 +1661,17 @@ def find_easybuild_easyconfig(github_user=None):
     return eb_file
 
 
-def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False):
+def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False, **parameters):
     """Fetch PR data from GitHub"""
 
     def pr_url(gh):
         """Utility function to fetch data for a specific PR."""
-        return gh.repos[pr_target_account][pr_target_repo].pulls[pr]
+        if pr is None:
+            return gh.repos[pr_target_account][pr_target_repo].pulls
+        else:
+            return gh.repos[pr_target_account][pr_target_repo].pulls[pr]
 
-    status, pr_data = github_api_get_request(pr_url, github_user)
+    status, pr_data = github_api_get_request(pr_url, github_user, **parameters)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
@@ -1746,7 +1683,7 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
             """Helper function to grab status of latest commit."""
             return gh.repos[pr_target_account][pr_target_repo].commits[pr_data['head']['sha']].status
 
-        status, status_data = github_api_get_request(status_url, github_user)
+        status, status_data = github_api_get_request(status_url, github_user, **parameters)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
                                  pr, pr_target_account, pr_target_repo, status, status_data)
@@ -1757,7 +1694,7 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
             """Helper function to grab comments for this PR."""
             return gh.repos[pr_target_account][pr_target_repo].issues[pr].comments
 
-        status, comments_data = github_api_get_request(comments_url, github_user)
+        status, comments_data = github_api_get_request(comments_url, github_user, **parameters)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
                                  pr, pr_target_account, pr_target_repo, status, comments_data)
@@ -1768,10 +1705,10 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
             """Helper function to grab reviews for this PR"""
             return gh.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
 
-        status, reviews_data = github_api_get_request(reviews_url, github_user)
+        status, reviews_data = github_api_get_request(reviews_url, github_user, **parameters)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
                                  pr, pr_target_account, pr_target_repo, status, reviews_data)
         pr_data['reviews'] = reviews_data
 
-    return status, pr_data, pr_url
+    return pr_data, pr_url

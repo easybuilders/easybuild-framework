@@ -118,15 +118,13 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_pr_data, no GitHub token available?"
             return
 
-        status, pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
+        pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
 
-        self.assertEquals(gh.HTTP_STATUS_OK, status)
         self.assertEquals(pr_data['number'], 1)
         self.assertEquals(pr_data['title'], "a pr")
         self.assertFalse(any(key in pr_data for key in ['issue_comments', 'review', 'status_last_commit']))
 
-        status, pr_data, pr_url = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
-        self.assertEquals(gh.HTTP_STATUS_OK, status)
+        pr_data, pr_url = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
         self.assertEquals(pr_data['number'], 2)
         self.assertEquals(pr_data['title'], "an open pr (do not close this please)")
         self.assertTrue(pr_data['issue_comments'])
@@ -190,14 +188,6 @@ class GithubTest(EnhancedTestCase):
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError, err:
                 print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
-
-        try:
-            # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
-            err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
-            self.assertErrorRegex(EasyBuildError, err_msg, gh.fetch_easyconfigs_from_pr, 897,
-                                  github_user=GITHUB_TEST_ACCOUNT)
-        except URLError, err:
-            print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
