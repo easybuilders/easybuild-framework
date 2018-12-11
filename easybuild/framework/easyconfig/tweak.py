@@ -110,7 +110,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             msg += "disabling recursion and not changing (sub)toolchains for dependencies"
             _log.info(msg)
             revert_to_regex = True
-            modifying_toolchains = False
+            modifying_toolchains_or_deps = False
         elif any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'update_deps'] for key in keys):
             print_warning("Combining --try-toolchain* or --try-update-deps with other build options is not fully " +
                           "supported: using regex")
