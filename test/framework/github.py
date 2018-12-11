@@ -355,6 +355,7 @@ class GithubTest(EnhancedTestCase):
             'milestone': None,
             'number': '1234',
             'reviews': [],
+            'unmerged_pr_deps': ['#1233'],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -428,9 +429,32 @@ class GithubTest(EnhancedTestCase):
         pr_data['milestone'] = {'title': '3.3.1'}
         expected_stdout += "* milestone is set: OK (3.3.1)\n"
 
+        # no PR unmerged dependencies
+        expected_warning = "* PR dependencies: FAILED (#1233 not yet merged) => not eligible for merging!"
+        run_check()
+
+        pr_data['unmerged_pr_deps'] = []
+        expected_stdout += "* PR dependencies: OK (no unmerged PR dependencies found)\n"
+
         # all checks pass, PR is eligible for merging
         expected_warning = ''
         self.assertEqual(run_check(True), '')
+
+    def test_is_pr_merged(self):
+        """Test for is_pr_merged function."""
+        if self.github_token is None:
+            print "Skipping test_is_pr_merged, no GitHub token available?"
+            return
+
+        # test on merged PR in easybuilders/easybuild-easyconfigs
+        self.assertTrue(gh.is_pr_merged(1, github_user=GITHUB_TEST_ACCOUNT))
+
+        # test on closed PR in easybuilders/easybuild-easyconfigs
+        self.assertFalse(gh.is_pr_merged(6, github_user=GITHUB_TEST_ACCOUNT))
+
+        # test on open PR in hpcugent/testrepository
+        self.assertFalse(gh.is_pr_merged(2, account='hpcugent', repo='testrepository',
+                                         github_user=GITHUB_TEST_ACCOUNT))
 
     def test_det_patch_specs(self):
         """Test for det_patch_specs function."""
