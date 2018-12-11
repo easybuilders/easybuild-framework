@@ -882,7 +882,7 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                 raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
                                      regex)
             # Use these values to construct a dependency
-            software_as_dep={
+            software_as_dep = {
                 'name': software_name,
                 'version': version,
                 'toolchain': toolchain
