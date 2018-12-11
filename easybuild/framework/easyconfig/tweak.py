@@ -857,13 +857,11 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
     :return: dictionary of possible mappings
     """
     orig_toolchain_hierarchy = get_toolchain_hierarchy(original_toolchain)
-    target_toolchain_hierarchy = get_toolchain_hierarchy(toolchain_mapping[original_toolchain['name']])
 
     versionsuffix_mappings = {}
 
-    # Find highest value in the target (for each major version)
-    target_versions = {}
-    for toolchain in target_toolchain_hierarchy:
+    # Find all Python versions in the original toolchain hierarchy and register what they would be mapped to
+    for toolchain in orig_toolchain_hierarchy:
         prefix_stub = '%s-' % software_name
         cand_paths, toolchain_suffix = get_matching_easyconfig_candidates(prefix_stub, toolchain)
         for path in cand_paths:
@@ -877,43 +875,34 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                 try:
                     # make sure we have a have an integer value for the major version
                     int(major_version)
-                    # We make a list for all major values, make sure the major value in the list is initialised to zero
-                    if major_version not in target_versions:
-                        target_versions[major_version] = version
-                    elif LooseVersion(version) > LooseVersion(target_versions[major_version]):
-                        target_versions[major_version] = version
                 except ValueError:
                     _log.info("Cannot extract major version for %s from %s, probably a name clash", prefix_stub,
                               filename)
             except AttributeError:
                 raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
                                      regex)
+            # Use these values to construct a dependency
+            software_as_dep={
+                'name': software_name,
+                'version': version,
+                'toolchain': toolchain
+            }
+            # See what this dep would be mapped to
+            version_matches = find_potential_version_mappings(software_as_dep, toolchain_mapping)
+            if version_matches:
+                target_version = version_matches[0]['version']
+                if LooseVersion(target_version) > LooseVersion(version):
+                    original_suffix = '-%s-%s' % (software_name, version)
+                    mapped_suffix = '-%s-%s' % (software_name, target_version)
+                    # Make sure mapping is unique
+                    if original_suffix in versionsuffix_mappings:
+                        if mapped_suffix != versionsuffix_mappings[original_suffix]:
+                            raise EasyBuildError("No unique versionsuffix mapping for %s in %s toolchain "
+                                                 "hierarchy to %s toolchain hierarchy", original_suffix,
+                                                 original_toolchain, toolchain_mapping[original_toolchain['name']])
+                    else:
+                        versionsuffix_mappings[original_suffix] = mapped_suffix
 
-    # Now map all matching versions in the source toolchain to this target
-    for major_version, target_version in target_versions.iteritems():
-        if target_version > 0:
-            source_versions = set()
-            for toolchain in orig_toolchain_hierarchy:
-                prefix_stub = '%s-%s' % (software_name, major_version)
-                cand_paths, toolchain_suffix = get_matching_easyconfig_candidates(prefix_stub, toolchain)
-
-                for path in cand_paths:
-                    # Get the version from the path
-                    filename = os.path.basename(path)
-                    # Find the version sandwiched between our known values
-                    try:
-                        regex = '%s-(.*)%s' % (software_name, toolchain_suffix)
-                        version = re.search(regex, filename).group(1)
-                        if LooseVersion(version) < LooseVersion(target_version):
-                            source_versions.add(version)
-                    except AttributeError:
-                        raise EasyBuildError("Somethings wrong, could not extract version from %s using %s", filename,
-                                             regex)
-
-            # Finally we add to the mapping
-            for source_version in source_versions:
-                versionsuffix_mappings['-%s-%s' % (software_name, source_version)] = '-%s-%s' % (software_name,
-                                                                                                 target_version)
     _log.info("Identified version suffix mappings: %s", versionsuffix_mappings)
     return versionsuffix_mappings
 
@@ -981,26 +970,23 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 dep_changed = True
             elif update_dep_versions:
                 # Search for available updates for this dependency:
-                # First get all candidate paths for this (include search through subtoolchains)
+                # First get highest version candidate paths for this (include search through subtoolchains)
                 potential_version_matches = find_potential_version_mappings(dep, toolchain_mapping,
-                                                                            versonsuffix_mapping)
-
-                # Compare these versions to the original version and replace if appropriate (upgrades only)
-                highest_version = dep['version']
-                for candidate in potential_version_matches:
-                    if LooseVersion(candidate['version']) > LooseVersion(highest_version):
-                        highest_version = candidate['version']
-                if highest_version != dep['version']:
-                    _log.info("Updating version of %s dependency from %s to %s", dep['name'], dep['version'],
-                              highest_version)
-                    _log.info("Depending on your configuration, this will be resolved with one of the following "
-                              "easyconfigs: %s", '\n'.join(cand['path'] for cand in potential_version_matches
-                                                           if cand['version'] == highest_version))
-                    orig_dep['version'] = highest_version
-                    if orig_dep['versionsuffix'] in versonsuffix_mapping:
-                        dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
-                        orig_dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
-                    dep_changed = True
+                                                                            versonsuffix_mapping=versonsuffix_mapping)
+                # Only highest version match is retained by default in potential_version_matches, compare that version
+                # to the original version and replace if appropriate (upgrades only).
+                if potential_version_matches:
+                    highest_version_match = potential_version_matches[0]['version']
+                    if LooseVersion(highest_version_match) > LooseVersion(dep['version']):
+                        _log.info("Updating version of %s dependency from %s to %s", dep['name'], dep['version'],
+                                  highest_version_match)
+                        _log.info("Depending on your configuration, this will be resolved with one of the following "
+                                  "easyconfigs: \n%s", '\n'.join(cand['path'] for cand in potential_version_matches))
+                        orig_dep['version'] = highest_version_match
+                        if orig_dep['versionsuffix'] in versonsuffix_mapping:
+                            dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
+                            orig_dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
+                        dep_changed = True
 
             if dep_changed:
                 orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
@@ -1018,7 +1004,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     return tweaked_spec
 
 
-def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping):
+def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping={}, highest_versions_only=True):
     """
     Find potential version mapping for a dependency in a new hierarchy
     :param dep: dependency
@@ -1053,13 +1039,14 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
     candidate_ver_list = []
     version_components = dep['version'].split('.')
     major_version = version_components[0]
-    # This doesn't work well with the versionsuffix mapping which isn't clever enough for this so ignoring
-    # if len(version_components) > 1:
-    #     minor_version = version_components[1]
-    #     candidate_ver_list.append('%s\.%s.*' % (major_version, minor_version))
-    candidate_ver_list.append('%s.*' % major_version)
-    candidate_ver_list.append('.*')
+    if len(version_components) > 2:  # Have something like major.minor.XXX
+        minor_version = version_components[1]
+        candidate_ver_list.append('%s\.%s\..*' % (major_version, minor_version))
+    if len(version_components) > 1:  # Have at least major.minor
+        candidate_ver_list.append('%s\..*' % major_version)
+    candidate_ver_list.append('.*')  # Include a major version search
 
+    highest_version = None
     for candidate_ver in candidate_ver_list:
         if not potential_version_matches:
             for toolchain in toolchain_hierarchy:
@@ -1075,7 +1062,11 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
                 depver = ''.join([x for x in ['^', prefix_to_version, candidate_ver, full_versionsuffix] if x])
                 cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False,
                                                 case_sensitive=True)
-                # Add them to the possibilities
+                # Filter out easyconfigs that have been tweaked in this instance (they sit in the tempdir in a subdir
+                # that starts with 'tweaked_*')
+                tweaked_ec_stub = os.path.join(tempfile.gettempdir(), 'tweaked_')
+                cand_paths = [path for path in cand_paths if not path.startswith(tweaked_ec_stub)]
+                # Add what is left to the possibilities
                 for path in cand_paths:
                     # Get the version from the path
                     filename = os.path.basename(path)
@@ -1084,9 +1075,15 @@ def find_potential_version_mappings(dep, toolchain_mapping, versonsuffix_mapping
                     res = regex.search(filename)
                     if res:
                         version = res.group(1)
+                        if highest_version is None or LooseVersion(version) > LooseVersion(highest_version):
+                            highest_version = version
                     else:
                         raise EasyBuildError("Failed to determine version from '%s' using regex pattern '%s'", filename,
                                              regex.pattern)
                     potential_version_matches.append({'version': version, 'path': path, 'toolchain': toolchain})
+
+    if highest_versions_only and highest_version is not None:
+        potential_version_matches = [d for d in potential_version_matches if d['version'] == highest_version]
+
     _log.debug("Found possible dependency upgrades: %s", potential_version_matches)
     return potential_version_matches
