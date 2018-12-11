@@ -148,8 +148,8 @@ EXTRACT_CMDS = {
     '.zip':     "unzip -qq %(filepath)s",
     # iso file
     '.iso':     "7z x %(filepath)s",
-    # tar.Z: using compress (LZW)
-    '.tar.z':   "tar xZf %(filepath)s",
+    # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
+    '.tar.z':   "tar xzf %(filepath)s",
 }
 
 
@@ -928,7 +928,7 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
@@ -1002,7 +1002,11 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     else:
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-    patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
+    if use_git_am:
+        patch_cmd = "git am patch %s" % apatch
+    else:
+        patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
+
     out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
 
     if ec:

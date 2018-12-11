@@ -27,6 +27,7 @@ EasyBuild support for gompi compiler toolchain (includes GCC and OpenMPI).
 
 :author: Kenneth Hoste (Ghent University)
 """
+from distutils.version import LooseVersion
 
 from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.openmpi import OpenMPI
@@ -36,3 +37,13 @@ class Gompi(GccToolchain, OpenMPI):
     """Compiler toolchain with GCC and OpenMPI."""
     NAME = 'gompi'
     SUBTOOLCHAIN = GccToolchain.NAME
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        # deprecate oldest gompi toolchains (versions 1.x)
+        if LooseVersion(self.version) < LooseVersion('2000'):
+            deprecated = True
+        else:
+            deprecated = False
+
+        return deprecated
