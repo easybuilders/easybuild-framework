@@ -400,9 +400,10 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_filepath = os.path.join(path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
+    _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
-    _log.debug("List of patched files: %s" % patched_files)
+    _log.debug("List of patched files for PR #%s: %s", pr, patched_files)
 
     for key, val in sorted(pr_data.items()):
         _log.debug("\n%s:\n\n%s\n", key, val)
@@ -431,7 +432,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     elif not pr_closed:
         try:
             _log.debug("Trying to apply PR patch %s to %s...", diff_filepath, repo_target_branch)
-            apply_patch(diff_filepath, repo_target_branch, level=1)
+            apply_patch(diff_filepath, repo_target_branch, use_git_am=True)
             _log.info("Using %s which included PR patch to test PR #%s", repo_target_branch, pr)
             final_path = repo_target_branch
 
