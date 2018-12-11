@@ -317,9 +317,9 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store', None, {'metavar': 'NAME'}),
             'toolchain-version': ("Search and build with given toolchain version",
                                   None, 'store', None, {'metavar': 'VERSION'}),
-            'update-deps': ("Try to updade versions of the dependencies of an easyconfig based on what is available "
-                             "in the robot path",
-                             None, 'store_true', False),
+            'update-deps': ("Try to update versions of the dependencies of an easyconfig based on what is available in "
+                            "the robot path",
+                            None, 'store_true', False),
         })
 
         longopts = opts.keys()
