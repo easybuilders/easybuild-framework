@@ -105,7 +105,13 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
 
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
         # supported
-        if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'update_deps'] for key in keys):
+        if not build_option('map_toolchains'):
+            msg = "Mapping of (sub)toolchains disabled, so falling back to regex mode, "
+            msg += "disabling recursion and not changing (sub)toolchains for dependencies"
+            _log.info(msg)
+            revert_to_regex = True
+            modifying_toolchains = False
+        elif any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'update_deps'] for key in keys):
             print_warning("Combining --try-toolchain* or --try-update-deps with other build options is not fully " +
                           "supported: using regex")
             revert_to_regex = True
@@ -127,26 +133,19 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             else:
                 target_toolchain['version'] = source_toolchain['version']
 
-            if build_option('map_toolchains'):
-                try:
-                    src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
-                except EasyBuildError as err:
-                    # make sure exception was raised by match_minimum_tc_specs because toolchain mapping didn't work
-                    if "No possible mapping from source toolchain" in err.msg:
-                        error_msg = err.msg + '\n'
-                        error_msg += "Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
-                        error_msg += "(If you know what you are doing, "
-                        error_msg += "you can use --disable-map-toolchains to proceed anyway.)"
-                        raise EasyBuildError(error_msg, target_toolchain['name'], source_toolchain['name'])
-                    else:
-                        # simply re-raise the exception if something else went wrong
-                        raise err
-            else:
-                msg = "Mapping of (sub)toolchains disabled, so falling back to regex mode, "
-                msg += "disabling recursion and not changing (sub)toolchains for dependencies"
-                _log.info(msg)
-                revert_to_regex = True
-                modifying_toolchains = False
+            try:
+                src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+            except EasyBuildError as err:
+                # make sure exception was raised by match_minimum_tc_specs because toolchain mapping didn't work
+                if "No possible mapping from source toolchain" in err.msg:
+                    error_msg = err.msg + '\n'
+                    error_msg += "Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
+                    error_msg += "(If you know what you are doing, "
+                    error_msg += "you can use --disable-map-toolchains to proceed anyway.)"
+                    raise EasyBuildError(error_msg, target_toolchain['name'], source_toolchain['name'])
+                else:
+                    # simply re-raise the exception if something else went wrong
+                    raise err
 
         if not revert_to_regex:
             _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
