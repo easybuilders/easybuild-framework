@@ -66,10 +66,7 @@ class Fft(Toolchain):
                                                      toggle_staticdynamic=self.FFT_LIB_STATIC)
 
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                # avoid including the multithreading libraries multiple times
-                libfft_mt_str = self.variables['LIBFFT_MT'].flatten()
-                if not all(l in libfft_mt_str for l in self.LIB_MULTITHREAD):
-                    self.variables.nappend('LIBFFT_MT', self.LIB_MULTITHREAD)
+                self.variables.nappend('LIBFFT_MT', self.LIB_MULTITHREAD)
 
         self.variables.join('FFT_STATIC_LIBS', 'LIBFFT')
         self.variables.join('FFT_STATIC_LIBS_MT', 'LIBFFT_MT')

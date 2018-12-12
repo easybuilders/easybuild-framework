@@ -81,7 +81,7 @@ class IntelFFTW(Fftw):
             fftw_libs.append("mkl_cdft_core")  # add cluster dft
             fftw_libs.extend(self.variables['LIBBLACS'].flatten())  # add BLACS; use flatten because ListOfList
 
-        fftw_mt_libs = fftw_libs + self.variables['LIBBLAS_MT'].flatten()
+        fftw_mt_libs = fftw_libs + [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT]
 
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
         fftw_libs.extend(self.variables['LIBBLAS'].flatten())  # add BLAS libs (contains dft)
