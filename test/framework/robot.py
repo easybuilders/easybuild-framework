@@ -1081,6 +1081,7 @@ class RobotTest(EnhancedTestCase):
             'name': 'SQLite',
             'version': '3.8.10.2',
             'toolchain': {'name': 'foss', 'version': '2018a'},
+            'hidden': False,
         }
         res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool)
         self.assertEqual(res, {'name': 'GCC', 'version': '6.4.0-2.28'})
@@ -1117,13 +1118,14 @@ class RobotTest(EnhancedTestCase):
         })
         bar = EasyConfig(barec)
 
-        expected_dep_versions = [
-            '2.1.2-GCC-6.4.0-2.28',
-            '0.2.20-GCC-6.4.0-2.28',
-            '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
-            '3.8.10.2-foss-2018a',
-        ]
-        for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
+        expected_dep_versions = {
+            'OpenMPI': '2.1.2-GCC-6.4.0-2.28',
+            'OpenBLAS': '0.2.20-gompi-2018a',  # due to existing OpenBLAS/0.2.20-gompi-2018a test module
+            'ScaLAPACK': '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
+            'SQLite': '3.8.10.2-foss-2018a',
+        }
+        for dep in bar.dependencies():
+            expected_dep_version = expected_dep_versions[dep['name']]
             self.assertEqual(det_full_ec_version(dep), expected_dep_version)
 
         # check with --minimal-toolchains enabled
@@ -1134,9 +1136,16 @@ class RobotTest(EnhancedTestCase):
         })
         bar = EasyConfig(barec)
 
+        expected_dep_versions = {
+            'OpenMPI': '2.1.2-GCC-6.4.0-2.28',
+            'OpenBLAS': '0.2.20-GCC-6.4.0-2.28',
+            'ScaLAPACK': '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
+            'SQLite': '3.8.10.2-GCC-6.4.0-2.28',
+        }
+
         # check that all bar dependencies have been processed as expected
-        expected_dep_versions[-1] = '3.8.10.2-GCC-6.4.0-2.28'
-        for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
+        for dep in bar.dependencies():
+            expected_dep_version = expected_dep_versions[dep['name']]
             self.assertEqual(det_full_ec_version(dep), expected_dep_version)
 
         # Add the gompi/2018a version of SQLite as an available module

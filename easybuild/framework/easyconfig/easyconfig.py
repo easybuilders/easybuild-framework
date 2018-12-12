@@ -1653,6 +1653,8 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
     :param parent_first: reverse order in which subtoolchains are considered: parent toolchain, then subtoolchains
     :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
+    minimal_toolchain = None
+
     if parent_tc is None:
         parent_tc = dep['toolchain']
 
@@ -1665,46 +1667,69 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
 
     newdep = copy.deepcopy(dep)
 
+    # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,
+    # unless parent toolchain should be considered first
     toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
     if parent_first:
         toolchain_hierarchy = toolchain_hierarchy[::-1]
 
-    possible_toolchains = []
-    # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
+    cand_subtcs = []
+
     for tc in toolchain_hierarchy:
 
         newdep['toolchain'] = tc
-        module_exists = False
 
-        # if necessary check if module exists
-        if use_existing_modules:
-            # try to determine module name using this particular subtoolchain;
-            # this may fail if no easyconfig is available in robot search path,
-            # and the module naming scheme requires an easyconfig file
-            full_mod_name = ActiveMNS().det_full_module_name(newdep, require_result=False)
-            if full_mod_name:
-                # fallback to checking with modtool.exist is required,
-                # for hidden modules and external modules where module name may be partial
-                module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name], skip_avail=True)[0]
+        # try to determine module name using this particular subtoolchain;
+        # this may fail if no easyconfig is available in robot search path,
+        # and the module naming scheme requires an easyconfig file
+        full_mod_name = ActiveMNS().det_full_module_name(newdep, require_result=False)
+        if full_mod_name:
+            # check whether module already exists or not;
+            # fallback to checking with modtool.exist is required,
+            # for hidden modules and external modules where module name may be partial
+            module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name], skip_avail=True)[0]
 
-        # add the toolchain to list of possibilities
-        possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
+            # add the toolchain to list of possibilities
+            cand_subtcs.append({'toolchain': tc, 'module_exists': module_exists})
 
-    if possible_toolchains:
-        _log.debug("List of possible minimal toolchains for %s: %s", dep, possible_toolchains)
+    _log.debug("List of possible subtoolchains for %s: %s", dep, cand_subtcs)
 
-        # select the toolchain to return, defaulting to the first element (lowest possible toolchain)
-        minimal_toolchain = possible_toolchains[0]['toolchain']
+    cand_subtcs_with_mod = [tc for tc in cand_subtcs if tc['module_exists']]
 
+    # parent_first implies that minimal toolchains mode is *not* used
+    if parent_first:
+        # if any module is already available with one of the subtoolchains,
+        # we retain the subtoolchain closest to the parent (so top of the list of candidates)
+        if cand_subtcs_with_mod:
+            minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
+        else:
+            # if no module is available for any of the candidate subtoolchains,
+            # we need to find a subtoolchain for which a matching easyconfig file is found for the dependency
+            for cand_subtc in cand_subtcs:
+                newdep['toolchain'] = cand_subtc['toolchain']
+                ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+                if ec_file:
+                    minimal_toolchain = cand_subtc['toolchain']
+                    break
+    else:
+        # with minimal toolchains enabled, we need to take a different approach
+        # first try and determine subtoolchain based on available easyconfig files
+        for cand_subtc in cand_subtcs:
+            newdep['toolchain'] = cand_subtc['toolchain']
+            ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+            if ec_file:
+                minimal_toolchain = cand_subtc['toolchain']
+                break
+
+        # with minimal toolchains enabled, we only consider existing modules when specified
         if use_existing_modules:
             # take the last element in the case of using existing modules (allows for potentially better optimisation)
-            filtered_possibilities = [tc for tc in possible_toolchains if tc['module_exists']]
-            if filtered_possibilities:
+            if cand_subtcs_with_mod:
                 # take the last element (the maximum toolchain where a module exists already)
-                minimal_toolchain = filtered_possibilities[-1]['toolchain']
-    else:
+                minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
+
+    if minimal_toolchain is None:
         _log.info("Irresolvable dependency found (even with minimal toolchains): %s", dep)
-        minimal_toolchain = None
 
     _log.info("Minimally resolving dependency %s using toolchain %s", dep, minimal_toolchain)
     return minimal_toolchain
