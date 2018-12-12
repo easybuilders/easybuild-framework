@@ -1672,18 +1672,23 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
     possible_toolchains = []
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
     for tc in toolchain_hierarchy:
+
         newdep['toolchain'] = tc
-        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
-        if eb_file is not None:
-            module_exists = False
-            # if necessary check if module exists
-            if use_existing_modules:
-                full_mod_name = ActiveMNS().det_full_module_name(newdep)
+        module_exists = False
+
+        # if necessary check if module exists
+        if use_existing_modules:
+            # try to determine module name using this particular subtoolchain;
+            # this may fail if no easyconfig is available in robot search path,
+            # and the module naming scheme requires an easyconfig file
+            full_mod_name = ActiveMNS().det_full_module_name(newdep, require_result=False)
+            if full_mod_name:
                 # fallback to checking with modtool.exist is required,
                 # for hidden modules and external modules where module name may be partial
                 module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name], skip_avail=True)[0]
-            # add the toolchain to list of possibilities
-            possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
+
+        # add the toolchain to list of possibilities
+        possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
 
     if possible_toolchains:
         _log.debug("List of possible minimal toolchains for %s: %s", dep, possible_toolchains)
@@ -1853,27 +1858,39 @@ class ActiveMNS(object):
         """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
         return self.mns.requires_toolchain_details() or not self.mns.is_sufficient(keys)
 
-    def check_ec_type(self, ec):
+    def check_ec_type(self, ec, raise_error=True):
         """
         Obtain a full parsed easyconfig file to pass to naming scheme methods if provided keys are insufficient.
+
+        :param ec: available easyconfig parameter specifications (EasyConfig instance or dict value)
+        :param raise_error: boolean indicating whether or not an error should be raised
+                            if a full easyconfig is required but not found
         """
         if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
+
             self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
+
             # fetch/parse easyconfig file if deemed necessary
             eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
+
             if eb_file is not None:
                 parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=ec['hidden'])
                 if len(parsed_ec) > 1:
                     self.log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                     self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                 ec = parsed_ec[0]['ec']
-            else:
+
+            elif raise_error:
                 raise EasyBuildError("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s",
                                      ec['name'], det_full_ec_version(ec), ec)
 
+            else:
+                self.log.info("No easyconfig found as required by module naming scheme, but not considered fatal")
+                ec = None
+
         return ec
 
-    def _det_module_name_with(self, mns_method, ec, force_visible=False):
+    def _det_module_name_with(self, mns_method, ec, force_visible=False, require_result=True):
         """
         Determine module name using specified module naming scheme method, based on supplied easyconfig.
         Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
@@ -1882,34 +1899,40 @@ class ActiveMNS(object):
             - string representing module name has length > 0
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
-        ec = self.check_ec_type(ec)
+        mod_name = None
+        ec = self.check_ec_type(ec, raise_error=require_result)
 
-        # replace software name with desired replacement (if specified)
-        orig_name = None
-        if ec.get('modaltsoftname', None):
-            orig_name = ec['name']
-            ec['name'] = ec['modaltsoftname']
-            self.log.info("Replaced software name '%s' with '%s' when determining module name", orig_name, ec['name'])
-        else:
-            self.log.debug("No alternative software name specified to determine module name with")
+        if ec:
+            # replace software name with desired replacement (if specified)
+            orig_name = None
+            if ec.get('modaltsoftname', None):
+                orig_name = ec['name']
+                ec['name'] = ec['modaltsoftname']
+                self.log.info("Replaced software name '%s' with '%s' when determining module name",
+                              orig_name, ec['name'])
+            else:
+                self.log.debug("No alternative software name specified to determine module name with")
 
-        mod_name = mns_method(ec)
+            mod_name = mns_method(ec)
 
-        # restore original software name if it was tampered with
-        if orig_name is not None:
-            ec['name'] = orig_name
+            # restore original software name if it was tampered with
+            if orig_name is not None:
+                ec['name'] = orig_name
 
-        if not is_valid_module_name(mod_name):
-            raise EasyBuildError("%s is not a valid module name", str(mod_name))
+            if not is_valid_module_name(mod_name):
+                raise EasyBuildError("%s is not a valid module name", str(mod_name))
 
-        # check whether module name should be hidden or not
-        # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
-        if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and not force_visible:
-            mod_name = det_hidden_modname(mod_name)
+            # check whether module name should be hidden or not
+            # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
+            if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and not force_visible:
+                mod_name = det_hidden_modname(mod_name)
+
+        elif require_result:
+            raise EasyBuildError("Failed to determine module name for %s using %s", ec, mns_method)
 
         return mod_name
 
-    def det_full_module_name(self, ec, force_visible=False):
+    def det_full_module_name(self, ec, force_visible=False, require_result=True):
         """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
         self.log.debug("Determining full module name for %s (force_visible: %s)" % (ec, force_visible))
         if ec.get('external_module', False):
@@ -1917,7 +1940,8 @@ class ActiveMNS(object):
             mod_name = ec['full_mod_name']
             self.log.debug("Full module name for external module: %s", mod_name)
         else:
-            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
+            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible,
+                                                  require_result=require_result)
             self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
