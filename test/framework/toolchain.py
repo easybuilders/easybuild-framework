@@ -861,8 +861,13 @@ class ToolchainTest(EnhancedTestCase):
         libblas_mt_intel3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
+        libblas_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libblas_intel4 += " -Wl,--end-group -Wl,-Bdynamic"
         libblas_mt_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
         libblas_mt_intel4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+
+        libfft_intel4 = libblas_intel4.replace('-lmkl_intel_lp64', '-lfftw3xc_intel -lmkl_intel_lp64')
+        libfft_mt_intel4 = libblas_mt_intel4.replace('-lmkl_intel_lp64', '-lfftw3xc_intel -lmkl_intel_lp64')
 
         # incl. -lmkl_solver*
         libscalack_intel3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
@@ -884,7 +889,10 @@ class ToolchainTest(EnhancedTestCase):
 
         tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_intel4)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
+        self.assertEqual(os.environ.get('LIBFFT', "(not set)"), libfft_intel4)
+        self.assertEqual(os.environ.get('LIBFFT_MT', "(not set)"), libfft_mt_intel4)
         self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
