@@ -983,7 +983,6 @@ def reasons_for_closing(pr_data):
     """
     Look for valid reasons to close PR by comparing with existing easyconfigs.
     """
-    print_msg("No reason or message specified, looking for possible reasons\n")
 
     if pr_data['status_last_commit']:
         print_msg("Status of last commit is %s\n" % pr_data['status_last_commit'].upper(), prefix=False)
@@ -1086,6 +1085,7 @@ def close_pr(pr, motivation_msg):
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if not motivation_msg:
+        print_msg("No reason or message specified, looking for possible reasons\n")
         possible_reasons = reasons_for_closing(pr_data)
 
         if not possible_reasons:
