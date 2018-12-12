@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyCo
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
-from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
+from easybuild.framework.easyconfig.easyconfig import robot_find_subtoolchain_for_dep
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
@@ -1017,8 +1017,8 @@ class RobotTest(EnhancedTestCase):
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         self.assertTrue(untweaked_hwloc in specs)
 
-    def test_robot_find_minimal_toolchain_of_dependency(self):
-        """Test robot_find_minimal_toolchain_of_dependency."""
+    def test_robot_find_subtoolchain_for_dep(self):
+        """Test robot_find_subtoolchain_for_dep."""
 
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
@@ -1039,7 +1039,7 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'foss', 'version': '2018a'},
         }
         get_toolchain_hierarchy.clear()
-        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15, self.modtool)
+        new_gzip15_toolchain = robot_find_subtoolchain_for_dep(gzip15, self.modtool)
         self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
         # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
@@ -1050,7 +1050,7 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'foss', 'version': '2018a'},
         }
         get_toolchain_hierarchy.clear()
-        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool), None)
+        self.assertEqual(robot_find_subtoolchain_for_dep(gzip14, self.modtool), None)
 
         gzip14['toolchain'] = {'name': 'gompi', 'version': '2018a'}
 
@@ -1065,14 +1065,14 @@ class RobotTest(EnhancedTestCase):
         # specify alternative parent toolchain
         gompi_1410 = {'name': 'gompi', 'version': '2018a'}
         get_toolchain_hierarchy.clear()
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool, parent_tc=gompi_1410)
+        new_gzip14_toolchain = robot_find_subtoolchain_for_dep(gzip14, self.modtool, parent_tc=gompi_1410)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
         # default: use toolchain from dependency
         gzip14['toolchain'] = gompi_1410
         get_toolchain_hierarchy.clear()
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool)
+        new_gzip14_toolchain = robot_find_subtoolchain_for_dep(gzip14, self.modtool)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
@@ -1083,9 +1083,9 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'foss', 'version': '2018a'},
             'hidden': False,
         }
-        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool)
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool)
         self.assertEqual(res, {'name': 'GCC', 'version': '6.4.0-2.28'})
-        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool, parent_first=True)
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool, parent_first=True)
         self.assertEqual(res, {'name': 'foss', 'version': '2018a'})
 
         #

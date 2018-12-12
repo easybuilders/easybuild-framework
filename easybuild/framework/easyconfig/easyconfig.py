@@ -1114,7 +1114,7 @@ class EasyConfig(object):
                         # determine 'smallest' subtoolchain for which a matching easyconfig file is available
                         self.log.debug("Looking for minimal toolchain for dependency %s (parent toolchain: %s)...",
                                        dep_str, dep['toolchain'])
-                        tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool)
+                        tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool)
                         if tc is None:
                             raise EasyBuildError("Failed to determine minimal toolchain for dep %s", dep_str)
                     else:
@@ -1122,7 +1122,7 @@ class EasyConfig(object):
                         # this may fail, since it requires that the easyconfigs for parent toolchain
                         # and subtoolchains are available
                         try:
-                            tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool, parent_first=True)
+                            tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool, parent_first=True)
                             self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
                         except EasyBuildError as err:
                             self.log.debug("Ignoring error while looking for subtoolchain for dep %s: %s", dep_str, err)
@@ -1644,9 +1644,9 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
     _log.info("Contents of %s verified against easyconfig filename, matches %s", path, specs)
 
 
-def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, parent_first=False):
+def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=False):
     """
-    Find the minimal toolchain of a dependency
+    Find the subtoolchain to use for a dependency
 
     :param dep: dependency target dict (long and short module names may not exist yet)
     :param parent_tc: toolchain from which to derive the toolchain hierarchy to search (default: use dep's toolchain)
