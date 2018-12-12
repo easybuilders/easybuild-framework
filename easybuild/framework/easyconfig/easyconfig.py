@@ -1656,9 +1656,12 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
     if parent_tc is None:
         parent_tc = dep['toolchain']
 
-    avail_modules = []
-    if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+    use_existing_modules = build_option('use_existing_modules') and not build_option('retain_all_deps')
+
+    if use_existing_modules:
         avail_modules = modtool.available()
+    else:
+        avail_modules = []
 
     newdep = copy.deepcopy(dep)
 
@@ -1674,7 +1677,7 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
         if eb_file is not None:
             module_exists = False
             # if necessary check if module exists
-            if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+            if use_existing_modules:
                 full_mod_name = ActiveMNS().det_full_module_name(newdep)
                 # fallback to checking with modtool.exist is required,
                 # for hidden modules and external modules where module name may be partial
@@ -1687,7 +1690,8 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
 
         # select the toolchain to return, defaulting to the first element (lowest possible toolchain)
         minimal_toolchain = possible_toolchains[0]['toolchain']
-        if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+
+        if use_existing_modules:
             # take the last element in the case of using existing modules (allows for potentially better optimisation)
             filtered_possibilities = [tc for tc in possible_toolchains if tc['module_exists']]
             if filtered_possibilities:
@@ -1872,13 +1876,6 @@ class ActiveMNS(object):
     def _det_module_name_with(self, mns_method, ec, force_visible=False):
         """
         Determine module name using specified module naming scheme method, based on supplied easyconfig.
-        Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
-        with the following requirements:
-            - module name is specified as a relative path
-            - string representing module name has length > 0
-            - module name only contains printable characters (string.printable, except carriage-control chars)
-        """
-        """
         Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
         with the following requirements:
             - module name is specified as a relative path
