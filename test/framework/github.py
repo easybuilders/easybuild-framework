@@ -150,6 +150,31 @@ class GithubTest(EnhancedTestCase):
         output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(expected, output)
 
+    def test_close_pr(self):
+        """Test close_pr function."""
+
+        build_options = {
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+            'pr_target_account': GITHUB_USER,
+            'pr_target_repo': GITHUB_REPO,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        gh.close_pr(2, 'just a test')
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "[DRY RUN] Adding comment to testrepository issue #2: '" +
+            "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
+            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:
