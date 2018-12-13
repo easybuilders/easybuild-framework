@@ -429,7 +429,7 @@ class RobotTest(EnhancedTestCase):
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
             "   ('OpenMPI', '2.1.2'),",  # available with GCC/6.4.0-2.28
-            "   ('OpenBLAS', '0.2.20'),",  # available with gompi/2018a
+            "   ('OpenBLAS', '0.2.20'),",  # available with GCC/6.4.0-2.28
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20'),",  # available with gompi/2018a
             "   ('SQLite', '3.8.10.2'),",
             "]",
@@ -1120,7 +1120,7 @@ class RobotTest(EnhancedTestCase):
 
         expected_dep_versions = {
             'OpenMPI': '2.1.2-GCC-6.4.0-2.28',
-            'OpenBLAS': '0.2.20-gompi-2018a',  # due to existing OpenBLAS/0.2.20-gompi-2018a test module
+            'OpenBLAS': '0.2.20-GCC-6.4.0-2.28',
             'ScaLAPACK': '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
             'SQLite': '3.8.10.2-foss-2018a',
         }
