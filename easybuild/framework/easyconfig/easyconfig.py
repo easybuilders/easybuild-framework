@@ -1121,11 +1121,8 @@ class EasyConfig(object):
                         # try finding subtoolchain for dep for which an easyconfig file is available
                         # this may fail, since it requires that the easyconfigs for parent toolchain
                         # and subtoolchains are available
-                        try:
-                            tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool, parent_first=True)
-                            self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
-                        except EasyBuildError as err:
-                            self.log.debug("Ignoring error while looking for subtoolchain for dep %s: %s", dep_str, err)
+                        tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool, parent_first=True)
+                        self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
 
                     if tc is None:
                         tc = dep['toolchain']
