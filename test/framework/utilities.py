@@ -418,10 +418,12 @@ def cleanup():
     tc_utils._initial_toolchain_instances.clear()
     easyconfig._easyconfigs_cache.clear()
     easyconfig._easyconfig_files_cache.clear()
+    easyconfig.get_toolchain_hierarchy.clear()
     mns_toolchain._toolchain_details_cache.clear()
 
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
+
 
 def init_config(args=None, build_options=None, with_include=True):
     """(re)initialize configuration"""
@@ -434,14 +436,21 @@ def init_config(args=None, build_options=None, with_include=True):
 
     # initialize build options
     if build_options is None:
-        build_options = {
-            'extended_dry_run': False,
-            'external_modules_metadata': ConfigObj(),
-            'valid_module_classes': module_classes(),
-            'valid_stops': [x[0] for x in EasyBlock.get_steps()],
-        }
-    if 'suffix_modules_path' not in build_options:
-        build_options.update({'suffix_modules_path': GENERAL_CLASS})
+        build_options = {}
+
+    test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+    default_build_options = {
+        'extended_dry_run': False,
+        'external_modules_metadata': ConfigObj(),
+        'robot_path': [test_ecs_dir],
+        'suffix_modules_path': GENERAL_CLASS,
+        'valid_module_classes': module_classes(),
+        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
+    }
+    for key in default_build_options:
+        if key not in build_options:
+            build_options[key] = default_build_options[key]
+
     config.init_build_options(build_options=build_options)
 
     return eb_go.options

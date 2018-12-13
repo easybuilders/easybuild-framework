@@ -17,8 +17,8 @@ if { ![is-loaded gompi/2018a] } {
     module load gompi/2018a
 }
 
-if { ![is-loaded OpenBLAS/0.2.20-gompi-2018a] } {
-    module load OpenBLAS/0.2.20-gompi-2018a
+if { ![is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28] } {
+    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28
 }
 
 prepend-path	CPATH		$root/include

@@ -76,7 +76,7 @@ from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
-from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING
+from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -598,6 +598,10 @@ class EasyBuildOptions(GeneralOption):
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
+            'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
+            'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "
+                                 "supported values: %s" % ", ".join(VALID_CLOSE_PR_REASONS), str, 'store', None),
             'list-prs': ("List pull requests", str, 'store_or_None',
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
@@ -815,6 +819,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
+        # make sure --close-pr-reasons has a valid format and if so use it to set close-pr-msg
+        if self.options.close_pr_reasons:
+            self._postprocess_close_pr_reasons()
+
         # make sure --list-prs has a valid format
         if self.options.list_prs:
             self._postprocess_list_prs()
@@ -851,6 +859,18 @@ class EasyBuildOptions(GeneralOption):
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
                 self.log.info("Keeping optarch raw: %s", self.options.optarch)
+
+    def _postprocess_close_pr_reasons(self):
+        """Postprocess --close-pr-reasons options"""
+        if self.options.close_pr_msg:
+            raise EasyBuildError("Please either specify predefined reasons with --close-pr-reasons or " +
+                                 "a custom message with--close-pr-msg")
+
+        reasons = self.options.close_pr_reasons.split(',')
+        if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
+            raise EasyBuildError("Argument to --close-pr_reasons must be a comma separated list of valid reasons " +
+                                 "among %s" % VALID_CLOSE_PR_REASONS.keys())
+        self.options.close_pr_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in reasons])
 
     def _postprocess_list_prs(self):
         """Postprocess --list-prs options"""

@@ -74,5 +74,3 @@ class ToolchainVariables(Variables):
             lib.BEGIN.IS_BEGIN = True
             lib.END = make_lfl(False)
             lib.END.IS_END = True
-
-

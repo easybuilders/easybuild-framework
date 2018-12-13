@@ -21,8 +21,8 @@ if { ![is-loaded OpenMPI/2.1.2-GCC-6.4.0-2.28] } {
     module load OpenMPI/2.1.2-GCC-6.4.0-2.28
 }
 
-if { ![is-loaded OpenBLAS/0.2.20-gompi-2018a] } {
-    module load OpenBLAS/0.2.20-gompi-2018a
+if { ![is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28] } {
+    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28
 }
 
 # load statement for FFTW purposely omitted, which doesn't match the toolchain definition

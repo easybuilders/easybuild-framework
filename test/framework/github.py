@@ -28,14 +28,11 @@ Unit tests for talking to GitHub.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import glob
 import os
 import random
 import re
-import shutil
 import string
 import sys
-import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from urllib2 import URLError
@@ -74,7 +71,8 @@ class GithubTest(EnhancedTestCase):
         if self.github_token is None:
             self.ghfs = None
         else:
-            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT, None, self.github_token)
+            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT,
+                                    None, self.github_token)
 
     def test_walk(self):
         """test the gitubfs walk function"""
@@ -114,6 +112,28 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_fetch_pr_data(self):
+        """Test fetch_pr_data function."""
+        if self.github_token is None:
+            print "Skipping test_fetch_pr_data, no GitHub token available?"
+            return
+
+        pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
+
+        self.assertEquals(pr_data['number'], 1)
+        self.assertEquals(pr_data['title'], "a pr")
+        self.assertFalse(any(key in pr_data for key in ['issue_comments', 'review', 'status_last_commit']))
+
+        pr_data, pr_url = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
+        self.assertEquals(pr_data['number'], 2)
+        self.assertEquals(pr_data['title'], "an open pr (do not close this please)")
+        self.assertTrue(pr_data['issue_comments'])
+        self.assertEquals(pr_data['issue_comments'][0]['body'], "this is a test")
+        self.assertTrue(pr_data['reviews'])
+        self.assertEquals(pr_data['reviews'][0]['state'], "APPROVED")
+        self.assertEquals(pr_data['reviews'][0]['user']['login'], 'boegel')
+        self.assertEqual(pr_data['status_last_commit'], 'pending')
+
     def test_list_prs(self):
         """Test list_prs function."""
         if self.github_token is None:
@@ -129,6 +149,74 @@ class GithubTest(EnhancedTestCase):
 
         output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(expected, output)
+
+    def test_reasons_for_closing(self):
+        """Test reasons_for_closing function."""
+        if self.github_token is None:
+            print "Skipping test_reasons_for_closing, no GitHub token available?"
+            return
+
+        repo_owner = gh.GITHUB_EB_MAIN
+        repo_name = gh.GITHUB_EASYCONFIGS_REPO
+
+        build_options = {
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+            'pr_target_account': repo_owner,
+            'pr_target_repo': repo_name,
+            'robot_path': [],
+        }
+        init_config(build_options=build_options)
+
+        pr_data, _ = gh.fetch_pr_data(1844, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        # can't easily check return value, since auto-detected reasons may change over time if PR is touched
+        res = gh.reasons_for_closing(pr_data)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertTrue(isinstance(res, list))
+        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
+        patterns = [
+            "Status of last commit is SUCCESS",
+            "Last comment on",
+            "No activity since",
+            "* QEMU-2.4.0",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_close_pr(self):
+        """Test close_pr function."""
+        if self.github_token is None:
+            print "Skipping test_close_pr, no GitHub token available?"
+            return
+
+        build_options = {
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+            'pr_target_account': GITHUB_USER,
+            'pr_target_repo': GITHUB_REPO,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        gh.close_pr(2, 'just a test')
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "[DRY RUN] Adding comment to testrepository issue #2: '" +
+            "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
+            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
 
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
@@ -183,14 +271,6 @@ class GithubTest(EnhancedTestCase):
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError, err:
                 print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
-
-        try:
-            # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
-            err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
-            self.assertErrorRegex(EasyBuildError, err_msg, gh.fetch_easyconfigs_from_pr, 897,
-                                  github_user=GITHUB_TEST_ACCOUNT)
-        except URLError, err:
-            print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
@@ -466,6 +546,7 @@ class GithubTest(EnhancedTestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

@@ -1114,26 +1114,23 @@ class EasyConfig(object):
                         # determine 'smallest' subtoolchain for which a matching easyconfig file is available
                         self.log.debug("Looking for minimal toolchain for dependency %s (parent toolchain: %s)...",
                                        dep_str, dep['toolchain'])
-                        tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool)
+                        tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool)
                         if tc is None:
                             raise EasyBuildError("Failed to determine minimal toolchain for dep %s", dep_str)
                     else:
                         # try finding subtoolchain for dep for which an easyconfig file is available
                         # this may fail, since it requires that the easyconfigs for parent toolchain
                         # and subtoolchains are available
-                        try:
-                            tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool, parent_first=True)
-                            self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
-                        except EasyBuildError as err:
-                            self.log.debug("Ignoring error while looking for subtoolchain for dep %s: %s", dep_str, err)
+                        tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool, parent_first=True)
+                        self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
 
                     if tc is None:
-                        tc = dep['toolchain']
-                        self.log.debug("Inheriting toolchain %s from parent for dep %s", tc, dep_str)
-
-                    # put derived toolchain in place, or complain if none could be found
-                    self.log.debug("Figured out toolchain to use for dep %s: %s", dep_str, tc)
-                    dep['toolchain'] = orig_dep['toolchain'] = tc
+                        self.log.debug("Inheriting toolchain %s from parent for dep %s", dep['toolchain'], dep_str)
+                    else:
+                        # put derived toolchain in place
+                        self.log.debug("Figured out toolchain to use for dep %s: %s", dep_str, tc)
+                        dep['toolchain'] = orig_dep['toolchain'] = tc
+                        dep['toolchain_inherited'] = orig_dep['toolchain_inherited'] = False
 
                 if not dep['external_module']:
                     # make sure 'dummy' is set correctly
@@ -1644,58 +1641,90 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
     _log.info("Contents of %s verified against easyconfig filename, matches %s", path, specs)
 
 
-def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, parent_first=False):
+def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=False):
     """
-    Find the minimal toolchain of a dependency
+    Find the subtoolchain to use for a dependency
 
     :param dep: dependency target dict (long and short module names may not exist yet)
     :param parent_tc: toolchain from which to derive the toolchain hierarchy to search (default: use dep's toolchain)
     :param parent_first: reverse order in which subtoolchains are considered: parent toolchain, then subtoolchains
     :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
+    minimal_toolchain = None
+
     if parent_tc is None:
         parent_tc = dep['toolchain']
 
-    avail_modules = []
-    if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+    retain_all_deps = build_option('retain_all_deps')
+    use_existing_modules = build_option('use_existing_modules') and not retain_all_deps
+
+    if parent_first or use_existing_modules:
         avail_modules = modtool.available()
+    else:
+        avail_modules = []
 
     newdep = copy.deepcopy(dep)
 
+    # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,
+    # unless parent toolchain should be considered first
     toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
     if parent_first:
         toolchain_hierarchy = toolchain_hierarchy[::-1]
 
-    possible_toolchains = []
-    # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
+    cand_subtcs = []
+
     for tc in toolchain_hierarchy:
+        # try to determine module name using this particular subtoolchain;
+        # this may fail if no easyconfig is available in robot search path
+        # and the module naming scheme requires an easyconfig file
         newdep['toolchain'] = tc
-        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
-        if eb_file is not None:
-            module_exists = False
-            # if necessary check if module exists
-            if build_option('use_existing_modules') and not build_option('retain_all_deps'):
-                full_mod_name = ActiveMNS().det_full_module_name(newdep)
+        mod_name = ActiveMNS().det_full_module_name(newdep, require_result=False)
+
+        # if the module name can be determined, subtoolchain is an actual candidate
+        if mod_name:
+            # check whether module already exists or not (but only if that info will actually be used)
+            mod_exists = None
+            if parent_first or use_existing_modules:
                 # fallback to checking with modtool.exist is required,
                 # for hidden modules and external modules where module name may be partial
-                module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name], skip_avail=True)[0]
-            # add the toolchain to list of possibilities
-            possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
+                mod_exists = mod_name in avail_modules or modtool.exist([mod_name], skip_avail=True)[0]
 
-    if possible_toolchains:
-        _log.debug("List of possible minimal toolchains for %s: %s", dep, possible_toolchains)
+            # add the subtoolchain to list of candidates
+            cand_subtcs.append({'toolchain': tc, 'mod_exists': mod_exists})
 
-        # select the toolchain to return, defaulting to the first element (lowest possible toolchain)
-        minimal_toolchain = possible_toolchains[0]['toolchain']
-        if build_option('use_existing_modules') and not build_option('retain_all_deps'):
-            # take the last element in the case of using existing modules (allows for potentially better optimisation)
-            filtered_possibilities = [tc for tc in possible_toolchains if tc['module_exists']]
-            if filtered_possibilities:
-                # take the last element (the maximum toolchain where a module exists already)
-                minimal_toolchain = filtered_possibilities[-1]['toolchain']
-    else:
+    _log.debug("List of possible subtoolchains for %s: %s", dep, cand_subtcs)
+
+    cand_subtcs_with_mod = [tc for tc in cand_subtcs if tc.get('mod_exists', False)]
+
+    # scenario I:
+    # - parent toolchain first (minimal toolchains mode *not* enabled)
+    # - module for dependency is already available for one of the subtoolchains
+    # If so, we retain the subtoolchain closest to the parent (so top of the list of candidates)
+    if parent_first and cand_subtcs_with_mod and not retain_all_deps:
+        minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
+
+    # scenario II:
+    # - regardless of whether minimal toolchains mode is enabled or not
+    # - try to pick subtoolchain based on available easyconfigs (first hit wins)
+    if minimal_toolchain is None:
+        for cand_subtc in cand_subtcs:
+            newdep['toolchain'] = cand_subtc['toolchain']
+            ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+            if ec_file:
+                minimal_toolchain = cand_subtc['toolchain']
+                break
+
+    # scenario III:
+    # - minimal toolchains mode + --use-existing-modules
+    # - reconsider subtoolchain based on already available modules for dependency
+    # - this may overrule subtoolchain picked in scenario II
+    if not parent_first and use_existing_modules and cand_subtcs_with_mod:
+        # take the last element, i.e. the maximum toolchain where a module exists already
+        # (allows for potentially better optimisation)
+        minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
+
+    if minimal_toolchain is None:
         _log.info("Irresolvable dependency found (even with minimal toolchains): %s", dep)
-        minimal_toolchain = None
 
     _log.info("Minimally resolving dependency %s using toolchain %s", dep, minimal_toolchain)
     return minimal_toolchain
@@ -1849,27 +1878,38 @@ class ActiveMNS(object):
         """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
         return self.mns.requires_toolchain_details() or not self.mns.is_sufficient(keys)
 
-    def check_ec_type(self, ec):
+    def check_ec_type(self, ec, raise_error=True):
         """
         Obtain a full parsed easyconfig file to pass to naming scheme methods if provided keys are insufficient.
+
+        :param ec: available easyconfig parameter specifications (EasyConfig instance or dict value)
+        :param raise_error: boolean indicating whether or not an error should be raised
+                            if a full easyconfig is required but not found
         """
         if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
+
             self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
+
             # fetch/parse easyconfig file if deemed necessary
             eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
+
             if eb_file is not None:
                 parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=ec['hidden'])
                 if len(parsed_ec) > 1:
                     self.log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                     self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                 ec = parsed_ec[0]['ec']
-            else:
+
+            elif raise_error:
                 raise EasyBuildError("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s",
                                      ec['name'], det_full_ec_version(ec), ec)
+            else:
+                self.log.info("No easyconfig found as required by module naming scheme, but not considered fatal")
+                ec = None
 
         return ec
 
-    def _det_module_name_with(self, mns_method, ec, force_visible=False):
+    def _det_module_name_with(self, mns_method, ec, force_visible=False, require_result=True):
         """
         Determine module name using specified module naming scheme method, based on supplied easyconfig.
         Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
@@ -1878,41 +1918,40 @@ class ActiveMNS(object):
             - string representing module name has length > 0
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
-        """
-        Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
-        with the following requirements:
-            - module name is specified as a relative path
-            - string representing module name has length > 0
-            - module name only contains printable characters (string.printable, except carriage-control chars)
-        """
-        ec = self.check_ec_type(ec)
+        mod_name = None
+        ec = self.check_ec_type(ec, raise_error=require_result)
 
-        # replace software name with desired replacement (if specified)
-        orig_name = None
-        if ec.get('modaltsoftname', None):
-            orig_name = ec['name']
-            ec['name'] = ec['modaltsoftname']
-            self.log.info("Replaced software name '%s' with '%s' when determining module name", orig_name, ec['name'])
-        else:
-            self.log.debug("No alternative software name specified to determine module name with")
+        if ec:
+            # replace software name with desired replacement (if specified)
+            orig_name = None
+            if ec.get('modaltsoftname', None):
+                orig_name = ec['name']
+                ec['name'] = ec['modaltsoftname']
+                self.log.info("Replaced software name '%s' with '%s' when determining module name",
+                              orig_name, ec['name'])
+            else:
+                self.log.debug("No alternative software name specified to determine module name with")
 
-        mod_name = mns_method(ec)
+            mod_name = mns_method(ec)
 
-        # restore original software name if it was tampered with
-        if orig_name is not None:
-            ec['name'] = orig_name
+            # restore original software name if it was tampered with
+            if orig_name is not None:
+                ec['name'] = orig_name
 
-        if not is_valid_module_name(mod_name):
-            raise EasyBuildError("%s is not a valid module name", str(mod_name))
+            if not is_valid_module_name(mod_name):
+                raise EasyBuildError("%s is not a valid module name", str(mod_name))
 
-        # check whether module name should be hidden or not
-        # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
-        if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and not force_visible:
-            mod_name = det_hidden_modname(mod_name)
+            # check whether module name should be hidden or not
+            # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
+            if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and not force_visible:
+                mod_name = det_hidden_modname(mod_name)
+
+        elif require_result:
+            raise EasyBuildError("Failed to determine module name for %s using %s", ec, mns_method)
 
         return mod_name
 
-    def det_full_module_name(self, ec, force_visible=False):
+    def det_full_module_name(self, ec, force_visible=False, require_result=True):
         """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
         self.log.debug("Determining full module name for %s (force_visible: %s)" % (ec, force_visible))
         if ec.get('external_module', False):
@@ -1920,7 +1959,8 @@ class ActiveMNS(object):
             mod_name = ec['full_mod_name']
             self.log.debug("Full module name for external module: %s", mod_name)
         else:
-            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
+            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible,
+                                                  require_result=require_result)
             self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
