@@ -413,7 +413,7 @@ class Toolchain(object):
                 missing_dep_mods.append(dep_mod_name)
 
         if missing_dep_mods:
-            raise EasyBuildError("Missing modules for one or more dependencies: %s", ', '.join(missing_dep_mods))
+            raise EasyBuildError("Missing modules for dependencies (use --robot?): %s", ', '.join(missing_dep_mods))
 
         return deps
 

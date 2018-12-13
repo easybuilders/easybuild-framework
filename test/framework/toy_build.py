@@ -1229,7 +1229,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
-        err_msg = "Missing modules for one or more dependencies marked as external modules:"
+        err_msg = "Missing modules for dependencies marked as external modules:"
 
         extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
         extraectxt += "\nversionsuffix = '-external-deps-broken1'"

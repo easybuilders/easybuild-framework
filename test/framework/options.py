@@ -1838,18 +1838,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_file,
             '--robot-paths=%s' % test_ecs_path,
         ]
-        error_regex = "Missing modules for one or more dependencies: .*"
+        error_regex = "Missing modules for dependencies .*: toy/\.0.0-deps"
         self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
         # enable robot, but without passing path required to resolve toy dependency => FAIL
+        # note that --dry-run is now robust against missing easyconfig, so shouldn't use it here
         args = [
             eb_file,
             '--robot',
-            '--dry-run',
         ]
         self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
 
         # add path to test easyconfigs to robot paths, so dependencies can be resolved
+        args.append('--dry-run')
         self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory

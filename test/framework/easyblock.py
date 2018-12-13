@@ -1095,7 +1095,7 @@ class EasyBlockTest(EnhancedTestCase):
         try:
             eb.check_readiness_step()
         except EasyBuildError, err:
-            err_regex = re.compile("Missing modules for one or more dependencies: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
+            err_regex = re.compile("Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)

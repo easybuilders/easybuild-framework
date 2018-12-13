@@ -330,8 +330,8 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
         missing_external_modules = [d['full_mod_name'] for ec in easyconfigs for d in ec['dependencies']
                                     if d.get('external_module', False)]
         if missing_external_modules:
-            raise EasyBuildError("Missing modules for one or more dependencies marked as external modules: %s",
-                                 missing_external_modules)
+            raise EasyBuildError("Missing modules for dependencies marked as external modules: %s",
+                                 ', '.join(missing_external_modules))
 
         # robot: look for existing dependencies, add them
         if robot and easyconfigs:
