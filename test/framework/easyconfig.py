@@ -1445,8 +1445,9 @@ class EasyConfigTest(EnhancedTestCase):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
-            'valid_module_classes': module_classes(),
             'check_osdeps': False,
+            'robot_path': [test_ecs_dir],
+            'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
         ecfiles = [
