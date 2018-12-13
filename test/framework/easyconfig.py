@@ -512,15 +512,15 @@ class EasyConfigTest(EnhancedTestCase):
         """test obtaining an easyconfig file given certain specifications"""
 
         tcname = 'GCC'
-        tcver = '4.3.2'
+        tcver = '4.6.3'
         patches = ["one.patch"]
 
         # prepare a couple of eb files to test again
         fns = ["pi-3.14.eb",
-               "pi-3.13-GCC-4.3.2.eb",
-               "pi-3.15-GCC-4.3.2.eb",
-               "pi-3.15-GCC-4.4.5.eb",
-               "foo-1.2.3-GCC-4.3.2.eb"]
+               "pi-3.13-GCC-4.6.3.eb",
+               "pi-3.15-GCC-4.6.3.eb",
+               "pi-3.15-GCC-4.8.3.eb",
+               "foo-1.2.3-GCC-4.6.3.eb"]
         eb_files = [(fns[0], "\n".join([
                         'easyblock = "ConfigureMake"',
                         'name = "pi"',
@@ -554,7 +554,7 @@ class EasyConfigTest(EnhancedTestCase):
                         'version = "3.15"',
                         'homepage = "http://example.com"',
                         'description = "test easyconfig"',
-                        'toolchain = {"name": "%s", "version": "4.5.1"}' % tcname,
+                        'toolchain = {"name": "%s", "version": "4.9.2"}' % tcname,
                         'patches = %s' % patches
                     ])),
                     (fns[4], "\n".join([
@@ -566,27 +566,24 @@ class EasyConfigTest(EnhancedTestCase):
                         'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
                         'foo_extra1 = "bar"',
                     ]))
-                   ]
-
-
-        self.ec_dir = tempfile.mkdtemp()
+        ]
 
         for (fn, txt) in eb_files:
-            write_file(os.path.join(self.ec_dir, fn), txt)
+            write_file(os.path.join(self.test_prefix, fn), txt)
 
         # should crash when no suited easyconfig file (or template) is available
         specs = {'name': 'nosuchsoftware'}
         error_regexp = ".*No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % specs['name']
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.test_prefix], None)
 
         # should find matching easyconfig file
         specs = {
             'name': 'foo',
             'version': '1.2.3'
         }
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], False)
-        self.assertEqual(res[1], os.path.join(self.ec_dir, fns[-1]))
+        self.assertEqual(res[1], os.path.join(self.test_prefix, fns[-1]))
         remove_file(res[1])
 
         # should not pick between multiple available toolchain names
@@ -599,7 +596,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': suff
         })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.test_prefix], None)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
@@ -609,7 +606,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version': ver,
             'start_dir': 'bar123'
         })
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
@@ -625,13 +622,13 @@ class EasyConfigTest(EnhancedTestCase):
             'foo': 'bar123'
         })
         self.assertErrorRegex(EasyBuildError, "Unkown easyconfig parameter: foo",
-                              obtain_ec_for, specs, [self.ec_dir], None)
+                              obtain_ec_for, specs, [self.test_prefix], None)
         del specs['foo']
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['version'], specs['version'])
@@ -639,12 +636,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(re.search("^version = [\"']%s[\"']$" % ver, txt, re.M))
         remove_file(res[1])
 
-        # should pick correct toolchain version as well, i.e. now newer than what's specified, if a choice needs to be made
+        # should pick correct toolchain version as well, i.e. now newer than what's specified,
+        # if a choice needs to be made
         specs.update({
             'version': '3.15',
-            'toolchain_version': '4.4.5',
+            'toolchain_version': '4.8.3',
         })
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['version'], specs['version'])
@@ -658,9 +656,9 @@ class EasyConfigTest(EnhancedTestCase):
         new_patches = ['two.patch', 'three.patch']
         specs.update({
             'patches': new_patches[:],
-            'builddependencies': [('testbuildonly', '4.5.6')],
+            'builddependencies': [('testbuildonly', '4.9.3-2.25')],
             'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '2018a'))],
-            'hiddendependencies': [('test', '3.2.1'), ('testbuildonly', '4.5.6')],
+            'hiddendependencies': [('test', '3.2.1'), ('testbuildonly', '4.9.3-2.25')],
         })
         parsed_deps = [
             {
@@ -670,8 +668,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
                 'dummy': False,
-                'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
-                'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'short_mod_name': 'foo/1.2.3-GCC-4.8.3',
+                'full_mod_name': 'foo/1.2.3-GCC-4.8.3',
                 'build_only': False,
                 'hidden': False,
                 'external_module': False,
@@ -698,8 +696,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
                 'dummy': False,
-                'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
-                'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
+                'short_mod_name': 'test/.3.2.1-GCC-4.8.3',
+                'full_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'build_only': False,
                 'hidden': True,
                 'external_module': False,
@@ -707,13 +705,13 @@ class EasyConfigTest(EnhancedTestCase):
             },
             {
                 'name': 'testbuildonly',
-                'version': '4.5.6',
+                'version': '4.9.3-2.25',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
                 'dummy': False,
-                'short_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
-                'full_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
+                'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
+                'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
                 'build_only': True,
                 'hidden': True,
                 'external_module': False,
@@ -722,7 +720,7 @@ class EasyConfigTest(EnhancedTestCase):
         ]
 
         # hidden dependencies must be included in list of dependencies
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         error_pattern = "Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
@@ -730,31 +728,31 @@ class EasyConfigTest(EnhancedTestCase):
 
         specs['dependencies'].append(('test', '3.2.1'))
 
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec.dependencies(), parsed_deps)
 
         # hidden dependencies are filtered from list of (build)dependencies
-        self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
-        self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
-        self.assertFalse('testbuildonly/4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['builddependencies']])
-        self.assertTrue('testbuildonly/.4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # hidden dependencies are also filtered from list of dependencies when validation is skipped
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         ec = EasyConfig(res[1], validate=False)
-        self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
-        self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
-        self.assertFalse('testbuildonly/4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['builddependencies']])
-        self.assertTrue('testbuildonly/.4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # verify append functionality for lists
         specs['patches'].insert(0, '')
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], patches + new_patches)
@@ -763,7 +761,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # verify prepend functionality for lists
         specs['patches'].append('')
-        res = obtain_ec_for(specs, [self.ec_dir], None)
+        res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], new_patches + patches)
@@ -771,7 +769,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # should use supplied filename
         fn = "my.eb"
-        res = obtain_ec_for(specs, [self.ec_dir], fn)
+        res = obtain_ec_for(specs, [self.test_prefix], fn)
         self.assertEqual(res[0], True)
         self.assertEqual(res[1], fn)
         os.remove(res[1])
@@ -794,16 +792,13 @@ class EasyConfigTest(EnhancedTestCase):
         # only run this test if the TEMPLATE.eb file is available
         # TODO: use unittest.skip for this (but only works from Python 2.7)
         if tpl_full_path:
-            shutil.copy2(tpl_full_path, self.ec_dir)
+            shutil.copy2(tpl_full_path, self.test_prefix)
             specs.update({'name': 'nosuchsoftware'})
-            res = obtain_ec_for(specs, [self.ec_dir], None)
+            res = obtain_ec_for(specs, [self.test_prefix], None)
             self.assertEqual(res[0], True)
             ec = EasyConfig(res[1])
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
-
-        # cleanup
-        shutil.rmtree(self.ec_dir)
 
     def test_templating(self):
         """ test easyconfig templating """
