@@ -394,8 +394,8 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
             missing_deps = [dep for x in easyconfigs for dep in x['dependencies']]
-            raise_error_missing_deps(missing_deps, extra_msg="enabled dependency resolution via --robot?")
-            break
+            if missing_deps:
+                raise_error_missing_deps(missing_deps, extra_msg="enable dependency resolution via --robot?")
 
     if missing_easyconfigs:
         if raise_error_missing_ecs:
