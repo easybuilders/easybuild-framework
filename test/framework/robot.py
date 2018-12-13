@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyCo
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
-from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
+from easybuild.framework.easyconfig.easyconfig import robot_find_subtoolchain_for_dep
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
@@ -224,7 +224,7 @@ class RobotTest(EnhancedTestCase):
 
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
-        msg = "Irresolvable dependencies encountered"
+        msg = "Missing dependencies"
         self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, self.modtool)
 
         # test if dependencies of an automatically found file are also loaded
@@ -429,7 +429,7 @@ class RobotTest(EnhancedTestCase):
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
             "   ('OpenMPI', '2.1.2'),",  # available with GCC/6.4.0-2.28
-            "   ('OpenBLAS', '0.2.20'),",  # available with gompi/2018a
+            "   ('OpenBLAS', '0.2.20'),",  # available with GCC/6.4.0-2.28
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20'),",  # available with gompi/2018a
             "   ('SQLite', '3.8.10.2'),",
             "]",
@@ -1017,8 +1017,8 @@ class RobotTest(EnhancedTestCase):
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         self.assertTrue(untweaked_hwloc in specs)
 
-    def test_robot_find_minimal_toolchain_of_dependency(self):
-        """Test robot_find_minimal_toolchain_of_dependency."""
+    def test_robot_find_subtoolchain_for_dep(self):
+        """Test robot_find_subtoolchain_for_dep."""
 
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
@@ -1039,7 +1039,7 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'foss', 'version': '2018a'},
         }
         get_toolchain_hierarchy.clear()
-        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15, self.modtool)
+        new_gzip15_toolchain = robot_find_subtoolchain_for_dep(gzip15, self.modtool)
         self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
         # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
@@ -1050,7 +1050,7 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'foss', 'version': '2018a'},
         }
         get_toolchain_hierarchy.clear()
-        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool), None)
+        self.assertEqual(robot_find_subtoolchain_for_dep(gzip14, self.modtool), None)
 
         gzip14['toolchain'] = {'name': 'gompi', 'version': '2018a'}
 
@@ -1065,14 +1065,14 @@ class RobotTest(EnhancedTestCase):
         # specify alternative parent toolchain
         gompi_1410 = {'name': 'gompi', 'version': '2018a'}
         get_toolchain_hierarchy.clear()
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool, parent_tc=gompi_1410)
+        new_gzip14_toolchain = robot_find_subtoolchain_for_dep(gzip14, self.modtool, parent_tc=gompi_1410)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
         # default: use toolchain from dependency
         gzip14['toolchain'] = gompi_1410
         get_toolchain_hierarchy.clear()
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool)
+        new_gzip14_toolchain = robot_find_subtoolchain_for_dep(gzip14, self.modtool)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
@@ -1081,10 +1081,11 @@ class RobotTest(EnhancedTestCase):
             'name': 'SQLite',
             'version': '3.8.10.2',
             'toolchain': {'name': 'foss', 'version': '2018a'},
+            'hidden': False,
         }
-        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool)
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool)
         self.assertEqual(res, {'name': 'GCC', 'version': '6.4.0-2.28'})
-        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool, parent_first=True)
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool, parent_first=True)
         self.assertEqual(res, {'name': 'foss', 'version': '2018a'})
 
         #
@@ -1117,13 +1118,14 @@ class RobotTest(EnhancedTestCase):
         })
         bar = EasyConfig(barec)
 
-        expected_dep_versions = [
-            '2.1.2-GCC-6.4.0-2.28',
-            '0.2.20-GCC-6.4.0-2.28',
-            '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
-            '3.8.10.2-foss-2018a',
-        ]
-        for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
+        expected_dep_versions = {
+            'OpenMPI': '2.1.2-GCC-6.4.0-2.28',
+            'OpenBLAS': '0.2.20-GCC-6.4.0-2.28',
+            'ScaLAPACK': '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
+            'SQLite': '3.8.10.2-foss-2018a',
+        }
+        for dep in bar.dependencies():
+            expected_dep_version = expected_dep_versions[dep['name']]
             self.assertEqual(det_full_ec_version(dep), expected_dep_version)
 
         # check with --minimal-toolchains enabled
@@ -1134,9 +1136,16 @@ class RobotTest(EnhancedTestCase):
         })
         bar = EasyConfig(barec)
 
+        expected_dep_versions = {
+            'OpenMPI': '2.1.2-GCC-6.4.0-2.28',
+            'OpenBLAS': '0.2.20-GCC-6.4.0-2.28',
+            'ScaLAPACK': '2.0.2-gompi-2018a-OpenBLAS-0.2.20',
+            'SQLite': '3.8.10.2-GCC-6.4.0-2.28',
+        }
+
         # check that all bar dependencies have been processed as expected
-        expected_dep_versions[-1] = '3.8.10.2-GCC-6.4.0-2.28'
-        for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
+        for dep in bar.dependencies():
+            expected_dep_version = expected_dep_versions[dep['name']]
             self.assertEqual(det_full_ec_version(dep), expected_dep_version)
 
         # Add the gompi/2018a version of SQLite as an available module
@@ -1178,6 +1187,8 @@ class RobotTest(EnhancedTestCase):
         """Test check_conflicts function."""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
+            'force': True,
+            'retain_all_deps': True,
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
             'validate': False,
@@ -1285,7 +1296,7 @@ class RobotTest(EnhancedTestCase):
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
-        self.assertErrorRegex(EasyBuildError, "Irresolvable dependencies encountered", resolve_dependencies,
+        self.assertErrorRegex(EasyBuildError, "Missing dependencies", resolve_dependencies,
                               ecs, self.modtool, retain_all_deps=True)
 
         # --consider-archived-easyconfigs must be used to let robot pick up archived easyconfigs

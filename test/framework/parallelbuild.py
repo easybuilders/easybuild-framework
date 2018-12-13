@@ -336,15 +336,14 @@ class ParallelBuildTest(EnhancedTestCase):
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.mock_stdout(False)
 
-        # jobs are submitted for OpenBLAS (missing module), foss & gzip (listed easyconfigs)
-        self.assertEqual(len(jobs), 3)
-
-        self.assertEqual(jobs[0].job_specs['job-name'], 'OpenBLAS-0.2.20-GCC-6.4.0-2.28')
+        # jobs are submitted for foss & gzip (listed easyconfigs)
+        self.assertEqual(len(jobs), 2)
 
         # last job (gzip) has a dependency on second-to-last job (foss)
-        self.assertEqual(jobs[1].job_specs['job-name'], 'foss-2018a')
+        self.assertEqual(jobs[0].job_specs['job-name'], 'foss-2018a')
+
         expected = {
-            'dependency': 'afterok:%s' % jobs[1].jobid,
+            'dependency': 'afterok:%s' % jobs[0].jobid,
             'hold': True,
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
@@ -354,7 +353,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,
         }
-        self.assertEqual(jobs[-1].job_specs, expected)
+        self.assertEqual(jobs[1].job_specs, expected)
 
 
 def suite():

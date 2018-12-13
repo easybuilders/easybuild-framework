@@ -37,4 +37,4 @@ toolchains = foss == 2018a, dummy == dummy
 # various types of (meaningless) dependencies: simply, with toolchain/suffix
 GCC = 6.4.0-2.28
 OpenMPI = 2.1.2; GCC == 6.4.0-2.28
-OpenBLAS = 0.2.20; gompi == 2018a
+OpenBLAS = 0.2.20; GCC == 6.4.0-2.28
