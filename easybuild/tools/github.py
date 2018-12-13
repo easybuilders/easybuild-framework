@@ -983,7 +983,6 @@ def reasons_for_closing(pr_data):
     """
     Look for valid reasons to close PR by comparing with existing easyconfigs.
     """
-    print_msg("No reason or message specified, looking for possible reasons\n")
 
     if pr_data['status_last_commit']:
         print_msg("Status of last commit is %s\n" % pr_data['status_last_commit'].upper(), prefix=False)
@@ -1058,9 +1057,12 @@ def reasons_for_closing(pr_data):
     return possible_reasons
 
 
-def close_pr(pr, reasons):
+def close_pr(pr, motivation_msg):
     """
     Close specified pull request
+
+    :param pr: PR number
+    :param motivation_msg: string containing motivation for closing the PR
     """
     github_user = build_option('github_user')
     if github_user is None:
@@ -1082,17 +1084,18 @@ def close_pr(pr, reasons):
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    if not reasons:
+    if not motivation_msg:
+        print_msg("No reason or message specified, looking for possible reasons\n")
         possible_reasons = reasons_for_closing(pr_data)
 
         if not possible_reasons:
             raise EasyBuildError("No reason specified and none found from PR data, "
                                  "please use --close-pr-reasons or --close-pr-msg")
         else:
-            reasons = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in possible_reasons])
-            print_msg("\nNo reason specified but found possible reasons: %s.\n" % reasons, prefix=False)
+            motivation_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in possible_reasons])
+            print_msg("\nNo reason specified but found possible reasons: %s.\n" % motivation_msg, prefix=False)
 
-    msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reasons)
+    msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], motivation_msg)
     msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
     msg += "For more information on our policy w.r.t. closing PRs, see "
     msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html"

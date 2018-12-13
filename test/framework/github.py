@@ -150,6 +150,68 @@ class GithubTest(EnhancedTestCase):
         output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(expected, output)
 
+    def test_reasons_for_closing(self):
+        """Test reasons_for_closing function."""
+
+        repo_owner = gh.GITHUB_EB_MAIN
+        repo_name = gh.GITHUB_EASYCONFIGS_REPO
+
+        build_options = {
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+            'pr_target_account': repo_owner,
+            'pr_target_repo': repo_name,
+            'robot_path': [],
+        }
+        init_config(build_options=build_options)
+
+        pr_data, _ = gh.fetch_pr_data(1844, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        # can't easily check return value, since auto-detected reasons may change over time if PR is touched
+        res = gh.reasons_for_closing(pr_data)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertTrue(isinstance(res, list))
+        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
+        patterns = [
+            "Status of last commit is SUCCESS",
+            "Last comment on",
+            "No activity since",
+            "* QEMU-2.4.0",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_close_pr(self):
+        """Test close_pr function."""
+
+        build_options = {
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+            'pr_target_account': GITHUB_USER,
+            'pr_target_repo': GITHUB_REPO,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        gh.close_pr(2, 'just a test')
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "[DRY RUN] Adding comment to testrepository issue #2: '" +
+            "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
+            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:
