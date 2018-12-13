@@ -397,7 +397,7 @@ def init_build_options(build_options=None, cmdline_options=None):
         # building a dependency graph implies force, so that all dependencies are retained
         # and also skips validation of easyconfigs (e.g. checking os dependencies)
         retain_all_deps = False
-        if cmdline_options.dep_graph:
+        if cmdline_options.dep_graph or cmdline_options.check_conflicts:
             _log.info("Enabling force to generate dependency graph.")
             cmdline_options.force = True
             retain_all_deps = True

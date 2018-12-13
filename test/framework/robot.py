@@ -1187,6 +1187,8 @@ class RobotTest(EnhancedTestCase):
         """Test check_conflicts function."""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
+            'force': True,
+            'retain_all_deps': True,
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
             'validate': False,

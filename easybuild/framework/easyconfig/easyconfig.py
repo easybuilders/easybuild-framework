@@ -1658,7 +1658,8 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     if parent_tc is None:
         parent_tc = dep['toolchain']
 
-    use_existing_modules = build_option('use_existing_modules') and not build_option('retain_all_deps')
+    retain_all_deps = build_option('retain_all_deps')
+    use_existing_modules = build_option('use_existing_modules') and not retain_all_deps
 
     if use_existing_modules:
         avail_modules = modtool.available()
@@ -1703,7 +1704,7 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     # - parent toolchain first (minimal toolchains mode *not* enabled)
     # - module for dependency is already available for one of the subtoolchains
     # If so, we retain the subtoolchain closest to the parent (so top of the list of candidates)
-    if parent_first and cand_subtcs_with_mod:
+    if parent_first and cand_subtcs_with_mod and not retain_all_deps:
         minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
 
     # scenario II:
