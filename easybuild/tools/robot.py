@@ -279,7 +279,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
     being_installed = [p['full_mod_name'] for p in easyconfigs]
-    avail_modules = [m for m in avail_modules if not m in being_installed]
+    avail_modules = [m for m in avail_modules if m not in being_installed]
 
     _log.debug('easyconfigs before resolving deps: %s' % easyconfigs)
 
@@ -352,7 +352,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                         verify_easyconfig_filename(path, cand_dep, parsed_ec=processed_ecs)
 
                         for ec in processed_ecs:
-                            if not ec in easyconfigs + additional:
+                            if ec not in easyconfigs + additional:
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
@@ -394,7 +394,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     var_defs, _hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, terse=terse,
                                   silent=True, filename_only=False)
 
-     # filter out archived easyconfigs, these are handled separately
+    # filter out archived easyconfigs, these are handled separately
     hits, archived_hits = [], []
     for hit in _hits:
         if EASYCONFIGS_ARCHIVE_DIR in hit.split(os.path.sep):
