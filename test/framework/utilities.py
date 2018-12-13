@@ -436,9 +436,11 @@ def init_config(args=None, build_options=None, with_include=True):
 
     # initialize build options
     if build_options is None:
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'extended_dry_run': False,
             'external_modules_metadata': ConfigObj(),
+            'robot_path': [test_ecs_dir],
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }
