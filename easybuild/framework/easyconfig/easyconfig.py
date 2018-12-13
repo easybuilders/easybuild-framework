@@ -1661,7 +1661,7 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     retain_all_deps = build_option('retain_all_deps')
     use_existing_modules = build_option('use_existing_modules') and not retain_all_deps
 
-    if use_existing_modules:
+    if parent_first or use_existing_modules:
         avail_modules = modtool.available()
     else:
         avail_modules = []
@@ -1678,14 +1678,13 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
 
     for tc in toolchain_hierarchy:
         # try to determine module name using this particular subtoolchain;
-        # this may fail if no easyconfig is available in robot search path,
+        # this may fail if no easyconfig is available in robot search path
         # and the module naming scheme requires an easyconfig file
         newdep['toolchain'] = tc
         mod_name = ActiveMNS().det_full_module_name(newdep, require_result=False)
 
         # if the module name can be determined, subtoolchain is an actual candidate
         if mod_name:
-
             # check whether module already exists or not (but only if that info will actually be used)
             mod_exists = None
             if parent_first or use_existing_modules:
@@ -1719,9 +1718,10 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
                 break
 
     # scenario III:
-    # - minimal toolchains mode
+    # - minimal toolchains mode + --use-existing-modules
     # - reconsider subtoolchain based on already available modules for dependency
-    if use_existing_modules and not parent_first and cand_subtcs_with_mod:
+    # - this may overrule subtoolchain picked in scenario II
+    if not parent_first and use_existing_modules and cand_subtcs_with_mod:
         # take the last element, i.e. the maximum toolchain where a module exists already
         # (allows for potentially better optimisation)
         minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
@@ -1906,7 +1906,6 @@ class ActiveMNS(object):
             elif raise_error:
                 raise EasyBuildError("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s",
                                      ec['name'], det_full_ec_version(ec), ec)
-
             else:
                 self.log.info("No easyconfig found as required by module naming scheme, but not considered fatal")
                 ec = None
