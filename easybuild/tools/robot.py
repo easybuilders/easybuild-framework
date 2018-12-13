@@ -217,7 +217,7 @@ def dry_run(easyconfigs, modtool, short=False):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)
 
     unbuilt_specs = skip_available(all_specs, modtool)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
@@ -225,7 +225,7 @@ def dry_run(easyconfigs, modtool, short=False):
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
 
     var_name = 'CFGS'
-    common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
+    common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs if spec['spec'] is not None])
     # only allow short if common prefix is long enough
     short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
     for spec in all_specs:
@@ -238,15 +238,18 @@ def dry_run(easyconfigs, modtool, short=False):
         else:
             ans = 'x'
 
-        if spec['ec'].short_mod_name != spec['ec'].full_mod_name:
+        if spec['ec'] is not None and spec['ec'].short_mod_name != spec['ec'].full_mod_name:
             mod = "%s | %s" % (spec['ec'].mod_subdir, spec['ec'].short_mod_name)
         else:
-            mod = spec['ec'].full_mod_name
+            mod = spec['full_mod_name']
 
-        if short:
+        if spec['spec'] is None:
+            item = "(no easyconfig file found)"
+        elif short:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
         else:
             item = spec['spec']
+
         lines.append(dry_run_fmt % (ans, item, mod))
 
     if short:
@@ -255,8 +258,9 @@ def dry_run(easyconfigs, modtool, short=False):
     return '\n'.join(lines)
 
 
-def report_missing_deps(missing_deps, extra_msg=None):
-    """Report missing dependencies."""
+def raise_error_missing_deps(missing_deps, extra_msg=None):
+    """Raise error to report missing dependencies."""
+
     _log.warning("Missing dependencies (details): %s", missing_deps)
 
     mod_names_eb = ', '.join(EasyBuildMNS().det_full_module_name(dep) for dep in missing_deps)
@@ -270,13 +274,14 @@ def report_missing_deps(missing_deps, extra_msg=None):
     raise EasyBuildError(error_msg)
 
 
-def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
+def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_error_missing_ecs=True):
     """
     Work through the list of easyconfigs to determine an optimal order
     :param easyconfigs: list of easyconfigs
     :param modtool: ModulesTool instance to use
     :param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
+    :param raise_error_missing_ecs: raise an error when one or more easyconfig files could not be found
     """
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
@@ -352,10 +357,18 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                     if path is None:
                         # no easyconfig found for dependency, add to list of missing easyconfigs
                         if cand_dep not in missing_easyconfigs:
-                            _log.debug("Irresolvable dependency found: %s" % cand_dep)
+                            _log.debug("Irresolvable dependency found (no easyconfig file): %s", cand_dep)
                             missing_easyconfigs.append(cand_dep)
                         # remove irresolvable dependency from list of dependencies so we can continue
                         entry['dependencies'].remove(cand_dep)
+
+                        # add dummy entry for this dependency, so --dry-run for example can still report the dep
+                        additional.append({
+                            'dependencies': [],
+                            'ec': None,
+                            'full_mod_name': ActiveMNS().det_full_module_name(cand_dep),
+                            'spec': None,
+                        })
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
                         # build specs should not be passed down to resolved dependencies,
@@ -381,11 +394,14 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
             missing_deps = [dep for x in easyconfigs for dep in x['dependencies']]
-            report_missing_deps(missing_deps, extra_msg="enabled dependency resolution via --robot?")
+            raise_error_missing_deps(missing_deps, extra_msg="enabled dependency resolution via --robot?")
             break
 
     if missing_easyconfigs:
-        report_missing_deps(missing_easyconfigs, extra_msg="no easyconfig file found in robot search path")
+        if raise_error_missing_ecs:
+            raise_error_missing_deps(missing_easyconfigs, extra_msg="no easyconfig file found in robot search path")
+        else:
+            _log.warning("No easyconfig files found for: %s", missing_easyconfigs)
 
     _log.info("Dependency resolution complete, building as follows: %s", ordered_ecs)
     return ordered_ecs
