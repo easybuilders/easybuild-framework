@@ -854,10 +854,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # GCC/OpenMPI dependencies are there, but part of toolchain => 'x'
             ("GCC-7.3.0-2.30.eb", "GCC/7.3.0-2.30", 'x'),
             ("OpenMPI-3.1.1-GCC-7.3.0-2.30.eb", "OpenMPI/3.1.1-GCC-7.3.0-2.30", 'x'),
-            # OpenBLAS dependency is listed, but not there => ' '
             # toolchain used for OpenBLAS is mapped to GCC/7.3.0-2.30 subtoolchain in gompi/2018b
             # (rather than the original GCC/6.4.0-2.28 as subtoolchain of gompi/2018a)
-            ("OpenBLAS-0.2.20-GCC-7.3.0-2.30.eb", "OpenBLAS/0.2.20-GCC-7.3.0-2.30", ' '),
+            ("OpenBLAS-0.2.20-GCC-7.3.0-2.30.eb", "OpenBLAS/0.2.20-GCC-7.3.0-2.30", 'x'),
             # both FFTW and ScaLAPACK are listed => 'F'
             ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
             ("FFTW-3.3.7-gompi-2018b.eb", "FFTW/3.3.7-gompi-2018b", 'F'),

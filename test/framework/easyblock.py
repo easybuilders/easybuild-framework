@@ -465,7 +465,7 @@ class EasyBlockTest(EnhancedTestCase):
             "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
             "   ('FFTW', '3.3.7'),",
-            "   ('OpenBLAS', '0.2.20'),",
+            "   ('OpenBLAS', '0.2.20', '', ('GCC', '6.4.0-2.28')),",
             ']',
         ])
         self.writeEC()
@@ -488,8 +488,8 @@ class EasyBlockTest(EnhancedTestCase):
                 "}",
             ])
             lapack_load = '\n'.join([
-                "if { ![ is-loaded OpenBLAS/0.2.20-gompi-2018a ] } {",
-                "    module load OpenBLAS/0.2.20-gompi-2018a",
+                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
@@ -504,8 +504,8 @@ class EasyBlockTest(EnhancedTestCase):
                 'end',
             ])
             lapack_load = '\n'.join([
-                'if not isloaded("OpenBLAS/0.2.20-gompi-2018a") then',
-                '    load("OpenBLAS/0.2.20-gompi-2018a")',
+                'if not isloaded("OpenBLAS/0.2.20-GCC-6.4.0-2.28") then',
+                '    load("OpenBLAS/0.2.20-GCC-6.4.0-2.28")',
                 'end',
             ])
         else:
