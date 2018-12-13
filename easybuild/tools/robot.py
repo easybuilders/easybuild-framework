@@ -255,6 +255,21 @@ def dry_run(easyconfigs, modtool, short=False):
     return '\n'.join(lines)
 
 
+def report_missing_deps(missing_deps, extra_msg=None):
+    """Report missing dependencies."""
+    _log.warning("Missing dependencies (details): %s", missing_deps)
+
+    mod_names_eb = ', '.join(EasyBuildMNS().det_full_module_name(dep) for dep in missing_deps)
+    _log.warning("Missing dependencies (EasyBuild module names): %s", mod_names_eb)
+
+    mod_names = ', '.join(ActiveMNS().det_full_module_name(dep) for dep in missing_deps)
+
+    error_msg = "Missing dependencies: %s" % mod_names
+    if extra_msg:
+        error_msg += ' (%s)' % extra_msg
+    raise EasyBuildError(error_msg)
+
+
 def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
@@ -284,15 +299,15 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     _log.debug('easyconfigs before resolving deps: %s' % easyconfigs)
 
     # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
-    irresolvable = []
+    missing_easyconfigs = []
     loopcnt = 0
     maxloopcnt = 10000
     while easyconfigs:
         # make sure this stops, we really don't want to get stuck in an infinite loop
         loopcnt += 1
         if loopcnt > maxloopcnt:
-            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (easyconfigs: %s, irresolvable: %s)",
-                                 maxloopcnt, easyconfigs, irresolvable)
+            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (easyconfigs: %s, missing_easyconfigs: %s)",
+                                 maxloopcnt, easyconfigs, missing_easyconfigs)
 
         # first try resolving dependencies without using external dependencies
         last_processed_count = -1
@@ -335,10 +350,10 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                     path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
-                        # no easyconfig found for dependency, add to list of irresolvable dependencies
-                        if cand_dep not in irresolvable:
+                        # no easyconfig found for dependency, add to list of missing easyconfigs
+                        if cand_dep not in missing_easyconfigs:
                             _log.debug("Irresolvable dependency found: %s" % cand_dep)
-                            irresolvable.append(cand_dep)
+                            missing_easyconfigs.append(cand_dep)
                         # remove irresolvable dependency from list of dependencies so we can continue
                         entry['dependencies'].remove(cand_dep)
                     else:
@@ -365,17 +380,14 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
 
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
-            irresolvable = [dep for x in easyconfigs for dep in x['dependencies']]
+            missing_deps = [dep for x in easyconfigs for dep in x['dependencies']]
+            report_missing_deps(missing_deps, extra_msg="enabled dependency resolution via --robot?")
             break
 
-    if irresolvable:
-        _log.warning("Irresolvable dependencies (details): %s" % irresolvable)
-        irresolvable_mods_eb = [EasyBuildMNS().det_full_module_name(dep) for dep in irresolvable]
-        _log.warning("Irresolvable dependencies (EasyBuild module names): %s" % ', '.join(irresolvable_mods_eb))
-        irresolvable_mods = [ActiveMNS().det_full_module_name(dep) for dep in irresolvable]
-        raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
+    if missing_easyconfigs:
+        report_missing_deps(missing_easyconfigs, extra_msg="no easyconfig file found in robot search path")
 
-    _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
+    _log.info("Dependency resolution complete, building as follows: %s", ordered_ecs)
     return ordered_ecs
 
 

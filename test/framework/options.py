@@ -1847,7 +1847,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot',
             '--dry-run',
         ]
-        self.assertErrorRegex(EasyBuildError, 'Irresolvable dependencies', self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
 
         # add path to test easyconfigs to robot paths, so dependencies can be resolved
         self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)

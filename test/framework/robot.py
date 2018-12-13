@@ -224,7 +224,7 @@ class RobotTest(EnhancedTestCase):
 
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
-        msg = "Irresolvable dependencies encountered"
+        msg = "Missing dependencies"
         self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, self.modtool)
 
         # test if dependencies of an automatically found file are also loaded
@@ -1296,7 +1296,7 @@ class RobotTest(EnhancedTestCase):
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
-        self.assertErrorRegex(EasyBuildError, "Irresolvable dependencies encountered", resolve_dependencies,
+        self.assertErrorRegex(EasyBuildError, "Missing dependencies", resolve_dependencies,
                               ecs, self.modtool, retain_all_deps=True)
 
         # --consider-archived-easyconfigs must be used to let robot pick up archived easyconfigs
