@@ -418,10 +418,12 @@ def cleanup():
     tc_utils._initial_toolchain_instances.clear()
     easyconfig._easyconfigs_cache.clear()
     easyconfig._easyconfig_files_cache.clear()
+    easyconfig.get_toolchain_hierarchy.clear()
     mns_toolchain._toolchain_details_cache.clear()
 
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
+
 
 def init_config(args=None, build_options=None, with_include=True):
     """(re)initialize configuration"""
