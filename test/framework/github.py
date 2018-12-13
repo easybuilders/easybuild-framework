@@ -152,6 +152,9 @@ class GithubTest(EnhancedTestCase):
 
     def test_reasons_for_closing(self):
         """Test reasons_for_closing function."""
+        if self.github_token is None:
+            print "Skipping test_reasons_for_closing, no GitHub token available?"
+            return
 
         repo_owner = gh.GITHUB_EB_MAIN
         repo_name = gh.GITHUB_EASYCONFIGS_REPO
@@ -189,6 +192,9 @@ class GithubTest(EnhancedTestCase):
 
     def test_close_pr(self):
         """Test close_pr function."""
+        if self.github_token is None:
+            print "Skipping test_close_pr, no GitHub token available?"
+            return
 
         build_options = {
             'dry_run': True,
