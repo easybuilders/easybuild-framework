@@ -1125,12 +1125,12 @@ class EasyConfig(object):
                         self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
 
                     if tc is None:
-                        tc = dep['toolchain']
-                        self.log.debug("Inheriting toolchain %s from parent for dep %s", tc, dep_str)
-
-                    # put derived toolchain in place, or complain if none could be found
-                    self.log.debug("Figured out toolchain to use for dep %s: %s", dep_str, tc)
-                    dep['toolchain'] = orig_dep['toolchain'] = tc
+                        self.log.debug("Inheriting toolchain %s from parent for dep %s", dep['toolchain'], dep_str)
+                    else:
+                        # put derived toolchain in place
+                        self.log.debug("Figured out toolchain to use for dep %s: %s", dep_str, tc)
+                        dep['toolchain'] = orig_dep['toolchain'] = tc
+                        dep['toolchain_inherited'] = orig_dep['toolchain_inherited'] = False
 
                 if not dep['external_module']:
                     # make sure 'dummy' is set correctly
