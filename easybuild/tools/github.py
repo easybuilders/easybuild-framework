@@ -996,6 +996,38 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
+def fetch_contributors(per_page=GITHUB_MAX_PER_PAGE, github_user=None):
+    """
+    Fetch contributors
+    """
+    parameters = {
+        'per_page': per_page,
+        'page': 1,
+    }
+
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
+
+    def contributors_url(gh):
+        """Utility function to fetch data for PRs."""
+        return gh.repos[pr_target_account][pr_target_repo].contributors
+
+    contributors = []
+    while True:
+        status, contributor_data = github_api_get_request(contributors_url, github_user=github_user, **parameters)
+        if status != HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to get contributor data from %s/%s (parameters: %s, status: %d %s)",
+                                 pr_target_account, pr_target_repo, parameters, status, contributor_data)
+        if not contributor_data:
+            break
+        contributors.extend([contributor['login'] for contributor in contributor_data])
+        parameters['page'] += 1
+
+    print_msg("Found %s contributors to %s/%s" % (len(contributors), pr_target_account, pr_target_repo))
+
+    return contributors
+
+
 def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
     """
     List pull requests according to specified selection/order parameters
@@ -1003,6 +1035,9 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
     :param params: 3-tuple with selection parameters for PRs (<state>, <sort>, <direction>),
                    see https://developer.github.com/v3/pulls/#parameters
     """
+
+    contributors = fetch_contributors()
+
     parameters = {
         'state': params[0],
         'sort': params[1],
@@ -1025,7 +1060,10 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
 
     lines = []
     for pr in pr_data:
-        lines.append("PR #%s: %s" % (pr['number'], pr['title']))
+        pr_txt = "PR #%s: %s" % (pr['number'], pr['title'])
+        if pr['user']['login'] not in contributors:
+            pr_txt += " [first contribution]"
+        lines.append(pr_txt)
 
     return '\n'.join(lines)
 
