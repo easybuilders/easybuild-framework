@@ -3,6 +3,56 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.8.0 (December 14th 2018)
+---------------------------
+
+feature release
+- various enhancements, including:
+  - support use of version ranges in --filter-deps (#2357)
+  - add support for --list-prs (#2400)
+  - add support for --close-pr (#2401)
+  - allow setting optarch compiler flags in the easyconfig (#2595)
+  - add option to skip pre-creation of install directory (#2629)
+  - flesh out setting up of configuration into dedicated 'set_up_configuration' function (#2638)
+  - clean error when 'eb' is cancelled by user (#2641)
+  - add support for using Slurm as backend for --job (#2642)
+  - archive easyblocks along with easyconfig (#2653)
+  - add support for deprecating easyconfig files & toolchains (#2656)
+  - changed easyconfig.update to be able to specify not to allow duplicate values (#2657)
+  - flesh out 'avail_easyblocks' function from support for --list-easyblocks' (#2663)
+  - specify filename pattern for output file of jobs submitted to Slurm (#2666)
+  - make print functions more robust w.r.t. arguments being passed to format the message to be printed (#2670)
+  - add dependencies in the prepare step instead of check_readiness. (#2674)
+  - add support for disabling mapping of (sub)toolchains when --try-toolchain is used (#2682)
+  - flesh out 'set_parallel' method to it can be called separately (#2687)
+- various bug fixes, including:
+  - make --from-pr always try to apply PR patch on top of PR target branch (#2631)
+  - fixing bug that could cause to silently overwrite an existing easyconfig (#2635)
+  - add test for --pre-create-installdir (#2637)
+  - don't pass down specific environment variables into submitted jobs (#2643)
+  - update template constants to use https (#2648)
+  - fix lib64 fallback for 'lib'/'lib64' dirs entry in sanity_check_paths (#2649)
+  - change PGI F90 Fortran compiler to pgf90 (#2650)
+  - use --set-upstream-to in install-EasyBuild-develop.sh script to deal with deprecated/no longer supported --set-upstream (#2651)
+  - fix order of keys in 'toolchain' value for dumped easyconfig file (name, version) + run style check on dumped easyconfigs in dump tests (#2660)
+  - ensure checksums beside sources in dumped easyconfigs (#2661)
+  - fix problems with easyconfig file saved in 'reprod' directory by copying it before running any installation steps (#2664)
+  - use github_user in test_list_prs (#2668)
+  - Python 2.6 requires python-daemon 1.x as dep for GC3Pie (#2673)
+  - stick to idna<2.8 with Python 2.6 in Travis + distable broken test for HgRepository (#2678)
+  - use 'git am' to apply patch for PRs in fetch_easyconfigs_from_pr (#2680)
+  - use 'tar xzf' (gzip) rather than 'tar xZf' (ancient compress) to unpack *.tar.Z source files (#2686)
+  - correctly define $LIBFFT_MT for Intel MKL (#2688)
+  - don't always require easyconfig files to resolve dependencies (#2690)
+- other changes:
+  - stop testing with Lmod 6.6.3, testing with Lmod 6.5.1 is sufficient (#2627)
+  - always skip symlinks in adjust_permissions (#2644)
+  - deprecate the ictce toolchain (#2667)
+  - deprecate goolf and goolfc toolchains (#2676)
+  - deprecate intel toolchains older than intel/2016a (+ iccifort & iimpi subtoolchains) (#2677)
+  - deprecate ancient gompi toolchain versions (#2684)
+
+
 v3.7.1 (October 18th 2018)
 --------------------------
 
