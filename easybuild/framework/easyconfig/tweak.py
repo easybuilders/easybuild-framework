@@ -157,13 +157,13 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
                 toolchain_ec = process_easyconfig(path)
                 toolchain_deps = resolve_dependencies(toolchain_ec, modtool, retain_all_deps=True)
-                toolchain_dep_names = [dep['ec']['name'] for dep in toolchain_deps if
+                toolchain_dep_specs = [dep['spec'] for dep in toolchain_deps if
                                        dep['spec'] not in listed_ec_paths]
             else:
-                toolchain_dep_names = []
+                toolchain_dep_specs = []
             i = 0
             while i < len(orig_ecs):
-                if orig_ecs[i]['ec']['name'] in toolchain_dep_names:
+                if orig_ecs[i]['spec'] in toolchain_dep_specs:
                     # drop elements in toolchain hierarchy
                     del orig_ecs[i]
                 else:
