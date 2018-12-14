@@ -515,8 +515,10 @@ def download_file(filename, url, path, forced=False):
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = urllib2.Request(url, headers=headers)
     used_urllib = urllib2
+    switch_to_requests = False
 
     while not downloaded and attempt_cnt < max_attempts:
+        attempt_cnt += 1
         try:
             if used_urllib is urllib2:
                 # urllib2 does the right thing for http proxy setups, urllib does not!
@@ -536,28 +538,30 @@ def download_file(filename, url, path, forced=False):
         except used_urllib.HTTPError as err:
             if used_urllib is urllib2:
                 status_code = err.code
-            if 400 <= status_code <= 499:
+            if status_code == 403 and attempt_cnt == 1:
+                switch_to_requests = True
+            elif 400 <= status_code <= 499:
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
             else:
                 _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
-                attempt_cnt += 1
         except IOError as err:
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
             error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
                                   "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
             if error_re.match(str(err)):
-                if not HAVE_REQUESTS:
-                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
-                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
-                _log.info("Downloading using requests package instead of urllib2")
-                used_urllib = requests
-            attempt_cnt += 1
+                switch_to_requests = True
         except Exception, err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
 
         if not downloaded and attempt_cnt < max_attempts:
             _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
+            if used_urllib is urllib2 and switch_to_requests:
+                if not HAVE_REQUESTS:
+                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
+                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
+                _log.info("Downloading using requests package instead of urllib2")
+                used_urllib = requests
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
