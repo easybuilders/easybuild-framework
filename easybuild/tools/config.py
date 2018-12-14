@@ -281,11 +281,13 @@ BUILD_OPTIONS_OTHER = {
 }
 
 
-# based on
+# loosely based on
 # https://wickie.hlrs.de/platforms/index.php/Module_Overview
 # https://wickie.hlrs.de/platforms/index.php/Application_software_packages
+MODULECLASS_BASE = 'base'
 DEFAULT_MODULECLASSES = [
-    ('base', "Default module class"),
+    (MODULECLASS_BASE, "Default module class"),
+    ('astro', "Astronomy, Astrophysics and Cosmology"),
     ('bio', "Bioinformatics, biology and biomedical"),
     ('cae', "Computer Aided Engineering (incl. CFD)"),
     ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
@@ -301,6 +303,7 @@ DEFAULT_MODULECLASSES = [
     ('mpi', "MPI stacks"),
     ('numlib', "Numerical Libraries"),
     ('perf', "Performance tools"),
+    ('quantum', "Quantum Computing"),
     ('phys', "Physics and physical systems simulations"),
     ('system', "System utilities (e.g. highly depending on system OS and hardware)"),
     ('toolchain', "EasyBuild toolchains"),
