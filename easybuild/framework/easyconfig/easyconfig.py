@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
@@ -196,6 +196,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
              (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
 
     :param parent_toolchain: dictionary with name/version of parent toolchain
+    :param incl_capabilities: also register toolchain capabilities in result
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
@@ -1118,9 +1119,8 @@ class EasyConfig(object):
                         if tc is None:
                             raise EasyBuildError("Failed to determine minimal toolchain for dep %s", dep_str)
                     else:
-                        # try finding subtoolchain for dep for which an easyconfig file is available
-                        # this may fail, since it requires that the easyconfigs for parent toolchain
-                        # and subtoolchains are available
+                        # try to determine subtoolchain for dep;
+                        # this is done considering both available modules and easyconfigs (in that order)
                         tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool, parent_first=True)
                         self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
 
@@ -1665,9 +1665,20 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
 
     newdep = copy.deepcopy(dep)
 
+    # try to determine toolchain hierarchy
+    # this may fail if not all easyconfig files that define this toolchain are available,
+    # but that's not always fatal: it's mostly irrelevant under --review-pr for example
+    try:
+        toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
+    except EasyBuildError as err:
+        warning_msg = "Failed to determine toolchain hierarchy for %(name)s/%(version)s when determining " % parent_tc
+        warning_msg += "subtoolchain for dependency '%s': %s" % (dep['name'], err)
+        _log.warning(warning_msg)
+        print_warning(warning_msg)
+        toolchain_hierarchy = []
+
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,
     # unless parent toolchain should be considered first
-    toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
     if parent_first:
         toolchain_hierarchy = toolchain_hierarchy[::-1]
 
