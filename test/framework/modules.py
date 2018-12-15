@@ -119,7 +119,7 @@ class ModulesTest(EnhancedTestCase):
         else:
             self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
-    def test_exists(self):
+    def test_exist(self):
         """Test if testing for module existence works."""
         self.init_testmods()
         self.assertEqual(self.modtool.exist(['OpenMPI/2.1.2-GCC-6.4.0-2.28']), [True])
@@ -127,7 +127,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['foo/1.2.3']), [False])
         self.assertEqual(self.modtool.exist(['foo/1.2.3'], skip_avail=True), [False])
 
-        # exists works on hidden modules
+        # exist works on hidden modules
         self.assertEqual(self.modtool.exist(['toy/.0.0-deps']), [True])
         self.assertEqual(self.modtool.exist(['toy/.0.0-deps'], skip_avail=True), [True])
 
@@ -138,7 +138,11 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['OpenMPI/2.1.2']), [False])
         self.assertEqual(self.modtool.exist(['OpenMPI/2.1.2'], skip_avail=True), [False])
 
-        # exists works on hidden modules in Lua syntax (only with Lmod)
+        # if we instruct modtool.exist not to consider partial module names, it doesn't
+        self.assertEqual(self.modtool.exist(['OpenMPI'], maybe_partial=False), [False])
+        self.assertEqual(self.modtool.exist(['OpenMPI'], maybe_partial=False, skip_avail=True), [False])
+
+        # exist works on hidden modules in Lua syntax (only with Lmod)
         test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
         if isinstance(self.modtool, Lmod):
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
@@ -146,7 +150,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertFalse(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6')))
             self.assertEqual(self.modtool.exist(['bzip2/.1.0.6']), [True])
 
-        # exists also works on lists of module names
+        # exist also works on lists of module names
         # list should be sufficiently long, since for short lists 'show' is always used
         mod_names = ['OpenMPI/2.1.2-GCC-6.4.0-2.28', 'foo/1.2.3', 'GCC',
                      'ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20'
