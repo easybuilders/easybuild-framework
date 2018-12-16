@@ -1650,8 +1650,6 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     :param parent_first: reverse order in which subtoolchains are considered: parent toolchain, then subtoolchains
     :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
-    minimal_toolchain = None
-
     if parent_tc is None:
         parent_tc = dep['toolchain']
 
@@ -1711,31 +1709,35 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     cand_subtcs_with_mod = [tc for tc in cand_subtcs if tc.get('mod_exists', False)]
 
     # scenario I:
-    # - parent toolchain first (minimal toolchains mode *not* enabled)
-    # - module for dependency is already available for one of the subtoolchains
-    # If so, we retain the subtoolchain closest to the parent (so top of the list of candidates)
-    if parent_first and cand_subtcs_with_mod and not retain_all_deps:
-        minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
-
-    # scenario II:
     # - regardless of whether minimal toolchains mode is enabled or not
     # - try to pick subtoolchain based on available easyconfigs (first hit wins)
-    if minimal_toolchain is None:
-        for cand_subtc in cand_subtcs:
-            newdep['toolchain'] = cand_subtc['toolchain']
-            ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
-            if ec_file:
-                minimal_toolchain = cand_subtc['toolchain']
-                break
+    minimal_toolchain = None
+    for cand_subtc in cand_subtcs:
+        newdep['toolchain'] = cand_subtc['toolchain']
+        ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+        if ec_file:
+            minimal_toolchain = cand_subtc['toolchain']
+            break
 
-    # scenario III:
-    # - minimal toolchains mode + --use-existing-modules
-    # - reconsider subtoolchain based on already available modules for dependency
-    # - this may overrule subtoolchain picked in scenario II
-    if not parent_first and use_existing_modules and cand_subtcs_with_mod:
-        # take the last element, i.e. the maximum toolchain where a module exists already
-        # (allows for potentially better optimisation)
-        minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
+    if cand_subtcs_with_mod:
+        if parent_first:
+            # scenario II:
+            # - parent toolchain first (minimal toolchains mode *not* enabled)
+            # - module for dependency is already available for one of the subtoolchains
+            # - only used as fallback in case subtoolchain could not be determined via easyconfigs (scenario I)
+            # If so, we retain the subtoolchain closest to the parent (so top of the list of candidates)
+            if minimal_toolchain is None or use_existing_modules:
+                minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
+
+        elif use_existing_modules:
+            # scenario III:
+            # - minimal toolchains mode + --use-existing-modules
+            # - reconsider subtoolchain based on already available modules for dependency
+            # - this may overrule subtoolchain picked in scenario II
+
+            # take the last element, i.e. the maximum toolchain where a module exists already
+            # (allows for potentially better optimisation)
+            minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
 
     if minimal_toolchain is None:
         _log.info("Irresolvable dependency found (even with minimal toolchains): %s", dep)
