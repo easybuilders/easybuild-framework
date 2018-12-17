@@ -508,13 +508,14 @@ class ModulesTool(object):
 
         return wrapped_mod
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
+    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
         :param mod_names: list of module names
         :param mod_exists_regex_template: template regular expression to search 'module show' output with
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
+        :param maybe_partial: indicates if the module name may be a partial module name
         """
         def mod_exists_via_show(mod_name):
             """
@@ -540,8 +541,10 @@ class ModulesTool(object):
         mods_exist = []
         for (mod_name, visible) in mod_names:
             if visible:
+                mod_exists = mod_name in avail_mod_names
                 # module name may be partial, so also check via 'module show' as fallback
-                mod_exists = mod_name in avail_mod_names or mod_exists_via_show(mod_name)
+                if not mod_exists and maybe_partial:
+                    mod_exists = mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
@@ -1323,7 +1326,7 @@ class Lmod(ModulesTool):
 
         return res
 
-    def exist(self, mod_names, skip_avail=False):
+    def exist(self, mod_names, skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
@@ -1334,7 +1337,7 @@ class Lmod(ModulesTool):
         # the current configuration for matters little, since the module may have been installed with a different cfg;
         # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
         return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
-                                       skip_avail=skip_avail)
+                                       skip_avail=skip_avail, maybe_partial=maybe_partial)
 
 
 def get_software_root_env_var_name(name):

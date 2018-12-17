@@ -1696,9 +1696,12 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
             # check whether module already exists or not (but only if that info will actually be used)
             mod_exists = None
             if parent_first or use_existing_modules:
+                mod_exists = mod_name in avail_modules
                 # fallback to checking with modtool.exist is required,
                 # for hidden modules and external modules where module name may be partial
-                mod_exists = mod_name in avail_modules or modtool.exist([mod_name], skip_avail=True)[0]
+                if not mod_exists:
+                    maybe_partial = dep.get('external_module', True)
+                    mod_exists = modtool.exist([mod_name], skip_avail=True, maybe_partial=maybe_partial)[0]
 
             # add the subtoolchain to list of candidates
             cand_subtcs.append({'toolchain': tc, 'mod_exists': mod_exists})
