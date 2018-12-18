@@ -301,10 +301,11 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
     being_installed = [p['full_mod_name'] for p in easyconfigs]
     avail_modules = [m for m in avail_modules if m not in being_installed]
 
-    _log.debug('easyconfigs before resolving deps: %s' % easyconfigs)
+    _log.debug('easyconfigs before resolving deps: %s', easyconfigs)
+
+    totally_missing, missing_easyconfigs = [], []
 
     # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
-    missing_easyconfigs = []
     loopcnt = 0
     maxloopcnt = 10000
     while easyconfigs:
@@ -355,10 +356,19 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                     path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
-                        # no easyconfig found for dependency, add to list of missing easyconfigs
-                        if cand_dep not in missing_easyconfigs:
+                        full_mod_name = ActiveMNS().det_full_module_name(cand_dep)
+
+                        # no easyconfig found + no module available => missing dependency
+                        if not modtool.exist([full_mod_name])[0]:
+                            if cand_dep not in totally_missing:
+                                totally_missing.append(cand_dep)
+
+                        # no easyconfig found for dependency, but module is available
+                        # => add to list of missing easyconfigs
+                        elif cand_dep not in missing_easyconfigs:
                             _log.debug("Irresolvable dependency found (no easyconfig file): %s", cand_dep)
                             missing_easyconfigs.append(cand_dep)
+
                         # remove irresolvable dependency from list of dependencies so we can continue
                         entry['dependencies'].remove(cand_dep)
 
@@ -366,7 +376,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                         additional.append({
                             'dependencies': [],
                             'ec': None,
-                            'full_mod_name': ActiveMNS().det_full_module_name(cand_dep),
+                            'full_mod_name': full_mod_name,
                             'spec': None,
                         })
                     else:
@@ -396,6 +406,9 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
             missing_deps = [dep for x in easyconfigs for dep in x['dependencies']]
             if missing_deps:
                 raise_error_missing_deps(missing_deps, extra_msg="enable dependency resolution via --robot?")
+
+    if totally_missing:
+        raise_error_missing_deps(totally_missing, extra_msg="no easyconfig file or existing module found")
 
     if missing_easyconfigs:
         if raise_error_missing_ecs:
