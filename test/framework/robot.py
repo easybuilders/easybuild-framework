@@ -51,10 +51,10 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import copy_file, read_file, write_file
+from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import invalidate_module_caches_for
+from easybuild.tools.modules import invalidate_module_caches_for, reset_module_caches
 from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies
 from test.framework.utilities import find_full_path
 
@@ -1020,14 +1020,8 @@ class RobotTest(EnhancedTestCase):
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
 
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
-
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        init_config(build_options={
-            'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
-        })
+        init_config(build_options={'robot_path': test_easyconfigs})
 
         #
         # First test that it can do basic resolution
@@ -1059,7 +1053,6 @@ class RobotTest(EnhancedTestCase):
         #
         init_config(build_options={
             'add_dummy_to_minimal_toolchains': True,
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
         # specify alternative parent toolchain
@@ -1112,10 +1105,7 @@ class RobotTest(EnhancedTestCase):
         write_file(barec, barec_txt)
 
         # check without --minimal-toolchains
-        init_config(build_options={
-            'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
-        })
+        init_config(build_options={'robot_path': test_easyconfigs})
         bar = EasyConfig(barec)
 
         expected_dep_versions = {
@@ -1131,7 +1121,6 @@ class RobotTest(EnhancedTestCase):
         # check with --minimal-toolchains enabled
         init_config(build_options={
             'minimal_toolchains': True,
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
         bar = EasyConfig(barec)
@@ -1166,7 +1155,6 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'minimal_toolchains': True,
             'use_existing_modules': True,
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
 
@@ -1182,6 +1170,93 @@ class RobotTest(EnhancedTestCase):
         bar = EasyConfig(barec)  # Re-parse the parent easyconfig
         sqlite = bar.dependencies()[3]
         self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-foss-2018a')
+
+    def test_robot_find_subtoolchain_for_dep_ecs_vs_mods(self):
+        """
+        Test behaviour of robot_find_subtoolchain_for_dep
+        w.r.t. picking subtoolchains based on easyconfigs vs modules.
+        """
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # include both test easyconfig files and test directory in robot search path
+        build_options = {'robot_path': [test_easyconfigs, self.test_prefix]}
+        init_config(build_options=build_options)
+
+        test_mods_dir = os.path.join(self.test_prefix, 'modules')
+        mkdir(test_mods_dir)
+        self.modtool.use(test_mods_dir)
+
+        dep = {
+            'name': 'dummydep',
+            'version': '1.2.3',
+            'versionsuffix': '',
+            'toolchain': {'name': 'foss', 'version': '2018a'},
+        }
+
+        # no subtoolchain found if no easyconfigs or modules are found for this dep
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool, parent_first=True)
+        self.assertEqual(res, None)
+
+        # reset caches to make sure easyconfigs/modules are checked again
+        ecec._easyconfig_files_cache.clear()
+        reset_module_caches()
+
+        # if a module file is found, that determines subtoolchain to use for dummy dep
+        dummydep_modfile = os.path.join(test_mods_dir, 'dummydep', '1.2.3-gompi-2018a')
+        write_file(dummydep_modfile, '#%Module')
+
+        expected_gompi = {'name': 'gompi', 'version': '2018a'}
+
+        # default config (no --minimal-toolchains)
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool, parent_first=True)
+        self.assertEqual(res, expected_gompi)
+
+        # same when --minimal-toolchains is used, but only if --use-existing-modules is also used
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool)
+        self.assertEqual(res, None)
+
+        build_options['use_existing_modules'] = True
+        init_config(build_options=build_options)
+
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool)
+        self.assertEqual(res, expected_gompi)
+
+        # reset caches to make sure easyconfigs/modules are checked again
+        ecec._easyconfig_files_cache.clear()
+        reset_module_caches()
+
+        build_options['use_existing_modules'] = False
+        init_config(build_options=build_options)
+
+        # if an easyconfig file is also available, this determines the subtoolchain instead
+        # (unless --use-existing-modules is used)
+        ec_txt = '\n'.join([
+            "name = 'dummydep'",
+            "version = '1.2.3'",
+            "homepage = 'example.com'",
+            "description = 'dummy dep'",
+            "toolchain = {'name': 'foss', 'version': '2018a'}",
+        ])
+        write_file(os.path.join(self.test_prefix, 'dummydep-1.2.3-foss-2018a.eb'), ec_txt)
+
+        expected_foss = {'name': 'foss', 'version': '2018a'}
+
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool, parent_first=True)
+        self.assertEqual(res, expected_foss)
+
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool)
+        self.assertEqual(res, expected_foss)
+
+        # if --use-existing-modules is enabled,
+        # subtoolchain picked by easyconfigs gets overruled by subtoolchain picked by modules
+        build_options['use_existing_modules'] = True
+        init_config(build_options=build_options)
+
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool, parent_first=True)
+        self.assertEqual(res, expected_gompi)
+
+        res = robot_find_subtoolchain_for_dep(dep, self.modtool)
+        self.assertEqual(res, expected_gompi)
 
     def test_check_conflicts(self):
         """Test check_conflicts function."""
