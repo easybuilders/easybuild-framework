@@ -43,3 +43,7 @@ class Ictce(Iimpi, IntelMKL, IntelFFTW):
     """
     NAME = 'ictce'
     SUBTOOLCHAIN = [Iimpi.NAME, Iimkl.NAME]
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        return True

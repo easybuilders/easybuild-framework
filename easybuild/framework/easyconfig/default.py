@@ -36,6 +36,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import MODULECLASS_BASE
 
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
@@ -172,7 +173,7 @@ DEFAULT_CONFIG = {
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
-    'moduleclass': ['base', 'Module class to be used for this software', MODULES],
+    'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
@@ -191,6 +192,8 @@ DEFAULT_CONFIG = {
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
+    'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
+                          "and will be archived in the next major release of EasyBuild", OTHER],
 }
 
 

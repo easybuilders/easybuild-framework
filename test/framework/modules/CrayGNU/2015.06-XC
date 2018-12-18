@@ -21,9 +21,9 @@ if { ![ is-loaded PrgEnv-gnu ] } {
 }
 
 if { [ is-loaded GCC ] } {
-    module swap GCC GCC/4.7.2
+    module swap GCC GCC/6.4.0-2.28
 } else {
-    module load GCC/4.7.2
+    module load GCC/6.4.0-2.28
 }
 
 if { [ is-loaded cray-libsci ] } {
