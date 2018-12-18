@@ -546,6 +546,71 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue('impi/5.1.2.150' in mods)
         self.assertTrue('gzip/1.4' in mods)
 
+    def test_resolve_dependencies_missing(self):
+        """Test handling of missing dependencies in resolve_dependencies function."""
+
+        self.install_mock_module()
+        MockModule.avail_modules = []
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={'robot_path': [test_easyconfigs, self.test_prefix]})
+
+        ec = {
+            'ec': {
+                'name': 'test',
+                'version': '123',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            },
+            'spec': '_',
+            'short_mod_name': 'test/123',
+            'full_mod_name': 'test/123',
+            'parsed': True,
+            'dependencies': [{
+                'name': 'somedep',
+                'version': '4.5.6',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'dummy': True,
+                'hidden': False,
+                'short_mod_name': 'somedep/4.5.6',
+                'full_mod_name': 'somedep/4.5.6',
+            }],
+        }
+
+        error = "Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
+        self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool)
+
+        # check behaviour if only module file is available
+        MockModule.avail_modules = ['somedep/4.5.6']
+        res = resolve_dependencies([ec], self.modtool)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]['full_mod_name'], 'test/123')
+
+        error = "Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
+        self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool, retain_all_deps=True)
+
+        res = resolve_dependencies([ec], self.modtool, retain_all_deps=True, raise_error_missing_ecs=False)
+        self.assertEqual(len(res), 2)
+        self.assertEqual(res[0]['full_mod_name'], 'test/123')
+        self.assertEqual(res[1]['full_mod_name'], 'somedep/4.5.6')
+
+        # add easyconfig for dep to robot search path => resolve_dependencies should not complain anymore
+        somedep_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'somedep'",
+            "version = '4.5.6'",
+            "homepage = 'https://example.com'",
+            "description = 'some dep'",
+            "toolchain = {'name': 'dummy', 'version': ''}",
+        ])
+        write_file(os.path.join(self.test_prefix, 'somedep-4.5.6.eb'), somedep_ectxt)
+
+        res = resolve_dependencies([ec], self.modtool, retain_all_deps=True)
+        self.assertEqual(len(res), 2)
+        self.assertEqual(res[1]['full_mod_name'], 'test/123')
+        self.assertEqual(res[0]['full_mod_name'], 'somedep/4.5.6')
+
     def test_det_easyconfig_paths(self):
         """Test det_easyconfig_paths function (without --from-pr)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
