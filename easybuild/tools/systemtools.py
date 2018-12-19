@@ -566,18 +566,18 @@ def check_os_dependency(dep):
     found = None
     cmd = None
     os_to_pkgcmd_map = {
-	'ubuntu': 'dpkg',
-	'debian': 'dpkg',
+        'ubuntu': 'dpkg',
+        'debian': 'dpkg',
     }
     pkg_cmd_flag = {
-	'dpkg': '-s',
-	'rpm': '-q',
+        'dpkg': '-s',
+        'rpm': '-q',
     }
     os_name = get_os_name()
     pkg_cmd = os_to_pkgcmd_map.get(os_name, 'rpm')
     if which(pkg_cmd):
-	cmd = "%s %s %s" % (pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep)
-	found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+        cmd = "%s %s %s" % (pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep)
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
                         stream_output=False)
 
     if cmd is None:
