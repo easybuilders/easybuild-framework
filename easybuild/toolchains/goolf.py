@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ EasyBuild support for goolf compiler toolchain (includes GCC, OpenMPI, OpenBLAS,
 """
 
 from easybuild.toolchains.gompi import Gompi
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -37,4 +38,8 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Goolf(Gompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolf'
-    SUBTOOLCHAIN = Gompi.NAME
+    SUBTOOLCHAIN = [Gompi.NAME, Golf.NAME]
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        return True

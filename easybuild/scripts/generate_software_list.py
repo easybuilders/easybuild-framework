@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,10 +34,10 @@ from datetime import date
 from optparse import OptionParser
 
 import easybuild.tools.config as config
-import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import Githubfs
+from easybuild.tools.options import set_up_configuration
 from vsc.utils import fancylogger
 
 # parse options
@@ -49,7 +49,7 @@ parser.add_option("-q", "--quiet", action="store_true", dest="quiet",
 parser.add_option("-b", "--branch", action="store", dest="branch",
      help="Choose the branch to link to (default develop).")
 parser.add_option("-u", "--username", action="store", dest="username",
-     help="Choose the user to link to (default hpcugent).")
+     help="Choose the user to link to (default easybuilders).")
 parser.add_option("-r", "--repo", action="store", dest="repo",
      help="Choose the branch to link to (default easybuild-easyconfigs).")
 parser.add_option("-p", "--path", action="store", dest="path",
@@ -77,7 +77,7 @@ else:
 if not options.branch:
     options.branch = "develop"
 if not options.username:
-    options.username = "hpcugent"
+    options.username = "easybuilders"
 if not options.repo:
     options.repo = "easybuild-easyconfigs"
 if not options.path:
@@ -86,22 +86,20 @@ if options.local:
     import os
     walk = os.walk
     join = os.path.join
-    read = lambda ec_file : ec_file
+    read = lambda ec_file: ec_file
 
     log.info('parsing easyconfigs from location %s' % options.path)
 else:
     fs = Githubfs(options.username, options.repo, options.branch)
     walk = Githubfs(options.username, options.repo, options.branch).walk
     join = fs.join
-    read = lambda ec_file : fs.read(ec_file, api=False)
+    read = lambda ec_file: fs.read(ec_file, api=False)
 
     log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
 
 # configure EasyBuild, by parsing options
-eb_go = eboptions.parse_options(args=args)
-config.init(eb_go.options, eb_go.get_options_by_section('config'))
-config.init_build_options({'validate': False, 'external_modules_metadata': {}})
+set_up_configuration(args=args + ['--force'])
 
 
 configs = []
@@ -124,11 +122,11 @@ for root, subfolders, files in walk(options.path):
         try:
             ec = EasyConfig(ec_file)
             log.info("found valid easyconfig %s" % ec)
-            if not ec.name in names:
+            if ec.name not in names:
                 log.info("found new software package %s" % ec.name)
                 ec.easyblock = None
                 # check if an easyblock exists
-                ebclass = get_easyblock_class(None, name=ec.name, default_fallback=False)
+                ebclass = get_easyblock_class(None, name=ec.name, error_on_missing_easyblock=False)
                 if ebclass is not None:
                     module = ebclass.__module__.split('.')[-1]
                     if module != "configuremake":
@@ -140,7 +138,7 @@ for root, subfolders, files in walk(options.path):
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])
 # sort by name
-configs = sorted(configs, key=lambda config : config.name.lower())
+configs = sorted(configs, key=lambda config: config.name.lower())
 firstl = ""
 
 # print out the configs in markdown format for the wiki
@@ -163,11 +161,11 @@ for config in configs:
                 'count': len([x for x in configs if x.name[0].lower() == firstl]),
             }
     print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] "
-    print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
+    print "(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
             (options.branch, firstl, config.name)
     if config.easyblock:
         print "[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] "
-        print " (https://github.com/hpcugent/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
+        print " (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
             (options.branch, firstl, config.easyblock)
     else:
         print "&nbsp;&nbsp;&nbsp;&nbsp;"

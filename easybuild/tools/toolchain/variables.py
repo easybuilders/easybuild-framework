@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ class LibraryList(StrList):
     def set_packed_linker_options(self, separator=',', separator_begin_end=',', prefix=None, prefix_begin_end=None):
         """Use packed linker options format"""
         if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.END, LinkerFlagList):
-            self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
+            self.log.devel("sanitize: PACKED_LINKER_OPTIONS")
 
             self.BEGIN.PACKED_LINKER_OPTIONS = True
             self.END.PACKED_LINKER_OPTIONS = True
@@ -166,11 +166,12 @@ class LinkerFlagList(StrList):
             # somehow this should only be run once.
             self.PACKED_LINKER_OPTIONS = None
 
-            self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
+            self.log.devel("sanitize: PACKED_LINKER_OPTIONS")
             if self.IS_BEGIN and self.SEPARATOR:
                 self.BEGIN = str(self.PREFIX).rstrip(self.SEPARATOR)
             self.PREFIX = None
-            self.log.debug("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s" % (self.IS_BEGIN, self.PREFIX, self.BEGIN))
+            self.log.devel("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s",
+                           self.IS_BEGIN, self.PREFIX, self.BEGIN)
 
         super(LinkerFlagList, self).sanitize()
 

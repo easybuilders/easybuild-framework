@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2011-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ from vsc.utils import fancylogger
 from vsc.utils.affinity import sched_getaffinity
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file, which
+from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd
 
 
@@ -69,6 +69,9 @@ MOTOROLA = 'Motorola/Freescale'
 NVIDIA = 'NVIDIA'
 QUALCOMM = 'Qualcomm'
 
+# Family constants
+POWER_LE = 'POWER little-endian'
+
 # OS constants
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -80,7 +83,7 @@ PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [AMD, ARM, INTEL, POWER]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
 CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
@@ -132,7 +135,7 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity().cpus))
     else:
         # BSD-type systems
-        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True)
+        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False)
         try:
             if int(out) > 0:
                 core_cnt = int(out)
@@ -159,7 +162,7 @@ def get_total_memory():
     memtotal = None
     os_type = get_os_type()
 
-    if os_type == LINUX and os.path.exists(PROC_MEMINFO_FP):
+    if os_type == LINUX and is_readable(PROC_MEMINFO_FP):
         _log.debug("Trying to determine total memory size on Linux via %s", PROC_MEMINFO_FP)
         meminfo = read_file(PROC_MEMINFO_FP)
         mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
@@ -169,7 +172,7 @@ def get_total_memory():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             memtotal = int(out.strip()) / (1024**2)
 
@@ -230,7 +233,7 @@ def get_cpu_vendor():
         elif arch in [AARCH32, AARCH64]:
             vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
 
-        if vendor_regex and os.path.exists(PROC_CPUINFO_FP):
+        if vendor_regex and is_readable(PROC_CPUINFO_FP):
             vendor_id = None
 
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
@@ -245,7 +248,7 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd, force_in_dry_run=True)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         out = out.strip()
         if ec == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
@@ -275,14 +278,14 @@ def get_cpu_family():
             # Custom ARM-based designs from other vendors
             family = ARM
 
-        # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
-        elif os.path.exists(PROC_CPUINFO_FP):
-            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
-            power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
-            if power_regex.search(proc_cpuinfo):
-                family = POWER
-                _log.debug("Determined CPU family using regex '%s' in %s: %s",
-                           power_regex.pattern, PROC_CPUINFO_FP, family)
+        elif arch == POWER:
+            family = POWER
+
+            # Distinguish POWER running in little-endian mode
+            system, node, release, version, machine, processor = platform.uname()
+            powerle_regex = re.compile("^ppc(\d*)le")
+            if powerle_regex.search(machine):
+                family = POWER_LE
 
     if family is None:
         family = UNKNOWN
@@ -298,7 +301,7 @@ def get_cpu_model():
     model = None
     os_type = get_os_type()
 
-    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
+    if os_type == LINUX and is_readable(PROC_CPUINFO_FP):
         proc_cpuinfo = read_file(PROC_CPUINFO_FP)
 
         arch = get_cpu_architecture()
@@ -329,7 +332,7 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        out, ec = run_cmd(cmd, force_in_dry_run=True)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             model = out.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
@@ -351,13 +354,13 @@ def get_cpu_speed():
 
     if os_type == LINUX:
         # Linux with cpu scaling
-        if os.path.exists(MAX_FREQ_FP):
+        if is_readable(MAX_FREQ_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
             txt = read_file(MAX_FREQ_FP)
             cpu_freq = float(txt) / 1000
 
         # Linux without cpu scaling
-        elif os.path.exists(PROC_CPUINFO_FP):
+        elif is_readable(PROC_CPUINFO_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER
@@ -369,12 +372,12 @@ def get_cpu_speed():
             else:
                 _log.debug("Failed to determine CPU frequency from %s", PROC_CPUINFO_FP)
         else:
-            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling: %s" % PROC_CPUINFO_FP)
+            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling", PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             # returns clock frequency in cycles/sec, but we want MHz
             cpu_freq = float(out.strip()) / (1000 ** 2)
@@ -383,6 +386,53 @@ def get_cpu_speed():
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
 
     return cpu_freq
+
+
+def get_cpu_features():
+    """
+    Get list of CPU features
+    """
+    cpu_feat = []
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        if is_readable(PROC_CPUINFO_FP):
+            _log.debug("Trying to determine CPU features on Linux via %s", PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+            # 'flags' on Linux/x86, 'Features' on Linux/ARM
+            flags_regex = re.compile(r"^(?:flags|[fF]eatures)\s*:\s*(?P<flags>.*)", re.M)
+            res = flags_regex.search(proc_cpuinfo)
+            if res:
+                cpu_feat = sorted(res.group('flags').lower().split())
+                _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
+            elif get_cpu_architecture() == POWER:
+                # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
+                cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
+                if cpu_altivec_regex.search(proc_cpuinfo):
+                    cpu_feat.append('altivec')
+                # VSX is supported since POWER7
+                cpu_power7_regex = re.compile("^cpu\s*:.*POWER(7|8|9)", re.M)
+                if cpu_power7_regex.search(proc_cpuinfo):
+                    cpu_feat.append('vsx')
+            else:
+                _log.debug("Failed to determine CPU features from %s", PROC_CPUINFO_FP)
+        else:
+            _log.debug("%s not found to determine CPU features", PROC_CPUINFO_FP)
+
+    elif os_type == DARWIN:
+        for feature_set in ['extfeatures', 'features', 'leaf7_features']:
+            cmd = "sysctl -n machdep.cpu.%s" % feature_set
+            _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                cpu_feat.extend(out.strip().lower().split())
+
+        cpu_feat.sort()
+
+    else:
+        raise SystemToolsException("Could not determine CPU features (OS: %s)" % os_type)
+
+    return cpu_feat
 
 
 def get_kernel_name():
@@ -527,7 +577,8 @@ def check_os_dependency(dep):
     pkg_cmd = os_to_pkgcmd_map.get(os_name, 'rpm')
     if which(pkg_cmd):
 	cmd = "%s %s %s" % (pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep)
-	found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
+	found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                        stream_output=False)
 
     if cmd is None:
         # fallback for when os-dependency is a binary/library
@@ -536,7 +587,8 @@ def check_os_dependency(dep):
         # try locate if it's available
         if not found and which('locate'):
             cmd = 'locate --regexp "/%s$"' % dep
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                            stream_output=False)
 
     return found
 
@@ -546,7 +598,8 @@ def get_tool_version(tool, version_option='--version'):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True)
+    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
+                      trace=False, stream_output=False)
     if ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
@@ -558,7 +611,8 @@ def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False)
+    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False, trace=False,
+                      stream_output=False)
     res = None
     if ec:
         _log.warning("Failed to determine the version of GCC: %s", out)
@@ -585,6 +639,7 @@ def get_glibc_version():
     """
     Find the version of glibc used on this system
     """
+    glibc_ver = UNKNOWN
     os_type = get_os_type()
 
     if os_type == LINUX:
@@ -593,16 +648,16 @@ def get_glibc_version():
         res = glibc_ver_regex.search(glibc_ver_str)
 
         if res is not None:
-            glibc_version = res.group(1)
-            _log.debug("Found glibc version %s" % glibc_version)
-            return glibc_version
+            glibc_ver = res.group(1)
+            _log.debug("Found glibc version %s" % glibc_ver)
         else:
-            raise EasyBuildError("Failed to determine glibc version from '%s' using pattern '%s'.",
-                                 glibc_ver_str, glibc_ver_regex.pattern)
+            _log.warning("Failed to determine glibc version from '%s' using pattern '%s'.",
+                         glibc_ver_str, glibc_ver_regex.pattern)
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
-        return UNKNOWN
+
+    return glibc_ver
 
 
 def get_system_info():
@@ -665,7 +720,7 @@ def det_parallelism(par=None, maxpar=None):
     else:
         par = get_avail_core_count()
         # check ulimit -u
-        out, ec = run_cmd('ulimit -u', force_in_dry_run=True)
+        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
         try:
             if out.startswith("unlimited"):
                 out = 2 ** 32 - 1

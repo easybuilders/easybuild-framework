@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -129,7 +129,11 @@ class RepositoryTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
         shutil.rmtree(repo.wc)
 
-    def test_hgrepo(self):
+    # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
+    # we can consider re-enabling it when moving to a more recent Ubuntu version in the Travis config
+    # (which implies dropping support for Python 2.6)
+    # cfr. https://github.com/easybuilders/easybuild-framework/pull/2678
+    def DISABLED_test_hgrepo(self):
         """Test using HgRepository."""
         # only run this test if pysvn Python module is available
         try:
@@ -184,14 +188,17 @@ class RepositoryTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
-        path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
-        check_ec(path, [{'time': 1.23}])
+        if 'yaml' in sys.modules:
+            toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
+            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
+            check_ec(path, [{'time': 1.23}])
 
-        path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
-        check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
+            check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
 
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+            easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+        else:
+            print "Skipping .yeb part of test_add_easyconfig (no PyYAML available)"
 
     def tearDown(self):
         """Clean up after test."""

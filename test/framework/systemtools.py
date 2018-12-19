@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,13 +39,13 @@ import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
-from easybuild.tools.systemtools import CPU_FAMILIES, DARWIN, LINUX, UNKNOWN
+from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
-from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
+from easybuild.tools.systemtools import get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
+from easybuild.tools.systemtools import get_glibc_version, get_os_type, get_os_name, get_os_version, get_platform_name
+from easybuild.tools.systemtools import get_shared_lib_ext, get_system_info, get_total_memory, get_gcc_version
 
 
 PROC_CPUINFO_TXT = None
@@ -288,8 +288,8 @@ def mocked_read_file(fp):
         return read_file(fp)
 
 
-def mocked_os_path_exists(mocked_fp, fp):
-    """Mocked version of os.path.exists, returns True for a particular specified filepath."""
+def mocked_is_readable(mocked_fp, fp):
+    """Mocked version of is_readable, returns True for a particular specified filepath."""
     return fp == mocked_fp
 
 
@@ -302,6 +302,9 @@ def mocked_run_cmd(cmd, **kwargs):
         "sysctl -n hw.ncpu": '10',
         "sysctl -n hw.memsize": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
+        "sysctl -n machdep.cpu.extfeatures": "SYSCALL XD 1GBPAGE EM64T LAHF LZCNT RDTSCP TSCI",
+        "sysctl -n machdep.cpu.features": "FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C",
+        "sysctl -n machdep.cpu.leaf7_features": "SMEP ERMS RDWRFSGS TSC_THREAD_OFFSET BMI1 AVX2 BMI2 INVPCID FPU_CSDS",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
     }
@@ -323,19 +326,23 @@ class SystemToolsTest(EnhancedTestCase):
     def setUp(self):
         """Set up systemtools test."""
         super(SystemToolsTest, self).setUp()
+        self.orig_get_cpu_architecture = st.get_cpu_architecture
         self.orig_get_os_type = st.get_os_type
-        self.orig_os_path_exists = st.os.path.exists
+        self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
         self.orig_platform_uname = st.platform.uname
+        self.orig_get_tool_version = st.get_tool_version
 
     def tearDown(self):
         """Cleanup after systemtools test."""
-        st.os.path.exists = self.orig_os_path_exists
+        st.is_readable = self.orig_is_readable
         st.read_file = self.orig_read_file
+        st.get_cpu_architecture = self.orig_get_cpu_architecture
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
         st.platform.uname = self.orig_platform_uname
+        st.get_tool_version = self.orig_get_tool_version
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
@@ -369,7 +376,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU model (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
         st.platform.uname = mocked_uname
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
@@ -409,7 +416,7 @@ class SystemToolsTest(EnhancedTestCase):
         # test for particular type of system by mocking used functions
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
 
         # tweak global constant used by mocked_read_file
         global PROC_CPUINFO_TXT
@@ -423,7 +430,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cpu_speed(), 3550.0)
 
         # Linux (x86) with cpufreq
-        st.os.path.exists = lambda fp: mocked_os_path_exists(MAX_FREQ_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(MAX_FREQ_FP, fp)
         self.assertEqual(get_cpu_speed(), 2850.0)
 
     def test_cpu_speed_darwin(self):
@@ -431,6 +438,68 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_speed(), 2400.0)
+
+    def test_cpu_features_native(self):
+        """Test getting CPU features."""
+        cpu_feat = get_cpu_features()
+        self.assertTrue(isinstance(cpu_feat, list))
+        self.assertTrue(len(cpu_feat) > 0)
+        self.assertTrue(all([isinstance(x, basestring) for x in cpu_feat]))
+
+    def test_cpu_features_linux(self):
+        """Test getting CPU features (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
+
+        # tweak global constant used by mocked_read_file
+        global PROC_CPUINFO_TXT
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
+        expected = ['acpi', 'aes', 'aperfmperf', 'apic', 'arat', 'arch_perfmon', 'avx', 'bts', 'clflush', 'cmov',
+                    'constant_tsc', 'cx16', 'cx8', 'dca', 'de', 'ds_cpl', 'dtes64', 'dts', 'dts', 'ept', 'est',
+                    'flexpriority', 'fpu', 'fxsr', 'ht', 'ida', 'lahf_lm', 'lm', 'mca', 'mce', 'mmx', 'monitor',
+                    'msr', 'mtrr', 'nonstop_tsc', 'nx', 'pae', 'pat', 'pbe', 'pcid', 'pclmulqdq', 'pdcm', 'pdpe1gb',
+                    'pebs', 'pge', 'pln', 'pni', 'popcnt', 'pse', 'pse36', 'pts', 'rdtscp', 'rep_good', 'sep', 'smx',
+                    'ss', 'sse', 'sse2', 'sse4_1', 'sse4_2', 'ssse3', 'syscall', 'tm', 'tm2', 'tpr_shadow', 'tsc',
+                    'tsc_deadline_timer', 'vme', 'vmx', 'vnmi', 'vpid', 'x2apic', 'xsave', 'xsaveopt', 'xtopology',
+                    'xtpr']
+        self.assertEqual(get_cpu_features(), expected)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
+        expected = ['edsp', 'evtstrm', 'fastmult', 'half', 'idiva', 'idivt', 'lpae', 'neon',
+                    'thumb', 'tls', 'vfp', 'vfpd32', 'vfpv3', 'vfpv4']
+        self.assertEqual(get_cpu_features(), expected)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
+        expected = ['edsp', 'fastmult', 'half', 'idiva', 'idivt', 'neon', 'swp', 'thumb',
+                    'tls', 'vfp', 'vfpv3', 'vfpv4']
+        self.assertEqual(get_cpu_features(), expected)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
+        expected = ['aes', 'asimd', 'crc32', 'evtstrm', 'fp', 'pmull', 'sha1', 'sha2']
+        self.assertEqual(get_cpu_features(), expected)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
+        expected = ['aes', 'asimd', 'crc32', 'evtstrm', 'fp', 'pmull', 'sha1', 'sha2']
+        self.assertEqual(get_cpu_features(), expected)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
+        st.get_cpu_architecture = lambda: POWER
+        self.assertEqual(get_cpu_features(), ['altivec', 'vsx'])
+
+    def test_cpu_features_darwin(self):
+        """Test getting CPU features (mocked for Darwin)."""
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        expected = ['1gbpage', 'acpi', 'aes', 'apic', 'avx1.0', 'avx2', 'bmi1', 'bmi2', 'clfsh', 'cmov', 'cx16',
+                    'cx8', 'de', 'ds', 'dscpl', 'dtes64', 'em64t', 'erms', 'est', 'f16c', 'fma', 'fpu', 'fpu_csds',
+                    'fxsr', 'htt', 'invpcid', 'lahf', 'lzcnt', 'mca', 'mce', 'mmx', 'mon', 'movbe', 'msr', 'mtrr',
+                    'osxsave', 'pae', 'pat', 'pbe', 'pcid', 'pclmulqdq', 'pdcm', 'pge', 'popcnt', 'pse', 'pse36',
+                    'rdrand', 'rdtscp', 'rdwrfsgs', 'seglim64', 'sep', 'smep', 'ss', 'sse', 'sse2', 'sse3', 'sse4.1',
+                    'sse4.2', 'ssse3', 'syscall', 'tm', 'tm2', 'tpr', 'tsc', 'tsc_thread_offset', 'tsci', 'tsctmr',
+                    'vme', 'vmx', 'x2apic', 'xd', 'xsave']
+        self.assertEqual(get_cpu_features(), expected)
 
     def test_cpu_architecture_native(self):
         """Test getting the CPU architecture."""
@@ -464,7 +533,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU vendor (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
         st.platform.uname = mocked_uname
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
@@ -507,7 +576,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test get_cpu_family function (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
         st.platform.uname = mocked_uname
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
@@ -536,6 +605,10 @@ class SystemToolsTest(EnhancedTestCase):
         MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
+
+        MACHINE_NAME = 'ppc64le'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
+        self.assertEqual(get_cpu_family(), POWER_LE)
 
     def test_cpu_family_darwin(self):
         """Test get_cpu_family function (mocked for Darwin)."""
@@ -627,6 +700,12 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_glibc_version(), '2.12')
 
+    def test_glibc_version_linux_musl_libc(self):
+        """Test getting glibc version (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        st.get_tool_version = lambda _: "musl libc (x86_64); Version 1.1.18; Dynamic Program Loader"
+        self.assertEqual(get_glibc_version(), UNKNOWN)
+
     def test_glibc_version_darwin(self):
         """Test getting glibc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
@@ -636,7 +715,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test the function that gets the total memory."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_MEMINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_MEMINFO_FP, fp)
         self.assertEqual(get_total_memory(), 64510)
 
     def test_get_total_memory_darwin(self):
@@ -684,8 +763,8 @@ class SystemToolsTest(EnhancedTestCase):
     def test_det_terminal_size(self):
         """Test det_terminal_size function."""
         (height, width) = st.det_terminal_size()
-        self.assertTrue(isinstance(height, int) and height > 0)
-        self.assertTrue(isinstance(width, int) and width > 0)
+        self.assertTrue(isinstance(height, int) and height >= 0)
+        self.assertTrue(isinstance(width, int) and width >= 0)
 
 
 def suite():

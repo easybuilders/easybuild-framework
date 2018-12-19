@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ from easybuild.tools.config import build_option, build_path, source_paths, insta
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
 
@@ -266,19 +266,20 @@ class EasyBuildConfigTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         # test with config file passed via environment variable
+        # also test for existence of HOME and USER by adding paths to robot-paths
         installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
             'sourcepath = %(DEFAULT_REPOSITORYPATH)s',
             'repositorypath = %(DEFAULT_REPOSITORYPATH)s,somesubdir',
-            'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s',
+            'robot-paths=/tmp/foo:%(sourcepath)s:%(HOME)s:/tmp/%(USER)s:%(DEFAULT_ROBOT_PATHS)s',
             'installpath-modules=%s' % installpath_modules,
         ])
         write_file(config_file, cfgtxt)
@@ -296,12 +297,17 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
         self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
-        robot_paths = [
-            '/tmp/foo',
-            os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
-            os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
-        ]
-        self.assertEqual(options.robot_paths[:3], robot_paths)
+
+        # hardcoded first entry
+        self.assertEqual(options.robot_paths[0], '/tmp/foo')
+        # resolved value for %(sourcepath)s template
+        self.assertEqual(options.robot_paths[1], os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'))
+        # resolved value for HOME constant
+        self.assertEqual(options.robot_paths[2], os.getenv('HOME'))
+        # resolved value that uses USER constant
+        self.assertEqual(options.robot_paths[3], os.path.join('/tmp', os.getenv('USER')))
+        # first path in DEFAULT_ROBOT_PATHS
+        self.assertEqual(options.robot_paths[4], os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         testpath3 = os.path.join(self.tmpdir, 'testTHREE')
         os.environ['EASYBUILD_SOURCEPATH'] = testpath2
@@ -353,7 +359,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
-        self.assertErrorRegex(TypeError, '.*item assignment.*', lambda x: bo.update(x), {'debug': True})
+        self.assertErrorRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
         self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
@@ -478,7 +484,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         tmp_ecs_dir = os.path.join(tmpdir, 'easybuild', 'easyconfigs')
-        shutil.copytree(test_ecs_path, tmp_ecs_dir)
+        copy_dir(test_ecs_path, tmp_ecs_dir)
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         orig_sys_path = sys.path[:]

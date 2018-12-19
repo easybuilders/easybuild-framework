@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ Easyconfig module that provides functionality for tweaking existing eaysconfig (
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Alan O'Cais (Juelich Supercomputing Centre)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 import copy
 import glob
@@ -44,11 +46,16 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
+from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
+from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
 from easybuild.tools.utilities import quote_str
 
 
@@ -70,54 +77,142 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs, modtool, targetdir=None):
+def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
-
+    tweaked_ecs_path, tweaked_ecs_deps_path = None, None
+    if targetdirs is not None:
+        tweaked_ecs_path, tweaked_ecs_deps_path = targetdirs
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
     toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
     if len(toolchains) > 1:
         raise EasyBuildError("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s",
                              toolchains)
+    # Toolchain is unique, let's store it
+    source_toolchain = easyconfigs[-1]['ec']['toolchain']
+    modifying_toolchains = False
+    target_toolchain = {}
+    src_to_dst_tc_mapping = {}
+    revert_to_regex = False
 
-    if 'name' in build_specs or 'version' in build_specs:
-        # no recursion if software name/version build specification are included
+    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs:
+        keys = build_specs.keys()
+
+        # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
+        # supported
+        if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain'] for key in keys):
+            print_warning("Combining --try-toolchain* with other build options is not fully supported: using regex")
+            revert_to_regex = True
+
+        if not revert_to_regex:
+            # we're doing something with the toolchain,
+            # so build specifications should be applied to whole dependency graph;
+            # obtain full dependency graph for specified easyconfigs;
+            # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
+            modifying_toolchains = True
+
+            if 'toolchain_name' in keys:
+                target_toolchain['name'] = build_specs['toolchain_name']
+            else:
+                target_toolchain['name'] = source_toolchain['name']
+
+            if 'toolchain_version' in keys:
+                target_toolchain['version'] = build_specs['toolchain_version']
+            else:
+                target_toolchain['version'] = source_toolchain['version']
+
+            if build_option('map_toolchains'):
+                try:
+                    src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+                except EasyBuildError as err:
+                    # make sure exception was raised by match_minimum_tc_specs because toolchain mapping didn't work
+                    if "No possible mapping from source toolchain" in err.msg:
+                        error_msg = err.msg + '\n'
+                        error_msg += "Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
+                        error_msg += "(If you know what you are doing, "
+                        error_msg += "you can use --disable-map-toolchains to proceed anyway.)"
+                        raise EasyBuildError(error_msg, target_toolchain['name'], source_toolchain['name'])
+                    else:
+                        # simply re-raise the exception if something else went wrong
+                        raise err
+            else:
+                msg = "Mapping of (sub)toolchains disabled, so falling back to regex mode, "
+                msg += "disabling recursion and not changing (sub)toolchains for dependencies"
+                _log.info(msg)
+                revert_to_regex = True
+                modifying_toolchains = False
+
+        if not revert_to_regex:
+            _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
+            orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
+
+            # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
+            # We can leave any dependencies they may have as they will only be used if required (or originally listed)
+            _log.debug("Filtering out toolchain hierarchy for %s", source_toolchain)
+
+            i = 0
+            while i < len(orig_ecs):
+                tc_names = [tc['name'] for tc in get_toolchain_hierarchy(source_toolchain)]
+                if orig_ecs[i]['ec']['name'] in tc_names:
+                    # drop elements in toolchain hierarchy
+                    del orig_ecs[i]
+                else:
+                    i += 1
+    else:
+        revert_to_regex = True
+
+    if revert_to_regex:
+        # no recursion if software name/version build specification are included or we are amending something
         # in that case, do not construct full dependency graph
         orig_ecs = easyconfigs
         _log.debug("Software name/version found, so not applying build specifications recursively: %s" % build_specs)
-    else:
-        # build specifications should be applied to the whole dependency graph
-        # obtain full dependency graph for specified easyconfigs
-        # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
-        _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
-        orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
     # keep track of originally listed easyconfigs (via their path)
     listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
-    # determine toolchain based on last easyconfigs
-    if orig_ecs:
-        toolchain = orig_ecs[-1]['ec']['toolchain']
-        _log.debug("Filtering using toolchain %s" % toolchain)
-
-        # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
-        if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
-            while orig_ecs[0]['ec']['toolchain'] != toolchain:
-                orig_ecs = orig_ecs[1:]
-
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
     for orig_ec in orig_ecs:
-        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdir)
-        # only return tweaked easyconfigs for easyconfigs which were listed originally
-        # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot
+        # Only return tweaked easyconfigs for easyconfigs which were listed originally on the command line
+        # (and use the prepended path so that they are found first).
+        # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
+        # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
+
+        tc_name = orig_ec['ec']['toolchain']['name']
+
+        new_ec_file = None
+        verification_build_specs = copy.copy(build_specs)
         if orig_ec['spec'] in listed_ec_paths:
-            new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
-            tweaked_easyconfigs.extend(new_ecs)
+            if modifying_toolchains:
+                if tc_name in src_to_dst_tc_mapping:
+                    new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
+                                                                        tweaked_ecs_path)
+                    # Need to update the toolchain in the build_specs to match the toolchain mapping
+                    keys = verification_build_specs.keys()
+                    if 'toolchain_name' in keys:
+                        verification_build_specs['toolchain_name'] = src_to_dst_tc_mapping[tc_name]['name']
+                    if 'toolchain_version' in keys:
+                        verification_build_specs['toolchain_version'] = src_to_dst_tc_mapping[tc_name]['version']
+                    if 'toolchain' in keys:
+                        verification_build_specs['toolchain'] = src_to_dst_tc_mapping[tc_name]
+            else:
+                new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_path)
+
+            if new_ec_file:
+                new_ecs = process_easyconfig(new_ec_file, build_specs=verification_build_specs)
+                tweaked_easyconfigs.extend(new_ecs)
+        else:
+            # Place all tweaked dependency easyconfigs in the directory appended to the robot path
+            if modifying_toolchains:
+                if tc_name in src_to_dst_tc_mapping:
+                    new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
+                                                                        targetdir=tweaked_ecs_deps_path)
+            else:
+                new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
     return tweaked_easyconfigs
 
 
-def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
+def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
@@ -127,14 +222,21 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     The tweaks should be specified in a dictionary, with parameters and keys that map to the values
     to be set.
 
-    Reads easyconfig file at path <src_fn>, and writes the tweaked easyconfig file to <target_fn>.
+    Reads easyconfig file at path <orig_ec>, and writes the tweaked easyconfig file to <tweaked_ec>.
 
-    If no target filename is provided, a target filepath is generated based on the contents of
-    the tweaked easyconfig file.
+    If <tweaked_ec> is not provided, a target filepath is generated based on <targetdir> and the
+    contents of the tweaked easyconfig file.
+
+    :param orig_ec: location of original easyconfig file to read
+    :param tweaked_ec: location where tweaked easyconfig file should be written
+                       (if this is None, then filename for tweaked easyconfig is auto-derived from contents)
+    :param tweaks: dictionary with set of changes to apply to original easyconfig file
+    :param targetdir: target directory for tweaked easyconfig file, defaults to temporary directory
+                      (only used if tweaked_ec is None)
     """
 
     # read easyconfig file
-    ectxt = read_file(src_fn)
+    ectxt = read_file(orig_ec)
 
     _log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
     # determine new toolchain if it's being changed
@@ -144,7 +246,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
         res = tc_regexp.search(ectxt)
         if not res:
-            raise EasyBuildError("No toolchain found in easyconfig file %s: %s", src_fn, ectxt)
+            raise EasyBuildError("No toolchain found in easyconfig file %s: %s", orig_ec, ectxt)
 
         toolchain = eval(res.group(1))
         for key in ['name', 'version']:
@@ -163,16 +265,18 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 
     additions = []
 
-    # automagically clear out list of checksums if software version is being tweaked 
+    # automagically clear out list of checksums if software version is being tweaked
     if 'version' in tweaks and 'checksums' not in tweaks:
         tweaks['checksums'] = []
         _log.warning("Tweaking version: checksums cleared, verification disabled.")
 
-    # we need to treat list values seperately, i.e. we prepend to the current value (if any)
+    # we need to treat list values separately, i.e. we prepend to the current value (if any)
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*\])\s*$" % key, re.M)
+            # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
+            # and a lookahead assertion (?=...) so next line is either another parameter definition or a blank line
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=(\n^\w+\s*=.*|\s*)$)" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
@@ -230,7 +334,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
-    if target_fn is None:
+    if tweaked_ec is None:
         fn = None
         try:
             # obtain temporary filename
@@ -250,14 +354,14 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 
         if targetdir is None:
             targetdir = tempfile.gettempdir()
-        target_fn = os.path.join(targetdir, fn)
-        _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
+        tweaked_ec = os.path.join(targetdir, fn)
+        _log.debug("Generated file name for tweaked easyconfig file: %s", tweaked_ec)
 
     # write out tweaked easyconfig file
-    write_file(target_fn, ectxt)
-    _log.info("Tweaked easyconfig file written to %s" % target_fn)
+    write_file(tweaked_ec, ectxt, backup=True, always_overwrite=False, verbose=True)
+    _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
 
-    return target_fn
+    return tweaked_ec
 
 
 def pick_version(req_ver, avail_vers):
@@ -379,17 +483,17 @@ def select_or_generate_ec(fp, paths, specs):
     # TOOLCHAIN NAME
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
-    def unique(l):
+    def unique(lst):
         """Retain unique elements in a sorted list."""
-        l = sorted(l)
-        if len(l) > 1:
-            l2 = [l[0]]
-            for x in l:
-                if not x == l2[-1]:
-                    l2.append(x)
-            return l2
+        lst = sorted(lst)
+        if len(lst) > 1:
+            res = [lst[0]]
+            for x in lst:
+                if not x == res[-1]:
+                    res.append(x)
+            return res
         else:
-            return l
+            return lst
 
     # determine list of unique toolchain names
     tcnames = unique([x[0]['toolchain']['name'] for x in ecs_and_files])
@@ -474,7 +578,7 @@ def select_or_generate_ec(fp, paths, specs):
     versuff = None
     other_params = {'versionprefix': None, 'versionsuffix': None}
     for (param, val) in specs.items():
-        if not param in handled_params:
+        if param not in handled_params:
             other_params.update({param: val})
 
     _log.debug("Filtering based on other parameters (specified via --amend): %s" % other_params)
@@ -591,3 +695,163 @@ def obtain_ec_for(specs, paths, fp=None):
         return res
     else:
         raise EasyBuildError("No easyconfig found for requested software, and also failed to generate one.")
+
+
+def check_capability_mapping(source_tc_spec, target_tc_spec):
+    """
+    Compare whether the capabilities of a source toolchain are all present in a target toolchain
+
+    :param source_tc_spec: specs of source toolchain
+    :param target_tc_spec: specs of target toolchain
+
+    :return: boolean indicating whether or not source toolchain is compatible with target toolchain
+    """
+    can_map = True
+    # Check they have same capabilities
+    for key in TOOLCHAIN_CAPABILITIES:
+        if target_tc_spec[key] is None and source_tc_spec[key] is not None:
+            can_map = False
+            break
+
+    return can_map
+
+
+def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
+    """
+    Match a source toolchain spec to the minimal corresponding toolchain in a target hierarchy
+
+    :param source_tc_spec: specs of source toolchain
+    :param target_tc_hierarchy: hierarchy of specs for target toolchain
+    """
+    minimal_matching_toolchain = {}
+    target_compiler_family = ''
+
+    # break out once we've found the first match since the hierarchy is ordered low to high in terms of capabilities
+    for target_tc_spec in target_tc_hierarchy:
+        if check_capability_mapping(source_tc_spec, target_tc_spec):
+            # GCCcore has compiler capabilities,
+            # but should only be used in the target if the original toolchain was also GCCcore
+            if target_tc_spec['name'] != GCCcore.NAME or source_tc_spec['name'] == GCCcore.NAME:
+                minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
+                target_compiler_family = target_tc_spec['comp_family']
+                break
+
+    if not minimal_matching_toolchain:
+        raise EasyBuildError("No possible mapping from source toolchain spec %s to target toolchain hierarchy specs %s",
+                             source_tc_spec, target_tc_hierarchy)
+
+    # Warn if we are changing compiler families, this is very likely to cause problems
+    if target_compiler_family != source_tc_spec['comp_family']:
+        print_warning("Your request will result in a compiler family switch (%s to %s). Here be dragons!" %
+                      (source_tc_spec['comp_family'], target_compiler_family))
+
+    return minimal_matching_toolchain
+
+
+def get_dep_tree_of_toolchain(toolchain_spec, modtool):
+    """
+    Get list of dependencies of a toolchain (as EasyConfig objects)
+
+    :param toolchain_spec: toolchain spec to get the dependencies of
+    :param modtool: module tool used
+
+    :return: The dependency tree of the toolchain spec
+    """
+    path = robot_find_easyconfig(toolchain_spec['name'], toolchain_spec['version'])
+    if path is None:
+        raise EasyBuildError("Could not find easyconfig for %s toolchain version %s",
+                             toolchain_spec['name'], toolchain_spec['version'])
+    ec = process_easyconfig(path, validate=False)
+
+    return [dep['ec'] for dep in resolve_dependencies(ec, modtool, retain_all_deps=True)]
+
+
+def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
+    """
+    Create a map between toolchain hierarchy of the initial toolchain and that of the target toolchain
+
+    :param source_toolchain: initial toolchain of the easyconfig(s)
+    :param target_toolchain: target toolchain for tweaked easyconfig(s)
+    :param modtool: module tool used
+
+    :return: mapping from source hierarchy to target hierarchy
+    """
+    tc_mapping = {}
+    source_tc_hierarchy = get_toolchain_hierarchy(source_toolchain, incl_capabilities=True)
+    target_tc_hierarchy = get_toolchain_hierarchy(target_toolchain, incl_capabilities=True)
+
+    for toolchain_spec in source_tc_hierarchy:
+        tc_mapping[toolchain_spec['name']] = match_minimum_tc_specs(toolchain_spec, target_tc_hierarchy)
+
+    # Check for presence of binutils in source and target toolchain dependency trees
+    # (only do this when GCCcore is present in both and GCCcore is not the top of the tree)
+    gcccore = GCCcore.NAME
+    source_tc_names = [tc_spec['name'] for tc_spec in source_tc_hierarchy]
+    target_tc_names = [tc_spec['name'] for tc_spec in target_tc_hierarchy]
+    if gcccore in source_tc_names and gcccore in target_tc_names and source_tc_hierarchy[-1]['name'] != gcccore:
+        binutils = 'binutils'
+        # Determine the dependency trees
+        source_dep_tree = get_dep_tree_of_toolchain(source_tc_hierarchy[-1], modtool)
+        target_dep_tree = get_dep_tree_of_toolchain(target_tc_hierarchy[-1], modtool)
+        # Find the binutils mapping
+        if binutils in [dep['name'] for dep in source_dep_tree]:
+            # We need the binutils that was built using GCCcore (we assume that everything is using standard behaviour:
+            # build binutils with GCCcore and then use that for anything built with GCCcore)
+            binutils_deps = [dep for dep in target_dep_tree if dep['name'] == binutils]
+            binutils_gcccore_deps = [dep for dep in binutils_deps if dep['toolchain']['name'] == gcccore]
+            if len(binutils_gcccore_deps) == 1:
+                tc_mapping[binutils] = {'version': binutils_gcccore_deps[0]['version'],
+                                        'versionsuffix': binutils_gcccore_deps[0]['versionsuffix']}
+            else:
+                raise EasyBuildError("Target hierarchy %s should have binutils using GCCcore, can't determine mapping!",
+                                     target_tc_hierarchy[-1])
+
+    return tc_mapping
+
+
+def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None):
+    """
+    Take an easyconfig spec, parse it, map it to a target toolchain and dump it out
+
+    :param ec_spec: Location of original easyconfig file
+    :param toolchain_mapping: Mapping between source toolchain and target toolchain
+    :param targetdir: Directory to dump the modified easyconfig file in
+
+    :return: Location of the modified easyconfig file
+    """
+    # Fully parse the original easyconfig
+    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
+    # Replace the toolchain if the mapping exists
+    tc_name = parsed_ec['ec']['toolchain']['name']
+    if tc_name in toolchain_mapping:
+        new_toolchain = toolchain_mapping[tc_name]
+        _log.debug("Replacing parent toolchain %s with %s", parsed_ec['ec']['toolchain'], new_toolchain)
+        parsed_ec['ec']['toolchain'] = new_toolchain
+
+    # Replace the toolchains of all the dependencies
+    for key in DEPENDENCY_PARAMETERS:
+        # loop over a *copy* of dependency dicts (with resolved templates);
+        # to update the original dep dict, we need to index with idx into self._config[key][0]...
+        for idx, dep in enumerate(parsed_ec['ec'][key]):
+            # reference to original dep dict, this is the one we should be updating
+            orig_dep = parsed_ec['ec']._config[key][0][idx]
+            # skip dependencies that are marked as external modules
+            if dep['external_module']:
+                continue
+            dep_tc_name = dep['toolchain']['name']
+            if dep_tc_name in toolchain_mapping:
+                orig_dep['toolchain'] = toolchain_mapping[dep_tc_name]
+            # Replace the binutils version (if necessary)
+            if 'binutils' in toolchain_mapping and (dep['name'] == 'binutils' and dep_tc_name == GCCcore.NAME):
+                orig_dep.update(toolchain_mapping['binutils'])
+                # set module names
+                orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
+                orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
+    # Determine the name of the modified easyconfig and dump it to target_dir
+    ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
+    tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
+
+    parsed_ec['ec'].dump(tweaked_spec, always_overwrite=False, backup=True)
+    _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
+
+    return tweaked_spec

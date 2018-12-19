@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,8 +27,10 @@
 The main easyconfig format class
 
 :author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import re
+import sys
 
 from vsc.utils import fancylogger
 
@@ -184,8 +186,12 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         try:
             exec(pyheader, global_vars, local_vars)
-        except SyntaxError, err:
-            raise EasyBuildError("SyntaxError in easyconfig pyheader %s: %s", pyheader, err)
+        except Exception as err:  # pylint: disable=broad-except
+            err_msg = str(err)
+            exc_tb = sys.exc_info()[2]
+            if exc_tb.tb_next is not None:
+                err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
+            raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
 
         self.log.debug("pyheader final global_vars %s" % global_vars)
         self.log.debug("pyheader final local_vars %s" % local_vars)

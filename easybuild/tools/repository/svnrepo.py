@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -135,19 +135,43 @@ class SvnRepository(FileRepository):
             except ClientError, err:
                 raise EasyBuildError("Checkout of path / in working copy %s went wrong: %s", self.wc, err)
 
-    def add_easyconfig(self, cfg, name, version, stats, append):
+    def stage_file(self, path):
         """
-        Add easyconfig to SVN repository.
-        """
-        dest = FileRepository.add_easyconfig(self, cfg, name, version, stats, append)
-        self.log.debug("destination = %s" % dest)
-        if dest:
-            self.log.debug("destination status: %s" % self.client.status(dest))
+        Stage file at specified location in repository for commit
 
-            if self.client and not self.client.status(dest)[0].is_versioned:
-                # add it to version control
-                self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (dest, self.wc, os.getcwd()))
-                self.client.add(dest)
+        :param path: location of file to stage
+        """
+        if self.client and not self.client.status(path)[0].is_versioned:
+            # add it to version control
+            self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (path, self.wc, os.getcwd()))
+            self.client.add(path)
+
+    def add_easyconfig(self, cfg, name, version, stats, previous_stats):
+        """
+        Add easyconfig to SVN repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
+        """
+        path = super(SvnRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        self.stage_file(path)
+        return path
+
+    def add_patch(self, patch, name):
+        """
+        Add patch to SVN repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
+        """
+        path = super(SvnRepository, self).add_patch(patch, name)
+        self.stage_file(path)
+        return path
 
     def commit(self, msg=None):
         """

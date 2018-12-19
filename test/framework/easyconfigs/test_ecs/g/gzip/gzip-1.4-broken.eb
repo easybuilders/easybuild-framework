@@ -1,5 +1,5 @@
 ##
-# This file is an EasyBuild reciPY as per https://github.com/hpcugent/easybuild
+# This file is an EasyBuild reciPY as per https://github.com/easybuilders/easybuild
 #
 # Copyright:: Copyright (c) 2012-2013 Cyprus Institute / CaSToRC
 # Authors::   Thekla Loizou <t.loizou@cyi.ac.cy>
@@ -19,7 +19,7 @@ homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
 
 # test toolchain specification
-toolchain = {'name':'dummy','version':'dummy'}
+toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 # source tarball filename
 sources = [SOURCE_TAR_GZ]

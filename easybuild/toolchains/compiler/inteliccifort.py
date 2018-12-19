@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ class IntelIccIfort(Compiler):
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
         'loose': ['fp-model fast=1'],
         'veryloose': ['fp-model fast=2'],
+        'vectorize': {False: 'no-vec', True: 'vec'},
         'intel-static': 'static-intel',
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
@@ -71,13 +72,13 @@ class IntelIccIfort(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHost',
-        systemtools.AMD : 'xHost',
+        (systemtools.X86_64, systemtools.AMD): 'xHost',
+        (systemtools.X86_64, systemtools.INTEL): 'xHost',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.INTEL : 'xSSE2',
-        systemtools.AMD : 'xSSE2',
+        (systemtools.X86_64, systemtools.AMD): 'xSSE2',
+        (systemtools.X86_64, systemtools.INTEL): 'xSSE2',
     }
 
     COMPILER_CC = 'icc'

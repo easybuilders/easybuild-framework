@@ -1,7 +1,503 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
-These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
+These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
+
+v3.8.0 (December 18th 2018)
+---------------------------
+
+feature release
+- various enhancements, including:
+  - support use of version ranges in --filter-deps (#2357)
+  - add support for --list-prs (#2400, #2668)
+  - add support for --close-pr (#2401)
+  - allow setting optarch compiler flags in the easyconfig via toolchainopts easyconfig parameter (#2595)
+  - add option to skip pre-creation of install directory: --disable-pre-create-installdir (#2629, #2637)
+  - flesh out setting up of configuration into dedicated 'set_up_configuration' function (#2638)
+  - clean error when 'eb' is cancelled by user (#2641)
+  - add support for using Slurm as backend for --job, via --job-backend=Slurm (#2642, #2666)
+  - save easyblocks along with easyconfig in 'reprod' subdirectory of install directory (#2653)
+  - add support for deprecating easyconfig files & toolchains (#2656)
+  - changed easyconfig.update to be able to specify not to allow duplicate values (#2657)
+  - move adding of dependencies to prepare step instead of check readiness step (#2674)
+  - add support for disabling mapping of (sub)toolchains when --try-toolchain is used, via --disable-map-toolchains (#2682)
+  - add 'astro' and 'quantum' module classes (#2693)
+- various bug fixes, including:
+  - make --from-pr always try to apply PR patch on top of PR target branch (#2631)
+  - fix bug that could cause to silently overwrite an existing easyconfig when using --try-* (#2635)
+  - don't pass down specific environment variables into submitted jobs (#2643)
+  - update template constants for source URLs to use https (#2648)
+  - fix lib64 fallback for 'lib'/'lib64' dirs entry in sanity_check_paths (#2649)
+  - change PGI F90 Fortran compiler to pgf90 (#2650)
+  - use --set-upstream-to in install-EasyBuild-develop.sh script to deal with deprecated/no longer supported --set-upstream (#2651)
+  - fix order of keys in 'toolchain' value for dumped easyconfig file (name, version) + run style check on dumped easyconfigs in dump tests (#2660)
+  - ensure checksums beside sources in dumped easyconfigs (#2661)
+  - fix problems with easyconfig file saved in 'reprod' directory by copying it before running any installation steps (#2664)
+  - make print functions more robust w.r.t. arguments being passed to format the message to be printed (#2670)
+  - use 'git am' to apply patch for PRs in fetch_easyconfigs_from_pr (#2680)
+  - correctly define $LIBFFT_MT for Intel MKL (#2688)
+  - don't always require easyconfig files to resolve dependencies (#2690, #2692, #2697, #2698, #2699)
+- fixes for Travis CI config:
+  - stop testing with Lmod 6.6.3, testing with Lmod 6.5.1 is sufficient (#2627)
+  - Python 2.6 requires python-daemon 1.x as dep for GC3Pie (#2673)
+  - stick to idna<2.8 with Python 2.6 in Travis + distable broken test for HgRepository (#2678)
+- other changes:
+  - always skip symlinks in adjust_permissions (#2644)
+  - flesh out 'avail_easyblocks' function from support for --list-easyblocks (#2663)
+  - deprecate the ictce toolchain (#2667)
+  - deprecate goolf and goolfc toolchains (#2676)
+  - deprecate intel toolchains older than intel/2016a (+ iccifort & iimpi subtoolchains) (#2677)
+  - deprecate ancient gompi toolchain versions (#2684)
+  - use 'tar xzf' (gzip) rather than 'tar xZf' (ancient compress) to unpack *.tar.Z source files (#2686)
+  - flesh out 'set_parallel' method to it can be called separately (#2687)
+
+
+v3.7.1 (October 18th 2018)
+--------------------------
+
+bugfix release
+- various enhancements, including:
+  - generate .modulerc.lua when Lua syntax and Lmod >= 7.8 is used (#2597)
+  - allow --force to use regex if --try-toolchain can not map intelligently (#2605)
+  - add support for disabling modules tool version check (#2610)
+  - add support to ModuleGenerator.modulerc method to also write .modulerc file (#2611)
+  - check whether module file being wrapped exists in same directory as module wrapper when using Lmod 6.x (#2611)
+- various bug fixes, including:
+  - stop relying on 'easy_install' in bootstrap script, use 'python -m easy_install' instead (#2590)
+  - fix templating of values in list_software function (#2591)
+  - fix composing of lib64 fallback paths in sanity check (#2602)
+  - determine file_info for all easyconfigs before any actual copying in copy_easyconfigs function (#2604)
+  - also check for module wrappers in 'ModulesTool.exist' method (#2606)
+  - add trailing newline to module load message if it's not there yet (#2613)
+  - retain all dependencies when determining dependency tree of a toolchain (#2617)
+  - protect exts_lists from templating in dump method (#2619)
+  - making CUDA capability detection more robust (#2621)
+- other changes:
+  - lower required Lmod version to 6.5.1 (#2593)
+
+
+v3.7.0 (September 25th 2018)
+----------------------------
+
+feature release
+- minimal Lmod version requirement bumped to 6.6.3 (#2575)
+- various enhancements, including:
+  - add support to bootstrap script to force install specific EasyBuild version (#2382, #2580)
+  - consider potential of multiple subtoolchains when resolving dependencies (#2464, #2465, #2466, #2585)
+  - fall back to downloading using the requests Python package (if installed) when urllib2 fails due to SSL error (#2538)
+  - make --try-toolchain more aware of subtoolchains (#2539)
+    - subtoolchain of original toolchains are now mapped to subtoolchains of target toolchain
+  - add support for BLIS and goblf toolchain that uses BLIS for BLAS (#2540)
+  - allow skipping of sanity check step via 'skipsteps' easyconfig parameter (#2549)
+  - add support for --check-contrib (#2551)
+    - equivalent with --check-style, but also verifies presence of SHA256 checksums (+ more checks in the future)
+  - added support to 'download' sources from git (#2555)
+    - see https://easybuild.readthedocs.io/en/latest/Writing_easyconfig_files.html#downloading-from-a-git-repository
+  - add 'parse' hook to add support for applying site-specific customisations to the 'raw' easyconfig (#2562, #2566)
+    - see https://easybuild.readthedocs.io/en/develop/Hooks.html
+  - lift invalidating of module caches into helper method that can be used by easyblocks (#2571)
+  - always dump a fully parsed easyconfig to the 'reprod' subdir of the installation directory (#2574)
+  - add 'modulerc' method to ModuleGenerator class (#2575)
+- various bug fixes, including:
+  - make GC3Pie stop build process if a dependency failed (#2474)
+  - filter out patched files in test/ in fetch_easyconfigs_from_pr (#2547)
+  - check GC3pie version using the `pkg_resources` API rather than using __version__ (which was removed in GC3Pie 2.5.0) (#2554)
+  - fix enforcing of checksums for extensions (#2561, #2570, #2579)
+  - skip running of configuration checks while only a single configuration level is taken into account during --show-config (#2567)
+  - fix error statements in modules tool version checks (#2576)
+  - fix finding of software subdirectory for specified patch file in --new-pr/--update-pr (#2577)
+  - take into account dependency 'wrappers' in check_conflicts (#2583)
+  - stick to pycparser < 2.19 with Python 2.6 in Travis config (#2584)
+- other changes:
+  - use namelower as default for 'github_account' easyconfig parameter (#2528)
+  - use .counts() rather than deprecated .stats() for GC3Pie (#2573)
+
+
+v3.6.2 (July 11th 2018)
+-----------------------
+
+bugfix release
+- various enhancements, including:
+  - add support for including environment variable that is resolved at "module load time" in user module path (#2395)
+    - {RUNTIME_ENV::EXAMPLE} is replaced by value of $EXAMPLE when module is loaded
+  - also support generating Docker container recipes & image via --containerize (still experimental) (#2479)
+  - add support for specifying source URLs directly in 'sources' (#2520)
+  - perform early 'raw' parse of provided easyconfig file to check for syntax error or faulty inputs (#2523)
+  - add 'bitbucket_account' easyconfig parameter and template, and let BITBUCKET* templates use it (#2525)
+- various bug fixes, including:
+  - take into account --filter-deps when re-loading build dependencies in extensions_step (#2516)
+  - fix for offline use of bootstrap script: ignore errors when determining source URLs if source tarballs are provided (#2517)
+  - fix error message that is raised for incorrect type of value in sanity_check_paths (#2524)
+- other changes:
+  - move flake8 config into setup.cfg + fix style issues in easybuild/tools/options.py (#2511)
+  - make test that verifies that BuildOptions does not support updating a bit more flexible (#2518)
+
+
+v3.6.1 (May 28th 2018)
+----------------------
+
+bugfix release
+- various enhancements, including:
+  - add support for enabling fallback in sanity check to consider lib64 equivalent for seemingly missing libraries (#2477)
+  - add GITHUB_LOWER_SOURCE constant (#2491)
+  - add 'exts_download_dep_fail' as known easyconfig parameter (#2493)
+  - add support for passing custom messages on failing sanity check for extensions (#2494)
+  - add definition for fosscuda toolchain (#2507)
+- various bug fixes, including:
+  - make --inject-checksums always re-order source_urls/sources/patches/checksums (#2487)
+  - fix git remote url in CONTRIBUTING.md (#2490)
+  - make flake8 happy in easyblock.py (#2492)
+  - handle missing permissions for adding labels in --new-pr (#2497)
+  - restore tweaked $TMPDIR value after loading module (for sanity check) (#2498)
+  - enhance get_module_path function to auto-detect generic vs software-specific easyblock class names (#2502)
+  - don't blindly overwrite an existing easyconfig in tweak_one (#2504)
+  - take account that PlaintextKeyring may be provided via keyrings.alt (#2505)
+  - prepend location for temporary module file to $MODULEPATH with high priority + mark it as default in load_fake_module method (#2506)
+
+
+v3.6.0 (April 26th 2018)
+------------------------
+
+feature release
+- (experimental) support for generating Singularity container recipes & (optionally) images via 'sudo singularity' (#2332, #2480, #2481, #2482, #2483)
+  - see documentation at http://easybuild.readthedocs.io/en/latest/Containers.html
+- include -ftree-vectorize and -fno-math-errno in default compiler optimisation flags for GCC (#2388)
+  - this significantly improves performance of generated binaries when building with a GCC-based toolchain
+  - can be disabled if needed via the 'vectorize' toolchain option
+- several enhancements/fixes to GitHub integration support:
+  - loosen commit message requirements for --new-pr w.r.t. to patches as long as all easyconfigs are new (#2438)
+  - automatically add 'new' and/or 'update' labels in --new-pr (#2384)
+  - add force_in_dry_run=True to copy_file in copy_patch_files (#2442)
+  - test for custom commit message when deleting a file instead of when adding a patch (#2443)
+  - make diff_stat pattern also match output of older git versions in tests for --new/update-pr (#2444)
+  - remove duplicates from --new-pr title (#2478)
+- add support for "eb --fetch" to only download sources (even without having a modules tool installed) (#2457)
+- add definitions for a bunch of new toolchains:
+  - golf (#2458), gmkl (#2460), gomkl (#2455), pmkl (#2460)
+  - toolchains including CUDA: gmklc, gomklc, iimklc, iompic, iomklc (#2461)
+- various minor enhancements, including:
+  - avoid that '--inject-checksums' adds lines longer than 120 characters (#2434)
+  - enable caching of $HOME/.cache/pip in Travis config (#2435)
+  - replace raw strings with bytes literal as iterator sentinels in checksum calculation (#2446)
+  - new command-line option '--job-max-jobs' to cap nr of submitted build jobs with GC3Pie (#2378)
+  - add configuration for houndci + flake8 (#2451)
+  - add Accept header when downloading file (#2437)
+  - include running of 'eb --check-github' in Travis config (#2449, #2454)
+  - flesh out common code blocks in test/framework/options.py (#2452)
+  - support 'depends_on' load statements in generated modules via --module-depends-on and module_depends_on easyconfig parameter (#2391)
+  - fix compatibility with Modules v4.1.x (#2470)
+  - add support to run_cmd to enable streaming output (#2476)
+- various bug fixes, including:
+  - determine whether included easyblocks are generic or not based on class they define (#2432)
+  - make sure GitHub token is used in test for --preview-pr (#2436)
+  - take into account that toolchain components may be hidden when determining toolchain composition (#2440)
+  - stick to autopep8 1.3.4 when testing with Python 2.6 (#2462)
+  - strip off .lua extension when backing up modules to ensure Lmod 6.x doesn't pick up on them (#2463)
+  - check for modulecmd.tcl before modulecmd in bootstrap script to discriminate between Modules 4.1.x vs 3.2.10 (#2468)
+  - fix derive_alt_pypi_url after PyPI switching to sha256 in package URLs + fix broken test for pypi_source_urls + fix bootstrap script (#2471)
+  - make sure that both 'get_git_revision' and 'this_is_easybuild' return regular strings rather than Unicode strings (#2472)
+
+
+v3.5.3 (March 7th 2018)
+-----------------------
+
+bugfix release
+- various enhancements, including:
+  - re-enable testing against environment modules, bump Lmod to 7.7.16 (#2425)
+  - print which hook is being executed in the command line output (#2427)
+- various bug fixes, including:
+  - fix order in result of gen_list_easyblocks and gen_easyblocks_overview_rst (#2421)
+  - fix target account for branch pushed when using --new-pr (#2426)
+
+
+v3.5.2 (March 2nd 2018)
+-----------------------
+
+bugfix release
+- various enhancements, including:
+  - add functionality to skip devel module with naming scheme (#2374)
+  - add pagination support in clean_gists.py (#2379)
+  - allow basic compiler modulenames to be specified as keys in optarch (#2387)
+  - initial set of OHPC module meta data for EasyBuild (#2392)
+  - allow different target account in post_comment_in_issue (#2399)
+  - declare support for RPATH linking stable (#2409)
+- various bug fixes, including:
+  - update bootstrap script to be compatible with Modules v4 (#2390)
+  - avoid fatal error when determining glibc version on non-glibc Linux system (e.g. Alphine Linux) (#2398)
+  - exclude location of RPATH wrappers from $PATH to avoid fork bomb (#2410)
+  - fix target account for --update-pr in case it's different from GitHub account being used to push branch (#2419)
+
+
+v3.5.1 (January 16th 2018)
+--------------------------
+
+bugfix release
+- various enhancements, including:
+  - add definition of giolfc toolchain (#2359)
+  - add support for Environment Modules 4 (#2365)
+- various bug fixes, including:
+  - install SQLAlchemy < 1.2.0 with Python 2.6 in Travis config (#2367)
+  - make code in easybuild/tools/job/gc3pie.py forward-compatible with GC3Pie 2.5 (#2373)
+
+
+v3.5.0 (December 15th 2017)
+---------------------------
+
+feature release
+- add support for implementing pre- and post-step hooks (#2343)
+  - documentation available at http://easybuild.readthedocs.io/en/latest/Hooks.html
+- various enhancements, including:
+  - add support for foss-like toolchain with Spectrum MPI: gsolf (#2329)
+  - add support for --preview-pr (#2331, #2337, #2348)
+    - see also http://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html#previewing-easyconfig-pull-requests-preview-pr
+  - flesh out find_extension function, hoist dict with extract commands into a constant (#2336)
+  - add support for using self.start_dir rather than using self.cfg['start_dir'] (#2339)
+  - add support for 'exts_default_options' easyconfig parameter (#2345, #2346)
+  - allow use of 'start_dir' easyconfig parameter in extensions (#2353)
+- various bug fixes, including:
+  - fix typo in 'giolf' toolchain definition (#2327)
+  - fix minor issues with --inject-checksums (#2333)
+  - fix error message when 'gv' Python package is not available (#2340)
+  - install paramiko version < 2.4.0 for Python 2.6 in Travis config (#2344)
+  - disable broken log rotation, avoid duplicate logging of output of executed commands under '--debug' (#2347)
+  - also include $ORIGIN and absolute paths to 'lib' and 'lib64' subdirectories in RPATH locations (#2358)
+  - fix repo references in install-EasyBuild-develop.sh script (#2360)
+
+
+v3.4.1 (October 17th 2017)
+--------------------------
+
+bugfix release
+- various enhancements, including:
+  - improve trace output for executed commands + drop requirement for --experimental for --trace (#2306)
+  - add giolf toolchain definition: GCC, IntelMPI, OpenBLAS, (Sca)LAPACK and FFTW (#2310)
+  - add support for --force-download and --ignore-checksums (#2313, #2314)
+  - flesh out pypi_source_urls from derive_alt_pypi_url (#2319)
+- various bug fixes, including:
+  - also check for use of --rebuild next to --force to skip sanity check with --module-only (#2307)
+  - ensure $TMPDIR is set to a short path for OpenMPI v2.x (#2311)
+  - guard 'module load' commands in generated modules under --recursive-unload to avoid load storms (#2316)
+  - correctly deal with use of special characters in description & co (#2320)
+  - fix incorrect FFT_INC_DIR for Intel MKL (#2323)
+
+
+v3.4.0 (September 10th 2017)
+----------------------------
+
+feature release
+- various enhancements, including:
+  - add support for backing up modules via --backup-modules (#2134)
+    - enabled automatically with --module-only and --skip
+    - see also http://easybuild.readthedocs.io/en/latest/Backup_modules.html
+  - add support for --search-paths to extend list of locations considered by --search/-S (#2255)
+  - include userInGroup check in Lua modules when installation is group-restricted (#2274)
+  - add experimental support for 'eb --trace' (#2285)
+    - see also http://easybuild.readthedocs.io/en/latest/Tracing_progress.html
+  - add support for 'eb --inject-checksums' (#2286, #2292, #2293)
+    - see also http://easybuild.readthedocs.io/en/latest/Writing_easyconfig_files.html#adding-or-replacing-checksums-using-inject-checksums
+  - add support for append_paths in module generator (#2294)
+- various bug fixes, including:
+  - strip provided GitHub token of spaces in --install-github-token (#2270)
+  - remove 'provides' line from setup.py (#2275)
+  - pass down stdin in 'import' check for extensions during sanity check (#2276)
+  - make sure location to 'eb' installed during stage 1 is included in $PATH during stage 2 of bootstrap procedure (#2281)
+  - make resolve_path robust against None path being provided (#2282)
+  - ensure clean error message on easyconfig file parse failure (#2290)
+  - fix regex to avoid sucking up additional lines prior to module file path in modulefile_path (#2291)
+  - fix error message when --use-ccache is used but ccache is not available in $PATH (#2295)
+
+
+v3.3.1 (July 12th 2017)
+-----------------------
+
+bugfix release
+- various enhancements, including:
+  - add support for 'allow_prepend_abs_path' easyconfig parameter (#2254)
+  - support for --merge-pr (#2266)
+- various bug fixes, including:
+  - resolve symlinks to location of 'eb' in get_paths_for (#2248)
+  - fall back to checking location relative to 'eb' location in find_eb_script (#2249)
+  - respect --suffix-modules-path value for user-specific module path extensions (#2250)
+  - update EasyBuild bootstrap script to download distribute tarball from http://easybuilders.github.io/easybuild/files (#2256)
+  - fix default target GitHub account/organisation for --new-pr & co + fix tests that got broken by migration to github.com/easybuilders (#2258)
+  - fix checking for new easyconfigs in copy_easyconfigs, pick up specified commit message as PR title if none was provided (#2259)
+  - get rid of references to hpcugent after move to github.com/easybuilders (#2261)
+  - automatically enable --ignore-osdeps under --new-pr and --update-pr (#2262)
+
+
+v3.3.0 (June 26th 2017)
+-----------------------
+
+feature release
+- various enhancements, including:
+  - clean up easyconfigs that are copied for inclusion in pull request (#2197, #2227)
+  - use devel logging where relevant in easybuild.tools.toolchain (#2198)
+  - check exit code for executed module commands (#2200)
+  - also copy patches to installation directory & easyconfigs archive along with easyconfig file (#2202, #2241)
+  - add support for SHA256 checksums (#2215)
+    - also auto-detect whether provided checksum is MD5 or SHA256 based on length (if not checksum type is specified)
+    - add support for --enforce-checksums, to require availability of checksums for sources/patches
+    - see https://easybuild.readthedocs.io/en/latest/Writing_easyconfig_files.html#source-files-patches-and-checksums
+  - add support for renaming sources on download (#2223)
+    - also involves deprecating use of 2-tuple elements in list of sources, see https://easybuild.readthedocs.io/en/latest/Deprecated-functionality.html#depr-sources-2-element-tuple
+  - add support for --detect-loaded-modules (#2228)
+  - give extensions access to module_generator of parent (#2229)
+  - pass down additional arguments to copy_dir down to shutil.copytree (#2230)
+  - avoid reloading already loaded modules that extend $MODULEPATH (#2232)
+- various bug fixes, including:
+  - make sure test account & accompanying token is used in tests for github.py (#2220, #2224)
+  - only use MPD for old versions of Intel MPI (<4.1) in mpi_cmd_for (#2221)
+  - escape dots in package filename to ensure correct match in derive_alt_pypi_url (#2225)
+  - fix GNU_SOURCE template by adding missing /gnu/ (#2235)
+  - catch exception shutil.Error in copy_file (#2239)
+  - report full error and traceback on unhandled exception in test report (#2240)
+  - fix --set-default-module flag (#2243)
+
+
+v3.2.1 (May 12th 2017)
+----------------------
+
+bugfix release
+- various enhancements, including:
+  - make hardcoded max ratio for failures in adjust_permissions configurable (#2213)
+  - allow https on direct download in sources (#2214)
+- various bug fixes, including:
+  - bump version bootstrap script to sync with latest update (#2208)
+  - fix crash during module generation when '%' character is used in description (#2209)
+
+
+v3.2.0 (May 5th 2017)
+---------------------
+
+feature release
+- various enhancements, including:
+  - add support for marking installed module file as new default version using --set-default-module (#2110)
+  - additional easyconfig parameters for documentation: docpaths, examples, site_contacts, upstream_contacts, usage (#2113)
+  - add support for --allow-use-as-root-and-accept-consequences (#2123)
+  - enable extraction of patches from compressed files before applying them (#2128)
+  - alphabetically sort functions and methods in module_generator module (#2132)
+  - introduce function ensure_iterable_license_specs (#2157)
+  - bump Travis config to use Lmod 7.4 (#2176)
+  - implement copy_dir function in filetools (#2177)
+  - clarify error message when no software-specific easyblock was found (#2178)
+  - make log.deprecated more verbose by also printing deprecation warnings to stderr (#2179)
+  - add copy function to filetools for easy copying of lists of files/directories (#2180)
+  - add support for --verify-easyconfig-filenames (#2185)
+  - add support for --package-tool-options (#2187)
+  - take into account inline trailing comments in fetch_parameters_from_easyconfig (#2192)
+  - add support for customising easyconfig parameters on a per-extension basis (#2194)
+  - perform sanity check after stage 2 of EasyBuild bootstrap script, module file should be in place (#2199)
+  - change order in which module commands are checked, consider Lmod first (#2201)
+- various bug fixes, including:
+  - fix use of compiler-specific --optarch value in combination with --job (#2183)
+  - call run_all_steps in regtest mode rather than running steps individually (#2203)
+
+
+v3.1.2 (March 20th 2017)
+------------------------
+
+bugfix release
+- fix broken packaging support by fixing ``run_cmd`` bug with ``shell=False`` (#2153)
+- minor enhancements, including:
+  - implement change_dir function in filetools module (#2155)
+  - use checker_state in trailing whitespace style check + add dedicated test (#2160, #2169)
+  - consider both pycodestyle and pep8 Python modules in style checks (#2161)
+  - make bootstrap script aware various modules-related $EASYBUILD_* environment variables (#2170)
+- various bug fixes, including:
+  - interpret statements that extend $MODULEPATH in modpath_extensions_for method (#2104)
+    - also fixes inclusion of superfluous load statements in modules installed in user HMNS module tree (cfr. #2172)
+  - take into account that $PATH or $PYTHONPATH may be empty when running tests (#2149)
+  - handle duplicates in --include-* (#2151)
+  - exclude dependencies of dependencies that extend $MODULEPATH (#2152)
+  - add ld.bfd to RPATH wrappers (#2156)
+  - fix test_vsc_location, vsc.__file__ may not be available when vsc is installed as a namespace package (#2159)
+  - fix reported problems with scripts & docs tests (#2164)
+  - fix --try-software-version using non-greedy matching + lookahead assertion, add test for tweak_one (#2166)
+  - avoid creating empty modulefile directories when using modaltsoftname (#2168)
+  - fix fftw_libs for MKL without interface libraries (#2171)
+
+
+v3.1.1 (March 7th 2017)
+-----------------------
+
+bugfix release
+- minor enhancements, including:
+  - print more useful error message when no compiler-specific optarch flag is defined (#1950)
+  - add ec parameter to expand_toolchain_load() (#2103)
+  - clarify unstable/closed PR warning message (#2129)
+- various bug fixes, including:
+  - ensure that $EBEXTSLIST* is also included in generated module under --module-only (#2112)
+  - fix formatting issues in generated documentation for --list-software and --avail-easyconfig-licenses (#2121)
+  - fix problem with backticks in description breaking 'fpm' packaging command (#2124)
+  - replace --enable-new-dtags with --disable-new-dtags instead of removing it in RPATH wrapper script (#2131)
+  - only perform is_short_modname_for sanity check in det_short_module_name if modaltsoftname is available (#2138)
+  - fix logic in make_module_dep w.r.t. excluding loads for toolchain & toolchain components (#2140)
+  - skip test_check_style if pep8 is not available (#2142)
+
+
+v3.1.0 (February 3rd 2017)
+--------------------------
+
+feature release
+- various enhancements, including:
+  - ARM: GCC optimal/generic architecture compiler flags (#1974)
+  - add support for --check-style to check style in easyconfig files (#1618, #2038)
+  - add HOME and USER from envto available cfg file constants (#2063)
+  - --optarch can now be specified on a toolchain basis (#2071)
+  - implement get_cpu_features function in systemtools (#2074, #2078)
+  - support use of linalg without MPI, add iimkl toolchain definition (#2082)
+  - spoof HTTP request header with empty agent (#2083)
+  - exclude dependencies of dependencies that extend $MODULEPATH in make_module_dep (#2091)
+- various bug fixes, including:
+  - make fetch_github_token more robust against RuntimeError from keyring (#2070)
+  - POWER: Fix `--optarch=GENERIC` for GCC (#2073)
+  - fix docstring in toolchain class (#2075)
+  - skip test cases involving .yeb if PyYAML is not installed, silence test in options subsuite (#2081)
+  - fix traceback with 'eb --check-github' if GitPython is not installed (#2085)
+  - fix regex for determining list of patched files in GitHub diff (#2088)
+  - modify robot so that it only appends dependencies of tweaked easyconfigs (#2090)
+  - escape metacharacters in paths passed to re.compile in dry_run_set_dirs (#2098)
+  - fix broken error message in get_toolchain_hierarchy + dedicated test case (#2099)
+
+
+v3.0.2 (December 22nd 2016)
+---------------------------
+
+bugfix release
+- various bug fixes, including:
+  - also skip dependencies of dependencies marked as external module in get_toolchain_hierarchy (#2042)
+  - disable verbose setvar in modules.py (#2044)
+  - force copying of easyconfigs in --new-pr/--update-pr, even when combined with -x (#2045)
+  - fix verification of filename for easyconfigs used to resolve deps (#2051)
+  - skip RPATH sanity check when toolchain did not use RPATH wrappers (#2052)
+  - check whether file-like paths are readable before reading them in systemtools module (#2065)
+- various small enhancements, including:
+  - add 'rpath' toolchain option to selectively disable use of RPATH wrappers (#2047)
+
+
+v3.0.1 (November 30th 2016)
+---------------------------
+
+bugfix release
+- important changes
+  - always use Intel-specific MPI compiler wrappers (mpiicc, mpiicpc, mpiifort) for toolchains using
+    both Intel compilers and Intel MPI (#2005)
+- various small enhancements, including:
+  - use setvar in modules.py to define environment variables (#2011)
+  - include output of sanity_check_commands in the build log (#2020)
+- various bug fixes, including:
+  - fix testing of bootstrap script in Travis config (#2003)
+  - use correct module syntax in bootstrap script if Lmod is not used (i.e. Tcl) (#2007)
+  - fix packaging issue with non-Python scripts in easybuild/scripts (#2015)
+     - fixes issue where RPATH wrapper template script (rpath_wrapper_template.sh.in) was not included in v3.0.0 release
+  - make tests more robust against running headless (#2016)
+  - avoid rewrapping already wrapped compiler/linker command with RPATH wrapper script (#2022)
+  - fix log.error traceback due to 'raise EasyBuildError' involving a '%s' in error message (#2024)
+  - make sure 'modules_tool' attribute is also defined for extensions (#2026)
+  - only dump easyconfig with modified deps due to --minimal-toolchains to 'reprod' subdir of install dir (#2028)
+  - avoid appending '-h' to sanity check commands specified as a string (#2030)
+  - fix bug in list_software_rst: always include versionsuffix regardless of value (#2032)
+
 
 v3.0.0 (November 16th 2016)
 ---------------------------
@@ -14,11 +510,11 @@ feature release
   - the minimal required version of Lmod was bumped to 5.8 (#1985)
 - major new features:
   - (experimental) support for RPATH linking via --rpath (#1942)
-    - see http://easybuild.readthedocs.org/en/latest/RPATH-support.html
+    - see https://easybuild.readthedocs.io/en/latest/RPATH-support.html
   - add support for --consider-archived-easyconfigs (#1972)
-    - see http://easybuild.readthedocs.org/en/latest/Archived-easyconfigs.html
+    - see https://easybuild.readthedocs.io/en/latest/Archived-easyconfigs.html
   - stabilize --new-pr and --update-pr (#1979)
-    - see http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html
+    - see https://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html
 - various other small enhancements, including:
   - add support for 'devel' log level (#1815)
   - make remove_file aware of --extended-dry-run + add dedicated unit test (#1932)
@@ -239,7 +735,7 @@ feature + bugfix release
         - using custom easyblocks by adding them in the Python search path ($PYTHONPATH) may require adjustments,
           i.e. also using pkg_resources.declare_namespace in the __init__.py files;
           we highly recommend to use --include-easyblocks instead,
-          see http://easybuild.readthedocs.org/en/latest/Including_additional_Python_modules.html
+          see https://easybuild.readthedocs.io/en/latest/Including_additional_Python_modules.html
         - note: this has the side-effect of not being able anymore to reliably use 'eb' in the parent directory of
           the easybuild-framework repository (#1667)
     - fix template for savannah.gnu.org source URL (#1601)
@@ -297,7 +793,7 @@ v2.5.0 (December 17th 2015)
 feature + bugfix release
 - add support for IBM XL compilers on Power7 and PowerPC (BlueGene) (#1470)
 - add support fo generic compilation using --optarch=GENERIC (#1471)
-    - see also http://easybuild.readthedocs.org/en/latest/Controlling_compiler_optimization_flags.html
+    - see also https://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html
 - update experimental support for .yeb easyconfigs (#1515)
     - support clean way to specify toolchain + dependencies in .yeb easyconfigs
 - various other enhancements, including:
@@ -336,9 +832,9 @@ feature + bugfix release
     - this impacts several easyconfig files where sanity_check_paths was not 100% correct
 - make 'eb' script aware of Python v3.x, fall back to using python2 if required (#1411)
 - add experimental support for parsing .yeb easyconfig files in YAML syntax (#1447, #1448, #1449)
-    - see also http://easybuild.readthedocs.org/en/latest/Writing_yeb_easyconfig_files.html
+    - see also https://easybuild.readthedocs.io/en/latest/Writing_yeb_easyconfig_files.html
 - add experimental support for resolving dependencies with minimal toolchains (#1306)
-    - see also http://easybuild.readthedocs.org/en/latest/Manipulating_dependencies.html#using-minimal-toolchains-for-dependencies
+    - see also https://easybuild.readthedocs.io/en/latest/Manipulating_dependencies.html#using-minimal-toolchains-for-dependencies
 - various other enhancements, including:
     - refactor extract_cmd function to get rid of if/elif/else spaghetti blob (#1382)
     - add support for --review-pr (#1383)
@@ -402,11 +898,11 @@ v2.2.0 (July 15th 2015)
 
 feature + bugfix release
 - add support for using GC3Pie as a backend for --job (#1008)
-    - see also http://easybuild.readthedocs.org/en/latest/Submitting_jobs.html
+    - see also https://easybuild.readthedocs.io/en/latest/Submitting_jobs.html
 - add support for --include-* configuration options to include additional easyblocks, toolchains, etc. (#1301)
-    - see http://easybuild.readthedocs.org/en/latest/Including_additional_Python_modules.html
+    - see https://easybuild.readthedocs.io/en/latest/Including_additional_Python_modules.html
 - add (experimental) support for packaging installed software using FPM (#1224)
-    - see http://easybuild.readthedocs.org/en/latest/Packaging_support.html
+    - see https://easybuild.readthedocs.io/en/latest/Packaging_support.html
 - various other enhancements, including:
     - use https for PyPI URL templates (#1286)
     - add GNU toolchain definition (#1287)
@@ -453,15 +949,15 @@ feature + bugfix release
     - added support to GeneralOption to act on unknown configuration environment variables
 - add support for only (re)generating module files: --module-only (#1018)
     - module naming scheme API is enhanced to include det_install_subdir method
-    - see http://easybuild.readthedocs.org/en/latest/Partial_installations.html#module-only
+    - see https://easybuild.readthedocs.io/en/latest/Partial_installations.html#module-only
 - add support for generating module files in Lua syntax (note: requires Lmod as modules tool) (#1060, #1255, #1256, #1270)
-    - see --module-syntax configuration option and http://easybuild.readthedocs.org/en/latest/Configuration.html#module-syntax
+    - see --module-syntax configuration option and https://easybuild.readthedocs.io/en/latest/Configuration.html#module-syntax
 - deprecate log.error method in favor of raising EasyBuildError exception (#1218)
-    - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#depr-error-reporting
+    - see https://easybuild.readthedocs.io/en/latest/Deprecated-functionality.html#depr-error-reporting
 - add support for using external modules as dependencies, and to provide metadata for external modules (#1230, #1265, #1267)
-    - see http://easybuild.readthedocs.org/en/latest/Using_external_modules.html
+    - see https://easybuild.readthedocs.io/en/latest/Using_external_modules.html
 - add experimental support for Cray toolchains on top of PrgEnv modules: CrayGNU, CrayIntel, CrayCCE (#1234, #1268)
-    - see https://github.com/hpcugent/easybuild/wiki/EasyBuild-on-Cray for more information
+    - see https://easybuild.readthedocs.io/en/latest/Cray-support.html for more information
 - various other enhancements, including:
     - clear list of checksums when using --try-software-version (#1169)
     - sort the results of searching for files (e.g., --search output) (#1214)
@@ -470,17 +966,17 @@ feature + bugfix release
     - also reset $LD_PRELOAD when running module commands, in case module defined $LD_PRELOAD (#1222)
     - move location of 'module use' statements in generated module file (*after* 'module load' statements) (#1232)
     - add support for --show-default-configfiles (#1240)
-      - see http://easybuild.readthedocs.org/en/latest/Configuration.html#default-configuration-files
+      - see https://easybuild.readthedocs.io/en/latest/Configuration.html#default-configuration-files
     - report error on missing configuration files, rather than ignoring them (#1240)
-      - see http://easybuild.readthedocs.org/en/latest/Configuration.html#configuration-env-vars
+      - see https://easybuild.readthedocs.io/en/latest/Configuration.html#configuration-env-vars
     - clean up commit message used in easyconfig git repository (#1248)
     - add --hide-deps configuration option to specify names of software that must be installed as hidden modules (#1250)
-        - see http://easybuild.readthedocs.org/en/latest/Manipulating_dependencies.html#hide-deps
+        - see https://easybuild.readthedocs.io/en/latest/Manipulating_dependencies.html#hide-deps
     - add support for appending/prepending to --robot-paths to avoid overwriting default robot search path (#1252)
-        - see also http://easybuild.readthedocs.org/en/latest/Using_the_EasyBuild_command_line.html#robot-search-path-prepend-append
+        - see also https://easybuild.readthedocs.io/en/latest/Using_the_EasyBuild_command_line.html#robot-search-path-prepend-append
     - enable detection of use of unknown $EASYBUILD-prefixed environment variables (#1253)
     - add --installpath-modules and --installpath-software configuration options (#1258)
-      - see http://easybuild.readthedocs.org/en/latest/Configuration.html#installpath
+      - see https://easybuild.readthedocs.io/en/latest/Configuration.html#installpath
     - use dedicated subdirectory in temporary directory for each test to ensure better cleanup (#1260)
     - get rid of $PROFILEREAD hack when running commands, not needed anymore (#1264)
 - various bug fixes, including:
@@ -500,36 +996,36 @@ feature + bugfix release
     - avoid deprecation warnings w.r.t. use of 'message' attribute (hpcugent/vsc-base#155)
     - fix typo in log message rendering --ignoreconfigfiles unusable (hpcugent/vsc-base#158)
 - removed functionality that was deprecated for EasyBuild version 2.0 (#1143)
-    - see http://easybuild.readthedocs.org/en/latest/Removed-functionality.html
+    - see https://easybuild.readthedocs.io/en/latest/Removed-functionality.html
     - the fix_broken_easyconfigs.py script can be used to update easyconfig files suffering from this (#1151, #1206, #1207)
-    - for more information about this script, see http://easybuild.readthedocs.org/en/latest/Useful-scripts.html#fix-broken-easyconfigs-py
+    - for more information about this script, see https://easybuild.readthedocs.io/en/latest/Useful-scripts.html#fix-broken-easyconfigs-py
 - stop including a crippled copy of vsc-base, include vsc-base as a proper dependency instead (#1160, #1194)
     - vsc-base is automatically installed as a dependency for easybuild-framework, if a Python installation tool is used
-    - see http://easybuild.readthedocs.org/en/latest/Installation.html#required-python-packages
+    - see https://easybuild.readthedocs.io/en/latest/Installation.html#required-python-packages
 - various other enhancements, including:
     - add support for Linux/POWER systems (#1044)
     - major cleanup in tools/systemtools.py + significantly enhanced tests (#1044)
     - add support for 'eb -a rst', list available easyconfig parameters in ReST format (#1131)
     - add support for specifying one or more easyconfigs in combination with --from-pr (#1132)
-        - see http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#using-easyconfigs-from-pull-requests-via-from-pr
+        - see https://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html#using-easyconfigs-from-pull-requests-via-from-pr
     - define __contains__ in EasyConfig class (#1155)
     - restore support for downloading over a proxy (#1158)
         - i.e., use urllib2 rather than urllib
         - this involved sacrificing the download progress report (which was only visible in the log file)
     - let mpi_family return None if MPI is not supported by a toolchain (#1164)
     - include support for specifying system-level configuration files for EasyBuild via $XDG_CONFIG_DIRS (#1166)
-        - see http://easybuild.readthedocs.org/en/latest/Configuration.html#default-configuration-files
+        - see https://easybuild.readthedocs.io/en/latest/Configuration.html#default-configuration-files
     - make unit tests more robust (#1167, #1196)
-        - see http://easybuild.readthedocs.org/en/latest/Unit-tests.html
+        - see https://easybuild.readthedocs.io/en/latest/Unit-tests.html
     - add hierarchical module naming scheme categorizing modules by 'moduleclass' (#1176)
     - enhance bootstrap script to allow bootstrapping using supplied tarballs (#1184)
-        - see http://easybuild.readthedocs.org/en/latest/Installation.html#advanced-bootstrapping-options
+        - see https://easybuild.readthedocs.io/en/latest/Installation.html#advanced-bootstrapping-options
     - disable updating of Lmod user cache by default, add configuration option --update-modules-tool-cache (#1185)
         - for now, only the Lmod user cache can be updated using --update-modules-tool-cache
     - use available which() function, rather than running 'which' via run_cmd (#1192)
     - fix install-EasyBuild-develop.sh script w.r.t. vsc-base dependency (#1193)
     - also consider robot search path when looking for specified easyconfigs (#1201)
-        - see http://easybuild.readthedocs.org/en/latest/Using_the_EasyBuild_command_line.html#specifying-easyconfigs
+        - see https://easybuild.readthedocs.io/en/latest/Using_the_EasyBuild_command_line.html#specifying-easyconfigs
 - various bug fixes, including:
     - stop triggering deprecated/no longer support functionality in unit tests (#1126)
     - fix from_pr test by including dummy easyblocks for HPL and ScaLAPACK (#1133)
@@ -571,9 +1067,9 @@ feature + bugfix release
 - deprecate automagic fallback to ConfigureMake easyblock (#1113)
     - easyconfigs should specify easyblock = 'ConfigureMake' instead of relying on the fallback mechanism
     - note: automagic fallback to ConfigureMake easyblock will be dropped in EasyBuild v2.0
-    - see also http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback
+    - see also https://easybuild.readthedocs.io/en/latest/Deprecated-functionality.html#configuremake-fallback
 - stop triggering deprecated functionality, to enable use of --deprecated=2.0 (#1107, #1115, #1119)
-    - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback for more information
+    - see https://easybuild.readthedocs.io/en/latest/Deprecated-functionality.html#configuremake-fallback for more information
 - various other enhancements, including:
     - add script to clean up gists created via --upload-test-report (#958)
     - also use -xHost when using Intel compilers on AMD systems (as opposed to -msse3) (#960)
@@ -589,12 +1085,12 @@ feature + bugfix release
     - enable use of --show_hidden for avail subcommand with recent Lmod versions (#1081)
     - add --robot-paths configure option (#1080, #1093, #1095, #1114)
     - support use of %(DEFAULT_ROBOT_PATHS)s template in EasyBuild configuration files (#1100)
-        - see also http://easybuild.readthedocs.org/en/latest/Using_the_EasyBuild_command_line.html#controlling-the-robot-search-path
+        - see also https://easybuild.readthedocs.io/en/latest/Using_the_EasyBuild_command_line.html#controlling-the-robot-search-path
     - use -xHost rather than -xHOST, to match Intel documentation (#1084)
     - update and cleanup README file (#1085)
     - deprecate self.moduleGenerator in favor of self.module_generator in EasyBlock (#1088)
     - also support MPICH MPI family in mpi_cmd_for function (#1098)
-    - update documentation references to point to http://easybuild.readthedocs.org (#1102)
+    - update documentation references to point to https://easybuild.readthedocs.io (#1102)
     - check for OS dependencies with both rpm and dpkg (if available) (#1111)
 - various bug fixes, including:
     - fix picking required software version specified by --software-version and clean up tweak.py (#1062, #1063)
@@ -731,7 +1227,7 @@ feature + bugfix release
     - add --upload-test-report command line option for uploading a detailed test report to GitHub as a gist
         - this requires specifying a GitHub username for which a GitHub token is available, using --github-user
         - with --dump-test-report, the test report can simply be dumped to file rather than being uploaded to GitHub
-        - see also https://github.com/hpcugent/easybuild/wiki/Review-process-for-contributions#testing-result
+        - see also https://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html#uploading-test-reports-upload-test-report
 - the 'makeopts' and 'premakeopts' easyconfig parameter are deprecated, and replaced by 'buildopts' and 'prebuildopts' (#918)
     - both 'makeopts' and 'premakeopts' will still be honored in future EasyBuild v1.x versions, but should no longer be used
 - various other enhancements, including:
@@ -841,7 +1337,7 @@ feature + bugfix release
         - cfr. 'checksums' easyconfig parameter
     - add support for `eb --confighelp`, which prints out an example configuration file (#775)
     - add initial support for `eb` tab completion in bash shells (#775, #797, #798)
-        - see also https://github.com/hpcugent/easybuild/wiki/Setting-up-tab-completion-for-bash
+        - see also https://github.com/easybuilders/easybuild/wiki/Setting-up-tab-completion-for-bash
         - note: may be quite slow for now
     - enhancements for using Lmod as modules tool (#780, #795, #796):
         - ignore Lmod spider cache by setting $LMOD_IGNORE_CACHE (requires Lmod 5.2)
@@ -873,7 +1369,7 @@ feature + bugfix release
     - this prepares the codebase for supporting easyconfig format v2.0
     - some initial work on adding support for the new easyconfig format is included, but it's by no means complete yet
     - the current easyconfig format (now dubbed v1.0) is still the default and only supported format, for now
-    - for more details, see https://github.com/hpcugent/easybuild/wiki/Easyconfig-format-two
+    - for more details, see https://github.com/easybuilders/easybuild/wiki/Easyconfig-format-two
 - various other enhancements, including:
     - include a full version of vsc-base (see the 'vsc' subdirectory) (#740)
         - this is a first step towards switching to using vsc-base as a proper dependency
@@ -917,7 +1413,7 @@ v1.8.0 (October 4th 2013)
 
 feature + bugfix release
 - add support for using alternative module naming schemes (#679, #696, #705, #706, #707)
-    - see https://github.com/hpcugent/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
+    - see https://github.com/easybuilders/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
     - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be provided to EasyBuild
         - the Python module providing the class must be available in the easybuild.tools.module_naming_scheme namespace
         - a function named 'det_full_module_name' must be implemented, that determines the module name
@@ -933,7 +1429,7 @@ feature + bugfix release
         - the format for specifying dependencies was extended, to allow for specifying a custom toolchain
             - this allows to fix inaccurate dependency specifications,
               like "('OpenMPI', '1.6.4-GCC-4.7.2')" to "('OpenMPI', '1.6.4', '', ('GCC', '4.7.2'))"
-            - see also https://github.com/hpcugent/easybuild-easyconfigs/pull/431
+            - see also https://github.com/easybuilders/easybuild-easyconfigs/pull/431
         - the recommended version for Lmod was bumped to v5.1.5
             - using earlier 5.x version still works, but may be very slow when 'available' is used,
               due to bugs and a missing feature in Lmod versions prior to v5.1.5 on which we rely
@@ -948,7 +1444,7 @@ feature + bugfix release
     - restore original environment after running 'module purge' (#698)
         - important sidenote: this results in resetting the entire environment, and has impact on the sanity check step;
           any environment variables that are set before the EasyBlock.sanity_check_step method fires, are no longer there
-          when the sanity check commands are run (cfr. https://github.com/hpcugent/easybuild-easyblocks/pull/268)
+          when the sanity check commands are run (cfr. https://github.com/easybuilders/easybuild-easyblocks/pull/268)
 
 v1.7.0 (September 2nd 2013)
 ---------------------------
@@ -1026,7 +1522,7 @@ v1.3.0 (April 1st 2013)
 -----------------------
 
 feature + bugfix release
-- added script to bootstrap EasyBuild with EasyBuild, see https://github.com/hpcugent/easybuild/wiki/Bootstrapping-EasyBuild (#531)
+- added script to bootstrap EasyBuild with EasyBuild, see https://easybuild.readthedocs.io/en/latest/Installation.html#bootstrapping-easybuild (#531)
 - reorganize framework/easyconfig.py module into framework/easyconfig package with modules (#574, #580)
 - support EasyBuild configuration via command line, environment variables and configuration files (#529, #552, #556, #558, #559)
 - various other enhancements, including:

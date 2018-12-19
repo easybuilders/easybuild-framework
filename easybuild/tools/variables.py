@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -162,7 +162,8 @@ class AbsPathList(StrList):
             if suffix : extend the paths with prefixes
             if filename : look for filename in prefix+paths
         """
-        self.log.debug("append_exists: prefix %s paths %s suffix %s filename %s append_all %s" % (prefix, paths, suffix, filename, append_all))
+        self.log.devel("append_exists: prefix %s paths %s suffix %s filename %s append_all %s",
+                       prefix, paths, suffix, filename, append_all)
         if suffix is not None:
             res = []
             for path in paths:
@@ -175,7 +176,7 @@ class AbsPathList(StrList):
                 abs_path = os.path.join(abs_path, filename)
             if os.path.exists(abs_path):
                 self.append(abs_path)
-                self.log.debug("append_exists: added abssolute path %s" % abs_path)
+                self.log.devel("append_exists: added absolute path %s", abs_path)
                 if not append_all:
                     return
 
@@ -183,7 +184,7 @@ class AbsPathList(StrList):
         """
         Add directory base, or its subdirs if subdirs is not None
         """
-        self.log.debug("append_subdirs: base %s subdirs %s" % (base, subdirs))
+        self.log.devel("append_subdirs: base %s subdirs %s", base, subdirs)
 
         if subdirs is None:
             subdirs = [None]
@@ -195,7 +196,7 @@ class AbsPathList(StrList):
 
             if os.path.isdir(directory):
                 self.append(directory)
-                self.log.debug("append_subdirs: added directory %s" % directory)
+                self.log.devel("append_subdirs: added directory %s", directory)
             else:
                 self.log.warning("flags_for_subdirs: directory %s was not found" % directory)
 
@@ -258,13 +259,13 @@ class ListOfLists(list):
         res = False
 
         if type(value) in self.protected_classes:
-            self.log.debug("_is_protected: %s value %s (%s)" % (self.protected_classes, value, type(value)))
+            self.log.devel("_is_protected: %s value %s (%s)", self.protected_classes, value, type(value))
             res = True
         elif isinstance(value, tuple(self.protected_instances)):
-            self.log.debug("_is_protected: %s value %s (%s)" % (self.protected_instances, value, type(value)))
+            self.log.devel("_is_protected: %s value %s (%s)", self.protected_instances, value, type(value))
             res = True
 
-        self.log.debug("_is_protected: %s value %s (%s)" % (res, value, value.__repr__()))
+        self.log.devel("_is_protected: %s value %s (%s)", res, value, value.__repr__())
         return res
 
     def nappend(self, value, **kwargs):
@@ -294,10 +295,12 @@ class ListOfLists(list):
             newvalue.POSITION = position
         if self._str_ok(newvalue) or append_empty:
             self.append(newvalue)
-            self.log.debug("nappend: value %s newvalue %s position %s" % (value.__repr__(), newvalue.__repr__(), position))
+            self.log.devel("nappend: value %s newvalue %s position %s",
+                           value.__repr__(), newvalue.__repr__(), position)
             return newvalue
         else:
-            self.log.debug("nappend: ignoring value %s newvalue %s (not _str_ok)" % (value.__repr__(), newvalue.__repr__()))
+            self.log.devel("nappend: ignoring value %s newvalue %s (not _str_ok)",
+                           value.__repr__(), newvalue.__repr__())
 
     def nextend(self, value=None, **kwargs):
         """Named extend, value is list type (TODO: tighten the allowed values)
@@ -311,7 +314,7 @@ class ListOfLists(list):
         else:
             for el in value:
                 if not self._str_ok(el):
-                    self.log.debug("nextend: ignoring el %s from value %s (not _str_ok)" % (el, value.__repr__()))
+                    self.log.devel("nextend: ignoring el %s from value %s (not _str_ok)", el, value.__repr__())
                     continue
 
                 if type(el) in self.PROTECTED_CLASSES:
@@ -333,7 +336,7 @@ class ListOfLists(list):
                 res.append(newvalue)
 
         self.extend(res)
-        self.log.debug("nextend: value %s res %s" % (value.__repr__(), res.__repr__()))
+        self.log.devel("nextend: value %s res %s", value.__repr__(), res.__repr__())
         return res
 
     def str_convert(self, x):
@@ -366,18 +369,20 @@ class ListOfLists(list):
                         to_remove.extend(all_idx[:-1])
 
             to_remove = sorted(list(set(to_remove)), reverse=True)
-            self.log.debug("sanitize: to_remove in %s %s" % (self.__repr__(), to_remove))
+            self.log.devel("sanitize: to_remove in %s %s", self.__repr__(), to_remove)
             for idx in to_remove:
                 del self[idx]
 
         if self.JOIN_BEGIN_END:
             # group elements with same begin/end into one element
             to_remove = []
-            for idx in range(1, len(self))[::-1]:  # work in reversed order;don't check last one (ie real el 0), it has no next element
+            # work in reversed order; don't check last one (ie real el 0), it has no next element
+            for idx in range(1, len(self))[::-1]:
                 if self[idx].BEGIN is None or self[idx].END is None: continue
-                self.log.debug("idx %s len %s" % (idx, len(self)))
-                if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:  # do check POSITION, sorting already done
-                    self.log.debug("sanitize: JOIN_BEGIN_END idx %s joining %s and %s" % (idx, self[idx], self[idx - 1]))
+                self.log.devel("idx %s len %s", idx, len(self))
+                # do check POSITION, sorting already done
+                if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:
+                    self.log.devel("sanitize: JOIN_BEGIN_END idx %s joining %s and %s", idx, self[idx], self[idx - 1])
                     self[idx - 1].extend(self[idx])
                     to_remove.append(idx)  # remove current el
             to_remove = sorted(list(set(to_remove)), reverse=True)
@@ -398,13 +403,13 @@ class ListOfLists(list):
 
         if self._first is None:
             # return empty string
-            self.log.debug("__str__: first is None (self %s)" % self.__repr__())
+            self.log.devel("__str__: first is None (self %s)", self.__repr__())
             return ''
         else:
             sep = self.SEPARATOR
 
             txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
-            self.log.debug("__str__: return %s (self: %s)" % (txt, self.__repr__()))
+            self.log.devel("__str__: return %s (self: %s)", txt, self.__repr__())
             return txt
 
     def try_function_on_element(self, function_name, names=None, args=None, kwargs=None):
@@ -480,14 +485,14 @@ class Variables(dict):
             it is first tested if other is an existing element
                 else it is nappend-ed
         """
-        self.log.debug("join name %s others %s" % (name, others))
+        self.log.devel("join name %s others %s", name, others)
 
         # make sure name is defined, even if 'others' list is empty
         self.setdefault(name)
 
         for other in others:
             if other in self:
-                self.log.debug("join other %s in self: other %s" % (other, self.get(other).__repr__()))
+                self.log.devel("join other %s in self: other %s", other, self.get(other).__repr__())
                 for el in self.get(other):
                     self.nappend(name, el)
             else:
@@ -513,7 +518,7 @@ class Variables(dict):
             super(Variables, self).__setitem__(name, default)
 
         if len(default) == 0:
-            self.log.debug("setdefault: name %s initialising." % name)
+            self.log.devel("setdefault: name %s initialising.", name)
             if append_empty:
                 default.append_empty()
         return default
@@ -523,13 +528,13 @@ class Variables(dict):
         if names is None:
             names = self.keys()
         for name in names:
-            self.log.debug("try_function_el: name %s function_name %s" % (name, function_name))
+            self.log.devel("try_function_el: name %s function_name %s", name, function_name)
             self[name].try_function_on_element(function_name, args=args, kwargs=kwargs)
 
     def __getattribute__(self, attr_name):
         # allow for pass-through
         if attr_name in ['nappend', 'nextend', 'append_empty', 'first', 'get_class']:
-            self.log.debug("Passthrough to LISTCLASS function %s" % attr_name)
+            self.log.devel("Passthrough to LISTCLASS function %s", attr_name)
 
             def _passthrough(name, *args, **kwargs):
                 """functions that pass through to LISTCLASS instances"""
@@ -539,7 +544,7 @@ class Variables(dict):
                 return res
             return _passthrough
         elif attr_name in ['nappend_el', 'nextend_el', 'append_exists', 'append_subdirs']:
-            self.log.debug("Passthrough to LISTCLASS element function %s" % attr_name)
+            self.log.devel("Passthrough to LISTCLASS element function %s", attr_name)
 
             def _passthrough(name, *args, **kwargs):
                 """"Functions that pass through to elements of LISTCLASS (accept idx as index)"""

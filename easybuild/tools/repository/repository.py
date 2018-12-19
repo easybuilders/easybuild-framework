@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,12 +86,34 @@ class Repository(object):
         """
         raise NotImplementedError
 
+    def stage_file(self, path):
+        """
+        Stage file at specified location in repository for commit
+
+        :param path: location of file to stage
+        """
+        raise NotImplementedError
+
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add easyconfig to repository.
-        cfg is the filename of the eb file
-        Stats contains some build stats, this should be a list of dictionaries.
-        previous is the list of previous buildstats
+        Add easyconfig to repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
+        """
+        raise NotImplementedError
+
+    def add_patch(self, patch):
+        """
+        Add patch file to repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
         """
         raise NotImplementedError
 
