@@ -2997,7 +2997,7 @@ def reproduce_build(app, reprod_dir_root):
 
     ec_filename = app.cfg.filename()
 
-    reprod_dir = os.path.join(reprod_dir_root, 'reprod', str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")))
+    reprod_dir = os.path.join(reprod_dir_root, 'reprod_' + str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")))
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
         app.cfg.dump(reprod_spec)
