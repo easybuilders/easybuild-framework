@@ -62,8 +62,6 @@ before_install:
     - git config --global user.name "Travis CI"
     - git config --global user.email "travis@travis-ci.org"
 install:
-    # install vsc-base (& vsc-install) dependencies for EasyBuild
-    - easy_install vsc-base
     # install environment modules or Lmod
     - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
     - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
