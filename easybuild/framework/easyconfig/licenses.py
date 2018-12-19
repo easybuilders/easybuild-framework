@@ -31,8 +31,8 @@ be used within an Easyconfig file.
 :author: Kenneth Hoste (Ghent University)
 """
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
+from easybuild.base import fancylogger
+from easybuild.base.missing import get_subclasses
 
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)

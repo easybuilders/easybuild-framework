@@ -39,10 +39,10 @@ import inspect
 import os
 import string
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.docs import mk_rst_table
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
+from easybuild.base.docs import mk_rst_table
+from easybuild.base.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS

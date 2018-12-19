@@ -41,10 +41,10 @@ import random
 import string
 import tempfile
 import time
-from vsc.utils import fancylogger
-from vsc.utils.missing import FrozenDictKnownKeys
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
+from easybuild.base.missing import FrozenDictKnownKeys
+from easybuild.base.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 

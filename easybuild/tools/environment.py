@@ -30,9 +30,9 @@ Utility module for modifying os.environ
 """
 import copy
 import os
-from vsc.utils import fancylogger
-from vsc.utils.missing import shell_quote
 
+from easybuild.base import fancylogger
+from easybuild.base.missing import shell_quote
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
 

@@ -52,10 +52,10 @@ import tempfile
 import time
 import urllib2
 import zlib
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 from xml.etree import ElementTree
 
+from easybuild.base import fancylogger
+from easybuild.base.missing import nub
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option

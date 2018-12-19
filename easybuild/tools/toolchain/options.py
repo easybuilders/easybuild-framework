@@ -35,8 +35,7 @@ Map values can be string with named templates
 :author: Kenneth Hoste (Ghent University)
 """
 
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
 
@@ -52,12 +51,11 @@ class ToolchainOptions(dict):
             @options: dict with options : tuple option_name and option_description
             @options_map: dict with a mapping between and option and a value
         """
-        if not options is None:
+        if options is not None:
             self._add_options(options)
 
-        if not options_map is None:
+        if options_map is not None:
             self._add_options_map(options_map)
-
 
     def _add_options(self, options):
         """Add actual options dict to self"""
@@ -75,7 +73,7 @@ class ToolchainOptions(dict):
             map names starting with _opt_ are allowed without corresponding option
         """
         for name in options_map.keys():
-            if not name in self:
+            if name not in self:
                 if name.startswith('_opt_'):
                     self.log.devel("_add_options_map: no option with name %s defined, but allowed", name)
                 else:
@@ -95,9 +93,9 @@ class ToolchainOptions(dict):
             if templatedict is None:
                 templatedict = {}
             templatedict.update({
-                                 'opt':name,
-                                 'value':value,
-                                })
+                'opt': name,
+                'value': value,
+            })
 
             if isinstance(res, basestring):
                 # allow for template

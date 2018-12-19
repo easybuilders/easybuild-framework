@@ -35,9 +35,9 @@ import os
 import stat
 import sys
 import tempfile
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
+from easybuild.base.missing import nub
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar

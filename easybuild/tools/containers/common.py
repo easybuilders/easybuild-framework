@@ -29,8 +29,7 @@ Dispatch function for container packages
 :author: Kenneth Hoste (HPC-UGent)
 :author: Mohamed Abidi (Bright Computing)
 """
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.containers.docker import DockerContainer  # noqa

@@ -31,8 +31,8 @@ Support for including additional Python modules, for easyblocks, module naming s
 import os
 import re
 import sys
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import expand_glob_paths, read_file, symlink
 # these are imported just to we can reload them later

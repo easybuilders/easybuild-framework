@@ -40,13 +40,10 @@ from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
@@ -646,7 +643,6 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = "Failed to get application instance.*: Found group spec in tuple format that is not a 2-tuple:"
         self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
                               raise_error=True, raise_systemexit=True)
-
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
@@ -2004,7 +2000,6 @@ def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
     TextTestRunner(verbosity=1).run(suite())

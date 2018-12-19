@@ -34,8 +34,8 @@ import tempfile
 from datetime import datetime, timedelta
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
+from easybuild.base.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, dry_run_msg, dry_run_warning
 from easybuild.tools.build_log import print_error, print_msg, print_warning, time_str_since
 from easybuild.tools.filetools import read_file, write_file

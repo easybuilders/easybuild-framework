@@ -42,13 +42,13 @@ import shutil
 import sys
 import tempfile
 import pwd
-import vsc.utils.generaloption
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.fancylogger import setLogLevel
-from vsc.utils.generaloption import GeneralOption
 
+import easybuild.base.generaloption
 import easybuild.tools.environment as env
+from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.base.fancylogger import setLogLevel
+from easybuild.base.generaloption import GeneralOption
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
@@ -107,7 +107,7 @@ except ImportError:
             return False
 
 
-# monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
+# monkey patch shell_quote in easybuild.base.generaloption, used by generate_cmd_line,
 # to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
 # inspired by https://github.com/hpcugent/vsc-base/pull/151
 # this fixes https://github.com/easybuilders/easybuild-framework/issues/1438
@@ -124,7 +124,7 @@ def eb_shell_quote(token):
     return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
 
 
-vsc.utils.generaloption.shell_quote = eb_shell_quote
+easybuild.base.generaloption.shell_quote = eb_shell_quote
 
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'

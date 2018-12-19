@@ -36,10 +36,10 @@ Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 import copy
 import re
 import sys
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, nub
 
 import easybuild.tools.toolchain
+from easybuild.base import fancylogger
+from easybuild.base.missing import get_subclasses, nub
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.utilities import import_available_modules
@@ -75,7 +75,8 @@ def search_toolchain(name):
                 if hasattr(elem, '__module__'):
                     # exclude the toolchain class defined in that module
                     if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
-                        _log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
+                        _log.debug("Adding %s to list of imported classes used for looking for constants",
+                                   elem.__name__)
                         mod_classes.append(elem)
 
             # look for constants in modules of imported classes, and make them available

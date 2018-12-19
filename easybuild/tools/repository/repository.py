@@ -34,9 +34,8 @@ Generic support for dealing with repositories
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-
+from easybuild.base import fancylogger
+from easybuild.base.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import import_available_modules
 

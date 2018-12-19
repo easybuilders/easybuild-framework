@@ -32,9 +32,9 @@ be used within an Easyconfig file.
 """
 import os
 import platform
-from vsc.utils import fancylogger
 
-from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
+from easybuild.base import fancylogger
+from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version
 
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)

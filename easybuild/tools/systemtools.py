@@ -38,9 +38,9 @@ import struct
 import sys
 import termios
 from socket import gethostname
-from vsc.utils import fancylogger
-from vsc.utils.affinity import sched_getaffinity
 
+from easybuild.base import fancylogger
+from easybuild.base.affinity import sched_getaffinity
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd

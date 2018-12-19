@@ -611,8 +611,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
     # make sure we're getting the expected EasyBuild packages
     import easybuild.framework
     import easybuild.easyblocks
-    import vsc.utils.fancylogger
-    for pkg in [easybuild.framework, easybuild.easyblocks, vsc.utils.fancylogger]:
+    import easybuild.base.fancylogger
+    for pkg in [easybuild.framework, easybuild.easyblocks, easybuild.base.fancylogger]:
         if tmpdir not in pkg.__file__:
             error("Found another %s than expected: %s" % (pkg.__name__, pkg.__file__))
         else:

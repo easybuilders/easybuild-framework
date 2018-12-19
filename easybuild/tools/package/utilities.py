@@ -36,10 +36,9 @@ import os
 import tempfile
 import pprint
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-from vsc.utils.patterns import Singleton
-
+from easybuild.base import fancylogger
+from easybuild.base.missing import get_subclasses
+from easybuild.base.patterns import Singleton
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
@@ -48,7 +47,6 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules
 _log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
-
 
 
 def avail_package_naming_schemes():

@@ -27,8 +27,7 @@ Toolchain querying support for module naming schemes.
 
 :author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -93,7 +92,7 @@ def det_toolchain_compilers(ec):
     if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
         # dummy toolchain has no compiler
         tc_comps = None
-    elif not TOOLCHAIN_COMPILER in tc_elems:
+    elif TOOLCHAIN_COMPILER not in tc_elems:
         # every toolchain should have at least a compiler
         raise EasyBuildError("No compiler found in toolchain %s: %s", ec.toolchain.as_dict(), tc_elems)
     elif tc_elems[TOOLCHAIN_COMPILER]:

@@ -31,9 +31,8 @@ Abstract interface for submitting jobs and related utilities.
 
 from abc import ABCMeta, abstractmethod
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-
+from easybuild.base import fancylogger
+from easybuild.base.missing import get_subclasses
 from easybuild.tools.config import get_job_backend
 from easybuild.tools.utilities import import_available_modules
 

@@ -37,10 +37,10 @@ import sys
 import tempfile
 import unittest
 from pkg_resources import fixup_namespace_packages
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
-from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
 
+from easybuild.base import fancylogger
+from easybuild.base.patterns import Singleton
+from easybuild.base.testing import TestCase
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
@@ -81,7 +81,7 @@ for key in os.environ.keys():
         os.environ[newkey] = val
 
 
-class EnhancedTestCase(_EnhancedTestCase):
+class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
 
     def setUp(self):
@@ -241,7 +241,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         """
         if self.env_path is not None:
             os.environ['PATH'] = self.env_path
-        if self.env_path is not None:
+        if self.env_pythonpath is not None:
             os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):

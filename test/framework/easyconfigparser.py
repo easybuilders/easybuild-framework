@@ -31,9 +31,9 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
+from easybuild.base.fancylogger import setLogLevelDebug, logToScreen
 from easybuild.framework.easyconfig.format.format import Dependency
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.version import EasyVersion

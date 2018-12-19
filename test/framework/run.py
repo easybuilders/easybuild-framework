@@ -38,7 +38,7 @@ import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug
+from easybuild.base.fancylogger import setLogLevelDebug
 
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging

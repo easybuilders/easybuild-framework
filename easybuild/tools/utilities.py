@@ -31,8 +31,8 @@ import glob
 import os
 import string
 import sys
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 

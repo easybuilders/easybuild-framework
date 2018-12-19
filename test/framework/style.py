@@ -33,7 +33,8 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils import fancylogger
+
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:

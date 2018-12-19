@@ -43,11 +43,11 @@ import difflib
 import functools
 import os
 import re
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_class_for, nub
-from vsc.utils.patterns import Singleton
 from distutils.version import LooseVersion
 
+from easybuild.base import fancylogger
+from easybuild.base.missing import get_class_for, nub
+from easybuild.base.patterns import Singleton
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG

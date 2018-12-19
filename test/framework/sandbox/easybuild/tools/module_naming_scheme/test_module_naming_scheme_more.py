@@ -29,11 +29,9 @@ Implementation of a test module naming scheme.
 """
 
 import os
-from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
+from easybuild.base import fancylogger
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.ordereddict import OrderedDict
 
 # prefer hashlib.sha1 (only in Python 2.5 and up) over sha.sha
 try:

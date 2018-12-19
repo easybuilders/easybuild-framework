@@ -29,9 +29,9 @@ Module naming scheme API.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
+from easybuild.base.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 
 
