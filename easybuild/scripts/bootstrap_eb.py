@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20181219.01'
+EB_BOOTSTRAP_VERSION = '20180925.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -611,8 +611,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
     # make sure we're getting the expected EasyBuild packages
     import easybuild.framework
     import easybuild.easyblocks
-    import easybuild.base.fancylogger
-    for pkg in [easybuild.framework, easybuild.easyblocks, easybuild.base.fancylogger]:
+    import vsc.utils.fancylogger
+    for pkg in [easybuild.framework, easybuild.easyblocks, vsc.utils.fancylogger]:
         if tmpdir not in pkg.__file__:
             error("Found another %s than expected: %s" % (pkg.__name__, pkg.__file__))
         else:
