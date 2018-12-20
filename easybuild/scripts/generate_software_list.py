@@ -34,10 +34,10 @@ from datetime import date
 from optparse import OptionParser
 
 import easybuild.tools.config as config
-import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import Githubfs
+from easybuild.tools.options import set_up_configuration
 from vsc.utils import fancylogger
 
 # parse options
@@ -86,22 +86,20 @@ if options.local:
     import os
     walk = os.walk
     join = os.path.join
-    read = lambda ec_file : ec_file
+    read = lambda ec_file: ec_file
 
     log.info('parsing easyconfigs from location %s' % options.path)
 else:
     fs = Githubfs(options.username, options.repo, options.branch)
     walk = Githubfs(options.username, options.repo, options.branch).walk
     join = fs.join
-    read = lambda ec_file : fs.read(ec_file, api=False)
+    read = lambda ec_file: fs.read(ec_file, api=False)
 
     log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
 
 # configure EasyBuild, by parsing options
-eb_go = eboptions.parse_options(args=args)
-config.init(eb_go.options, eb_go.get_options_by_section('config'))
-config.init_build_options({'validate': False, 'external_modules_metadata': {}})
+set_up_configuration(args=args + ['--force'])
 
 
 configs = []
@@ -124,7 +122,7 @@ for root, subfolders, files in walk(options.path):
         try:
             ec = EasyConfig(ec_file)
             log.info("found valid easyconfig %s" % ec)
-            if not ec.name in names:
+            if ec.name not in names:
                 log.info("found new software package %s" % ec.name)
                 ec.easyblock = None
                 # check if an easyblock exists
@@ -140,7 +138,7 @@ for root, subfolders, files in walk(options.path):
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])
 # sort by name
-configs = sorted(configs, key=lambda config : config.name.lower())
+configs = sorted(configs, key=lambda config: config.name.lower())
 firstl = ""
 
 # print out the configs in markdown format for the wiki

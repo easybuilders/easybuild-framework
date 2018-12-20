@@ -31,10 +31,8 @@ import glob
 import os
 import string
 import sys
-from datetime import datetime
 from vsc.utils import fancylogger
 
-import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 

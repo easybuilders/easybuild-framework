@@ -36,7 +36,7 @@ import tempfile
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option
+from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -244,6 +244,22 @@ class PbsJob(object):
         # list of holds that are placed on this job
         self.holds = []
 
+        job_deps_type = build_option('job_deps_type')
+
+        # mark job dependencies with 'afterany' by default to retain backward compatibility for pbs_python job backend
+        if job_deps_type is None:
+            job_deps_type = JOB_DEPS_TYPE_ALWAYS_RUN
+            self.log.info("Using default job dependency type: %s", job_deps_type)
+        else:
+            self.log.info("Using specified job dependency type: %s", job_deps_type)
+
+        if job_deps_type == JOB_DEPS_TYPE_ABORT_ON_ERROR:
+            self.job_deps_type = 'afterok'
+        elif job_deps_type == JOB_DEPS_TYPE_ALWAYS_RUN:
+            self.job_deps_type = 'afterany'
+        else:
+            raise EasyBuildError("Unknown job dependency type specified: %s", job_deps_type)
+
     def __str__(self):
         """Return the job ID as a string."""
         return (str(self.jobid) if self.jobid is not None
@@ -288,7 +304,7 @@ class PbsJob(object):
         if self.deps:
             deps_attributes = pbs.new_attropl(1)
             deps_attributes[0].name = pbs.ATTR_depend
-            deps_attributes[0].value = ",".join(["afterany:%s" % dep.jobid for dep in self.deps])
+            deps_attributes[0].value = ','.join([self.job_deps_type + ':' + dep.jobid for dep in self.deps])
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 

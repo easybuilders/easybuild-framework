@@ -46,11 +46,11 @@ class TestModuleNamingScheme(ModuleNamingScheme):
 
         @return: string with full module name, e.g.: 'gzip/1.5', 'intel/intelmpi/gzip'/1.5'
         """
-        if ec['toolchain']['name'] == 'goolf':
+        if ec['toolchain']['name'] == 'foss':
             mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])
         elif ec['toolchain']['name'] == 'GCC':
             mod_name = os.path.join('gnu', ec['name'], ec['version'])
-        elif ec['toolchain']['name'] == 'ictce':
+        elif ec['toolchain']['name'] == 'intel':
             mod_name = os.path.join('intel', 'intelmpi', ec['name'], ec['version'])
         else:
             mod_name = os.path.join(ec['name'], ec['version'])
@@ -66,4 +66,4 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         """
-        return modname.find('%s' % name)!= -1
+        return modname.find('%s' % name) != -1

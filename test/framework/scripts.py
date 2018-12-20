@@ -90,10 +90,10 @@ class ScriptsTest(EnhancedTestCase):
         per_letter = {
             'B': '2',  # binutils, bzip2
             'C': '2',  # CrayCCE, CUDA
-            'F': '1',  # FFTW
-            'G': '11',  # GCC, GCCcore, gcccuda, gmvapich2, golf, golfc, gompic, gompi, goolf, goolfc, gzip
+            'F': '3',  # foss, fosscuda, FFTW
+            'G': '9',  # GCC, GCCcore, gcccuda, gmvapich2, golf, golfc, gompic, gompi, gzip
             'H': '1',  # hwloc
-            'I': '8',  # icc, iccifort, iccifortcuda, ictce, ifort, iimpi, imkl, impi
+            'I': '8',  # icc, iccifort, iccifortcuda, intel, ifort, iimpi, imkl, impi
             'M': '1',  # MVAPICH2
             'O': '2',  # OpenMPI, OpenBLAS
             'P': '1',  # Python
@@ -102,13 +102,14 @@ class ScriptsTest(EnhancedTestCase):
         }
         self.assertTrue(' - '.join(["[%(l)s](#%(l)s)" % {'l': l} for l in sorted(per_letter.keys())]))
         for key, val in per_letter.items():
-            self.assertTrue(re.search(r"### %(l)s \(%(n)s packages\) <a name='%(l)s'/>" % {'l': key, 'n': val}, out))
+            regex = re.compile(r"### %(l)s \(%(n)s packages\) <a name='%(l)s'/>" % {'l': key, 'n': val})
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
-        software = ['FFTW', 'GCC', 'gompi', 'goolf', 'gzip', 'hwloc', 'OpenMPI', 'OpenBLAS', 'ScaLAPACK', 'toy']
+        software = ['FFTW', 'foss', 'GCC', 'gompi', 'gzip', 'hwloc', 'OpenMPI', 'OpenBLAS', 'ScaLAPACK', 'toy']
         for soft in software:
             letter = soft[0].lower()
             pattern = r"^\*.*logo[\s\S]*easyconfigs/%(l)s/%(s)s\)[\s\S]*%(s)s.*\n" % {'l': letter, 's': soft}
-            self.assertTrue(re.search(pattern, out, re.M))
+            self.assertTrue(re.search(pattern, out, re.M), "Pattern '%s' found in: %s" % (pattern, out))
 
         shutil.rmtree(tmpdir)
         os.environ['PYTHONPATH'] = pythonpath
@@ -218,9 +219,11 @@ class ScriptsTest(EnhancedTestCase):
         self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
         self.assertEqual(read_file('%s.bk' % broken_ec), broken_ec_txt)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ScriptsTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

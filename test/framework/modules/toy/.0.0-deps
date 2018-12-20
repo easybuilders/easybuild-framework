@@ -11,8 +11,8 @@ set root    /var/folders/6y/x4gmwgjn5qz63b7ftg4j_40m0000gn/T/tmpviG1OT/software/
 
 conflict    toy
 
-if { ![is-loaded gompi/1.3.12] } {
-    module load gompi/1.3.12
+if { ![is-loaded gompi/2018a] } {
+    module load gompi/2018a
 }
 
 prepend-path	PATH		$root/bin

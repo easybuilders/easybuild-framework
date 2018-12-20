@@ -56,12 +56,15 @@ class Fft(Toolchain):
         self.variables.add_begin_end_linkerflags(fft_libs, toggle_startstopgroup=self.FFT_LIB_GROUP,
                                                  toggle_staticdynamic=self.FFT_LIB_STATIC)
 
-        ## multi-threaded
+        # multi-threaded
         if self.FFT_LIB_MT is None:
-            ## reuse FFT variables
+            # reuse FFT variables
             self.variables.join('LIBFFT_MT', 'LIBFFT')
         else:
-            self.variables.nappend('LIBFFT_MT', self.FFT_LIB_MT)
+            fft_mt_libs = self.variables.nappend('LIBFFT_MT', self.FFT_LIB_MT)
+            self.variables.add_begin_end_linkerflags(fft_mt_libs, toggle_startstopgroup=self.FFT_LIB_GROUP,
+                                                     toggle_staticdynamic=self.FFT_LIB_STATIC)
+
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBFFT_MT', self.LIB_MULTITHREAD)
 
@@ -76,7 +79,6 @@ class Fft(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
-        ## TODO is link order fully preserved with this order ?
         self._set_fft_variables()
 
         self.log.devel('set_variables: FFT variables %s', self.variables)

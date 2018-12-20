@@ -39,7 +39,7 @@ from unittest import TextTestRunner
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import process_easyconfig
+from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
@@ -150,16 +150,16 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_load_module(self):
         """Test load_module method."""
-        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        # copy OpenMPI module used in gompi/2018a to fiddle with it, i.e. to fake bump OpenMPI version used in it
         tmp_modules = os.path.join(self.test_prefix, 'modules')
         mkdir(tmp_modules)
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
         copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
 
-        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '2.1.2-GCC-6.4.0-2.28')
         ompi_mod_txt = read_file(openmpi_module)
-        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
+        write_file(openmpi_module, ompi_mod_txt.replace('2.1.2', '2.0.2'))
 
         self.modtool.use(tmp_modules)
 
@@ -172,7 +172,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'gompi', 'version': '1.3.12'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -373,10 +373,10 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
-            "   ('FFTW', '3.3.1'),",
-            "   ('LAPACK', '3.4.0'),",
+            "   ('FFTW', '3.3.7'),",
+            "   ('OpenBLAS', '0.2.20'),",
             ']',
         ])
         self.writeEC()
@@ -387,23 +387,23 @@ class EasyBlockTest(EnhancedTestCase):
             expected_default = re.compile(r'\n'.join([
                 r'setenv\s+EBROOTPI\s+\"\$root"',
                 r'setenv\s+EBVERSIONPI\s+"3.14"',
-                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-2018a-easybuild-devel"',
             ]))
             expected_alt = re.compile(r'\n'.join([
                 r'setenv\s+EBROOTPI\s+"/opt/software/tau/6.28"',
                 r'setenv\s+EBVERSIONPI\s+"6.28"',
-                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-2018a-easybuild-devel"',
             ]))
         elif get_module_syntax() == 'Lua':
             expected_default = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", root\)',
                 r'setenv\("EBVERSIONPI", "3.14"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
             expected_alt = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", "/opt/software/tau/6.28"\)',
                 r'setenv\("EBVERSIONPI", "6.28"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
@@ -416,7 +416,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
 
-        installver = '3.14-gompi-1.1.0-no-OFED'
+        installver = '3.14-gompi-2018a'
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
         self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
@@ -462,10 +462,10 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
-            "   ('FFTW', '3.3.1'),",
-            "   ('LAPACK', '3.4.0'),",
+            "   ('FFTW', '3.3.7'),",
+            "   ('OpenBLAS', '0.2.20', '', ('GCC', '6.4.0-2.28')),",
             ']',
         ])
         self.writeEC()
@@ -473,37 +473,39 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
             tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/1.1.0-no-OFED ] } {",
-                "    module load gompi/1.1.0-no-OFED",
+                "if { ![ is-loaded gompi/2018a ] } {",
+                "    module load gompi/2018a",
                 "}",
             ])
             fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
-                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                "    module load FFTW/3.3.7-gompi-2018a",
                 "}",
             ])
             lapack_load = '\n'.join([
-                "if { ![ is-loaded LAPACK/3.4.0-gompi-1.1.0-no-OFED ] } {",
-                "    module load LAPACK/3.4.0-gompi-1.1.0-no-OFED",
+                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
-                'if not isloaded("gompi/1.1.0-no-OFED") then',
-                '    load("gompi/1.1.0-no-OFED")',
+                'if not isloaded("gompi/2018a") then',
+                '    load("gompi/2018a")',
                 'end',
             ])
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
-                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
+                '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
             ])
             lapack_load = '\n'.join([
-                'if not isloaded("LAPACK/3.4.0-gompi-1.1.0-no-OFED") then',
-                '    load("LAPACK/3.4.0-gompi-1.1.0-no-OFED")',
+                'if not isloaded("OpenBLAS/0.2.20-GCC-6.4.0-2.28") then',
+                '    load("OpenBLAS/0.2.20-GCC-6.4.0-2.28")',
                 'end',
             ])
         else:
@@ -514,21 +516,21 @@ class EasyBlockTest(EnhancedTestCase):
 
         # provide swap info for FFTW to trigger an extra 'unload FFTW'
         unload_info = {
-            'FFTW/3.3.1-gompi-1.1.0-no-OFED': 'FFTW',
+            'FFTW/3.3.7-gompi-2018a': 'FFTW',
         }
 
         if get_module_syntax() == 'Tcl':
             fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
                 "    module unload FFTW",
-                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "    module load FFTW/3.3.7-gompi-2018a",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
                 '    unload("FFTW")',
-                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
             ])
         else:
@@ -556,9 +558,9 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
             'dependencies = [',
-            "   ('FFTW', '3.3.3'),",
+            "   ('FFTW', '3.3.7'),",
             ']',
         ])
         self.writeEC()
@@ -571,11 +573,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
         mod_dep_txt = eb.make_module_dep()
-        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4']:
+        for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
-        regex = re.compile('load.*FFTW/3.3.3')
+        regex = re.compile('load.*FFTW/3.3.7')
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
@@ -599,11 +601,11 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "toolchain = {'name': 'foss', 'version': '2018a'}",
             'dependencies = [',
-            "   ('GCC', '4.7.2', '', True),"
-            "   ('hwloc', '1.6.2', '', ('GCC', '4.7.2')),",
-            "   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),"
+            "   ('GCC', '6.4.0-2.28', '', True),"
+            "   ('hwloc', '1.11.8', '', ('GCC', '6.4.0-2.28')),",
+            "   ('OpenMPI', '2.1.2', '', ('GCC', '6.4.0-2.28')),"
             ']',
         ])
         self.writeEC()
@@ -612,9 +614,12 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
 
+        # toolchain must be loaded such that dependencies are accessible
+        self.modtool.load(['foss/2018a'])
+
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
         mod_dep_txt = eb.make_module_dep()
-        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4', 'hwloc/1.6.2']:
+        for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2', 'hwloc/1.11.8']:
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
@@ -688,7 +693,6 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
-        deps = [('GCC', '4.6.4')]
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -698,10 +702,10 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = [('GCC', '4.6.4'), ('toy', '0.0-deps')]",
-            "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
+            "dependencies = [('GCC', '6.4.0-2.28'), ('toy', '0.0-deps')]",
+            "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
-            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '1.6.4-GCC-4.6.4')]",
+            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
@@ -715,6 +719,8 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
 
         modpath = os.path.join(eb.make_module_step(), name, version)
         if get_module_syntax() == 'Lua':
@@ -758,7 +764,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in [('GCC', '4.6.4')]:
+        for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -776,7 +782,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in [('OpenMPI', '1.6.4-GCC-4.6.4')]:
+        for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -1070,7 +1076,7 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options={'validate': False})
 
         # check that check_readiness step works (adding dependencies, etc.)
-        ec_file = 'OpenMPI-1.6.4-GCC-4.6.4.eb'
+        ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
         topdir = os.path.dirname(os.path.abspath(__file__))
         ec_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'o', 'OpenMPI', ec_file)
         ec = EasyConfig(ec_path)
@@ -1089,7 +1095,7 @@ class EasyBlockTest(EnhancedTestCase):
         try:
             eb.check_readiness_step()
         except EasyBuildError, err:
-            err_regex = re.compile("Missing modules for one or more dependencies: nosuchsoftware/1.2.3-GCC-4.6.4")
+            err_regex = re.compile("Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
@@ -1112,9 +1118,9 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options=build_options)
         self.setup_hierarchical_modules()
 
-        intel_ver = '2013.5.192-GCC-4.8.3'
-        impi_modfile_path = os.path.join('Compiler', 'intel', intel_ver, 'impi', '4.1.3.049')
-        imkl_modfile_path = os.path.join('MPI', 'intel', intel_ver, 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        intel_ver = '2016.1.150-GCC-4.9.3-2.25'
+        impi_modfile_path = os.path.join('Compiler', 'intel', intel_ver, 'impi', '5.1.2.150')
+        imkl_modfile_path = os.path.join('MPI', 'intel', intel_ver, 'impi', '5.1.2.150', 'imkl', '11.3.1.150')
         if get_module_syntax() == 'Lua':
             impi_modfile_path += '.lua'
             imkl_modfile_path += '.lua'
@@ -1124,8 +1130,8 @@ class EasyBlockTest(EnhancedTestCase):
         # since both icc/ifort and impi form the path to the top of the module tree
         iccifort_mods = ['icc', 'ifort', 'iccifort']
         tests = [
-            ('i/impi/impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, iccifort_mods),
-            ('i/imkl/imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
+            ('i/impi/impi-5.1.2.150-iccifort-2016.1.150-GCC-4.9.3-2.25.eb', impi_modfile_path, iccifort_mods),
+            ('i/imkl/imkl-11.3.1.150-iimpi-2016.01.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
         ]
         for ec_file, modfile_path, excluded_deps in tests:
             ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
@@ -1147,13 +1153,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         # modpath_extensions_for should spit out correct result, even if modules are loaded
         icc_mod = 'icc/%s' % intel_ver
-        impi_mod = 'impi/4.1.3.049'
+        impi_mod = 'impi/5.1.2.150'
         self.modtool.load([icc_mod])
         self.assertTrue(impi_modfile_path in self.modtool.show(impi_mod))
         self.modtool.load([impi_mod])
         expected = {
             icc_mod: [os.path.join(modpath, 'Compiler', 'intel', intel_ver)],
-            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '4.1.3.049')],
+            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '5.1.2.150')],
         }
         self.assertEqual(self.modtool.modpath_extensions_for([icc_mod, impi_mod]), expected)
 
@@ -1165,7 +1171,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         toy_patches = [
             'toy-0.0_fix-silly-typo-in-printf-statement.patch',  # test for applying patch
-            ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
+            ('toy-extra.txt', 'toy-0.0'),  # test for patch-by-copy
         ]
         self.assertEqual(ec['ec']['patches'], toy_patches)
 
@@ -1191,7 +1197,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
@@ -1311,7 +1317,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.cfg['allow_system_deps'] = [('Python', '1.2.3')]
 
-        init_config(build_options={'extra_modules': ['GCC/4.7.2']})
+        init_config(build_options={'extra_modules': ['GCC/6.4.0-2.28']})
 
         eb.prepare_step()
 
@@ -1319,12 +1325,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBROOTPYTHON'), 'Python')
         self.assertEqual(os.environ.get('EBVERSIONPYTHON'), '1.2.3')
         self.assertEqual(len(self.modtool.list()), 1)
-        self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/4.7.2')
+        self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/6.4.0-2.28')
 
     def test_checksum_step(self):
         """Test checksum step"""
         testdir = os.path.abspath(os.path.dirname(__file__))
-        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -1344,7 +1350,7 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
         eb.fetch_sources()
-        error_msg  ="Checksum verification for .*/toy-0.0.tar.gz using .* failed"
+        error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
 
         # also check verification of checksums for extensions, which is part of fetch_extension_sources
@@ -1380,13 +1386,13 @@ class EasyBlockTest(EnhancedTestCase):
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""
         testdir = os.path.abspath(os.path.dirname(__file__))
-        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
 
         def run_checks():
-            expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-1.3.12-test.eb: "
+            expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-2018a-test.eb: "
             expected += "found 1 sources + 1 patches vs 1 checksums"
             self.assertEqual(res[0], expected)
             self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz:"))
@@ -1467,10 +1473,40 @@ class EasyBlockTest(EnhancedTestCase):
         # since one/1.0 is required for ec2, and the underlying one/1.0.2 is installed via ec1 in the same session
         self.eb_main([ec1, ec2], raise_error=True, do_build=True, verbose=True)
 
+    def test_avail_easyblocks(self):
+        """Test avail_easyblocks function."""
+        easyblocks = avail_easyblocks()
+
+        self.assertTrue(all(key.startswith('easybuild.easyblocks') for key in easyblocks))
+
+        for modname in ['foo', 'generic.bar', 'toy', 'gcc', 'hpl']:
+            self.assertTrue('easybuild.easyblocks.%s' % modname in easyblocks)
+
+        foo = easyblocks['easybuild.easyblocks.foo']
+        self.assertEqual(foo['class'], 'EB_foo')
+        self.assertTrue(foo['loc'].endswith('sandbox/easybuild/easyblocks/f/foo.py'))
+
+        bar = easyblocks['easybuild.easyblocks.generic.bar']
+        self.assertEqual(bar['class'], 'bar')
+        self.assertTrue(bar['loc'].endswith('sandbox/easybuild/easyblocks/generic/bar.py'))
+
+        toy = easyblocks['easybuild.easyblocks.toy']
+        self.assertEqual(toy['class'], 'EB_toy')
+        self.assertTrue(toy['loc'].endswith('sandbox/easybuild/easyblocks/t/toy.py'))
+
+        gcc = easyblocks['easybuild.easyblocks.gcc']
+        self.assertEqual(gcc['class'], 'EB_GCC')
+        self.assertTrue(gcc['loc'].endswith('sandbox/easybuild/easyblocks/g/gcc.py'))
+
+        hpl = easyblocks['easybuild.easyblocks.hpl']
+        self.assertEqual(hpl['class'], 'EB_HPL')
+        self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
+
 
 def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
