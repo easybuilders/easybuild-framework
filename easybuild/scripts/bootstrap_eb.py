@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180925.01'
+EB_BOOTSTRAP_VERSION = '20181219.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
