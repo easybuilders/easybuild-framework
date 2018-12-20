@@ -40,7 +40,6 @@ The EasyBlock class should serve as a base class for all easyblocks.
 """
 
 import copy
-import datetime
 import glob
 import inspect
 import os
@@ -102,6 +101,8 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
+# Directory name in which to store reproducability files
+REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -2894,11 +2895,11 @@ def build_and_install_one(ecdict, init_env):
             _log.info("Build stats: %s" % buildstats)
 
             # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, 'reprod')
+            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
             if os.path.exists(archive_reprod_dir):
                 backup_dir = find_backup_name_candidate(archive_reprod_dir)
                 move_file(archive_reprod_dir, backup_dir)
-                _log.info("Existing reprod directory %s backed up to %s", archive_reprod_dir, backup_dir)
+                _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
             move_file(reprod_dir, archive_reprod_dir)
             _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
 
@@ -2997,7 +2998,8 @@ def reproduce_build(app, reprod_dir_root):
 
     ec_filename = app.cfg.filename()
 
-    reprod_dir = os.path.join(reprod_dir_root, 'reprod_' + str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")))
+    # Let's use a unique timestamped directory (facilitated by find_backup_name_candidate())
+    reprod_dir = find_backup_name_candidate(os.path.join(reprod_dir_root, REPROD))
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
         app.cfg.dump(reprod_spec)
