@@ -38,68 +38,33 @@ import ctypes
 import os
 from ctypes.util import find_library
 
-from easybuild.base.fancylogger import getLogger, setLogLevelDebug
+from easybuild.base.fancylogger import getLogger
 
 _logger = getLogger("affinity")
 
 _libc_lib = find_library('c')
 _libc = ctypes.cdll.LoadLibrary(_libc_lib)
 
-#/* Type for array elements in 'cpu_set_t'.  */
-#typedef unsigned long int __cpu_mask;
+# /* Type for array elements in 'cpu_set_t'.  */
+# typedef unsigned long int __cpu_mask;
 cpu_mask_t = ctypes.c_ulong
 
-##define __CPU_SETSIZE  1024
-##define __NCPUBITS     (8 * sizeof(__cpu_mask))
+# define __CPU_SETSIZE  1024
+# define __NCPUBITS     (8 * sizeof(__cpu_mask))
 CPU_SETSIZE = 1024
 NCPUBITS = 8 * ctypes.sizeof(cpu_mask_t)
 NMASKBITS = CPU_SETSIZE / NCPUBITS
 
-#/* Priority limits.  */
-##define PRIO_MIN        -20     /* Minimum priority a process can have.  */
-##define PRIO_MAX        20      /* Maximum priority a process can have.  */
-PRIO_MIN = -20
-PRIO_MAX = 20
-
-#/* The type of the WHICH argument to `getpriority' and `setpriority',
-#   indicating what flavor of entity the WHO argument specifies.  * /
-#enum __priority_which
-##{
-#  PRIO_PROCESS = 0, /* WHO is a process ID.  * /
-##define PRIO_PROCESS PRIO_PROCESS
-#  PRIO_PGRP = 1, /* WHO is a process group ID.  * /
-##define PRIO_PGRP PRIO_PGRP
-#  PRIO_USER = 2 /* WHO is a user ID.  * /
-##define PRIO_USER PRIO_USER
-##};
-PRIO_PROCESS = 0
-PRIO_PGRP = 1
-PRIO_USER = 2
-
-#/* using pid_t for __pid_t */
-#typedef unsigned pid_t;
+# /* using pid_t for __pid_t */
+# typedef unsigned pid_t;
 pid_t = ctypes.c_uint
 
-##if defined __USE_GNU && !defined __cplusplus
-#typedef enum __rlimit_resource __rlimit_resource_t;
-#typedef enum __rusage_who __rusage_who_t;
-#typedef enum __priority_which __priority_which_t;
-##else
-#typedef int __rlimit_resource_t;
-#typedef int __rusage_who_t;
-#typedef int __priority_which_t;
-##endif
-priority_which_t = ctypes.c_int
 
-##  typedef __u_int __id_t;
-id_t = ctypes.c_uint
-
-
-#/* Data structure to describe CPU mask.  */
-#typedef struct
-#{
-#  __cpu_mask __bits[__NMASKBITS];
-#} cpu_set_t;
+# /* Data structure to describe CPU mask.  */
+# typedef struct
+# {
+#   __cpu_mask __bits[__NMASKBITS];
+# } cpu_set_t;
 class cpu_set_t(ctypes.Structure):
     """Class that implements the cpu_set_t struct
         also provides some methods to convert between bit representation and soem human readable format
@@ -162,9 +127,9 @@ class cpu_set_t(ctypes.Structure):
     def set_cpus(self, cpus_list):
         """Given list, set it as cpus"""
         nr_cpus = len(cpus_list)
-        if  nr_cpus > CPU_SETSIZE:
+        if nr_cpus > CPU_SETSIZE:
             self.log.warning("set_cpus: length cpu list %s is larger then cpusetsize %s. Truncating to cpusetsize" %
-                           (nr_cpus, CPU_SETSIZE))
+                             (nr_cpus, CPU_SETSIZE))
             cpus_list = cpus_list[:CPU_SETSIZE]
         elif nr_cpus < CPU_SETSIZE:
             cpus_list.extend([0] * (CPU_SETSIZE - nr_cpus))
@@ -212,115 +177,3 @@ def sched_getaffinity(cs=None, pid=None):
     else:
         _logger.error("sched_getaffinity failed for pid %s ec %s" % (pid, ec))
     return cs
-
-
-# /* Set the CPU affinity for a task */
-# extern int sched_setaffinity (pid_t __pid, size_t __cpusetsize,
-#                              cpu_set_t *__cpuset);
-def sched_setaffinity(cs, pid=None):
-    """Set the affinity"""
-    if pid is None:
-        pid = os.getpid()
-
-    ec = _libc.sched_setaffinity(pid_t(pid), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
-    if ec == 0:
-        _logger.debug("sched_setaffinity for pid %s and cpuset %s" % (pid, cs))
-    else:
-        _logger.error("sched_setaffinity failed for pid %s cpuset %s ec %s" % (pid, cs, ec))
-
-
-# /* Get index of currently used CPU.  */
-# extern int sched_getcpu (void) __THROW;
-def sched_getcpu():
-    """Get currently used cpu"""
-    return _libc.sched_getcpu()
-
-
-# /* Return the highest priority of any process specified by WHICH and WHO
-#   (see above); if WHO is zero, the current process, process group, or user
-#   (as specified by WHO) is used.  A lower priority number means higher
-#   priority.  Priorities range from PRIO_MIN to PRIO_MAX (above).  */
-# extern int getpriority (__priority_which_t __which, id_t __who) __THROW;
-#
-# /* Set the priority of all processes specified by WHICH and WHO (see above)
-#   to PRIO.  Returns 0 on success, -1 on errors.  */
-# extern int setpriority (__priority_which_t __which, id_t __who, int __prio)
-#     __THROW;
-def getpriority(which=None, who=None):
-    """Get the priority"""
-    if which is None:
-        which = PRIO_PROCESS
-    elif which not in (PRIO_PROCESS, PRIO_PGRP, PRIO_USER,):
-        _logger.raiseException("getpriority: which %s not in correct range" % which)
-    if who is None:
-        who = 0  # current which-ever
-    prio = _libc.getpriority(priority_which_t(which),
-                             id_t(who),
-                             )
-    _logger.debug("getpriority prio %s for which %s who %s" % (prio, which, who))
-
-    return prio
-
-
-def setpriority(prio, which=None, who=None):
-    """Set the priority (aka nice)"""
-    if which is None:
-        which = PRIO_PROCESS
-    elif which not in (PRIO_PROCESS, PRIO_PGRP, PRIO_USER,):
-        _logger.raiseException("setpriority: which %s not in correct range" % which)
-    if who is None:
-        who = 0  # current which-ever
-
-    try:
-        prio = int(prio)
-    except ValueError:
-        _logger.raiseException("setpriority: failed to convert priority %s into int" % prio)
-
-    if prio < PRIO_MIN or prio > PRIO_MAX:
-        _logger.raiseException("setpriority: prio not in allowed range MIN %s MAX %s" % (PRIO_MIN, PRIO_MAX))
-
-    ec = _libc.setpriority(priority_which_t(which),
-                           id_t(who),
-                           ctypes.c_int(prio)
-                           )
-    if ec == 0:
-        _logger.debug("setpriority for which %s who %s prio %s" % (which, who, prio))
-    else:
-        _logger.error("setpriority failed for which %s who %s prio %s" % (which, who, prio))
-
-
-if __name__ == '__main__':
-    # some examples of usage
-    setLogLevelDebug()
-
-    cs = cpu_set_t()
-    print "__bits", cs.__bits
-    print "sizeof cpu_set_t", ctypes.sizeof(cs)
-    x = sched_getaffinity()
-    print "x", x
-    hr_mask = "1-5,7,9,10-15"
-    print hr_mask, x.convert_hr_bits(hr_mask)
-    print x
-    x.set_bits()
-    print x
-
-    sched_setaffinity(x)
-    print sched_getaffinity()
-
-    x.convert_hr_bits("1")
-    x.set_bits()
-    sched_setaffinity(x)
-    y = sched_getaffinity()
-    print x, y
-
-    print sched_getcpu()
-
-    # resources
-    # nice -n 5 python affinity.py prints 5 here
-    currentprio = getpriority()
-    print "getpriority", currentprio
-    newprio = 10
-    setpriority(newprio)
-    newcurrentprio = getpriority()
-    print "getpriority", newcurrentprio
-    assert newcurrentprio == newprio
