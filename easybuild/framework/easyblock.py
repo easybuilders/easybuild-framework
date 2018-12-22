@@ -72,7 +72,7 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_dir, copy_file, derive_alt_pypi_url, diff_files
+from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
 from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_url, is_sha256_checksum, mkdir
 from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
@@ -101,6 +101,8 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
+# Directory name in which to store reproducability files
+REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -2893,12 +2895,12 @@ def build_and_install_one(ecdict, init_env):
             _log.info("Build stats: %s" % buildstats)
 
             # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
+            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
             if os.path.exists(archive_reprod_dir):
                 backup_dir = find_backup_name_candidate(archive_reprod_dir)
                 move_file(archive_reprod_dir, backup_dir)
-                _log.info("Existing reprod directory %s backed up to %s", archive_reprod_dir, backup_dir)
-            copy_dir(reprod_dir, archive_reprod_dir)
+                _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+            move_file(reprod_dir, archive_reprod_dir)
             _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
 
             try:
@@ -2996,7 +2998,8 @@ def reproduce_build(app, reprod_dir_root):
 
     ec_filename = app.cfg.filename()
 
-    reprod_dir = os.path.join(reprod_dir_root, 'reprod')
+    # Let's use a unique timestamped directory (facilitated by find_backup_name_candidate())
+    reprod_dir = find_backup_name_candidate(os.path.join(reprod_dir_root, REPROD))
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
         app.cfg.dump(reprod_spec)
