@@ -28,6 +28,7 @@ Module with useful functions for getting system information
 :author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
+import ctypes
 import fcntl
 import grp  # @UnresolvedImport
 import os
@@ -37,10 +38,10 @@ import re
 import struct
 import sys
 import termios
+from ctypes.util import find_library
 from socket import gethostname
 
 from easybuild.base import fancylogger
-from easybuild.base.affinity import sched_getaffinity
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd
@@ -123,6 +124,37 @@ class SystemToolsException(Exception):
     """raised when systemtools fails"""
 
 
+def sched_getaffinity():
+    """Determine list of available cores for current process."""
+    cpu_mask_t = ctypes.c_ulong
+    cpu_setsize = 1024
+    n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
+    n_mask_bits = cpu_setsize / n_cpu_bits
+
+    class cpu_set_t(ctypes.Structure):
+        """Class that implements the cpu_set_t struct."""
+        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
+
+    _libc_lib = find_library('c')
+    _libc = ctypes.cdll.LoadLibrary(_libc_lib)
+
+    pid = os.getpid()
+    cs = cpu_set_t()
+    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+    if ec == 0:
+        _log.debug("sched_getaffinity for pid %s successful", pid)
+    else:
+        raise EasyBuildError("sched_getaffinity failed for pid %s ec %s", pid, ec)
+
+    cpus = []
+    for bitmask in cs.bits:
+        for _ in range(n_cpu_bits):
+            cpus.append(bitmask & 1)
+            bitmask >>= 1
+
+    return cpus
+
+
 def get_avail_core_count():
     """
     Returns the number of available CPUs, according to cgroups and taskssets limits
@@ -132,7 +164,7 @@ def get_avail_core_count():
 
     if os_type == LINUX:
         # simple use available sched_getaffinity() function (yields a long, so cast it down to int)
-        core_cnt = int(sum(sched_getaffinity().cpus))
+        core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
         out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False)
