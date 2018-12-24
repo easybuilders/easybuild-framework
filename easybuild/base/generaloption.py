@@ -44,7 +44,6 @@ from optparse import BadOptionError, SUPPRESS_USAGE, OptionValueError
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 from optparse import gettext as _gettext  # this is gettext.gettext normally
 
-from easybuild.base.dateandtime import date_parser, datetime_parser
 from easybuild.base.docs import mk_rst_table
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.missing import shell_quote, nub
@@ -312,10 +311,6 @@ class ExtOption(CompleterOption):
                         lvalue = value[:ind] + default + value[ind+1:]
                     else:
                         lvalue = value
-            elif action == "date":
-                lvalue = date_parser(value)
-            elif action == "datetime":
-                lvalue = datetime_parser(value)
             elif action == "regex":
                 lvalue = re.compile(r'' + value)
             else:
