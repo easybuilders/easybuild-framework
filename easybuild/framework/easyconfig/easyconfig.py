@@ -46,7 +46,6 @@ import re
 from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
-from easybuild.base.patterns import Singleton
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -59,7 +58,7 @@ from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACE
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.config import build_option, get_module_naming_scheme
+from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook

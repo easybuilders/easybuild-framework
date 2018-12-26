@@ -31,8 +31,8 @@ Module naming scheme API.
 import re
 
 from easybuild.base import fancylogger
-from easybuild.base.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import Singleton
 
 
 class ModuleNamingScheme(object):

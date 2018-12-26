@@ -33,6 +33,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Andy Georges (Ghent University)
 """
 import copy
 import glob
@@ -41,10 +42,10 @@ import random
 import string
 import tempfile
 import time
+from abc import ABCMeta
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
-from easybuild.base.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 
@@ -110,6 +111,19 @@ JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
 
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
+
+
+class Singleton(ABCMeta):
+    """Serves as metaclass for classes that should implement the Singleton pattern.
+
+    See http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 # utility function for obtaining default paths

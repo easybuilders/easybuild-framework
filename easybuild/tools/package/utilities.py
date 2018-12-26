@@ -37,8 +37,8 @@ import tempfile
 import pprint
 
 from easybuild.base import fancylogger
-from easybuild.base.patterns import Singleton
-from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
+from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, Singleton
+from easybuild.tools.config import build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
