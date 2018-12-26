@@ -31,10 +31,9 @@ This module implements all supported formats and their converters
 import re
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import get_subclasses, nub
 from easybuild.base.wrapper import Wrapper
-
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.utilities import get_subclasses, nub
 
 
 _log = fancylogger.getLogger('tools.convert', fname=False)

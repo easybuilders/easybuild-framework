@@ -41,7 +41,6 @@ import string
 from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -62,7 +61,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import import_available_modules, quote_str
+from easybuild.tools.utilities import import_available_modules, nub, quote_str
 
 
 _log = fancylogger.getLogger('tools.docs')

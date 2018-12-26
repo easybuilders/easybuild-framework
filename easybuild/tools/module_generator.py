@@ -42,12 +42,11 @@ from distutils.version import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import get_subclasses, quote_str
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)

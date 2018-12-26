@@ -43,7 +43,6 @@ from distutils.version import StrictVersion
 from subprocess import PIPE
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
@@ -52,7 +51,7 @@ from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, un
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
-from easybuild.base.missing import nub
+from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"

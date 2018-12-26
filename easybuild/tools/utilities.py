@@ -47,11 +47,6 @@ ASCII_CHARS = string.maketrans('', '')
 UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii_letters + "_")
 
 
-def read_environment(env_vars, strict=False):
-    """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
-    _log.nosupport("read_environment has been moved to easybuild.tools.environment", '2.0')
-
-
 def flatten(lst):
     """Flatten a list of lists."""
     res = []
@@ -179,3 +174,60 @@ def trace_msg(message, silent=False):
     """Print trace message."""
     if build_option('trace'):
         print_msg('  >> ' + message, prefix=False)
+
+
+def nub(list_):
+    """Returns the unique items of a list of hashables, while preserving order of
+    the original list, i.e. the first unique element encoutered is
+    retained.
+
+    Code is taken from
+    http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
+
+    Supposedly, this is one of the fastest ways to determine the
+    unique elements of a list.
+
+    @type list_: a list :-)
+
+    :return: a new list with each element from `list` appearing only once (cfr. Michelle Dubois).
+    """
+    seen = set()
+    seen_add = seen.add
+    return [x for x in list_ if x not in seen and not seen_add(x)]
+
+
+def get_class_for(modulepath, class_name):
+    """
+    Get class for a given Python class name and Python module path.
+
+    :param modulepath: Python module path (e.g., 'easybuild.base.generaloption')
+    :param class_name: Python class name (e.g., 'GeneralOption')
+    """
+    # try to import specified module path, reraise ImportError if it occurs
+    try:
+        module = __import__(modulepath, globals(), locals(), [''])
+    except ImportError as err:
+        raise ImportError(err)
+    # try to import specified class name from specified module path, throw ImportError if this fails
+    try:
+        klass = getattr(module, class_name)
+    except AttributeError as err:
+        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
+    return klass
+
+
+def get_subclasses_dict(klass, include_base_class=False):
+    """Get dict with subclasses per classes, recursively from the specified base class."""
+    res = {}
+    subclasses = klass.__subclasses__()
+    if include_base_class:
+        res.update({klass: subclasses})
+    for subclass in subclasses:
+        # always include base class for recursive call
+        res.update(get_subclasses_dict(subclass, include_base_class=True))
+    return res
+
+
+def get_subclasses(klass, include_base_class=False):
+    """Get list of all subclasses, recursively from the specified base class."""
+    return get_subclasses_dict(klass, include_base_class=include_base_class).keys()

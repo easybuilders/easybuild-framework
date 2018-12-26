@@ -46,7 +46,6 @@ import re
 from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import get_class_for, nub
 from easybuild.base.patterns import Singleton
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -73,7 +72,7 @@ from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
-from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.utilities import get_class_for, nub, quote_py_str, remove_unwanted_chars
 from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 

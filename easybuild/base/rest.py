@@ -1,4 +1,4 @@
-### External compatible license
+# External compatible license
 #
 # This file is part of agithub
 # Originally created by Jonathan Paugh
@@ -37,17 +37,13 @@ based on https://github.com/jpaugh/agithub/commit/1e2575825b165c1cb7cbd85c22e256
 import base64
 import urllib
 import urllib2
+from functools import partial
 try:
     import json
 except ImportError:
     import simplejson as json
 
 from easybuild.base import fancylogger
-
-try:
-    from functools import partial
-except ImportError:
-    from easybuild.base.missing import partial
 
 
 class Client(object):

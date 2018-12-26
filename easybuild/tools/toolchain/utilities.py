@@ -39,10 +39,9 @@ import sys
 
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
-from easybuild.base.missing import get_subclasses, nub
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import get_subclasses, import_available_modules, nub
 
 
 TC_CONST_PREFIX = 'TC_CONSTANT_'

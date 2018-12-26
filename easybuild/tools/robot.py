@@ -38,7 +38,6 @@ import os
 import sys
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import nub
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
@@ -47,6 +46,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.utilities import nub
 
 
 _log = fancylogger.getLogger('tools.robot', fname=False)

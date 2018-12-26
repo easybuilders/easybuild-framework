@@ -32,7 +32,7 @@ be used within an Easyconfig file.
 """
 
 from easybuild.base import fancylogger
-from easybuild.base.missing import get_subclasses
+from easybuild.tools.utilities import get_subclasses
 
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
