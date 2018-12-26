@@ -30,17 +30,10 @@ Various functions that are missing from the default Python library.
   - find_sublist_index(list, sublist): find the index of the first
     occurence of the sublist in the list
     according to the given monoid
-  - shell_quote / shell_unquote : convenience functions to quote / unquote strings in shell context
 
 :author: Andy Georges (Ghent University)
 :author: Stijn De Weirdt (Ghent University)
 """
-import shlex
-try:
-    from shlex import quote  # python 3.3
-except ImportError:
-    from pipes import quote  # python 2.7
-
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDict
 
@@ -129,17 +122,6 @@ class FrozenDictKnownKeys(FrozenDict):
             else:
                 tup = (key, self.__class__.__name__, self.KNOWN_KEYS)
                 raise KeyError("Unknown key '%s' for %s instance (known keys: %s)" % tup)
-
-
-def shell_quote(x):
-    """Add quotes so it can be passed to shell"""
-    return quote(str(x))
-
-
-def shell_unquote(x):
-    """Take a literal string, remove the quotes as if it were passed by shell"""
-    # it expects a string
-    return ' '.join(shlex.split(str(x)))
 
 
 def get_class_for(modulepath, class_name):

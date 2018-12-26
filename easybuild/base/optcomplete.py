@@ -105,7 +105,7 @@ import types
 from optparse import OptionParser, Option
 from pprint import pformat
 
-from easybuild.base.missing import shell_quote
+from easybuild.tools.utilities import shell_quote
 
 debugfn = None  # for debugging only
 

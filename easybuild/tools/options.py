@@ -44,7 +44,6 @@ import tempfile
 import pwd
 from distutils.version import LooseVersion
 
-import easybuild.base.generaloption
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.base.fancylogger import setLogLevel
@@ -105,26 +104,6 @@ except ImportError:
         except Exception:
             # in case of errors do not bother and just return the safe default
             return False
-
-
-# monkey patch shell_quote in easybuild.base.generaloption, used by generate_cmd_line,
-# to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
-# inspired by https://github.com/hpcugent/vsc-base/pull/151
-# this fixes https://github.com/easybuilders/easybuild-framework/issues/1438
-# proper fix would be to implement a serialiser for command line options
-def eb_shell_quote(token):
-    """
-    Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
-    so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
-    """
-    # first, strip off double quotes that may wrap the entire value,
-    # we don't want to wrap single quotes around a double-quoted value
-    token = str(token).strip('"')
-    # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
-
-
-easybuild.base.generaloption.shell_quote = eb_shell_quote
 
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'

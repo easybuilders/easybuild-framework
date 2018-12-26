@@ -29,6 +29,7 @@ Module with various utility functions
 """
 import glob
 import os
+import re
 import string
 import sys
 
@@ -93,6 +94,18 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False):
 def quote_py_str(val):
     """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
     return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+
+
+def shell_quote(token):
+    """
+    Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
+    so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
+    """
+    # first, strip off double quotes that may wrap the entire value,
+    # we don't want to wrap single quotes around a double-quoted value
+    token = str(token).strip('"')
+    # escape any non-escaped single quotes, and wrap entire token in single quotes
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
 
 
 def remove_unwanted_chars(inputstring):
