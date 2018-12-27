@@ -39,7 +39,6 @@ import unittest
 from pkg_resources import fixup_namespace_packages
 
 from easybuild.base import fancylogger
-from easybuild.base.patterns import Singleton
 from easybuild.base.testing import TestCase
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
@@ -49,7 +48,7 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file
