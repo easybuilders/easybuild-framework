@@ -37,6 +37,3 @@ pkg_resources.declare_namespace(__name__)
 
 # suffix for devel module filename
 DEVEL_MODULE_SUFFIX = '-easybuild-devel'
-
-# general module class
-GENERAL_CLASS = 'all'
