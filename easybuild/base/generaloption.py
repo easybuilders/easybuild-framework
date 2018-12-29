@@ -1183,7 +1183,7 @@ class GeneralOption(object):
 
         try:
             (self.options, self.args) = self.parser.parse_args(options_list)
-        except SystemExit, err:
+        except SystemExit as err:
             self.log.debug("parseoptions: parse_args err %s code %s" % (err, err.code))
             if self.no_system_exit:
                 return

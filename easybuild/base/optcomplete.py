@@ -1,5 +1,5 @@
-### External compatible license
-#******************************************************************************\
+# External compatible license
+# ******************************************************************************\
 # * Copyright (c) 2003-2004, Martin Blais
 # * All rights reserved.
 # *
@@ -29,7 +29,7 @@
 # * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#******************************************************************************\
+# ******************************************************************************\
 
 """Automatic completion for optparse module.
 
@@ -120,12 +120,14 @@ SHELL = DEFAULT_SHELL
 OPTION_CLASS = Option
 OPTIONPARSER_CLASS = OptionParser
 
+
 def set_optionparser(option_class, optionparser_class):
     """Set the default Option and OptionParser class"""
     global OPTION_CLASS
     global OPTIONPARSER_CLASS
     OPTION_CLASS = option_class
     OPTIONPARSER_CLASS = optionparser_class
+
 
 def get_shell():
     """Determine the shell, update class constant SHELL and return the shell
@@ -171,7 +173,7 @@ class Completer(object):
 
         return self._call(**kwargs)
 
-    def _call(self, **kwargs): # pylint: disable=unused-argument
+    def _call(self, **kwargs):  # pylint: disable=unused-argument
         """Return empty list"""
         return []
 
@@ -340,7 +342,7 @@ def extract_word(line, point):
             break
         sufii += 1
 
-    return line[preii : point], line[point : sufii]
+    return line[preii:point], line[point:sufii]
 
 
 def error_override(self, msg):
@@ -356,7 +358,8 @@ def guess_first_nonoption(gparser, subcmds_map):
     the subcommand."""
 
     gparser = copy.deepcopy(gparser)
-    def print_usage_nousage(self, *args, **kwargs): # pylint: disable=unused-argument
+
+    def print_usage_nousage(self, *args, **kwargs):  # pylint: disable=unused-argument
         pass
     gparser.print_usage = print_usage_nousage
 
@@ -422,7 +425,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
 
     # If we are not requested for complete, simply return silently, let the code
     # caller complete. This is the normal path of execution.
-    if not os.environ.has_key(OPTCOMPLETE_ENVIRONMENT):
+    if OPTCOMPLETE_ENVIRONMENT not in os.environ:
         return
     # After this point we should never return, only sys.exit(1)
 
@@ -447,7 +450,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
 
     # zsh's bashcompinit does not pass COMP_WORDS, replace with
     # COMP_LINE for now...
-    if not os.environ.has_key('COMP_WORDS'):
+    if 'COMP_WORDS' not in os.environ:
         os.environ['COMP_WORDS'] = os.environ['COMP_LINE']
 
     cwords = shlex.split(os.environ.get('COMP_WORDS', '').strip('() '))
@@ -472,7 +475,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
                 else:
                     completer = subcmd_completer
                 autocomplete(parser, completer)
-            elif  hasattr(value, 'autocomplete'):
+            elif hasattr(value, 'autocomplete'):
                 # Call completion method on object. This should call
                 # autocomplete() recursively with appropriate arguments.
                 value.autocomplete(subcmd_completer)
@@ -581,7 +584,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
             'Prefix %s' % prefix,
             'Suffix %s' % suffix,
             'completer_kwargs%s' % str(completer_kwargs),
-            #'completer_completions %s' % completer_completions,
+            # 'completer_completions %s' % completer_completions,
             'completions %s' % completions,
             ])
         if isinstance(debugfn, logging.Logger):

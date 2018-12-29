@@ -29,7 +29,6 @@ Unit tests for easyconfig/format/format.py
 """
 import sys
 
-from easybuild.base.fancylogger import setLogLevelDebug, logToScreen
 from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
@@ -53,6 +52,4 @@ def suite():
 
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
     TextTestRunner(verbosity=1).run(suite())

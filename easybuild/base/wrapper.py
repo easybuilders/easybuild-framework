@@ -1,4 +1,4 @@
-### External compatible license
+# External compatible license
 """
 This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License
 with attribution required
@@ -6,6 +6,8 @@ with attribution required
 Original code by http://stackoverflow.com/users/416467/kindall from answer 4 of
 http://stackoverflow.com/questions/9057669/how-can-i-intercept-calls-to-pythons-magic-methods-in-new-style-classes
 """
+
+
 class Wrapper(object):
     """Wrapper class that provides proxy access to an instance of some
        internal instance."""
@@ -30,7 +32,7 @@ class Wrapper(object):
         def __init__(cls, name, bases, dct):
 
             def make_proxy(name):
-                def proxy(self, *args): # pylint:disable=unused-argument
+                def proxy(self, *args):  # pylint:disable=unused-argument
                     return getattr(self._obj, name)
                 return proxy
 
