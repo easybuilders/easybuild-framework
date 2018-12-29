@@ -33,8 +33,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 """
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import MODULECLASS_BASE
 

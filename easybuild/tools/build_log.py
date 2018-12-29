@@ -38,9 +38,9 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime
-from vsc.utils import fancylogger
-from vsc.utils.exceptions import LoggedException
 
+from easybuild.base import fancylogger
+from easybuild.base.exceptions import LoggedException
 from easybuild.tools.version import VERSION, this_is_easybuild
 
 

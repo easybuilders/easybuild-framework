@@ -32,8 +32,8 @@ Module which allows the diffing of multiple files
 import difflib
 import math
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.systemtools import det_terminal_size
@@ -92,7 +92,7 @@ class MultiDiff(object):
         """
         # register (diff_line, meta, squigly_line) tuple for specified line number and determined key
         key = diff_line[0]
-        if not key in [MINUS, PLUS]:
+        if key not in [MINUS, PLUS]:
             raise EasyBuildError("diff line starts with unexpected character: %s", diff_line)
         line_key_tuples = self.diff_info.setdefault(line_no, {}).setdefault(key, [])
         line_key_tuples.append((diff_line, meta, squigly_line))
@@ -260,7 +260,7 @@ def multidiff(base, files, colored=True):
         #
         # - toolchain = {'name': 'goolfc', 'version': '2.6.10'}
         # ?                            -               ^   ^
-        # 
+        #
         # + toolchain = {'name': 'goolf', 'version': '1.6.20'}
         # ?                                           ^   ^
         #

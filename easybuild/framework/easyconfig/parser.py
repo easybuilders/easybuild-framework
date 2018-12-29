@@ -31,8 +31,8 @@ The parser is format version aware
 """
 import os
 import re
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
 from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format

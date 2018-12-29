@@ -30,8 +30,8 @@ Abstract implementation of a package naming scheme.
 :author: Kenneth Hoste (Ghent University)
 """
 from abc import ABCMeta, abstractmethod
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.config import build_option
 
 

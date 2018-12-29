@@ -32,8 +32,7 @@ The main easyconfig format class
 import re
 import sys
 
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT

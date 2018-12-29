@@ -31,7 +31,6 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.format import Dependency
@@ -206,6 +205,4 @@ def suite():
 
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
     TextTestRunner(verbosity=1).run(suite())

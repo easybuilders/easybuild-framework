@@ -43,11 +43,9 @@ import difflib
 import functools
 import os
 import re
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_class_for, nub
-from vsc.utils.patterns import Singleton
 from distutils.version import LooseVersion
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -60,7 +58,7 @@ from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACE
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.config import build_option, get_module_naming_scheme
+from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
@@ -73,7 +71,7 @@ from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
-from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.utilities import get_class_for, nub, quote_py_str, remove_unwanted_chars
 from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 

@@ -34,11 +34,9 @@ Generic support for dealing with repositories
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('repository', fname=False)
 
@@ -148,7 +146,7 @@ def avail_repositories(check_useable=True):
 
     class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
-    if not 'FileRepository' in class_dict:
+    if 'FileRepository' not in class_dict:
         raise EasyBuildError("avail_repositories: FileRepository missing from list of repositories")
 
     return class_dict

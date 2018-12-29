@@ -30,13 +30,10 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 :author: Kenneth Hoste (Ghent University)
 """
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 
 
@@ -47,6 +44,7 @@ YAML_DIR = r'%YAML'
 YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
 YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
+
 
 def yaml_join(loader, node):
     """
@@ -141,6 +139,7 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
+
 
 def quote_yaml_special_chars(val):
     """

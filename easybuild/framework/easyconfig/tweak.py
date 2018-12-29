@@ -41,9 +41,8 @@ import os
 import re
 import tempfile
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
@@ -56,7 +55,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import nub, quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.tweak', fname=False)

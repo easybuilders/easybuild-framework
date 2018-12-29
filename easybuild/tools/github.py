@@ -43,9 +43,8 @@ import time
 import urllib2
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
@@ -54,7 +53,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
-from easybuild.tools.utilities import only_if_module_is_available
+from easybuild.tools.utilities import nub, only_if_module_is_available
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -68,10 +67,10 @@ except ImportError, err:
     HAVE_KEYRING = False
 
 try:
-    from vsc.utils.rest import RestClient
+    from easybuild.base.rest import RestClient
     HAVE_GITHUB_API = True
 except ImportError, err:
-    _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
+    _log.warning("Failed to import from 'easybuild.base.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
 try:

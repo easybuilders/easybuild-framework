@@ -34,11 +34,11 @@ from datetime import date
 from optparse import OptionParser
 
 import easybuild.tools.config as config
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import Githubfs
 from easybuild.tools.options import set_up_configuration
-from vsc.utils import fancylogger
 
 # parse options
 parser = OptionParser()

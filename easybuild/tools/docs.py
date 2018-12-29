@@ -39,10 +39,8 @@ import inspect
 import os
 import string
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.docs import mk_rst_table
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -63,7 +61,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import import_available_modules, quote_str
+from easybuild.tools.utilities import import_available_modules, nub, quote_str
 
 
 _log = fancylogger.getLogger('tools.docs')
@@ -77,6 +75,41 @@ SIMPLE = 'simple'
 
 FORMAT_TXT = 'txt'
 FORMAT_RST = 'rst'
+
+
+def mk_rst_table(titles, columns):
+    """
+    Returns an rst table with given titles and columns (a nested list of string columns for each column)
+    """
+    title_cnt, col_cnt = len(titles), len(columns)
+    if title_cnt != col_cnt:
+        msg = "Number of titles/columns should be equal, found %d titles and %d columns" % (title_cnt, col_cnt)
+        raise ValueError(msg)
+    table = []
+    tmpl = []
+    line = []
+
+    # figure out column widths
+    for i, title in enumerate(titles):
+        width = max(map(len, columns[i] + [title]))
+
+        # make line template
+        tmpl.append('{%s:{c}<%s}' % (i, width))
+
+    line = [''] * col_cnt
+    line_tmpl = INDENT_4SPACES.join(tmpl)
+    table_line = line_tmpl.format(*line, c='=')
+
+    table.append(table_line)
+    table.append(line_tmpl.format(*titles, c=' '))
+    table.append(table_line)
+
+    for row in map(list, zip(*columns)):
+        table.append(line_tmpl.format(*row, c=' '))
+
+    table.extend([table_line, ''])
+
+    return table
 
 
 def generate_doc(name, params):

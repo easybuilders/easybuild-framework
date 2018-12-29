@@ -31,9 +31,8 @@ be used within an Easyconfig file.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import re
-from vsc.utils import fancylogger
-from distutils.version import LooseVersion
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
 

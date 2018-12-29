@@ -34,8 +34,8 @@ import copy
 import os
 import re
 import tempfile
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, INDENT_4SPACES
 from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version

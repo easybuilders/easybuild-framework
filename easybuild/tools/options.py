@@ -42,13 +42,12 @@ import shutil
 import sys
 import tempfile
 import pwd
-import vsc.utils.generaloption
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.fancylogger import setLogLevel
-from vsc.utils.generaloption import GeneralOption
 
 import easybuild.tools.environment as env
+from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.base.fancylogger import setLogLevel
+from easybuild.base.generaloption import GeneralOption
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
@@ -63,7 +62,7 @@ from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATI
 from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
-from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
+from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
 from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
@@ -83,7 +82,6 @@ from easybuild.tools.include import include_easyblocks, include_module_naming_sc
 from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
@@ -105,26 +103,6 @@ except ImportError:
         except Exception:
             # in case of errors do not bother and just return the safe default
             return False
-
-
-# monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
-# to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
-# inspired by https://github.com/hpcugent/vsc-base/pull/151
-# this fixes https://github.com/easybuilders/easybuild-framework/issues/1438
-# proper fix would be to implement a serialiser for command line options
-def eb_shell_quote(token):
-    """
-    Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
-    so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
-    """
-    # first, strip off double quotes that may wrap the entire value,
-    # we don't want to wrap single quotes around a double-quoted value
-    token = str(token).strip('"')
-    # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
-
-
-vsc.utils.generaloption.shell_quote = eb_shell_quote
 
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'

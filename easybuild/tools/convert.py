@@ -24,17 +24,16 @@
 # #
 
 """
-This module implements all supported formats and their converters 
+This module implements all supported formats and their converters
 
 :author: Stijn De Weirdt (Ghent University)
 """
 import re
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, nub
-from vsc.utils.wrapper import Wrapper
-
+from easybuild.base import fancylogger
+from easybuild.base.wrapper import Wrapper
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.utilities import get_subclasses, nub
 
 
 _log = fancylogger.getLogger('tools.convert', fname=False)
@@ -135,11 +134,11 @@ class DictOfStrings(Convert):
     def _from_string(self, txt):
         """Parse string as a dictionary of /with string values.
             For example: "a:b;c:d" -> {'a':'b', 'c':'d'}"
-            
-            It also supports automagic dictionary creation via the KEYLESS_ENTRIES list of keys, 
+
+            It also supports automagic dictionary creation via the KEYLESS_ENTRIES list of keys,
             but the order is important.
             KEYLESS_ENTRIES=['first','second']
-            will convert 
+            will convert
             "val1;val2;third:val3" -> {'first': 'val1', 'second': 'val2', 'third': 'val3'}
         """
 
@@ -156,7 +155,7 @@ class DictOfStrings(Convert):
             elif idx + 1 <= len(self.KEYLESS_ENTRIES):
                 # auto-complete list into dict
                 # only valid if all previous keyless entries were processed before and in order
-                if  ke_usage == range(idx):
+                if ke_usage == range(idx):
                     # all elements have to used before this one
                     ke_usage.append(idx)
                     res[self.KEYLESS_ENTRIES[idx]] = entry
@@ -173,6 +172,7 @@ class DictOfStrings(Convert):
         """Convert to string"""
         # the str conversions are needed for subclasses that use non-string values
         keyless_entries = [str(self[ml]) for ml in self.KEYLESS_ENTRIES if ml in self]
+
         def join_item(item):
             return self.separator_key_value.join([item[0], str(item[1])])
         regular = [join_item(it) for it in self.items() if not it[0] in self.KEYLESS_ENTRIES]

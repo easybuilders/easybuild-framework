@@ -42,8 +42,8 @@ import sys
 import tempfile
 import time
 from datetime import datetime
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option

@@ -29,11 +29,11 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils import fancylogger
 from distutils.util import strtobool
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
+from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -433,6 +433,7 @@ def to_checksums(checksums):
 
     return res
 
+
 def ensure_iterable_license_specs(specs):
     """
     Ensures that the provided license file/server specifications are of correct type and converts
@@ -452,6 +453,7 @@ def ensure_iterable_license_specs(specs):
         raise EasyBuildError(msg)
 
     return license_specs
+
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 # specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
@@ -492,7 +494,7 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 
 CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
-                  STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
+                   STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]

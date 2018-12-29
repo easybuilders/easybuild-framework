@@ -70,7 +70,8 @@ def find_rel_test():
     return res
 
 easybuild_packages = [
-    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
+    "easybuild", "easybuild.base",
+    "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
     "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
     "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
@@ -118,11 +119,7 @@ implement support for installing particular (groups of) software packages.""",
     platforms="Linux",
     test_suite="test.framework.suite",
     zip_safe=False,
-    install_requires=[
-        'setuptools >= 0.6',
-        "vsc-install >= 0.9.19",
-        "vsc-base >= 2.5.8",
-    ],
+    install_requires=['setuptools >= 0.6'],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
         'coloredlogs': [

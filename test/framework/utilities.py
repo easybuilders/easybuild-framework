@@ -37,10 +37,9 @@ import sys
 import tempfile
 import unittest
 from pkg_resources import fixup_namespace_packages
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
-from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
 
+from easybuild.base import fancylogger
+from easybuild.base.testing import TestCase
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
@@ -49,11 +48,10 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
@@ -81,7 +79,7 @@ for key in os.environ.keys():
         os.environ[newkey] = val
 
 
-class EnhancedTestCase(_EnhancedTestCase):
+class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
 
     def setUp(self):
@@ -241,7 +239,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         """
         if self.env_path is not None:
             os.environ['PATH'] = self.env_path
-        if self.env_path is not None:
+        if self.env_pythonpath is not None:
             os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):

@@ -43,8 +43,8 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
@@ -55,7 +55,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -202,13 +201,14 @@ def dep_graph(filename, specs):
         all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     dgr = digraph()
     dgr.add_nodes(all_nodes)
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
+                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
     _dep_graph_dump(dgr, filename)
 

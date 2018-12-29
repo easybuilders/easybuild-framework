@@ -35,9 +35,8 @@ import os
 import stat
 import sys
 import tempfile
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -49,7 +48,7 @@ from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import trace_msg
+from easybuild.tools.utilities import nub, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)

@@ -34,13 +34,11 @@ Utility functions for implementating module naming schemes.
 """
 import os
 import string
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
-from easybuild.tools import module_naming_scheme
+from easybuild.base import fancylogger
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 

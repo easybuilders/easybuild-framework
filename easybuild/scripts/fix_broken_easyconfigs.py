@@ -30,8 +30,8 @@ Script to fix easyconfigs that broke due to support for deprecated functionality
 import os
 import re
 import sys
-from vsc.utils import fancylogger
-from vsc.utils.generaloption import SimpleOption
+from easybuild.base import fancylogger
+from easybuild.base.generaloption import SimpleOption
 
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, fetch_parameters_from_easyconfig
@@ -106,8 +106,8 @@ def process_easyconfig_file(ec_file):
     else:
         log.info("%s: nothing to fix" % ec_file)
 
-# MAIN
 
+# MAIN
 try:
     init_build_options()
 

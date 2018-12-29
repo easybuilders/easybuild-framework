@@ -32,7 +32,6 @@ import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
@@ -98,8 +97,8 @@ class EasyConfigVersion(EnhancedTestCase):
             ('> 3', '< 2', (False, False)),  # no overlap
             ('> 3', '== 3', (False, False)),  # no overlap
             ('< 3', '> 2', (True, True)),  # overlap, and conflict (region between 2 and 3 is ambiguous)
-            ('>= 3', '== 3' , (True, True)),  # overlap, and conflict (boundary 3 is ambigous)
-            ('> 3', '>= 3' , (True, False)),  # overlap, no conflict ('> 3' is more strict then '>= 3')
+            ('>= 3', '== 3', (True, True)),  # overlap, and conflict (boundary 3 is ambigous)
+            ('> 3', '>= 3', (True, False)),  # overlap, no conflict ('> 3' is more strict then '>= 3')
 
             # suffix
             ('> 2', '> 1', (True, False)),  # suffix both equal (both None), ordering like above
@@ -118,8 +117,8 @@ class EasyConfigVersion(EnhancedTestCase):
         """Test strict greater then ordering"""
         left_gt_right = [
             ('> 2', '> 1'),  # True, order by strictness equals order by boundaries for gt/ge
-            ('< 8' , '< 10'),  # True, order by strictness equals inversed order by boundaries for lt/le
-            ('== 4' , '> 3'),  # equality is more strict then inequality, but this order by boundaries
+            ('< 8', '< 10'),  # True, order by strictness equals inversed order by boundaries for lt/le
+            ('== 4', '> 3'),  # equality is more strict then inequality, but this order by boundaries
             ('> 3', '== 2'),  # there is no overlap, so just order the intervals according their boundaries
             ('== 1', '> 1'),  # no overlap, same boundaries, order by operator
             ('== 1', '< 1'),  # no overlap, same boundaries, order by operator
@@ -199,7 +198,6 @@ class EasyConfigVersion(EnhancedTestCase):
 
     def test_toolchain_versop_test(self):
         """Test the ToolchainVersionOperator test"""
-        top = ToolchainVersionOperator()
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
         for tc in tc_names:  # test all known toolchain names
@@ -274,6 +272,4 @@ def suite():
 
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
     TextTestRunner(verbosity=1).run(suite())
