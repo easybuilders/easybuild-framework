@@ -1359,10 +1359,10 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
 
-        # put fake 'gcc' command in place that just echos its arguments
-        fake_gcc = os.path.join(self.test_prefix, 'fake', 'gcc')
-        write_file(fake_gcc, '#!/bin/bash\necho "$@"')
-        adjust_permissions(fake_gcc, stat.S_IXUSR)
+        # put fake 'g++' command in place that just echos its arguments
+        fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
+        write_file(fake_gxx, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_gxx, stat.S_IXUSR)
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # enable --rpath and prepare toolchain
@@ -1379,29 +1379,31 @@ class ToolchainTest(EnhancedTestCase):
         # setting 'rpath' toolchain option to false implies no RPATH wrappers being used
         tc.set_options({'rpath': False})
         tc.prepare()
-        res = which('gcc', retain_all=True)
+        res = which('g++', retain_all=True)
         self.assertTrue(len(res) >= 1)
         self.assertFalse(tc.is_rpath_wrapper(res[0]))
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
-        self.assertTrue(os.path.samefile(res[0], fake_gcc))
+        self.assertTrue(os.path.samefile(res[0], fake_gxx))
 
         # enable 'rpath' toolchain option again (equivalent to the default setting)
         tc.set_options({'rpath': True})
         tc.prepare()
 
         # check that wrapper is indeed in place
-        res = which('gcc', retain_all=True)
-        # there should be at least 2 hits: the RPATH wrapper, and our fake 'gcc' command (there may be real ones too)
+        res = which('g++', retain_all=True)
+        # there should be at least 2 hits: the RPATH wrapper, and our fake 'g++' command (there may be real ones too)
         self.assertTrue(len(res) >= 2)
         self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertEqual(os.path.basename(res[0]), 'g++')
+        self.assertEqual(os.path.basename(os.path.dirname(res[0])), 'gxx_wrapper')
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
-        self.assertTrue(os.path.samefile(res[1], fake_gcc))
-        # any other available 'gcc' commands should not be a wrapper or our fake gcc
-        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gxx))
+        # any other available 'g++' commands should not be a wrapper or our fake g++
+        self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
-        # check whether fake gcc was wrapped and that arguments are what they should be
+        # check whether fake g++ was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
-        out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        out, _ = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
         expected = ' '.join([
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=/foo',
@@ -1416,12 +1418,12 @@ class ToolchainTest(EnhancedTestCase):
         # calling prepare() again should *not* result in wrapping the existing RPATH wrappers
         # this can happen when building extensions
         tc.prepare()
-        res = which('gcc', retain_all=True)
+        res = which('g++', retain_all=True)
         self.assertTrue(len(res) >= 2)
         self.assertTrue(tc.is_rpath_wrapper(res[0]))
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
-        self.assertTrue(os.path.samefile(res[1], fake_gcc))
-        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gxx))
+        self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
