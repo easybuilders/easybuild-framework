@@ -569,7 +569,7 @@ def check_os_dependency(dep):
     # - should be extended to files later?
     found = False
     cmd = None
-    os_to_pkgcmd_map = {
+    os_to_pkg_cmd_map = {
         'centos': RPM,
         'debian': DPKG,
         'redhat': RPM,
