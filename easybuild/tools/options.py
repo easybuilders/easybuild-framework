@@ -82,7 +82,7 @@ from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
-from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
+from easybuild.tools.module_generator import DEFAULT_MODULES_TEMPLATE, ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
@@ -494,6 +494,7 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-header': ("Path to file containing header to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
+            'modules-template': ("Location of module file template", None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'packagepath': ("The destination path for the packages built by package-tool",
@@ -573,6 +574,7 @@ class EasyBuildOptions(GeneralOption):
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
+            'show-default-modules-template': ("Show default module file template", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
         })
 
@@ -792,7 +794,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
-                self.options.avail_hooks,
+                self.options.avail_hooks, self.options.show_default_modules_template,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -1033,6 +1035,10 @@ class EasyBuildOptions(GeneralOption):
         # dump default moduleclasses with description
         if self.options.show_default_moduleclasses:
             msg += self.show_default_moduleclasses()
+
+        # dump default modules template
+        if self.options.show_default_modules_template:
+            msg = DEFAULT_MODULES_TEMPLATE
 
         if self.options.avail_hooks:
             msg += self.avail_list('hooks (in order of execution)', KNOWN_HOOKS)

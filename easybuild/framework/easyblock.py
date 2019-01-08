@@ -2438,20 +2438,25 @@ class EasyBlock(object):
         else:
             trace_msg("generating module file @ %s" % self.mod_filepath)
 
-        txt = self.module_generator.MODULE_SHEBANG
-        if txt:
-            txt += '\n'
-
+        mod_header = ''
         if self.modules_header:
-            txt += self.modules_header + '\n'
+            mod_header = self.modules_header + '\n'
 
-        txt += self.make_module_description()
-        txt += self.make_module_group_check()
-        txt += self.make_module_dep()
-        txt += self.make_module_extend_modpath()
-        txt += self.make_module_req()
-        txt += self.make_module_extra()
-        txt += self.make_module_footer()
+        modfile_tmpl_vals = {
+            # see MODULES_TEMPLATE_KEYS in module_generator.py for list of required keys
+            'header': mod_header,
+            'descr': self.make_module_description(),
+            'group_check': self.make_module_group_check(),
+            'deps': self.make_module_dep(),
+            'modpath': self.make_module_extend_modpath(),
+            'env_vars': self.make_module_req() + self.make_module_extra(),
+            'footer': self.make_module_footer(),
+            'installdir': self.installdir,
+        }
+        # include template values from EasyConfig object as well, which can be useful in custom module file templates
+        modfile_tmpl_vals.update(self.cfg.template_values)
+
+        txt = self.module_generator.from_template(modfile_tmpl_vals)
 
         if self.dry_run:
             # only report generating actual module file during dry run, don't mention temporary module files

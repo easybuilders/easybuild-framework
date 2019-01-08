@@ -39,6 +39,7 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from string import Template
 from textwrap import wrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
@@ -49,6 +50,10 @@ from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_fil
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
 from easybuild.tools.utilities import quote_str
 
+
+# order matters in list of keys since it determines order in default modules template!
+MODULES_TEMPLATE_KEYS = ['shebang', 'header', 'descr', 'group_check', 'deps', 'modpath', 'env_vars', 'footer']
+DEFAULT_MODULES_TEMPLATE = ''.join(['$' + x for x in MODULES_TEMPLATE_KEYS])
 
 _log = fancylogger.getLogger('module_generator', fname=False)
 
@@ -304,6 +309,31 @@ class ModuleGenerator(object):
             self._write_modulerc_file(filepath, modulerc_txt, wrapped_mod_name=module_version['modname'])
 
         return modulerc_txt
+
+    def from_template(self, template_values):
+        """Generate module file using given template values."""
+
+        modfile_template = build_option('modules_template')
+        if modfile_template is None:
+            modfile_template = DEFAULT_MODULES_TEMPLATE
+            self.log.info("No template for module files provided, using default: %s", modfile_template)
+        else:
+            self.log.info("Using provided template for module files: %s", modfile_template)
+
+        if self.MODULE_SHEBANG:
+            template_values['shebang'] = self.MODULE_SHEBANG + '\n'
+        else:
+            template_values['shebang'] = ''
+
+        self.log.info("Completing module file template using values: %s", template_values)
+        try:
+            txt = Template(modfile_template).substitute(template_values)
+        except (KeyError, ValueError) as err:
+            raise EasyBuildError("Problem occured during template substitution on module file template: %s", err)
+
+        self.log.info("Resulting module file contents: %s", txt)
+
+        return txt
 
     # From this point on just not implemented methods
 
