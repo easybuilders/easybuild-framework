@@ -91,6 +91,6 @@ __path__ = extend_path(__path__, __name__)
     os.mkdir(dirname)
     create_subdirs(dirname)
 
-except (IOError, OSError), err:
+except (IOError, OSError) as err:
     sys.stderr.write("Repo setup failed: %s" % err)
     sys.exit(1)

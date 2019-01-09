@@ -258,7 +258,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         """Parse the section block by trying to convert it into a ConfigObj instance"""
         try:
             self.configobj = ConfigObj(section.split('\n'))
-        except SyntaxError, err:
+        except SyntaxError as err:
             raise EasyBuildError('Failed to convert section text %s: %s', section, err)
 
         self.log.debug("Found ConfigObj instance %s" % self.configobj)

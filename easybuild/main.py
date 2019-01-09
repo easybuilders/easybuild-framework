@@ -81,7 +81,7 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
             # (try to) cleanup
             try:
                 os.remove(ec_file)
-            except OSError, err:
+            except OSError as err:
                 _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
@@ -113,7 +113,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
-        except Exception, err:
+        except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err

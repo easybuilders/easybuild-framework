@@ -157,7 +157,7 @@ class EasyConfigParser(object):
 
         try:
             self.rawcontent = self.get_fn[0](*self.get_fn[1])
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
         if not isinstance(self.rawcontent, basestring):
@@ -207,7 +207,7 @@ class EasyConfigParser(object):
 
         try:
             self.set_fn[0](*self.set_fn[1])
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Failed to process content with %s: %s", self.set_fn, err)
 
     def set_specifications(self, specs):

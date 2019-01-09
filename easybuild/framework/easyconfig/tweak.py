@@ -349,7 +349,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
             # get rid of temporary file
             os.remove(tmpfn)
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Failed to determine suiting filename for tweaked easyconfig file: %s", err)
 
         if targetdir is None:
