@@ -232,7 +232,7 @@ class ModulesTool(object):
             else:
                 raise EasyBuildError("Failed to determine version from option '%s' output: %s",
                                      self.VERSION_OPTION, txt)
-        except (OSError), err:
+        except (OSError) as err:
             raise EasyBuildError("Failed to check version: %s", err)
 
         if self.REQ_VERSION is None and self.MAX_VERSION is None:
@@ -755,7 +755,7 @@ class ModulesTool(object):
                 if tweak_fn is not None:
                     stdout = tweak_fn(stdout)
                 exec stdout
-            except Exception, err:
+            except Exception as err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)", err, out)
 
@@ -1273,7 +1273,7 @@ class Lmod(ModulesTool):
                     cache_file = open(cache_fp, 'w')
                     cache_file.write(stdout)
                     cache_file.close()
-                except (IOError, OSError), err:
+                except (IOError, OSError) as err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
     def use(self, path, priority=None):

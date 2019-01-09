@@ -62,14 +62,14 @@ _log = fancylogger.getLogger('github', fname=False)
 try:
     import keyring
     HAVE_KEYRING = True
-except ImportError, err:
+except ImportError as err:
     _log.warning("Failed to import 'keyring' Python module: %s" % err)
     HAVE_KEYRING = False
 
 try:
     from easybuild.base.rest import RestClient
     HAVE_GITHUB_API = True
-except ImportError, err:
+except ImportError as err:
     _log.warning("Failed to import from 'easybuild.base.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
@@ -243,7 +243,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.get(**kwargs)
-    except socket.gaierror, err:
+    except socket.gaierror as err:
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
@@ -269,7 +269,7 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.put(**kwargs)
-    except socket.gaierror, err:
+    except socket.gaierror as err:
         _log.warning("Error occurred while performing put request: %s", err)
         status, data = 0, {'message': err}
 
@@ -486,7 +486,7 @@ def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCO
     if not isinstance(issue, int):
         try:
             issue = int(issue)
-        except ValueError, err:
+        except ValueError as err:
             raise EasyBuildError("Failed to parse specified pull request number '%s' as an int: %s; ", issue, err)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')

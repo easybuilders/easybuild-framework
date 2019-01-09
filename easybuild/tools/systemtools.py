@@ -713,13 +713,13 @@ def use_group(group_name):
     """Use group with specified name."""
     try:
         group_id = grp.getgrnam(group_name).gr_gid
-    except KeyError, err:
+    except KeyError as err:
         raise EasyBuildError("Failed to get group ID for '%s', group does not exist (err: %s)", group_name, err)
 
     group = (group_name, group_id)
     try:
         os.setgid(group_id)
-    except OSError, err:
+    except OSError as err:
         err_msg = "Failed to use group %s: %s; " % (group, err)
         user = pwd.getpwuid(os.getuid()).pw_name
         grp_members = grp.getgrgid(group_id).gr_mem
@@ -742,7 +742,7 @@ def det_parallelism(par=None, maxpar=None):
         if not isinstance(par, int):
             try:
                 par = int(par)
-            except ValueError, err:
+            except ValueError as err:
                 raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
     else:
         par = get_avail_core_count()
@@ -757,7 +757,7 @@ def det_parallelism(par=None, maxpar=None):
             if par_guess < par:
                 par = par_guess
                 _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
-        except ValueError, err:
+        except ValueError as err:
             raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
 
     if maxpar is not None and maxpar < par:

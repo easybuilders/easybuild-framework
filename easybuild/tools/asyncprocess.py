@@ -107,7 +107,7 @@ class Popen(subprocess.Popen):
 
         try:
             written = os.write(self.stdin.fileno(), inp)
-        except OSError, why:
+        except OSError as why:
             if why[0] == errno.EPIPE: #broken pipe
                 return self._close('stdin')
             raise

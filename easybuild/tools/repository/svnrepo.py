@@ -132,7 +132,7 @@ class SvnRepository(FileRepository):
             try:
                 res = self.client.checkout(self.repo, self.wc)
                 self.log.debug("Checked out revision %s in %s" % (res.number, self.wc))
-            except ClientError, err:
+            except ClientError as err:
                 raise EasyBuildError("Checkout of path / in working copy %s went wrong: %s", self.wc, err)
 
     def stage_file(self, path):
@@ -182,7 +182,7 @@ class SvnRepository(FileRepository):
 
         try:
             self.client.checkin(self.wc, completemsg, recurse=True)
-        except ClientError, err:
+        except ClientError as err:
             raise EasyBuildError("Commit from working copy %s (msg: %s) failed: %s", self.wc, msg, err)
 
     def cleanup(self):
@@ -191,5 +191,5 @@ class SvnRepository(FileRepository):
         """
         try:
             rmtree2(self.wc)
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

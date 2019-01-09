@@ -160,7 +160,7 @@ class ModuleGenerator(object):
                 mkdir(os.path.dirname(class_mod_file), parents=True)
                 os.symlink(mod_filepath, class_mod_file)
 
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Failed to create symlinks from %s to %s: %s", class_mod_files, mod_filepath, err)
 
     def define_env_var(self, env_var):

@@ -1312,7 +1312,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
             try:
                 __import__(modulepath, globals(), locals(), [''])
                 modulepath_imported = True
-            except ImportError, err:
+            except ImportError as err:
                 _log.debug("Failed to import module '%s': %s" % (modulepath, err))
 
             # check if determining module path based on software name would have resulted in a different module path
@@ -1330,7 +1330,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 _log.debug("getting class for %s.%s" % (modulepath, class_name))
                 cls = get_class_for(modulepath, class_name)
                 _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-            except ImportError, err:
+            except ImportError as err:
                 # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
                 # and not because of a broken import statement in the easyblock module
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
@@ -1351,10 +1351,10 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
 
         return cls
 
-    except EasyBuildError, err:
+    except EasyBuildError as err:
         # simply reraise rather than wrapping it into another error
         raise err
-    except Exception, err:
+    except Exception as err:
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
@@ -1471,7 +1471,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         # create easyconfig
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 
         name = ec['name']

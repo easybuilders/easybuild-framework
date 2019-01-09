@@ -133,7 +133,7 @@ for root, subfolders, files in walk(options.path):
                         ec.easyblock = module
                 configs.append(ec)
                 names.append(ec.name)
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("faulty easyconfig %s: %s", ec_file, err)
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])

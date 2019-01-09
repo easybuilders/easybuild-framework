@@ -58,7 +58,7 @@ def write_changes(filename):
             script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
 
         script.close()
-    except IOError, err:
+    except IOError as err:
         if script is not None:
             script.close()
         raise EasyBuildError("Failed to write to %s: %s", filename, err)

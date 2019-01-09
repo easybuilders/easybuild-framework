@@ -272,7 +272,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
                 _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError(str(err))
 
     return paths
@@ -387,7 +387,7 @@ def parse_easyconfigs(paths, validate=True):
 
                 easyconfigs.extend(process_easyconfig(ec_file, **kwargs))
 
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
     return easyconfigs, generated_ecs

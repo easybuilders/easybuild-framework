@@ -1432,7 +1432,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         else:
             # use tempfile default parent dir
             current_tmpdir = tempfile.mkdtemp(prefix='eb-')
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
 
     # avoid having special characters like '[' and ']' in the tmpdir pathname,
@@ -1472,7 +1472,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
         os.remove(tmptest_file)
 
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir

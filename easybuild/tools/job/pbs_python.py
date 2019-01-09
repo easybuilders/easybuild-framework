@@ -207,7 +207,7 @@ class PbsJob(object):
 
         try:
             self.pbsconn = self._server.connect_to_server()
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("Failed to connect to the default pbs server: %s", err)
 
         # setup the resources requested
