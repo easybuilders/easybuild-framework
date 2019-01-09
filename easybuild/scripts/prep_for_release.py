@@ -48,7 +48,7 @@ import sys
 from distutils.version import LooseVersion
 try:
     import git
-except ImportError, err:
+except ImportError as err:
     sys.stderr.write("Failed to import git Python module, which is required to run this script: %s\n" % err)
     sys.exit(1)
 
@@ -76,7 +76,7 @@ def get_easybuild_version(home, version_file=None):
         f = open(version_file, "r")
         versiontxt = f.read()
         f.close()
-    except IOError, err:
+    except IOError as err:
         error("Failed to read %s's version file at %s: %s" % (easybuild_package, version_file, err))
 
     # determine current version set
@@ -105,7 +105,7 @@ def get_last_git_version_tag(home):
         else:
             error("No git version tags set?")
 
-    except git.GitCommandError, err:
+    except git.GitCommandError as err:
         error("Failed to determine last %s git tag: %s" % (easybuild_package, err))
 
 # check whether version has been bumped and
@@ -135,7 +135,7 @@ def check_release_notes(home, easybuild_version):
         f = open(os.path.join(home, fn), "r")
         releasenotes = f.read()
         f.close()
-    except IOError, err:
+    except IOError as err:
         error("Failed to read %s: %s" % (fn, err))
 
     ver_re = re.compile(r"^v%s\s\([A-Z][a-z]+\s[0-9]+[a-z]+\s[0-9]+\)$" % easybuild_version, re.M)
@@ -173,7 +173,7 @@ def check_license_headers(home, license_header_re, filename_re, dirname_re):
                         warning("Could not find license header in %s" % fullfn)
                         ok - False
 
-    except (OSError, IOError), err:
+    except (OSError, IOError) as err:
         error("Failed to check for license header in all code files: %s" % err)
 
     return ok
@@ -188,7 +188,7 @@ def check_clean_master_branch(home):
         gitrepo = git.Git(home)
         git_status = gitrepo.execute(["git", "status"])
 
-    except git.GitCommandError, err:
+    except git.GitCommandError as err:
         error("Failed to determine status of git repository.")
 
     master_re = re.compile(r"^# On branch master$", re.M)

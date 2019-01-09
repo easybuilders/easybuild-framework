@@ -84,7 +84,7 @@ def get_format_version(txt):
         try:
             maj_min = res.groupdict()
             format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
-        except (KeyError, TypeError), err:
+        except (KeyError, TypeError) as err:
             raise EasyBuildError("Failed to get version from match %s: %s", res.groups(), err)
     return format_version
 

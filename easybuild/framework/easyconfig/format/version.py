@@ -231,7 +231,7 @@ class VersionOperator(object):
         else:
             try:
                 version = EasyVersion(version_str)
-            except (AttributeError, ValueError), err:
+            except (AttributeError, ValueError) as err:
                 self.parse_error('Failed to convert %s to an EasyVersion instance: %s' % (version_str, err))
 
         self.log.debug('converted string %s to version %s' % (version_str, version))

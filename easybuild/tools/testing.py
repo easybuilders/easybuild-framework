@@ -103,7 +103,7 @@ def regtest(easyconfig_paths, modtool, build_specs=None):
     for ecfile in ecfiles:
         try:
             easyconfigs.extend(process_easyconfig(ecfile, build_specs=build_specs))
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
     # skip easyconfigs for which a module is already available, unless forced

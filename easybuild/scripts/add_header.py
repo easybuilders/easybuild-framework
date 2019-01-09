@@ -73,7 +73,7 @@ def write_header(filename, header, skip=None):
         f.writelines(output)
         f.close()
         print "added header to %s" % filename
-    except IOError, err:
+    except IOError as err:
         print "something went wrong trying to add header to %s: %s" % (filename, err)
 
 def add_header(directory, header, skipreg, filenamereg, dirregex):

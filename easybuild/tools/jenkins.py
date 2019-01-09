@@ -108,7 +108,7 @@ def write_to_xml(succes, failed, filename):
         output_file = open(filename, "w")
         root.writexml(output_file)
         output_file.close()
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", filename, err)
 
 
@@ -149,7 +149,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
             xml_file = xml_file[0]
             try:
                 dom = xml.parse(xml_file)
-            except IOError, err:
+            except IOError as err:
                 raise EasyBuildError("Failed to read/parse XML file %s: %s", xml_file, err)
             # only one should be present, we are just discarding the rest
             testcase = dom.getElementsByTagName("testcase")[0]
@@ -165,7 +165,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
         output_file = open(output_filename, "w")
         root.writexml(output_file, addindent="\t", newl="\n")
         output_file.close()
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", output_filename, err)
 
     print "Aggregate regtest results written to %s" % output_filename

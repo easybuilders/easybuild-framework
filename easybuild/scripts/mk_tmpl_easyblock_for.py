@@ -229,6 +229,6 @@ try:
     f = open(easyblock_path, "w")
     f.write(txt)
     f.close()
-except (IOError, OSError), err:
+except (IOError, OSError) as err:
     sys.stderr.write("ERROR! Writing template easyblock for %s to %s failed: %s" % (name, easyblock_path, err))
     sys.exit(1)

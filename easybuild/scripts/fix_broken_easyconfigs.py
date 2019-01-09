@@ -96,7 +96,7 @@ def process_easyconfig_file(ec_file):
                     i += 1
                 os.rename(ec_file, backup_ec_file)
                 log.info("Backed up %s to %s" % (ec_file, backup_ec_file))
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Failed to backup %s before rewriting it: %s", ec_file, err)
 
         write_file(ec_file, fixed_ectxt)
@@ -122,7 +122,7 @@ try:
 
     try:
         import easybuild.easyblocks.generic.configuremake
-    except ImportError, err:
+    except ImportError as err:
         raise EasyBuildError("easyblocks are not available in Python search path: %s", err)
 
     for path in go.args:
@@ -137,9 +137,9 @@ try:
     for ec_file in ec_files:
         try:
             process_easyconfig_file(ec_file)
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             log.warning("Ignoring issue when processing %s: %s", ec_file, err)
 
-except EasyBuildError, err:
+except EasyBuildError as err:
     sys.stderr.write("ERROR: %s\n" % err)
     sys.exit(1)
