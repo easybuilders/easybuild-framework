@@ -45,8 +45,7 @@ from optparse import gettext as _gettext  # this is gettext.gettext normally
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.docs import mk_rst_table
-from easybuild.tools.utilities import nub, shell_quote
+from easybuild.tools.utilities import mk_rst_table, nub, shell_quote
 
 
 HELP_OUTPUT_FORMATS = ['', 'rst', 'short', 'config']
