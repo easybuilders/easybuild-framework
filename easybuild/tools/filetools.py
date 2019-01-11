@@ -50,7 +50,6 @@ import stat
 import sys
 import tempfile
 import time
-import urllib2
 import zlib
 from xml.etree import ElementTree
 
@@ -59,6 +58,7 @@ from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.py2vs3 import std_urllib
 from easybuild.tools.utilities import nub
 
 try:
@@ -513,14 +513,15 @@ def download_file(filename, url, path, forced=False):
     # use custom HTTP header
     headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
-    url_req = urllib2.Request(url, headers=headers)
-    used_urllib = urllib2
+    url_req = std_urllib.Request(url, headers=headers)
+    used_urllib = std_urllib
 
     while not downloaded and attempt_cnt < max_attempts:
         try:
-            if used_urllib is urllib2:
-                # urllib2 does the right thing for http proxy setups, urllib does not!
-                url_fd = urllib2.urlopen(url_req, timeout=timeout)
+            if used_urllib is std_urllib:
+                # urllib2 (Python 2) / urllib.request (Python 3) does the right thing for http proxy setups,
+                # urllib does not!
+                url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
             else:
                 response = requests.get(url, headers=headers, stream=True, timeout=timeout)
@@ -534,7 +535,7 @@ def download_file(filename, url, path, forced=False):
             downloaded = True
             url_fd.close()
         except used_urllib.HTTPError as err:
-            if used_urllib is urllib2:
+            if used_urllib is std_urllib:
                 status_code = err.code
             if 400 <= status_code <= 499:
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
@@ -1492,7 +1493,7 @@ def encode_string(name):
     It has been inspired by the concepts seen at, but in lowercase style:
     * http://fossies.org/dox/netcdf-4.2.1.1/escapes_8c_source.html
     * http://celldesigner.org/help/CDH_Species_01.html
-    * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
+    * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java  # noqa
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
     * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.

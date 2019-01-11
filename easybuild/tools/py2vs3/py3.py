@@ -31,9 +31,10 @@ Implementations for Python 3.
 """
 # these are not used here, but imported from here in other places
 import configparser  # noqa
+import urllib.request as std_urllib  # noqa
 from string import ascii_letters  # noqa
 from io import StringIO  # noqa
-from urllib.request import HTTPSHandler, Request, build_opener  # noqa
+from urllib.request import HTTPSHandler, Request, build_opener, urlopen  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = str

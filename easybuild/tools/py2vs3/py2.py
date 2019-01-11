@@ -31,6 +31,7 @@ Implementations for Python 2.
 """
 # these are not used here, but imported from here in other places
 import ConfigParser as configparser  # noqa
+import urllib2 as std_urllib  # noqa
 from string import letters as ascii_letters  # noqa
 from StringIO import StringIO  # noqa
 from urllib2 import HTTPSHandler, Request, build_opener  # noqa
