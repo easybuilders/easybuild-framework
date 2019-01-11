@@ -105,6 +105,7 @@ import types
 from optparse import OptionParser, Option
 from pprint import pformat
 
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import shell_quote
 
 debugfn = None  # for debugging only
@@ -207,7 +208,7 @@ class FileCompleter(Completer):
     CALL_ARGS_OPTIONAL = ['prefix']
 
     def __init__(self, endings=None):
-        if isinstance(endings, basestring):
+        if isinstance(endings, string_type):
             endings = [endings]
         elif endings is None:
             endings = []
@@ -277,11 +278,11 @@ class RegexCompleter(Completer):
     def __init__(self, regexlist, always_dirs=True):
         self.always_dirs = always_dirs
 
-        if isinstance(regexlist, basestring):
+        if isinstance(regexlist, string_type):
             regexlist = [regexlist]
         self.regexlist = []
         for regex in regexlist:
-            if isinstance(regex, basestring):
+            if isinstance(regex, string_type):
                 regex = re.compile(regex)
             self.regexlist.append(regex)
 
@@ -540,7 +541,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
     # File completion.
     if completer and (not prefix or not prefix.startswith('-')):
         # Call appropriate completer depending on type.
-        if isinstance(completer, (basestring, list, tuple)):
+        if isinstance(completer, (string_type, list, tuple)):
             completer = FileCompleter(completer)
         elif not isinstance(completer, (types.FunctionType, types.LambdaType, types.ClassType, types.ObjectType)):
             # TODO: what to do here?
@@ -548,10 +549,10 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
 
         completions = completer(**completer_kwargs)
 
-    if isinstance(completions, basestring):
+    if isinstance(completions, string_type):
         # is a bash command, just run it
         if SHELL in (BASH,):  # TODO: zsh
-            print completions
+            print(completions)
         else:
             raise Exception("Commands are unsupported by this shell %s" % SHELL)
     else:
@@ -562,9 +563,9 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
 
         # Save results
         if SHELL == "bash":
-            print 'COMPREPLY=(' + completions + ')'
+            print('COMPREPLY=(' + completions + ')')
         else:
-            print completions
+            print(completions)
 
     # Print debug output (if needed).  You can keep a shell with 'tail -f' to
     # the log file to monitor what is happening.
