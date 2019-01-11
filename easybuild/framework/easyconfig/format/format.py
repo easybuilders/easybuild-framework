@@ -41,8 +41,6 @@ from easybuild.tools.configobj import Section
 from easybuild.tools.utilities import get_subclasses
 
 
-INDENT_4SPACES = ' ' * 4
-
 # format is mandatory major.minor
 FORMAT_VERSION_KEYWORD = "EASYCONFIGFORMAT"
 FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"

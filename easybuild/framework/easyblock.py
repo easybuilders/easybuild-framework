@@ -56,7 +56,6 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
-from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -91,7 +90,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
-from easybuild.tools.utilities import get_class_for, quote_str, remove_unwanted_chars, trace_msg
+from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
