@@ -24,7 +24,8 @@
 #
 import sys
 
+# all functionality provided by the py2 and py3 modules is made available via the easybuild.tools.py2vs3 namespace
 if sys.version_info[0] >= 3:
-    from easybuild.tools.py2vs3.py3 import *
+    from easybuild.tools.py2vs3.py3 import *  # noqa
 else:
-    from easybuild.tools.py2vs3.py2 import *
+    from easybuild.tools.py2vs3.py2 import *  # noqa
