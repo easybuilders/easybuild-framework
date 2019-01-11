@@ -56,7 +56,7 @@ if not len(args) == 1:
     sys.exit(1)
 
 name = args[0]
-print "Template easyblock for %s requested..." % name
+print("Template easyblock for %s requested..." % name)
 
 # check whether easyblock repository path is found
 easyblocks_repo_path = os.path.join(options.path, "easybuild", "easyblocks")
@@ -221,7 +221,7 @@ txt = tmpl % {
               'parent': options.parent,
              }
 
-print "Writing template easyblock for %s to %s ..." % (name, easyblock_path)
+print("Writing template easyblock for %s to %s ..." % (name, easyblock_path))
 try:
     dirpath = os.path.dirname(easyblock_path)
     if not os.path.exists(dirpath):

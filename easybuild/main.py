@@ -234,20 +234,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         close_pr(options.close_pr, reasons=options.close_pr_msg)
 
     elif options.list_prs:
-        print list_prs(options.list_prs)
+        print(list_prs(options.list_prs))
 
     elif options.merge_pr:
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print review_pr(pr=options.review_pr, colored=use_color(options.color))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
 
     elif options.list_installed_software:
         detailed = options.list_installed_software == 'detailed'
-        print list_software(output_format=options.output_format, detailed=detailed, only_installed=True)
+        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
 
     elif options.list_software:
-        print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
+        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
@@ -373,7 +373,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
         elif options.preview_pr:
-            print review_pr(paths=determined_paths, colored=use_color(options.color))
+            print(review_pr(paths=determined_paths, colored=use_color(options.color)))
         else:
             update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
 

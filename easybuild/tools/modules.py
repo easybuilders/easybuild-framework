@@ -755,7 +755,7 @@ class ModulesTool(object):
                 tweak_fn = kwargs.get('tweak_stdout')
                 if tweak_fn is not None:
                     stdout = tweak_fn(stdout)
-                exec stdout
+                exec(stdout)
             except Exception as err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)", err, out)

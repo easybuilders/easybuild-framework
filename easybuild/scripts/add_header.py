@@ -62,7 +62,7 @@ def write_header(filename, header, skip=None):
         inpt = inpt[1:]
 
     if skip and inpt and skip.match(''.join(inpt)): # skip matches, so skip this file
-        print "Skip regexp '%s' matches in %s, so skipping this file." % (skip.pattern, filename)
+        print("Skip regexp '%s' matches in %s, so skipping this file." % (skip.pattern, filename))
         return
 
     output.extend(header) # add the header
@@ -72,9 +72,9 @@ def write_header(filename, header, skip=None):
         f = open(filename, 'w')
         f.writelines(output)
         f.close()
-        print "added header to %s" % filename
+        print("added header to %s" % filename)
     except IOError as err:
-        print "something went wrong trying to add header to %s: %s" % (filename, err)
+        print("something went wrong trying to add header to %s: %s" % (filename, err))
 
 def add_header(directory, header, skipreg, filenamereg, dirregex):
     """
@@ -82,7 +82,7 @@ def add_header(directory, header, skipreg, filenamereg, dirregex):
     arguments: see module docstring
     """
     listing = os.listdir(directory)
-    print "listing: %s " % listing
+    print("listing: %s " % listing)
     # for each file/dir in this dir
     for i in listing:
         # get the full name, this way subsubdirs with the same name don't get ignored
@@ -90,13 +90,13 @@ def add_header(directory, header, skipreg, filenamereg, dirregex):
         basefn = os.path.basename(fullfn)
         if os.path.isdir(fullfn): # if dir, recursively go in
             if (dirregex.match(basefn)):
-                print "going into %s" % fullfn
+                print("going into %s" % fullfn)
                 add_header(fullfn, header, skipreg, filenamereg, dirregex)
         else:
             if (filenamereg.match(basefn)): # if file matches file regex, write the header
                 write_header(fullfn, header, skipreg)
             else:
-                print "Skipping file %s, doesn't match file regexp %s" % (fullfn, filenamereg.pattern)
+                print("Skipping file %s, doesn't match file regexp %s" % (fullfn, filenamereg.pattern))
 
 
 def main(arguments):
