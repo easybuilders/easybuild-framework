@@ -29,7 +29,10 @@ Implementations for Python 2.
 
 :author: Kenneth Hoste (Ghent University)
 """
-from string import letters as ascii_letters  # noqa (not used here, but imported from here in other places)
+# these are not used here, but imported from here in other places
+import ConfigParser as configparser  # noqa
+from string import letters as ascii_letters  # noqa
+from StringIO import StringIO  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = basestring
