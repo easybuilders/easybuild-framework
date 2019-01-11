@@ -38,7 +38,7 @@ from easybuild.framework.easyconfig.format.version import ToolchainVersionOperat
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
-from easybuild.tools.utilities import INDENT_4SPACES, get_subclasses
+from easybuild.tools.utilities import get_subclasses
 
 
 # format is mandatory major.minor
