@@ -32,9 +32,9 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 import os
 
 from easybuild.base import fancylogger
-from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
+from easybuild.framework.easyconfig.format.format import EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.utilities import INDENT_4SPACES, only_if_module_is_available, quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)

@@ -40,6 +40,7 @@ from easybuild.tools.config import build_option
 
 _log = fancylogger.getLogger('tools.utilities')
 
+INDENT_2SPACES = ' ' * 2
 INDENT_4SPACES = ' ' * 4
 
 # a list of all ascii characters

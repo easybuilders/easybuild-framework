@@ -61,14 +61,12 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
 from easybuild.tools.utilities import import_available_modules, mk_rst_table, nub, quote_str
 
 
 _log = fancylogger.getLogger('tools.docs')
 
-
-INDENT_4SPACES = ' ' * 4
-INDENT_2SPACES = ' ' * 2
 
 DETAILED = 'detailed'
 SIMPLE = 'simple'

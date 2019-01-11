@@ -37,14 +37,14 @@ import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, INDENT_4SPACES
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS
 from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.utilities import quote_py_str
+from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 
 EB_FORMAT_EXTENSION = '.eb'
