@@ -33,6 +33,7 @@ Implementations for Python 3.
 import configparser  # noqa
 from string import ascii_letters  # noqa
 from io import StringIO  # noqa
+from urllib.request import HTTPSHandler, Request, build_opener  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = str
