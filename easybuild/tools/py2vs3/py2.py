@@ -29,6 +29,7 @@ Implementations for Python 2.
 
 :author: Kenneth Hoste (Ghent University)
 """
+from string import letters as ascii_letters  # noqa (not used here, but imported from here in other places)
 
 # string type that can be used in 'isinstance' calls
 string_type = basestring

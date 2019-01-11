@@ -30,23 +30,19 @@ Module with various utility functions
 import glob
 import os
 import re
-import string
 import sys
+from string import digits
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.py2vs3 import ascii_letters, string_type
 
 
 _log = fancylogger.getLogger('tools.utilities')
 
 INDENT_2SPACES = ' ' * 2
 INDENT_4SPACES = ' ' * 4
-
-# a list of all ascii characters
-ASCII_CHARS = string.maketrans('', '')
-# a list of all unwanted ascii characters (we only want to keep digits, letters and _)
-UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii_letters + "_")
 
 
 def flatten(lst):
@@ -70,7 +66,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False):
     :param escape_newline: wrap strings that include a newline in triple quotes
     """
 
-    if isinstance(val, basestring):
+    if isinstance(val, string_type):
         # forced triple double quotes
         if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
             return '"""%s"""' % val
@@ -108,9 +104,9 @@ def shell_quote(token):
 def remove_unwanted_chars(inputstring):
     """Remove unwanted characters from the given string and return a copy
 
-    All non-letter and non-numeral characters are considered unwanted except for underscore ('_'), see UNWANTED_CHARS.
+    All non-letter and non-numeral characters are considered unwanted except for underscore ('_').
     """
-    return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)
+    return ''.join(c for c in inputstring if c in (ascii_letters + digits + '_'))
 
 
 def import_available_modules(namespace):
@@ -139,7 +135,7 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
     if pkgname and url is None:
         url = 'https://pypi.python.org/pypi/%s' % pkgname
 
-    if isinstance(modnames, basestring):
+    if isinstance(modnames, string_type):
         modnames = (modnames,)
 
     def wrap(orig):
