@@ -101,7 +101,7 @@ script:
     # check GitHub configuration (skip when testing with Python 3 for now)
     - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then eb --check-github --github-user=easybuild_test; fi
     # run test suite
-    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then python -O -m test.framework.suite; else $TRAVIS_BUILD_DIR/test/python3_testing.sh; fi
+    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then python -O -m test.framework.suite; else cd $TRAVIS_BUILD_DIR; test/python3_testing.sh; cd -; fi
     # check bootstrap script version
     # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
