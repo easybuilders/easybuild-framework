@@ -113,8 +113,8 @@ def get_last_git_version_tag(home):
 def check_version(easybuild_version, last_version_git_tag):
     """Check whether version has been bumped."""
 
-    print "Current %s version: %s" % (easybuild_package, easybuild_version)
-    print "Last git version tag: %s " % last_version_git_tag
+    print("Current %s version: %s" % (easybuild_package, easybuild_version))
+    print("Last git version tag: %s " % last_version_git_tag)
 
     if not easybuild_version == last_version_git_tag:
         warning("Current %s version %s does not match last git version tag %s." % (easybuild_package,
@@ -122,7 +122,7 @@ def check_version(easybuild_version, last_version_git_tag):
                                                                                    last_version_git_tag))
         return False
     else:
-        print "Version checks passed."
+        print("Version checks passed.")
 
         return True
 
@@ -141,7 +141,7 @@ def check_release_notes(home, easybuild_version):
     ver_re = re.compile(r"^v%s\s\([A-Z][a-z]+\s[0-9]+[a-z]+\s[0-9]+\)$" % easybuild_version, re.M)
 
     if ver_re.search(releasenotes):
-        print "Found entry in %s for version %s." % (fn, easybuild_version)
+        print("Found entry in %s for version %s." % (fn, easybuild_version))
         return True
     else:
         warning("Could not find an entry for version %s in %s." % (easybuild_version, fn))
@@ -198,13 +198,13 @@ def check_clean_master_branch(home):
         warning("Make sure you're on the master branch when running this script.")
         ok = False
     else:
-        print "On master branch, good."
+        print("On master branch, good.")
 
     if not clean_re.search(git_status):
         warning("There seems to be work present that's not committed yet, please make sure the master branch is clear!")
         ok = False
     else:
-        print "Current branch is clean, great work!"
+        print("Current branch is clean, great work!")
 
     return ok
 
@@ -248,7 +248,7 @@ if len(sys.argv) == 2:
 easybuild_home = os.getcwd()
 easybuild_package = os.path.basename(easybuild_home)
 
-print "Found %s home: %s (current dir)" % (easybuild_package, easybuild_home)
+print("Found %s home: %s (current dir)" % (easybuild_package, easybuild_home))
 
 all_checks = []
 
@@ -269,9 +269,9 @@ filename_re = re.compile(r"^((?!\.).)*\.(py|sh)$")
 # only paths that don't have subdirs that start with '.'
 dirname_re = re.compile(r"^((?!\.).)*$")
 
-print "Checking for license header in all code files..."
+print("Checking for license header in all code files...")
 all_checks.append(check_license_headers(easybuild_home, license_header_re, filename_re, dirname_re))
-print "Done!"
+print("Done!")
 
 # check for clean master branch
 all_checks.append(check_clean_master_branch(easybuild_home))

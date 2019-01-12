@@ -34,7 +34,6 @@ import re
 import sys
 
 from easybuild.tools.build_log import EasyBuildError
-from vsc.utils.generaloption import simple_option
 
 if not len(sys.argv) > 1:
     raise EasyBuildError("Please include path to easybuild folder")
@@ -52,7 +51,7 @@ for basename, _, filenames in os.walk(path):
             py_files.append(os.path.join(basename, fn))
 
 for tmp in py_files:
-    print "Processing %s" % tmp
+    print("Processing %s" % tmp)
     # exclude self
     if os.path.basename(tmp) == os.path.basename(__file__):
         continue
