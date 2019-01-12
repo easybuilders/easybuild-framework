@@ -38,14 +38,13 @@ import shutil
 import stat
 import sys
 import tempfile
-import urllib2
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.multidiff import multidiff
+from easybuild.tools.py2vs3 import URLError, std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -63,13 +62,13 @@ class FileToolsTest(EnhancedTestCase):
         """Test setup."""
         super(FileToolsTest, self).setUp()
 
-        self.orig_filetools_urllib2_urlopen = ft.urllib2.urlopen
+        self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
 
     def tearDown(self):
         """Cleanup."""
         super(FileToolsTest, self).tearDown()
 
-        ft.urllib2.urlopen = self.orig_filetools_urllib2_urlopen
+        ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -302,9 +301,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
 
         # install broken proxy handler for opening local files
-        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
-        proxy_handler = urllib2.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
-        urllib2.install_opener(urllib2.build_opener(proxy_handler))
+        # this should make urlopen use this broken proxy for downloading from a file:// URL
+        proxy_handler = std_urllib.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        std_urllib.install_opener(std_urllib.build_opener(proxy_handler))
 
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
@@ -314,7 +313,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(target_location, '')
 
         # restore a working file handler, and retest download of local file
-        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
+        std_urllib.install_opener(std_urllib.build_opener(std_urllib.FileHandler()))
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
@@ -331,10 +330,10 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
         url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
-            urllib2.urlopen(url)
+            std_urllib.urlopen(url)
             res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
-        except urllib2.URLError:
+        except std_urllib.URLError:
             print "Skipping timeout test in test_download_file (working offline)"
 
         # also test behaviour of download_file under --dry-run
@@ -367,13 +366,13 @@ class FileToolsTest(EnhancedTestCase):
         fn = 'README.rst'
         target = os.path.join(self.test_prefix, fn)
 
-        # replace urllib2.urlopen with function that raises SSL error
-        def fake_urllib2_open(*args, **kwargs):
+        # replaceurlopen with function that raises SSL error
+        def fake_urllib_open(*args, **kwargs):
             error_msg = "<urlopen error [Errno 1] _ssl.c:510: error:12345:"
             error_msg += "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
             raise IOError(error_msg)
 
-        ft.urllib2.urlopen = fake_urllib2_open
+        ft.std_urllib.urlopen = fake_urllib_open
 
         # if requests is available, file is downloaded
         if ft.HAVE_REQUESTS:
