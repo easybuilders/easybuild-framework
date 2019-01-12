@@ -40,7 +40,6 @@ import string
 import sys
 import tempfile
 import time
-import urllib2
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
 
@@ -52,6 +51,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
+from easybuild.tools.py2vs3 import HTTPError, URLError, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import nub, only_if_module_is_available
 
@@ -1299,7 +1299,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 status, data = pr_url.labels.post(body=labels)
                 if status == HTTP_STATUS_OK:
                     print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
-            except urllib2.HTTPError as err:
+            except HTTPError as err:
                 _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
@@ -1363,9 +1363,9 @@ def check_github():
     # check whether we're online; if not, half of the checks are going to fail...
     try:
         print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
-        urllib2.urlopen(GITHUB_URL, timeout=5)
+        urlopen(GITHUB_URL, timeout=5)
         print_msg("OK\n", log=_log, prefix=False)
-    except urllib2.URLError as err:
+    except URLError as err:
         print_msg("FAIL")
         raise EasyBuildError("checking status of GitHub integration must be done online")
 

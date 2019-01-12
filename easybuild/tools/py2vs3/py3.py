@@ -35,7 +35,7 @@ import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from io import StringIO  # noqa
 from string import ascii_letters  # noqa
-from urllib.request import HTTPSHandler, Request, build_opener, urlopen  # noqa
+from urllib.request import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = str
