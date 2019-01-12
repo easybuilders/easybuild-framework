@@ -84,7 +84,7 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
