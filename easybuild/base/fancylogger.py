@@ -85,6 +85,8 @@ import traceback
 import weakref
 from distutils.version import LooseVersion
 
+from easybuild.tools.py2vs3 import raise_with_traceback, string_type
+
 
 def _env_to_boolean(varname, default=False):
     """
@@ -187,10 +189,6 @@ Colorize = namedtuple('Colorize', 'AUTO ALWAYS NEVER')('auto', 'always', 'never'
 APOCALYPTIC = 'APOCALYPTIC'
 # register new loglevelname
 logging.addLevelName(logging.CRITICAL * 2 + 1, APOCALYPTIC)
-# register QUIET, EXCEPTION and FATAL alias
-logging._levelNames['EXCEPTION'] = logging.ERROR
-logging._levelNames['FATAL'] = logging.CRITICAL
-logging._levelNames['QUIET'] = logging.WARNING
 
 
 # mpi rank support
@@ -214,11 +212,11 @@ class MissingLevelName(KeyError):
 
 def getLevelInt(level_name):
     """Given a level name, return the int value"""
-    if not isinstance(level_name, basestring):
+    if not isinstance(level_name, string_type):
         raise TypeError('Provided name %s is not a string (type %s)' % (level_name, type(level_name)))
 
     level = logging.getLevelName(level_name)
-    if isinstance(level, basestring):
+    if isinstance(level, string_type):
         raise MissingLevelName('Unknown loglevel name %s' % level_name)
 
     return level
@@ -326,7 +324,7 @@ class FancyLogger(logging.getLoggerClass()):
             exception = self.RAISE_EXCEPTION_CLASS
 
         self.RAISE_EXCEPTION_LOG_METHOD(fullmessage)
-        raise exception, message, tb
+        raise_with_traceback(exception, message, tb)
 
     # pylint: disable=unused-argument
     def deprecated(self, msg, cur_ver, max_ver, depth=2, exception=None, log_callback=None, *args, **kwargs):
@@ -477,12 +475,12 @@ def getLogger(name=None, fname=False, clsname=False, fancyrecord=None):
     log = logging.getLogger(fullname)
     log.fancyrecord = fancyrecord
     if _env_to_boolean('FANCYLOGGER_GETLOGGER_DEBUG'):
-        print 'FANCYLOGGER_GETLOGGER_DEBUG',
-        print 'name', name, 'fname', fname, 'fullname', fullname,
-        print "getRootLoggerName: ", getRootLoggerName()
+        sys.stdout.write('FANCYLOGGER_GETLOGGER_DEBUG')
+        sys.stdout.write('name ' + name + ' fname ' + fname + ' fullname' + fullname)
+        sys.stdout.write("getRootLoggerName: %s\n" % getRootLoggerName())
         if hasattr(log, 'get_parent_info'):
-            print 'parent_info verbose'
-            print "\n".join(log.get_parent_info("FANCYLOGGER_GETLOGGER_DEBUG"))
+            sys.stdout.write('parent_info verbose\n')
+            sys.stdout.write('\n'.join(log.get_parent_info('FANCYLOGGER_GETLOGGER_DEBUG')) + '\n')
         sys.stdout.flush()
     return log
 
@@ -585,7 +583,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
             os.makedirs(directory)
         except Exception as ex:
             exc, detail, tb = sys.exc_info()
-            raise exc, "Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail), tb
+            raise_with_traceback(exc, "Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail), tb)
 
     return _logToSomething(
         logging.handlers.RotatingFileHandler,
@@ -738,13 +736,13 @@ def setLogLevel(level):
     """
     Set a global log level for all FancyLoggers
     """
-    if isinstance(level, basestring):
+    if isinstance(level, string_type):
         level = getLevelInt(level)
     logger = getLogger(fname=False, clsname=False)
     logger.setLevel(level)
     if _env_to_boolean('FANCYLOGGER_LOGLEVEL_DEBUG'):
-        print "FANCYLOGGER_LOGLEVEL_DEBUG", level, logging.getLevelName(level)
-        print "\n".join(logger.get_parent_info("FANCYLOGGER_LOGLEVEL_DEBUG"))
+        sys.stdout.write('FANCYLOGGER_LOGLEVEL_DEBUG ' + level + ' ' + logging.getLevelName(level) + '\n')
+        sys.stdout.write('\n'.join(logger.get_parent_info('FANCYLOGGER_LOGLEVEL_DEBUG')) + '\n')
         sys.stdout.flush()
 
 
@@ -863,8 +861,8 @@ def setroot(fancyrecord=FANCYLOG_FANCYRECORD):
             lgr[1].parent = root
 
     if _env_to_boolean('FANCYLOGGER_LOGLEVEL_DEBUG'):
-        print "FANCYLOGGER_LOGLEVEL_DEBUG SETROOT ", lvl, logging.getLevelName(lvl)
-        print "\n".join(root.get_parent_info("FANCYLOGGER_LOGLEVEL_DEBUG SETROOT "))
+        sys.stdout.write('FANCYLOGGER_LOGLEVEL_DEBUG SETROOT ' + lvl + ' ' + logging.getLevelName(lvl) + '\n')
+        sys.stdout.write('\n'.join(root.get_parent_info("FANCYLOGGER_LOGLEVEL_DEBUG SETROOT ")) + '\n')
         sys.stdout.flush()
 
     # silence the root logger
