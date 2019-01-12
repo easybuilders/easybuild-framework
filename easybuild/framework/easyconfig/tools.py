@@ -204,6 +204,7 @@ def dep_graph(filename, specs):
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     dgr = digraph()
     dgr.add_nodes(all_nodes)
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
@@ -213,7 +214,7 @@ def dep_graph(filename, specs):
     _dep_graph_dump(dgr, filename)
 
     if not build_option('silent'):
-        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+        print("Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename))
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')

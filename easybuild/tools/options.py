@@ -167,7 +167,7 @@ def pretty_print_opts(opts_dict):
         opt_val, loc = opts_dict[opt]
         lines.append("{0:<{nwopt}} ({1:}) = {2:}".format(opt, loc, opt_val, nwopt=nwopt))
 
-    print '\n'.join(lines)
+    print('\n'.join(lines))
 
 
 def use_color(colorize, stream=sys.stdout):
@@ -1018,7 +1018,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.unittest_file:
             self.log.info(msg)
         else:
-            print msg
+            print(msg)
 
         # cleanup tmpdir and exit
         cleanup_and_exit(self.tmpdir)

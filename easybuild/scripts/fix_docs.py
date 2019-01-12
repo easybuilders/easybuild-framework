@@ -51,7 +51,7 @@ for basename, _, filenames in os.walk(path):
             py_files.append(os.path.join(basename, fn))
 
 for tmp in py_files:
-    print "Processing %s" % tmp
+    print("Processing %s" % tmp)
     # exclude self
     if os.path.basename(tmp) == os.path.basename(__file__):
         continue

@@ -168,4 +168,4 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", output_filename, err)
 
-    print "Aggregate regtest results written to %s" % output_filename
+    print("Aggregate regtest results written to %s" % output_filename)
