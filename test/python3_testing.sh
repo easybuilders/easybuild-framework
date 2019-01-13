@@ -5,3 +5,4 @@ for mod in `ls easybuild/base/*.py easybuild/tools/*py | egrep -v '__init__|orde
     echo $test
     python3 -c "$test"
 done
+python3 -c "import easybuild.main"
