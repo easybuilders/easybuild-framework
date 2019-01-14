@@ -952,6 +952,7 @@ def check_pr_eligible_to_merge(pr_data):
                 elif 'FAILED' in comment:
                     res = not_eligible(msg_tmpl % 'FAILED')
                     test_report_found = True
+                    break
                 else:
                     print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
 
