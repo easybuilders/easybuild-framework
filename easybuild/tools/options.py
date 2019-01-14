@@ -297,8 +297,7 @@ class EasyBuildOptions(GeneralOption):
                                   None, 'store', None, {'metavar': 'VERSION'}),
         })
 
-        longopts = opts.keys()
-        for longopt in longopts:
+        for longopt in list(opts.keys()):
             hlp = opts[longopt][0]
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]

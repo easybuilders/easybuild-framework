@@ -1061,7 +1061,7 @@ class GeneralOption(object):
             long_description = description[1]
 
         opt_grp = ExtOptionGroup(self.parser, short_description, long_description, section_name=section_name)
-        keys = opt_dict.keys()
+        keys = list(opt_dict.keys())
         if self.OPTIONGROUP_SORTED_OPTIONS:
             keys.sort()  # alphabetical
         for key in keys:
