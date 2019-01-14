@@ -58,7 +58,7 @@ from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.py2vs3 import std_urllib
+from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub
 
 try:
@@ -301,7 +301,7 @@ def remove(paths):
 
     :param paths: path(s) to remove
     """
-    if isinstance(paths, basestring):
+    if isinstance(paths, string_type):
         paths = [paths]
 
     _log.info("Removing %d files & directories", len(paths))
@@ -755,7 +755,7 @@ def verify_checksum(path, checksums):
         checksums = [checksums]
 
     for checksum in checksums:
-        if isinstance(checksum, basestring):
+        if isinstance(checksum, string_type):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
             if len(checksum) == 64:
                 typ = CHECKSUM_TYPE_SHA256
@@ -783,7 +783,7 @@ def verify_checksum(path, checksums):
 def is_sha256_checksum(value):
     """Check whether provided string is a SHA256 checksum."""
     res = False
-    if isinstance(value, basestring):
+    if isinstance(value, string_type):
         if re.match('^[0-9a-f]{64}$', value):
             res = True
             _log.debug("String value '%s' has the correct format to be a SHA256 checksum", value)
@@ -1586,7 +1586,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
     # always consider $LM_LICENSE_FILE
     lic_env_vars = ['LM_LICENSE_FILE']
-    if isinstance(custom_env_vars, basestring):
+    if isinstance(custom_env_vars, string_type):
         lic_env_vars.insert(0, custom_env_vars)
     elif custom_env_vars is not None:
         lic_env_vars = custom_env_vars + lic_env_vars
@@ -1705,7 +1705,7 @@ def copy(paths, target_path, force_in_dry_run=False):
     :param target_path: target location
     :param force_in_dry_run: force running the command during dry run
     """
-    if isinstance(paths, basestring):
+    if isinstance(paths, string_type):
         paths = [paths]
 
     _log.info("Copying %d files & directories to %s", len(paths), target_path)

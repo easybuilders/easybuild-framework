@@ -33,9 +33,10 @@ import os
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
+from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.filetools import remove_file, which
 from easybuild.tools.run import run_cmd
-from easybuild.tools.containers.base import ContainerGenerator
+from easybuild.tools.py2vs3 import string_type
 
 
 DOCKER = 'docker'
@@ -127,7 +128,7 @@ class SingularityContainer(ContainerGenerator):
         install_os_deps = ''
         for ec in self.easyconfigs:
             for osdep in ec['ec']['osdependencies']:
-                if isinstance(osdep, basestring):
+                if isinstance(osdep, string_type):
                     install_os_deps += "yum install -y %s\n" % osdep
                 # tuple entry indicates multiple options
                 elif isinstance(osdep, tuple):

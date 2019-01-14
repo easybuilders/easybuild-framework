@@ -35,6 +35,7 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -139,10 +140,10 @@ class VersionOperator(object):
         if not self:
             raise EasyBuildError('Not a valid %s. Not initialised yet?', self.__class__.__name__)
 
-        if isinstance(test_version, basestring):
+        if isinstance(test_version, string_type):
             test_version = self._convert(test_version)
         elif not isinstance(test_version, EasyVersion):
-            raise EasyBuildError("test: argument should be a basestring or EasyVersion (type %s)", type(test_version))
+            raise EasyBuildError("test: argument should be a string or EasyVersion (type %s)", type(test_version))
 
         res = self.operator(test_version, self.version)
         self.log.debug("result of testing expression '%s %s %s': %s",
@@ -614,15 +615,15 @@ class OrderedVersionOperators(object):
         After add, versop_new is in the OrderedVersionOperators. If the same versop_new was already in it,
         it will update the data (if not None) (and not raise an error)
 
-        :param versop_new: VersionOperator instance (or will be converted into one if type basestring)
+        :param versop_new: VersionOperator instance (or will be converted into one if type string)
         :param data: additional data for supplied version operator to be stored
         :param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
                        instead of overriding the existing data with the new data (method used for updating is .update)    
         """
-        if isinstance(versop_new, basestring):
+        if isinstance(versop_new, string_type):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
-            raise EasyBuildError("add: argument must be a VersionOperator instance or basestring: %s; type %s",
+            raise EasyBuildError("add: argument must be a VersionOperator instance or string: %s; type %s",
                                  versop_new, type(versop_new))
 
         if versop_new in self.versops:

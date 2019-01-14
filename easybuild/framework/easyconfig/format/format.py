@@ -39,6 +39,7 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 from easybuild.tools.utilities import get_subclasses
+from easybuild.tools.py2vs3 import string_type
 
 
 # format is mandatory major.minor
@@ -312,7 +313,7 @@ class EBConfigObj(object):
                     value_type = self.VERSION_OPERATOR_VALUE_TYPES[key]
                     # list of supported toolchains/versions
                     # first one is default
-                    if isinstance(value, basestring):
+                    if isinstance(value, string_type):
                         # so the split should be unnecessary
                         # (if it's not a list already, it's just one value)
                         # TODO this is annoying. check if we can force this in configobj

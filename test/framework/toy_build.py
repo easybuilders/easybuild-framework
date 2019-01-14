@@ -49,6 +49,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.modules import Lmod
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -600,7 +601,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         for group in [group_name, (group_name, "Hey, you're not in the '%s' group!" % group_name)]:
 
-            if isinstance(group, basestring):
+            if isinstance(group, string_type):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))

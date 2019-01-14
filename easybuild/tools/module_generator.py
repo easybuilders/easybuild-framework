@@ -45,6 +45,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import get_subclasses, quote_str
 
 
@@ -703,7 +704,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, basestring):
+        if isinstance(paths, string_type):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", paths, update_type, key)
             paths = [paths]
 
@@ -1064,7 +1065,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, basestring):
+        if isinstance(paths, string_type):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", update_type, paths, key)
             paths = [paths]
 

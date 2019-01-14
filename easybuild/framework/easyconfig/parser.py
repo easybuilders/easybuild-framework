@@ -39,6 +39,7 @@ from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
 from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.py2vs3 import string_type
 
 
 # deprecated easyconfig parameters, and their replacements
@@ -160,8 +161,8 @@ class EasyConfigParser(object):
         except IOError as err:
             raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
-        if not isinstance(self.rawcontent, basestring):
-            msg = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
+        if not isinstance(self.rawcontent, string_type):
+            msg = 'rawcontent is not a string: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
 
     def _det_format_version(self):

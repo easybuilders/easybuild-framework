@@ -46,6 +46,7 @@ from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -175,7 +176,7 @@ class ToolchainTest(EnhancedTestCase):
         ldflags = tc.get_variable('LDFLAGS', typ=list)
         self.assertTrue(isinstance(ldflags, list))
         if len(ldflags) > 0:
-            self.assertTrue(isinstance(ldflags[0], basestring))
+            self.assertTrue(isinstance(ldflags[0], string_type))
 
     def test_validate_pass_by_value(self):
         """
