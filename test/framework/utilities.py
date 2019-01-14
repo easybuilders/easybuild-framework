@@ -279,7 +279,7 @@ class EnhancedTestCase(TestCase):
         except Exception as err:
             myerr = err
             if verbose:
-                print "err: %s" % err
+                print("err: %s" % err)
 
         if logfile and os.path.exists(logfile):
             logtxt = read_file(logfile)
@@ -398,7 +398,7 @@ class TestLoaderFiltered(unittest.TestLoader):
 
             retained_tests = ', '.join(retained_test_names)
             tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
-            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+            print("Filtered %s tests using '%s', retained %d/%d tests: %s" % tup)
 
             test_cases = [test_case_class(t) for t in retained_test_names]
         else:

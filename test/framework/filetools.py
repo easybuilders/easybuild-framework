@@ -334,7 +334,7 @@ class FileToolsTest(EnhancedTestCase):
             res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
         except std_urllib.URLError:
-            print "Skipping timeout test in test_download_file (working offline)"
+            print("Skipping timeout test in test_download_file (working offline)")
 
         # also test behaviour of download_file under --dry-run
         build_options = {
@@ -905,7 +905,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
         # set umask hard to run test reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         # prep files/dirs/(broken) symlinks is test dir
 
@@ -1682,7 +1682,7 @@ class FileToolsTest(EnhancedTestCase):
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
-                print "Ignoring download error in test_get_source_tarball_from_git, working offline?"
+                print("Ignoring download error in test_get_source_tarball_from_git, working offline?")
             else:
                 raise err
 
