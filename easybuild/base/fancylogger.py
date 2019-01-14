@@ -277,7 +277,7 @@ class FancyLogger(logging.getLoggerClass()):
 
     # method definition as it is in logging, can't change this
     # pylint: disable=unused-argument
-    def makeRecord(self, name, level, pathname, lineno, msg, args, excinfo, func=None, extra=None):
+    def makeRecord(self, name, level, pathname, lineno, msg, args, excinfo, func=None, extra=None, sinfo=None):
         """
         overwrite make record to use a fancy record (with more options)
         """

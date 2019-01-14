@@ -84,7 +84,7 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
@@ -1459,7 +1459,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
     try:
         fd, tmptest_file = tempfile.mkstemp()
         os.close(fd)
-        os.chmod(tmptest_file, 0700)
+        os.chmod(tmptest_file, 0o700)
         if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
                        stream_output=False):
             msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()

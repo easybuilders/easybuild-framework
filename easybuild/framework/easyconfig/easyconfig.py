@@ -66,7 +66,7 @@ from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA

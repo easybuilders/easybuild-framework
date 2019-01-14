@@ -31,9 +31,17 @@ Implementations for Python 2.
 """
 # these are not used here, but imported from here in other places
 import ConfigParser as configparser  # noqa
+import urllib2 as std_urllib  # noqa
 from string import letters as ascii_letters  # noqa
 from StringIO import StringIO  # noqa
-from urllib2 import HTTPSHandler, Request, build_opener  # noqa
+from urllib2 import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
+
+try:
+    # Python 2.7
+    from collections import OrderedDict  # noqa
+except ImportError:
+    # only needed to keep supporting Python 2.6
+    from easybuild.tools.ordereddict import OrderedDict  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = basestring
