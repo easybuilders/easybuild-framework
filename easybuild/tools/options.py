@@ -84,7 +84,7 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
@@ -1407,7 +1407,7 @@ def parse_external_modules_metadata(cfgs):
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():
         for key in ['name', 'version']:
-            if isinstance(entry.get(key), basestring):
+            if isinstance(entry.get(key), string_type):
                 entry[key] = [entry[key]]
                 _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
                            key, mod, entry[key])

@@ -33,6 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.licenses import License, LicenseVeryRestrictive, what_licenses
+from easybuild.tools.py2vs3 import string_type
 
 
 class LicenseTest(EnhancedTestCase):
@@ -61,7 +62,7 @@ class LicenseTest(EnhancedTestCase):
         """Test format of available licenses."""
         lics = what_licenses()
         for lic in lics:
-            self.assertTrue(isinstance(lic, basestring))
+            self.assertTrue(isinstance(lic, string_type))
             self.assertTrue(lic.startswith('License'))
             self.assertTrue(issubclass(lics[lic], License))
 

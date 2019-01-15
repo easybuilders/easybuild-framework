@@ -47,6 +47,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import trace_msg
 
 
@@ -80,7 +81,7 @@ def run_cmd_cache(func):
         # cache key is combination of command and input provided via stdin
         key = (cmd, kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
-        if isinstance(cmd, basestring) and key in cache:
+        if isinstance(cmd, string_type) and key in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
             return cache[key]
         else:
@@ -117,7 +118,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     cwd = os.getcwd()
 
-    if isinstance(cmd, basestring):
+    if isinstance(cmd, string_type):
         cmd_msg = cmd.strip()
     elif isinstance(cmd, list):
         cmd_msg = ' '.join(cmd)
@@ -184,7 +185,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if isinstance(cmd, list):
             exec_cmd = None
             cmd.insert(0, '/usr/bin/env')
-        elif isinstance(cmd, basestring):
+        elif isinstance(cmd, string_type):
             cmd = '/usr/bin/env %s' % cmd
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
@@ -324,7 +325,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
-        if isinstance(answers, basestring):
+        if isinstance(answers, string_type):
             answers = [answers]
         elif not isinstance(answers, list):
             raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",

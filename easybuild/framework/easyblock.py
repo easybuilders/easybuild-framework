@@ -87,6 +87,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
@@ -344,7 +345,7 @@ class EasyBlock(object):
         for index, source in enumerate(sources):
             extract_cmd, download_filename, source_urls, git_config = None, None, None, None
 
-            if isinstance(source, basestring):
+            if isinstance(source, string_type):
                 filename = source
 
             elif isinstance(source, dict):
@@ -409,7 +410,7 @@ class EasyBlock(object):
                 # no 'isinstance(..., int)', since that would make True/False also acceptable
                 if type(patch_spec[1]) == int:
                     level = patch_spec[1]
-                elif isinstance(patch_spec[1], basestring):
+                elif isinstance(patch_spec[1], string_type):
                     # non-patch files are assumed to be files to copy
                     if not patch_spec[0].endswith('.patch'):
                         copy_file = True
@@ -559,7 +560,7 @@ class EasyBlock(object):
                         else:
                             raise EasyBuildError("Source for extension %s not found.", ext)
 
-            elif isinstance(ext, basestring):
+            elif isinstance(ext, string_type):
                 exts_sources.append({'name': ext})
 
             else:
@@ -696,7 +697,7 @@ class EasyBlock(object):
 
                     url_filename = download_filename or filename
 
-                    if isinstance(url, basestring):
+                    if isinstance(url, string_type):
                         if url[-1] in ['=', '/']:
                             fullurl = "%s%s" % (url, url_filename)
                         else:
@@ -1117,7 +1118,7 @@ class EasyBlock(object):
             lines.append(self.module_generator.set_environment(key, value))
 
         for (key, value) in self.cfg['modextrapaths'].items():
-            if isinstance(value, basestring):
+            if isinstance(value, string_type):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
                 raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
@@ -1247,7 +1248,7 @@ class EasyBlock(object):
                 if self.dry_run:
                     self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
                 reqs = requirements[key]
-                if isinstance(reqs, basestring):
+                if isinstance(reqs, string_type):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
                     reqs = [reqs]
 
@@ -1372,7 +1373,7 @@ class EasyBlock(object):
 
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
-        elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
+        elif isinstance(exts_filter, string_type) or len(exts_filter) != 2:
             raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = exts_filter[0]
         cmdinputtmpl = exts_filter[1]
@@ -1743,7 +1744,7 @@ class EasyBlock(object):
         for ext in self.cfg['exts_list']:
             # just skip extensions for which only a name is specified
             # those are just there to check for things that are in the "standard library"
-            if not isinstance(ext, basestring):
+            if not isinstance(ext, string_type):
                 ext_name = ext[0]
                 # take into account that extension may be a 2-tuple with just name/version
                 ext_opts = ext[2] if len(ext) == 3 else {}
@@ -1928,7 +1929,7 @@ class EasyBlock(object):
         if hasattr(exts_defaultclass, '__iter__'):
             self.log.nosupport("Module path for default class is explicitly defined", '2.0')
 
-        elif isinstance(exts_defaultclass, basestring):
+        elif isinstance(exts_defaultclass, string_type):
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
@@ -2054,7 +2055,7 @@ class EasyBlock(object):
             if not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
                 raise EasyBuildError("Invalid value for 'postinstallcmds', should be list or tuple of strings.")
             for cmd in self.cfg['postinstallcmds']:
-                if not isinstance(cmd, basestring):
+                if not isinstance(cmd, string_type):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
@@ -2186,7 +2187,7 @@ class EasyBlock(object):
         for i, command in enumerate(commands):
             # set command to default. This allows for config files with
             # non-tuple commands
-            if isinstance(command, basestring):
+            if isinstance(command, string_type):
                 self.log.debug("Using %s as sanity check command" % command)
                 commands[i] = command
             else:
@@ -2287,7 +2288,7 @@ class EasyBlock(object):
         for key, (typ, check_fn) in path_keys_and_check.items():
 
             for xs in paths[key]:
-                if isinstance(xs, basestring):
+                if isinstance(xs, string_type):
                     xs = (xs,)
                 elif not isinstance(xs, tuple):
                     raise EasyBuildError("Unsupported type %s encountered in '%s', not a string or tuple",

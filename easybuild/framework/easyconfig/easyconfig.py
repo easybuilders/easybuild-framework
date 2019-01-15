@@ -66,7 +66,7 @@ from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -462,7 +462,7 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if isinstance(prev_value, basestring):
+        if isinstance(prev_value, string_type):
             if allow_duplicate or value not in prev_value:
                 self[key] = '%s %s ' % (prev_value, value)
         elif isinstance(prev_value, list):
@@ -563,7 +563,7 @@ class EasyConfig(object):
 
         deprecated = self['deprecated']
         if deprecated:
-            if isinstance(deprecated, basestring):
+            if isinstance(deprecated, string_type):
                 depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
             else:
                 raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
@@ -631,7 +631,7 @@ class EasyConfig(object):
         not_found = []
         for dep in self['osdependencies']:
             # make sure we have a tuple
-            if isinstance(dep, basestring):
+            if isinstance(dep, string_type):
                 dep = (dep,)
             elif not isinstance(dep, tuple):
                 raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
@@ -1389,7 +1389,7 @@ def resolve_template(value, tmpl_dict):
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
     """
-    if isinstance(value, basestring):
+    if isinstance(value, string_type):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
         #         but ignore a string like '%(name)s'
         # behaviour of strings like '%(name)s',
