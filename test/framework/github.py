@@ -474,6 +474,7 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['issue_comments'] = [
             {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
             {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
             {'body': "this is just a regular comment"},
         ]
