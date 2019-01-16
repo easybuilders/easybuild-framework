@@ -523,7 +523,7 @@ class Section(dict):
         self._initialise()
         # we do this explicitly so that __setitem__ is used properly
         # (rather than just passing to ``dict.__init__``)
-        for entry, value in indict.iteritems():
+        for entry, value in indict.items():
             self[entry] = value
 
 
@@ -598,7 +598,7 @@ class Section(dict):
         ``unrepr`` must be set when setting a value to a dictionary, without
         creating a new sub-section.
         """
-        if not isinstance(key, string_type):
+        if not isinstance(key, (bytes, string_type)):
             raise ValueError('The key "%s" is not a string.' % key)
 
         # add the comment
@@ -1089,7 +1089,7 @@ class Section(dict):
 class ConfigObj(Section):
     """An object to read, create, and write config files."""
 
-    _keyword = re.compile(r'''^ # line start
+    _keyword = re.compile(br'''^ # line start
         (\s*)                   # indentation
         (                       # keyword
             (?:".*?")|          # double quotes
@@ -1102,7 +1102,7 @@ class ConfigObj(Section):
         ''',
         re.VERBOSE)
 
-    _sectionmarker = re.compile(r'''^
+    _sectionmarker = re.compile(br'''^
         (\s*)                     # 1: indentation
         ((?:\[\s*)+)              # 2: section marker open
         (                         # 3: section name open
@@ -1119,7 +1119,7 @@ class ConfigObj(Section):
     # or single values and comments
     # FIXME: this regex adds a '' to the end of comma terminated lists
     #   workaround in ``_handle_value``
-    _valueexp = re.compile(r'''^
+    _valueexp = re.compile(br'''^
         (?:
             (?:
                 (
@@ -1146,7 +1146,7 @@ class ConfigObj(Section):
         re.VERBOSE)
 
     # use findall to get the members of a list value
-    _listvalueexp = re.compile(r'''
+    _listvalueexp = re.compile(br'''
         (
             (?:".*?")|          # double quotes
             (?:'.*?')|          # single quotes
@@ -1158,7 +1158,7 @@ class ConfigObj(Section):
 
     # this regexp is used for the value
     # when lists are switched off
-    _nolistvalue = re.compile(r'''^
+    _nolistvalue = re.compile(br'''^
         (
             (?:".*?")|          # double quotes
             (?:'.*?')|          # single quotes
@@ -1170,10 +1170,10 @@ class ConfigObj(Section):
         re.VERBOSE)
 
     # regexes for finding triple quoted values on one line
-    _single_line_single = re.compile(r"^'''(.*?)'''\s*(#.*)?$")
-    _single_line_double = re.compile(r'^"""(.*?)"""\s*(#.*)?$')
-    _multi_line_single = re.compile(r"^(.*?)'''\s*(#.*)?$")
-    _multi_line_double = re.compile(r'^(.*?)"""\s*(#.*)?$')
+    _single_line_single = re.compile(br"^'''(.*?)'''\s*(#.*)?$")
+    _single_line_double = re.compile(br'^"""(.*?)"""\s*(#.*)?$')
+    _multi_line_single = re.compile(br"^(.*?)'''\s*(#.*)?$")
+    _multi_line_double = re.compile(br'^(.*?)"""\s*(#.*)?$')
 
     _triple_quote = {
         "'''": (_single_line_single, _multi_line_single),
@@ -1318,7 +1318,7 @@ class ConfigObj(Section):
                         break
                 break
 
-            infile = [line.rstrip('\r\n') for line in infile]
+            infile = [line.rstrip(b'\r\n') for line in infile]
 
         self._parse(infile)
         # if we had any errors, now is the time to raise them
@@ -1482,7 +1482,7 @@ class ConfigObj(Section):
                 return self._decode(infile, encoding)
 
         # No BOM discovered and no encoding specified, just return
-        if isinstance(infile, string_type):
+        if isinstance(infile, (bytes, string_type)):
             # infile read from a file will be a single string
             return infile.splitlines(True)
         return infile
@@ -1555,7 +1555,7 @@ class ConfigObj(Section):
             line = infile[cur_index]
             sline = line.strip()
             # do we have anything on the line ?
-            if not sline or sline.startswith('#'):
+            if not sline or sline.startswith(b'#'):
                 reset_comment = False
                 comment_list.append(line)
                 continue
@@ -1574,8 +1574,8 @@ class ConfigObj(Section):
                 (indent, sect_open, sect_name, sect_close, comment) = mat.groups()
                 if indent and (self.indent_type is None):
                     self.indent_type = indent
-                cur_depth = sect_open.count('[')
-                if cur_depth != sect_close.count(']'):
+                cur_depth = sect_open.count(b'[')
+                if cur_depth != sect_close.count(b']'):
                     self._handle_error("Cannot compute the section depth at line %s.",
                                        NestingError, infile, cur_index)
                     continue
