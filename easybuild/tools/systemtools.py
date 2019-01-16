@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2018 Ghent University
+# Copyright 2011-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -118,6 +118,10 @@ ARM_CORTEX_IDS = {
     '0xd08': 'Cortex-A72',
     '0xd09': 'Cortex-A73',
 }
+
+# OS package handler name constants
+RPM = 'rpm'
+DPKG = 'dpkg'
 
 
 class SystemToolsException(Exception):
@@ -595,19 +599,33 @@ def check_os_dependency(dep):
     # - uses rpm -q and dpkg -s --> can be run as non-root!!
     # - fallback on which
     # - should be extended to files later?
-    found = None
+    found = False
     cmd = None
-    if which('rpm'):
-        cmd = "rpm -q %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                        stream_output=False)
+    os_to_pkg_cmd_map = {
+        'centos': RPM,
+        'debian': DPKG,
+        'redhat': RPM,
+        'ubuntu': DPKG,
+    }
+    pkg_cmd_flag = {
+        DPKG: '-s',
+        RPM: '-q',
+    }
+    os_name = get_os_name()
+    if os_name in os_to_pkg_cmd_map:
+        pkg_cmds = [os_to_pkg_cmd_map[os_name]]
+    else:
+        pkg_cmds = [RPM, DPKG]
 
-    if not found and which('dpkg'):
-        cmd = "dpkg -s %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                        stream_output=False)
+    for pkg_cmd in pkg_cmds:
+        if which(pkg_cmd):
+            cmd = ' '.join([pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep])
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False,
+                            force_in_dry_run=True, trace=False, stream_output=False)
+            if found:
+                break
 
-    if cmd is None:
+    if not found:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 

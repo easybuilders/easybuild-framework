@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -3845,6 +3845,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
         error_pattern = "Missing checksum for toy-0.0.tar.gz"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+    def test_show_system_info(self):
+        """Test for --show-system-info."""
+        txt, _ = self._run_mock_eb(['--show-system-info'], raise_error=True)
+        patterns = [
+            "^System information \(.*\):$",
+            "^\* OS:$",
+            "^  -> name: ",
+            "^  -> type: ",
+            "^  -> version: ",
+            "^  -> platform name: ",
+            "^\* CPU:$",
+            "^  -> vendor: ",
+            "^  -> architecture: ",
+            "^  -> family: ",
+            "^  -> model: ",
+            "^  -> speed: [0-9.]+",
+            "^  -> cores: [0-9]+",
+            "^  -> features: ",
+            "^\* software:$",
+            "^  -> glibc version: ",
+            "^  -> Python binary: .*/python[0-9]?",
+            "^  -> Python version: [0-9.]+",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
 
 def suite():
