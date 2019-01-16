@@ -5,3 +5,5 @@ for mod in `ls easybuild/base/*.py easybuild/tools/*py easybuild/main.py | egrep
     echo $test
     python3 -c "$test"
 done
+echo "set_up_configuration()"
+python3 -c "from easybuild.tools.options import set_up_configuration; set_up_configuration()"

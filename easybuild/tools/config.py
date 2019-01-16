@@ -47,7 +47,7 @@ from abc import ABCMeta
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import create_base_metaclass, string_type
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -329,11 +329,12 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
-class ConfigurationVariables(FrozenDictKnownKeys):
-    """This is a dict that supports legacy config names transparently."""
+# singleton metaclass: only one instance is created
+BaseConfigurationVariables = create_base_metaclass('BaseConfigurationVariables', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class ConfigurationVariables(BaseConfigurationVariables):
+    """This is a dict that supports legacy config names transparently."""
 
     # list of known/required keys
     REQUIRED = [
@@ -373,11 +374,12 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         return self.items()
 
 
-class BuildOptions(FrozenDictKnownKeys):
-    """Representation of a set of build options, acts like a dictionary."""
+# singleton metaclass: only one instance is created
+BaseBuildOptions = create_base_metaclass('BaseBuildOptions', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class BuildOptions(BaseBuildOptions):
+    """Representation of a set of build options, acts like a dictionary."""
 
     KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 

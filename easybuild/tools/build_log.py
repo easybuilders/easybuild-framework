@@ -99,7 +99,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def caller_info(self):
         """Return string with caller info."""
-        (filepath, line, function_name) = self.findCaller()
+        # findCaller returns a 3-tupe in Python 2, a 4-tuple in Python 3 (stack info as extra element)
+        (filepath, line, function_name) = self.findCaller()[:3]
         filepath_dirs = filepath.split(os.path.sep)
 
         for dirName in copy(filepath_dirs):

@@ -1061,7 +1061,7 @@ class GeneralOption(object):
             long_description = description[1]
 
         opt_grp = ExtOptionGroup(self.parser, short_description, long_description, section_name=section_name)
-        keys = opt_dict.keys()
+        keys = list(opt_dict.keys())
         if self.OPTIONGROUP_SORTED_OPTIONS:
             keys.sort()  # alphabetical
         for key in keys:
@@ -1503,8 +1503,7 @@ class GeneralOption(object):
             self.log.debug("generate_cmd_line no ignore")
 
         args = []
-        opt_dests = self.options.__dict__.keys()
-        opt_dests.sort()
+        opt_dests = sorted(self.options.__dict__)
 
         for opt_dest in opt_dests:
             # help is store_or_None, but is not a processed option, so skip it
