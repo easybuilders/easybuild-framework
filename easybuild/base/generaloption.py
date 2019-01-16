@@ -1503,8 +1503,7 @@ class GeneralOption(object):
             self.log.debug("generate_cmd_line no ignore")
 
         args = []
-        opt_dests = list(self.options.__dict__.keys())
-        opt_dests.sort()
+        opt_dests = sorted(self.options.__dict__)
 
         for opt_dest in opt_dests:
             # help is store_or_None, but is not a processed option, so skip it

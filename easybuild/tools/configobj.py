@@ -523,9 +523,8 @@ class Section(dict):
         self._initialise()
         # we do this explicitly so that __setitem__ is used properly
         # (rather than just passing to ``dict.__init__``)
-        for entry, value in indict.items():
-            self[entry] = value
-
+        for entry in indict:
+            self[entry] = indict[entry]
 
     def _initialise(self):
         # the sequence of scalar values in this Section
