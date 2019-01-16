@@ -208,7 +208,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         read_size = 1024 * 8
 
     ec = proc.poll()
-    stdouterr = b''
+    stdouterr = ''
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
@@ -217,7 +217,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             cmd_log.write(output)
         if stream_output:
             sys.stdout.write(output)
-        stdouterr += output
+        stdouterr += output.decode()
         ec = proc.poll()
 
     # read remaining data (all of it)
@@ -227,7 +227,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         cmd_log.close()
     if stream_output:
         sys.stdout.write(output)
-    stdouterr += output
+    stdouterr += output.decode()
 
     if trace:
         trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
