@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -58,7 +58,7 @@ def write_changes(filename):
             script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
 
         script.close()
-    except IOError, err:
+    except IOError as err:
         if script is not None:
             script.close()
         raise EasyBuildError("Failed to write to %s: %s", filename, err)

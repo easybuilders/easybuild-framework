@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -51,7 +51,7 @@ except ImportError, err:
 
 
 # test account, for which a token may be available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
+GITHUB_TEST_ACCOUNT = 'easybuild_testxxx'
 # the user & repo to use in this test (https://github.com/hpcugent/testrepository)
 GITHUB_USER = "hpcugent"
 GITHUB_REPO = "testrepository"
@@ -69,14 +69,16 @@ class GithubTest(EnhancedTestCase):
         super(GithubTest, self).setUp()
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         if self.github_token is None:
-            self.ghfs = None
+            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, None, None, None)
         else:
             self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT,
                                     None, self.github_token)
 
+        self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
+
     def test_walk(self):
         """test the gitubfs walk function"""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_walk, no GitHub token available?"
             return
 
@@ -90,7 +92,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_read_api(self):
         """Test the githubfs read function"""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_read_api, no GitHub token available?"
             return
 
@@ -101,7 +103,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_read(self):
         """Test the githubfs read function without using the api"""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_read, no GitHub token available?"
             return
 
@@ -114,7 +116,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_pr_data(self):
         """Test fetch_pr_data function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_fetch_pr_data, no GitHub token available?"
             return
 
@@ -136,7 +138,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_list_prs(self):
         """Test list_prs function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_list_prs, no GitHub token available?"
             return
 
@@ -152,7 +154,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_reasons_for_closing(self):
         """Test reasons_for_closing function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_reasons_for_closing, no GitHub token available?"
             return
 
@@ -192,7 +194,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_close_pr(self):
         """Test close_pr function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_close_pr, no GitHub token available?"
             return
 
@@ -220,7 +222,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_fetch_easyconfigs_from_pr, no GitHub token available?"
             return
 
@@ -274,7 +276,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
             return
 
@@ -286,7 +288,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_download_repo(self):
         """Test download_repo function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_download_repo, no GitHub token available?"
             return
 
@@ -323,7 +325,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_install_github_token, no GitHub token available?"
             return
 
@@ -363,7 +365,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_validate_github_token(self):
         """Test for validate_github_token function."""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_validate_github_token, no GitHub token available?"
             return
 
@@ -375,7 +377,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_find_easybuild_easyconfig(self):
         """Test for find_easybuild_easyconfig function"""
-        if self.github_token is None:
+        if self.skip_github_tests:
             print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
             return
         path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
@@ -472,6 +474,7 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['issue_comments'] = [
             {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
             {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
             {'body': "this is just a regular comment"},
         ]

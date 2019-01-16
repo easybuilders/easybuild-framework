@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -55,7 +55,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -204,16 +203,17 @@ def dep_graph(filename, specs):
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
+                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
     _dep_graph_dump(dgr, filename)
 
     if not build_option('silent'):
-        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+        print("Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename))
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
@@ -272,7 +272,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
                 _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError(str(err))
 
     return paths
@@ -387,7 +387,7 @@ def parse_easyconfigs(paths, validate=True):
 
                 easyconfigs.extend(process_easyconfig(ec_file, **kwargs))
 
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
     return easyconfigs, generated_ecs

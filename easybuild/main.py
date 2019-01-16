@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -81,7 +81,7 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
             # (try to) cleanup
             try:
                 os.remove(ec_file)
-            except OSError, err:
+            except OSError as err:
                 _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
@@ -113,7 +113,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
-        except Exception, err:
+        except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err
@@ -234,20 +234,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         close_pr(options.close_pr, reasons=options.close_pr_msg)
 
     elif options.list_prs:
-        print list_prs(options.list_prs)
+        print(list_prs(options.list_prs))
 
     elif options.merge_pr:
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print review_pr(pr=options.review_pr, colored=use_color(options.color))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
 
     elif options.list_installed_software:
         detailed = options.list_installed_software == 'detailed'
-        print list_software(output_format=options.output_format, detailed=detailed, only_installed=True)
+        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
 
     elif options.list_software:
-        print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
+        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
@@ -373,7 +373,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
         elif options.preview_pr:
-            print review_pr(paths=determined_paths, colored=use_color(options.color))
+            print(review_pr(paths=determined_paths, colored=use_color(options.color)))
         else:
             update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -438,11 +438,9 @@ def init_config(args=None, build_options=None, with_include=True):
     if build_options is None:
         build_options = {}
 
-    test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
     default_build_options = {
         'extended_dry_run': False,
         'external_modules_metadata': ConfigObj(),
-        'robot_path': [test_ecs_dir],
         'suffix_modules_path': GENERAL_CLASS,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],

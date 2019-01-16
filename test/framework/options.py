@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -2380,6 +2380,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         self.mock_stdout(True)
+        self.mock_stderr(True)
         # PR for CMake 3.12.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6660
         args = [
             '--color=never',
@@ -2389,6 +2390,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
+        self.mock_stderr(False)
         regex = re.compile(r"^Comparing CMake-3.12.1-\S* with CMake-3.12.1-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 

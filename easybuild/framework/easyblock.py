@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,7 +72,7 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_dir, copy_file, derive_alt_pypi_url, diff_files
+from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
 from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_url, is_sha256_checksum, mkdir
 from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
@@ -101,6 +101,8 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
+# Directory name in which to store reproducability files
+REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -610,7 +612,7 @@ class EasyBlock(object):
                 if download_file(filename, url, fullpath):
                     return fullpath
 
-            except IOError, err:
+            except IOError as err:
                 raise EasyBuildError("Downloading file %s from url %s to %s failed: %s", filename, url, fullpath, err)
 
         else:
@@ -733,7 +735,7 @@ class EasyBlock(object):
                             if download_file(filename, fullurl, targetpath):
                                 downloaded = True
 
-                        except IOError, err:
+                        except IOError as err:
                             self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
                             failedpaths.append(fullurl)
                             continue
@@ -902,7 +904,7 @@ class EasyBlock(object):
                 try:
                     rmtree2(dir_name)
                     self.log.info("Removed old directory %s" % dir_name)
-                except OSError, err:
+                except OSError as err:
                     raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
             elif build_option('module_only'):
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
@@ -913,7 +915,7 @@ class EasyBlock(object):
                     backupdir = "%s.%s" % (dir_name, timestamp)
                     shutil.move(dir_name, backupdir)
                     self.log.info("Moved old directory %s to %s" % (dir_name, backupdir))
-                except OSError, err:
+                except OSError as err:
                     raise EasyBuildError("Moving old directory to backup %s %s failed: %s", dir_name, backupdir, err)
 
         if dontcreateinstalldir:
@@ -1337,7 +1339,7 @@ class EasyBlock(object):
                 self.modules_tool.unload([self.short_mod_name])
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 rmtree2(os.path.dirname(fake_mod_path))
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)
         elif self.short_mod_name is None:
             self.log.warning("Not unloading module, since self.short_mod_name is not set.")
@@ -1789,7 +1791,7 @@ class EasyBlock(object):
                 try:
                     beginpath = self.src[srcind]['finalpath']
                     self.log.debug("Determine begin path for patch %s: %s" % (patch['name'], beginpath))
-                except IndexError, err:
+                except IndexError as err:
                     raise EasyBuildError("Can't apply patch %s to source at index %s of list %s: %s",
                                          patch['name'], srcind, self.src, err)
             else:
@@ -1959,7 +1961,7 @@ class EasyBlock(object):
                 self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
                 if cls is not None:
                     inst = cls(self, ext)
-            except (ImportError, NameError), err:
+            except (ImportError, NameError) as err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))
 
             # alternative attempt: use class specified in class map (if any)
@@ -1970,7 +1972,7 @@ class EasyBlock(object):
                 try:
                     cls = get_class_for(mod_path, class_name)
                     inst = cls(self, ext)
-                except (ImportError, NameError), err:
+                except (ImportError, NameError) as err:
                     raise EasyBuildError("Failed to load specified class %s for extension %s: %s",
                                          class_name, ext['name'], err)
 
@@ -1982,7 +1984,7 @@ class EasyBlock(object):
                     inst = cls(self, ext)
                     self.log.debug("Installing extension %s with default class %s (from %s)",
                                    ext['name'], default_class, default_class_modpath)
-                except (ImportError, NameError), err:
+                except (ImportError, NameError) as err:
                     raise EasyBuildError("Also failed to use default class %s from %s for extension %s: %s, giving up",
                                          default_class, default_class_modpath, ext['name'], err)
             else:
@@ -2322,7 +2324,7 @@ class EasyBlock(object):
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
                 fake_mod_data = self.load_fake_module(purge=True)
-            except EasyBuildError, err:
+            except EasyBuildError as err:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
@@ -2400,7 +2402,7 @@ class EasyBlock(object):
                     os.rmdir(base)
                     base = os.path.dirname(base)
 
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Cleaning up builddir %s failed: %s", self.builddir, err)
 
         if not build_option('cleanup_builddir'):
@@ -2504,7 +2506,7 @@ class EasyBlock(object):
                 perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
                 adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=self.group[1],
                                    relative=True, ignore_errors=True)
-            except EasyBuildError, err:
+            except EasyBuildError as err:
                 raise EasyBuildError("Unable to change group permissions of file(s): %s", err)
             self.log.info("Successfully made software only available for group %s (gid %s)" % self.group)
 
@@ -2561,7 +2563,7 @@ class EasyBlock(object):
             try:
                 self.log.debug("Running test %s" % path)
                 run_cmd(path, log_all=True, simple=True)
-            except EasyBuildError, err:
+            except EasyBuildError as err:
                 raise EasyBuildError("Running test %s failed: %s", path, err)
 
     def update_config_template_run_step(self):
@@ -2832,7 +2834,7 @@ def build_and_install_one(ecdict, init_env):
         app_class = get_easyblock_class(easyblock, name=name)
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
-    except EasyBuildError, err:
+    except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
 
@@ -2858,7 +2860,7 @@ def build_and_install_one(ecdict, init_env):
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
         result = app.run_all_steps(run_test_cases=run_test_cases)
-    except EasyBuildError, err:
+    except EasyBuildError as err:
         first_n = 300
         errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
         _log.warning(errormsg)
@@ -2893,12 +2895,12 @@ def build_and_install_one(ecdict, init_env):
             _log.info("Build stats: %s" % buildstats)
 
             # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, os.path.basename(reprod_dir))
+            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
             if os.path.exists(archive_reprod_dir):
                 backup_dir = find_backup_name_candidate(archive_reprod_dir)
                 move_file(archive_reprod_dir, backup_dir)
-                _log.info("Existing reprod directory %s backed up to %s", archive_reprod_dir, backup_dir)
-            copy_dir(reprod_dir, archive_reprod_dir)
+                _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+            move_file(reprod_dir, archive_reprod_dir)
             _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
 
             try:
@@ -2913,7 +2915,7 @@ def build_and_install_one(ecdict, init_env):
                     repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
-            except EasyBuildError, err:
+            except EasyBuildError as err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
         # cleanup logs
@@ -2996,7 +2998,8 @@ def reproduce_build(app, reprod_dir_root):
 
     ec_filename = app.cfg.filename()
 
-    reprod_dir = os.path.join(reprod_dir_root, 'reprod')
+    # Let's use a unique timestamped directory (facilitated by find_backup_name_candidate())
+    reprod_dir = find_backup_name_candidate(os.path.join(reprod_dir_root, REPROD))
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
         app.cfg.dump(reprod_spec)

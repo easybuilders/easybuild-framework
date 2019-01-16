@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
@@ -196,6 +196,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
              (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
 
     :param parent_toolchain: dictionary with name/version of parent toolchain
+    :param incl_capabilities: also register toolchain capabilities in result
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
@@ -1118,9 +1119,8 @@ class EasyConfig(object):
                         if tc is None:
                             raise EasyBuildError("Failed to determine minimal toolchain for dep %s", dep_str)
                     else:
-                        # try finding subtoolchain for dep for which an easyconfig file is available
-                        # this may fail, since it requires that the easyconfigs for parent toolchain
-                        # and subtoolchains are available
+                        # try to determine subtoolchain for dep;
+                        # this is done considering both available modules and easyconfigs (in that order)
                         tc = robot_find_subtoolchain_for_dep(dep, self.modules_tool, parent_first=True)
                         self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
 
@@ -1314,7 +1314,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
             try:
                 __import__(modulepath, globals(), locals(), [''])
                 modulepath_imported = True
-            except ImportError, err:
+            except ImportError as err:
                 _log.debug("Failed to import module '%s': %s" % (modulepath, err))
 
             # check if determining module path based on software name would have resulted in a different module path
@@ -1332,7 +1332,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 _log.debug("getting class for %s.%s" % (modulepath, class_name))
                 cls = get_class_for(modulepath, class_name)
                 _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-            except ImportError, err:
+            except ImportError as err:
                 # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
                 # and not because of a broken import statement in the easyblock module
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
@@ -1353,10 +1353,10 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
 
         return cls
 
-    except EasyBuildError, err:
+    except EasyBuildError as err:
         # simply reraise rather than wrapping it into another error
         raise err
-    except Exception, err:
+    except Exception as err:
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
@@ -1473,7 +1473,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         # create easyconfig
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 
         name = ec['name']
@@ -1650,8 +1650,6 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     :param parent_first: reverse order in which subtoolchains are considered: parent toolchain, then subtoolchains
     :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
-    minimal_toolchain = None
-
     if parent_tc is None:
         parent_tc = dep['toolchain']
 
@@ -1665,9 +1663,20 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
 
     newdep = copy.deepcopy(dep)
 
+    # try to determine toolchain hierarchy
+    # this may fail if not all easyconfig files that define this toolchain are available,
+    # but that's not always fatal: it's mostly irrelevant under --review-pr for example
+    try:
+        toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
+    except EasyBuildError as err:
+        warning_msg = "Failed to determine toolchain hierarchy for %(name)s/%(version)s when determining " % parent_tc
+        warning_msg += "subtoolchain for dependency '%s': %s" % (dep['name'], err)
+        _log.warning(warning_msg)
+        print_warning(warning_msg)
+        toolchain_hierarchy = []
+
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,
     # unless parent toolchain should be considered first
-    toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
     if parent_first:
         toolchain_hierarchy = toolchain_hierarchy[::-1]
 
@@ -1685,9 +1694,12 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
             # check whether module already exists or not (but only if that info will actually be used)
             mod_exists = None
             if parent_first or use_existing_modules:
+                mod_exists = mod_name in avail_modules
                 # fallback to checking with modtool.exist is required,
                 # for hidden modules and external modules where module name may be partial
-                mod_exists = mod_name in avail_modules or modtool.exist([mod_name], skip_avail=True)[0]
+                if not mod_exists:
+                    maybe_partial = dep.get('external_module', True)
+                    mod_exists = modtool.exist([mod_name], skip_avail=True, maybe_partial=maybe_partial)[0]
 
             # add the subtoolchain to list of candidates
             cand_subtcs.append({'toolchain': tc, 'mod_exists': mod_exists})
@@ -1697,31 +1709,35 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
     cand_subtcs_with_mod = [tc for tc in cand_subtcs if tc.get('mod_exists', False)]
 
     # scenario I:
-    # - parent toolchain first (minimal toolchains mode *not* enabled)
-    # - module for dependency is already available for one of the subtoolchains
-    # If so, we retain the subtoolchain closest to the parent (so top of the list of candidates)
-    if parent_first and cand_subtcs_with_mod and not retain_all_deps:
-        minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
-
-    # scenario II:
     # - regardless of whether minimal toolchains mode is enabled or not
     # - try to pick subtoolchain based on available easyconfigs (first hit wins)
-    if minimal_toolchain is None:
-        for cand_subtc in cand_subtcs:
-            newdep['toolchain'] = cand_subtc['toolchain']
-            ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
-            if ec_file:
-                minimal_toolchain = cand_subtc['toolchain']
-                break
+    minimal_toolchain = None
+    for cand_subtc in cand_subtcs:
+        newdep['toolchain'] = cand_subtc['toolchain']
+        ec_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+        if ec_file:
+            minimal_toolchain = cand_subtc['toolchain']
+            break
 
-    # scenario III:
-    # - minimal toolchains mode + --use-existing-modules
-    # - reconsider subtoolchain based on already available modules for dependency
-    # - this may overrule subtoolchain picked in scenario II
-    if not parent_first and use_existing_modules and cand_subtcs_with_mod:
-        # take the last element, i.e. the maximum toolchain where a module exists already
-        # (allows for potentially better optimisation)
-        minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
+    if cand_subtcs_with_mod:
+        if parent_first:
+            # scenario II:
+            # - parent toolchain first (minimal toolchains mode *not* enabled)
+            # - module for dependency is already available for one of the subtoolchains
+            # - only used as fallback in case subtoolchain could not be determined via easyconfigs (scenario I)
+            # If so, we retain the subtoolchain closest to the parent (so top of the list of candidates)
+            if minimal_toolchain is None or use_existing_modules:
+                minimal_toolchain = cand_subtcs_with_mod[0]['toolchain']
+
+        elif use_existing_modules:
+            # scenario III:
+            # - minimal toolchains mode + --use-existing-modules
+            # - reconsider subtoolchain based on already available modules for dependency
+            # - this may overrule subtoolchain picked in scenario II
+
+            # take the last element, i.e. the maximum toolchain where a module exists already
+            # (allows for potentially better optimisation)
+            minimal_toolchain = cand_subtcs_with_mod[-1]['toolchain']
 
     if minimal_toolchain is None:
         _log.info("Irresolvable dependency found (even with minimal toolchains): %s", dep)

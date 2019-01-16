@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,7 +48,7 @@ import sys
 from distutils.version import LooseVersion
 try:
     import git
-except ImportError, err:
+except ImportError as err:
     sys.stderr.write("Failed to import git Python module, which is required to run this script: %s\n" % err)
     sys.exit(1)
 
@@ -76,7 +76,7 @@ def get_easybuild_version(home, version_file=None):
         f = open(version_file, "r")
         versiontxt = f.read()
         f.close()
-    except IOError, err:
+    except IOError as err:
         error("Failed to read %s's version file at %s: %s" % (easybuild_package, version_file, err))
 
     # determine current version set
@@ -105,7 +105,7 @@ def get_last_git_version_tag(home):
         else:
             error("No git version tags set?")
 
-    except git.GitCommandError, err:
+    except git.GitCommandError as err:
         error("Failed to determine last %s git tag: %s" % (easybuild_package, err))
 
 # check whether version has been bumped and
@@ -113,8 +113,8 @@ def get_last_git_version_tag(home):
 def check_version(easybuild_version, last_version_git_tag):
     """Check whether version has been bumped."""
 
-    print "Current %s version: %s" % (easybuild_package, easybuild_version)
-    print "Last git version tag: %s " % last_version_git_tag
+    print("Current %s version: %s" % (easybuild_package, easybuild_version))
+    print("Last git version tag: %s " % last_version_git_tag)
 
     if not easybuild_version == last_version_git_tag:
         warning("Current %s version %s does not match last git version tag %s." % (easybuild_package,
@@ -122,7 +122,7 @@ def check_version(easybuild_version, last_version_git_tag):
                                                                                    last_version_git_tag))
         return False
     else:
-        print "Version checks passed."
+        print("Version checks passed.")
 
         return True
 
@@ -135,13 +135,13 @@ def check_release_notes(home, easybuild_version):
         f = open(os.path.join(home, fn), "r")
         releasenotes = f.read()
         f.close()
-    except IOError, err:
+    except IOError as err:
         error("Failed to read %s: %s" % (fn, err))
 
     ver_re = re.compile(r"^v%s\s\([A-Z][a-z]+\s[0-9]+[a-z]+\s[0-9]+\)$" % easybuild_version, re.M)
 
     if ver_re.search(releasenotes):
-        print "Found entry in %s for version %s." % (fn, easybuild_version)
+        print("Found entry in %s for version %s." % (fn, easybuild_version))
         return True
     else:
         warning("Could not find an entry for version %s in %s." % (easybuild_version, fn))
@@ -173,7 +173,7 @@ def check_license_headers(home, license_header_re, filename_re, dirname_re):
                         warning("Could not find license header in %s" % fullfn)
                         ok - False
 
-    except (OSError, IOError), err:
+    except (OSError, IOError) as err:
         error("Failed to check for license header in all code files: %s" % err)
 
     return ok
@@ -188,7 +188,7 @@ def check_clean_master_branch(home):
         gitrepo = git.Git(home)
         git_status = gitrepo.execute(["git", "status"])
 
-    except git.GitCommandError, err:
+    except git.GitCommandError as err:
         error("Failed to determine status of git repository.")
 
     master_re = re.compile(r"^# On branch master$", re.M)
@@ -198,13 +198,13 @@ def check_clean_master_branch(home):
         warning("Make sure you're on the master branch when running this script.")
         ok = False
     else:
-        print "On master branch, good."
+        print("On master branch, good.")
 
     if not clean_re.search(git_status):
         warning("There seems to be work present that's not committed yet, please make sure the master branch is clear!")
         ok = False
     else:
-        print "Current branch is clean, great work!"
+        print("Current branch is clean, great work!")
 
     return ok
 
@@ -248,7 +248,7 @@ if len(sys.argv) == 2:
 easybuild_home = os.getcwd()
 easybuild_package = os.path.basename(easybuild_home)
 
-print "Found %s home: %s (current dir)" % (easybuild_package, easybuild_home)
+print("Found %s home: %s (current dir)" % (easybuild_package, easybuild_home))
 
 all_checks = []
 
@@ -269,9 +269,9 @@ filename_re = re.compile(r"^((?!\.).)*\.(py|sh)$")
 # only paths that don't have subdirs that start with '.'
 dirname_re = re.compile(r"^((?!\.).)*$")
 
-print "Checking for license header in all code files..."
+print("Checking for license header in all code files...")
 all_checks.append(check_license_headers(easybuild_home, license_header_re, filename_re, dirname_re))
-print "Done!"
+print("Done!")
 
 # check for clean master branch
 all_checks.append(check_clean_master_branch(easybuild_home))

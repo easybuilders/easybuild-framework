@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -189,7 +189,7 @@ def pretty_print_opts(opts_dict):
         opt_val, loc = opts_dict[opt]
         lines.append("{0:<{nwopt}} ({1:}) = {2:}".format(opt, loc, opt_val, nwopt=nwopt))
 
-    print '\n'.join(lines)
+    print('\n'.join(lines))
 
 
 def use_color(colorize, stream=sys.stdout):
@@ -1043,7 +1043,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.unittest_file:
             self.log.info(msg)
         else:
-            print msg
+            print(msg)
 
         # cleanup tmpdir and exit
         cleanup_and_exit(self.tmpdir)
@@ -1458,7 +1458,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         else:
             # use tempfile default parent dir
             current_tmpdir = tempfile.mkdtemp(prefix='eb-')
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
 
     # avoid having special characters like '[' and ']' in the tmpdir pathname,
@@ -1498,7 +1498,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
         os.remove(tmptest_file)
 
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir

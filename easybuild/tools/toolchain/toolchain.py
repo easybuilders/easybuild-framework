@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -852,7 +852,10 @@ class Toolchain(object):
 
                 # determine location for this wrapper
                 # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
-                wrapper_dir = os.path.join(wrappers_dir, '%s_wrapper' % cmd)
+                # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
+                # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
+                wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
+                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 

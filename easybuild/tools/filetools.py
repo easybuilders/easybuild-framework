@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -186,7 +186,7 @@ def read_file(path, log_error=True):
     try:
         with open(path, 'r') as handle:
             txt = handle.read()
-    except IOError, err:
+    except IOError as err:
         if log_error:
             raise EasyBuildError("Failed to read %s: %s", path, err)
 
@@ -229,7 +229,7 @@ def write_file(path, txt, append=False, forced=False, backup=False, always_overw
         mkdir(os.path.dirname(path), parents=True)
         with open(path, 'a' if append else 'w') as handle:
             handle.write(txt)
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
@@ -277,7 +277,7 @@ def remove_file(path):
         # note: file may also be a broken symlink...
         if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to remove file %s: %s", path, err)
 
 
@@ -291,7 +291,7 @@ def remove_dir(path):
     try:
         if os.path.exists(path):
             rmtree2(path)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to remove directory %s: %s", path, err)
 
 
@@ -553,7 +553,7 @@ def download_file(filename, url, path, forced=False):
                 _log.info("Downloading using requests package instead of urllib2")
                 used_urllib = requests
             attempt_cnt += 1
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
 
         if not downloaded and attempt_cnt < max_attempts:
@@ -708,9 +708,9 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
-    except MemoryError, err:
+    except MemoryError as err:
         _log.warning("A memory error occurred when computing the checksum for %s: %s" % (path, err))
         checksum = 'dummy_checksum_due_to_memory_error'
 
@@ -724,7 +724,7 @@ def calc_block_checksum(path, algorithm):
     try:
         # in hashlib, blocksize is a class parameter
         blocksize = algorithm.blocksize * 262144  # 2^18
-    except AttributeError, err:
+    except AttributeError as err:
         blocksize = 16777216  # 2^24
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
@@ -733,7 +733,7 @@ def calc_block_checksum(path, algorithm):
         for block in iter(lambda: f.read(blocksize), b''):
             algorithm.update(block)
         f.close()
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
 
     return algorithm.hexdigest()
@@ -1044,7 +1044,7 @@ def apply_regex_substitutions(path, regex_subs):
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
 
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
@@ -1136,7 +1136,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 else:
                     _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
 
-        except OSError, err:
+        except OSError as err:
             if ignore_errors:
                 # ignore errors while adjusting permissions (for example caused by bad links)
                 _log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
@@ -1213,7 +1213,7 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 os.makedirs(path)
             else:
                 os.mkdir(path)
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
         # set group ID and sticky bits, if desired
@@ -1227,7 +1227,7 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
                 new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
                 adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
     else:
         _log.debug("Not creating existing path %s" % path)
@@ -1289,7 +1289,7 @@ def rmtree2(path, n=3):
             shutil.rmtree(path)
             ok = True
             break
-        except OSError, err:
+        except OSError as err:
             _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
             time.sleep(2)
 
@@ -1371,7 +1371,7 @@ def move_logs(src_logfile, target_logfile):
                 run.run_cmd("%s %s" % (zip_log_cmd, new_log_path))
                 _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
 
-    except (IOError, OSError), err:
+    except (IOError, OSError) as err:
         raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
                              src_logfile, target_logfile, err)
 
@@ -1391,14 +1391,14 @@ def cleanup(logfile, tempdir, testing, silent=False):
             try:
                 for log in [logfile] + glob.glob('%s.[0-9]*' % logfile):
                     os.remove(log)
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
             print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing or silent)
 
         if tempdir is not None:
             try:
                 shutil.rmtree(tempdir, ignore_errors=True)
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
             print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing or silent)
 
@@ -1470,13 +1470,13 @@ def copytree(src, dst, symlinks=False, ignore=None):
                 shutil.copy2(srcname, dstname)
         # catch the Error from the recursive copytree so that we can
         # continue with other files
-        except Error, err:
+        except Error as err:
             errors.extend(err.args[0])
-        except EnvironmentError, why:
+        except EnvironmentError as why:
             errors.append((srcname, dstname, str(why)))
     try:
         shutil.copystat(src, dst)
-    except OSError, why:
+    except OSError as why:
         if WindowsError is not None and isinstance(why, WindowsError):
             # Copying file access times may fail on Windows
             pass
@@ -1561,7 +1561,7 @@ def det_size(path):
                 fullpath = os.path.join(dirpath, filename)
                 if os.path.exists(fullpath):
                     installsize += os.path.getsize(fullpath)
-    except OSError, err:
+    except OSError as err:
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize

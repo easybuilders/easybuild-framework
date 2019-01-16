@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -233,7 +233,7 @@ class ModulesTool(object):
             else:
                 raise EasyBuildError("Failed to determine version from option '%s' output: %s",
                                      self.VERSION_OPTION, txt)
-        except (OSError), err:
+        except (OSError) as err:
             raise EasyBuildError("Failed to check version: %s", err)
 
         if self.REQ_VERSION is None and self.MAX_VERSION is None:
@@ -508,13 +508,14 @@ class ModulesTool(object):
 
         return wrapped_mod
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
+    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
         :param mod_names: list of module names
         :param mod_exists_regex_template: template regular expression to search 'module show' output with
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
+        :param maybe_partial: indicates if the module name may be a partial module name
         """
         def mod_exists_via_show(mod_name):
             """
@@ -540,8 +541,10 @@ class ModulesTool(object):
         mods_exist = []
         for (mod_name, visible) in mod_names:
             if visible:
+                mod_exists = mod_name in avail_mod_names
                 # module name may be partial, so also check via 'module show' as fallback
-                mod_exists = mod_name in avail_mod_names or mod_exists_via_show(mod_name)
+                if not mod_exists and maybe_partial:
+                    mod_exists = mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
@@ -752,8 +755,8 @@ class ModulesTool(object):
                 tweak_fn = kwargs.get('tweak_stdout')
                 if tweak_fn is not None:
                     stdout = tweak_fn(stdout)
-                exec stdout
-            except Exception, err:
+                exec(stdout)
+            except Exception as err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)", err, out)
 
@@ -1271,7 +1274,7 @@ class Lmod(ModulesTool):
                     cache_file = open(cache_fp, 'w')
                     cache_file.write(stdout)
                     cache_file.close()
-                except (IOError, OSError), err:
+                except (IOError, OSError) as err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
     def use(self, path, priority=None):
@@ -1323,7 +1326,7 @@ class Lmod(ModulesTool):
 
         return res
 
-    def exist(self, mod_names, skip_avail=False):
+    def exist(self, mod_names, skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
@@ -1334,7 +1337,7 @@ class Lmod(ModulesTool):
         # the current configuration for matters little, since the module may have been installed with a different cfg;
         # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
         return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
-                                       skip_avail=skip_avail)
+                                       skip_avail=skip_avail, maybe_partial=maybe_partial)
 
 
 def get_software_root_env_var_name(name):

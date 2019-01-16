@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -63,14 +63,14 @@ _log = fancylogger.getLogger('github', fname=False)
 try:
     import keyring
     HAVE_KEYRING = True
-except ImportError, err:
+except ImportError as err:
     _log.warning("Failed to import 'keyring' Python module: %s" % err)
     HAVE_KEYRING = False
 
 try:
     from vsc.utils.rest import RestClient
     HAVE_GITHUB_API = True
-except ImportError, err:
+except ImportError as err:
     _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
@@ -244,7 +244,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.get(**kwargs)
-    except socket.gaierror, err:
+    except socket.gaierror as err:
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
@@ -270,7 +270,7 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.put(**kwargs)
-    except socket.gaierror, err:
+    except socket.gaierror as err:
         _log.warning("Error occurred while performing put request: %s", err)
         status, data = 0, {'message': err}
 
@@ -487,7 +487,7 @@ def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCO
     if not isinstance(issue, int):
         try:
             issue = int(issue)
-        except ValueError, err:
+        except ValueError as err:
             raise EasyBuildError("Failed to parse specified pull request number '%s' as an int: %s; ", issue, err)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -849,8 +849,8 @@ def det_patch_specs(patch_paths, file_info):
             patch_specs.append((patch_path, soft_name))
         else:
             # fall back on scanning all eb files for patches
-            print "Matching easyconfig for %s not found on the first try:" % patch_path,
-            print "scanning all easyconfigs to determine where patch file belongs (this may take a while)..."
+            print("Matching easyconfig for %s not found on the first try:" % patch_path,)
+            print("scanning all easyconfigs to determine where patch file belongs (this may take a while)...")
             soft_name = find_software_name_for_patch(patch_file)
             if soft_name:
                 patch_specs.append((patch_path, soft_name))
@@ -952,6 +952,7 @@ def check_pr_eligible_to_merge(pr_data):
                 elif 'FAILED' in comment:
                     res = not_eligible(msg_tmpl % 'FAILED')
                     test_report_found = True
+                    break
                 else:
                     print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
 

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -171,7 +171,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             os.chdir(path)
 
         _log.debug("run_cmd: running cmd %s (in %s)" % (cmd, os.getcwd()))
-    except OSError, err:
+    except OSError as err:
         _log.warning("Failed to change to %s: %s" % (path, err))
         _log.info("running cmd %s in non-existing directory, might fail!", cmd)
 
@@ -193,7 +193,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     try:
         proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
         proc.stdin.write(inp)
@@ -233,7 +233,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     try:
         os.chdir(cwd)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
@@ -293,7 +293,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             os.chdir(path)
 
         _log.debug("run_cmd_qa: running cmd %s (in %s)" % (cmd, os.getcwd()))
-    except OSError, err:
+    except OSError as err:
         _log.warning("Failed to change to %s: %s" % (path, err))
         _log.info("running cmd %s in non-existing directory, might fail!" % cmd)
 
@@ -366,7 +366,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
     ec = p.poll()
@@ -383,7 +383,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 cmd_log.write(out)
             stdout_err += out
         # recv_some may throw Exception
-        except (IOError, Exception), err:
+        except (IOError, Exception) as err:
             _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
             out = None
 
@@ -462,7 +462,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     try:
         os.chdir(cwd)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdout_err, ec, simple, log_all, log_ok, regexp)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -231,7 +231,7 @@ class VersionOperator(object):
         else:
             try:
                 version = EasyVersion(version_str)
-            except (AttributeError, ValueError), err:
+            except (AttributeError, ValueError) as err:
                 self.parse_error('Failed to convert %s to an EasyVersion instance: %s' % (version_str, err))
 
         self.log.debug('converted string %s to version %s' % (version_str, version))

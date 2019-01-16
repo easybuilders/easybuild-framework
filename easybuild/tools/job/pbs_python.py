@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -207,7 +207,7 @@ class PbsJob(object):
 
         try:
             self.pbsconn = self._server.connect_to_server()
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("Failed to connect to the default pbs server: %s", err)
 
         # setup the resources requested
