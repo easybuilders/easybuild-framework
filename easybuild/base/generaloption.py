@@ -1503,7 +1503,7 @@ class GeneralOption(object):
             self.log.debug("generate_cmd_line no ignore")
 
         args = []
-        opt_dests = self.options.__dict__.keys()
+        opt_dests = list(self.options.__dict__.keys())
         opt_dests.sort()
 
         for opt_dest in opt_dests:
