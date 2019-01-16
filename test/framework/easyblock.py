@@ -837,6 +837,7 @@ class EasyBlockTest(EnhancedTestCase):
         builddir = eb.builddir
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
+
         eb.cfg['cleanupoldbuild'] = True
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
@@ -853,6 +854,53 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout.close()
         sys.stdout = stdoutorig
         eb.close_log()
+
+    def test_make_builddir(self):
+        """Test make_dir method."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'http://example.com'",
+            "description = 'test easyconfig'",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+        ])
+        self.writeEC()
+
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.gen_builddir()
+
+        # by default, make_builddir will re-create the build directory (i.e. remove existing & re-create)
+        eb.make_builddir()
+        builddir_inode1 = os.stat(eb.builddir).st_ino
+        eb.make_builddir()
+        builddir_inode2 = os.stat(eb.builddir).st_ino
+        # different inode indicates that directory was recreated
+        self.assertTrue(builddir_inode1 != builddir_inode2)
+
+        # make sure that build directory does *not* get re-created when we're building in installation directory
+        # and we're iterating over a list of (pre)config/build/installopts
+        eb.build_in_installdir = True
+        eb.make_builddir()
+        # also need to create install directory since build dir == install dir
+        eb.make_installdir()
+
+        builddir_inode1 = os.stat(eb.builddir).st_ino
+
+        # with iteration count > 0, build directory is not re-created because of build-in-installdir
+        eb.iter_idx = 1
+        eb.make_builddir()
+        eb.make_installdir()
+
+        builddir_inode2 = os.stat(eb.builddir).st_ino
+        self.assertEqual(builddir_inode1, builddir_inode2)
+
+        # resetting iteration index to 0 results in re-creating build directory
+        eb.iter_idx = 0
+        eb.make_builddir()
+        eb.make_installdir()
+        builddir_inode3 = os.stat(eb.builddir).st_ino
+        self.assertTrue(builddir_inode1 != builddir_inode3)
 
     def test_get_easyblock_instance(self):
         """Test get_easyblock_instance function."""
