@@ -487,7 +487,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
                     % cnt,
                 ])
 
-        print '\n'.join(lines)
+        print('\n'.join(lines))
 
     # if requested return the matches as a list
     if build_option('consider_archived_easyconfigs'):
