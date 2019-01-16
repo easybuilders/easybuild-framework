@@ -1403,7 +1403,8 @@ class ToolchainTest(EnhancedTestCase):
 
         # check whether fake g++ was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
-        out, _ = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        out, ec = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        self.assertEqual(ec, 0)
         expected = ' '.join([
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=/foo',
@@ -1412,6 +1413,44 @@ class ToolchainTest(EnhancedTestCase):
             '-L/bar',
             '$FOO',
             '-DX=""',
+        ])
+        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+
+        # check whether 'stubs' library directory are correctly filtered out
+        args = [
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs/',  # should be filtered (no -rpath)
+            '-L/tmp/foo/',
+            '-L/prefix/software/stubs/1.2.3/lib',  # should NOT be filtered
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs/',  # should be filtered (no -rpath)
+            '-L/prefix/software/foobar/4.5/notreallystubs',  # should NOT be filtered
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/zlib/1.2.11/lib',
+            '-L/prefix/software/bleh/0/lib/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/foobar/4.5/stubsbutnotreally',  # should NOT be filtered
+        ]
+        cmd = "g++ ${USER}.c %s" % ' '.join(args)
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+
+        expected = ' '.join([
+            '-Wl,--disable-new-dtags',
+            '-Wl,-rpath=/tmp/foo/',
+            '-Wl,-rpath=/prefix/software/stubs/1.2.3/lib',
+            '-Wl,-rpath=/prefix/software/foobar/4.5/notreallystubs',
+            '-Wl,-rpath=/prefix/software/zlib/1.2.11/lib',
+            '-Wl,-rpath=/prefix/software/foobar/4.5/stubsbutnotreally',
+            '%(user)s.c',
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs/',
+            '-L/tmp/foo/',
+            '-L/prefix/software/stubs/1.2.3/lib',
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs',
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs/',
+            '-L/prefix/software/foobar/4.5/notreallystubs',
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs',
+            '-L/prefix/software/zlib/1.2.11/lib',
+            '-L/prefix/software/bleh/0/lib/stubs',
+            '-L/prefix/software/foobar/4.5/stubsbutnotreally',
         ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
