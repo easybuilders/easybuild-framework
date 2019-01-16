@@ -208,7 +208,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         read_size = 1024 * 8
 
     ec = proc.poll()
-    stdouterr = ''
+    stdouterr = b''
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
