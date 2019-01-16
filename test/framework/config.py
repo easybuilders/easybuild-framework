@@ -326,7 +326,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def test_configuration_variables(self):
         """Test usage of ConfigurationVariables."""
         # delete instance of ConfigurationVariables
-        ConfigurationVariables.__metaclass__._instances.pop(ConfigurationVariables, None)
+        ConfigurationVariables.__class__._instances.clear()
 
         # make sure ConfigurationVariables is a singleton class (only one available instance)
         cv1 = ConfigurationVariables()
@@ -338,7 +338,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def test_build_options(self):
         """Test usage of BuildOptions."""
         # delete instance of BuildOptions
-        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
+        BuildOptions.__class__._instances.clear()
 
         # make sure BuildOptions is a singleton class
         bo1 = BuildOptions()
@@ -348,7 +348,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertTrue(bo1 is bo3)
 
         # test basic functionality
-        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
+        BuildOptions.__class__._instances.clear()
         bo = BuildOptions({
             'debug': False,
             'force': True
@@ -361,7 +361,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
-        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
+        BuildOptions.__class__._instances.clear()
         msg = "Encountered unknown keys .* \(known keys: .*"
         self.assertErrorRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
