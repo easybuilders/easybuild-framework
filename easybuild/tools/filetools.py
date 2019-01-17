@@ -193,13 +193,13 @@ def read_file(path, log_error=True):
     return txt
 
 
-def write_file(path, txt, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
+def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
 
     :param path: location of file
-    :param txt: contents to write to file
+    :param data: contents to write to file
     :param append: append to existing file rather than overwrite
     :param forced: force actually writing file in (extended) dry run mode
     :param backup: back up existing file before overwriting or modifying it
@@ -224,11 +224,19 @@ def write_file(path, txt, append=False, forced=False, backup=False, always_overw
             if verbose:
                 print_msg("Backup of %s created at %s" % (path, backed_up_fp))
 
+    # figure out mode to use for open file handle
+    # cfr. https://docs.python.org/3/library/functions.html#open
+    mode = 'a' if append else 'w'
+
+    # special care must be taken with binary data in Python 3
+    if sys.version_info[0] >= 3 and isinstance(data, bytes):
+        mode += 'b'
+
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        with open(path, 'a' if append else 'w') as handle:
-            handle.write(txt)
+        with open(path, mode) as handle:
+            handle.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
