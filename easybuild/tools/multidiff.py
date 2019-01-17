@@ -224,7 +224,7 @@ class MultiDiff(object):
 
         diff = False
         for i in range(len(self.base_lines)):
-            lines = filter(None, self.get_line(i))
+            lines = list(filter(None, self.get_line(i)))
             if lines:
                 output.append('\n'.join([limit(line, term_width) for line in lines]))
                 diff = True
