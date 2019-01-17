@@ -249,7 +249,7 @@ def resolve_path(path):
     """
     try:
         resolved_path = os.path.realpath(path)
-    except (AttributeError, OSError) as err:
+    except (AttributeError, OSError, TypeError) as err:
         raise EasyBuildError("Resolving path %s failed: %s", path, err)
 
     return resolved_path
