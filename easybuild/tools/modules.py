@@ -39,6 +39,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from distutils.version import StrictVersion
 from subprocess import PIPE
 
@@ -724,7 +725,13 @@ class ModulesTool(object):
         full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        proc = subprocess.Popen(cmd_list, stdout=PIPE, stderr=PIPE, env=environ)
+        # open stdout/stderr in text mode in Popen when using Python 3
+        popen_kwargs = {}
+        if sys.version_info[0] >= 3:
+            popen_kwargs['universal_newlines'] = True
+
+        proc = subprocess.Popen(cmd_list, stdout=PIPE, stderr=PIPE, env=environ, **popen_kwargs)
+
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
@@ -1254,7 +1261,12 @@ class Lmod(ModulesTool):
             cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
             self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+            # open stdout/stderr in text mode in Popen when using Python 3
+            popen_kwargs = {}
+            if sys.version_info[0] >= 3:
+                popen_kwargs['universal_newlines'] = True
+
+            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ, **popen_kwargs)
             (stdout, stderr) = proc.communicate()
 
             if stderr:
