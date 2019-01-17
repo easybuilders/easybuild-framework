@@ -1190,8 +1190,12 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
         # no crash on non-existing package
+        self.mock_stdout(True)
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(stdout.startswith("Failed to download https://pypi.python.org/simple/nosuchpackageonpypiever"))
 
     def test_apply_patch(self):
         """ Test apply_patch """
