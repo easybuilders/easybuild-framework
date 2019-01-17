@@ -43,6 +43,9 @@ except ImportError:
     # only needed to keep supporting Python 2.6
     from easybuild.tools.ordereddict import OrderedDict  # noqa
 
+# reload function (built-in in Python 2)
+reload = reload
+
 # string type that can be used in 'isinstance' calls
 string_type = basestring
 

@@ -37,6 +37,10 @@ from io import StringIO  # noqa
 from string import ascii_letters  # noqa
 from urllib.request import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
 
+# reload function (no longer a built-in in Python 3)
+# importlib only works with Python 3.4 & newer
+from importlib import reload  # noqa
+
 # string type that can be used in 'isinstance' calls
 string_type = str
 

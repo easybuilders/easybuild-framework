@@ -54,6 +54,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
+from easybuild.tools.py2vs3 import reload
 
 
 # make sure tests are robust against any non-default configuration settings;
