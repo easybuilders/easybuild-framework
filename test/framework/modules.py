@@ -535,7 +535,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(res, ['impi/2016', 'intel/2016'])
 
         else:
-            print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
+            print("Skipping test_path_to_top_of_module_tree_lua, requires Lmod as modules tool")
 
     def test_interpret_raw_path_lua(self):
         """Test interpret_raw_path_lua method"""
@@ -822,7 +822,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(len(mod.MODULE_AVAIL_CACHE), 1)
 
         # fetch cache entry
-        avail_cache_key = mod.MODULE_AVAIL_CACHE.keys()[0]
+        avail_cache_key = list(mod.MODULE_AVAIL_CACHE.keys())[0]
         cached_res = mod.MODULE_AVAIL_CACHE[avail_cache_key]
         self.assertTrue(cached_res == res)
 
