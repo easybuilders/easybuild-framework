@@ -805,8 +805,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
-        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
         expected = "7 %(endcol)s-%(endcol)s toolchain = {"
@@ -831,8 +831,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
-        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
 
         # different toolchain in toy-0.0-gompi-2018a-test: '+' line with squigly line underneath to mark removed chars
         expected = "7 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
