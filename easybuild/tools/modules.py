@@ -38,10 +38,7 @@ This python module implements the environment modules functionality:
 import os
 import re
 import shlex
-import subprocess
-import sys
 from distutils.version import StrictVersion
-from subprocess import PIPE
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
@@ -51,6 +48,7 @@ from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
+from easybuild.tools.py2vs3 import subprocess_popen_text
 from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import get_subclasses, nub
 
@@ -725,12 +723,7 @@ class ModulesTool(object):
         full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        # open stdout/stderr in text mode in Popen when using Python 3
-        popen_kwargs = {}
-        if sys.version_info[0] >= 3:
-            popen_kwargs['universal_newlines'] = True
-
-        proc = subprocess.Popen(cmd_list, stdout=PIPE, stderr=PIPE, env=environ, **popen_kwargs)
+        proc = subprocess_popen_text(cmd_list, env=environ)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -1261,12 +1254,7 @@ class Lmod(ModulesTool):
             cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
             self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-            # open stdout/stderr in text mode in Popen when using Python 3
-            popen_kwargs = {}
-            if sys.version_info[0] >= 3:
-                popen_kwargs['universal_newlines'] = True
-
-            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ, **popen_kwargs)
+            proc = subprocess_popen_text(cmd, env=os.environ)
             (stdout, stderr) = proc.communicate()
 
             if stderr:

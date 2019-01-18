@@ -31,6 +31,7 @@ Implementations for Python 3.
 """
 # these are not used here, but imported from here in other places
 import configparser  # noqa
+import subprocess
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from io import StringIO  # noqa
@@ -43,6 +44,12 @@ from importlib import reload  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = str
+
+
+def subprocess_popen_text(cmd, **kwargs):
+    """Call subprocess.Popen in text mode with specified named arguments."""
+    # open stdout/stderr in text mode in Popen when using Python 3
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, **kwargs)
 
 
 def raise_with_traceback(exception_class, message, traceback):
