@@ -1787,9 +1787,21 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
         run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
-    # create an archive and delete the git repo directory
-    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    # create a git archive (in tar format, gzip later)
+    git_cmd = ['git', 'archive', '-o', targetpath[:-3], '--prefix=%s/' % (repo_name), 'HEAD']
+    run.run_cmd(' '.join(git_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+
+    # git archive does not automatically recurse into submodules
+    if recursive:
+        # create a git archive for each submdule, and append it to the target
+        git_cmd = ['git', 'submodule', 'foreach', "'git archive -o $name.tar --prefix=%s/$path/ HEAD'" % (repo_name)]
+        tar_cmd = ['git', 'submodule', 'foreach', "'tar -f %s --concatenate $name.tar'" % (targetpath[:-3])]
+        run.run_cmd(' '.join(git_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+
+    # compress (concatenated) tarball, use gzip --no-name option (omitting timestamps makes the checksum constant)
+    gzip_cmd = ['gzip', '-nf', targetpath[:-3]]
+    run.run_cmd(' '.join(gzip_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)
