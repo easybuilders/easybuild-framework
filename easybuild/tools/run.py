@@ -208,11 +208,11 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         read_size = 1024 * 8
 
     ec = proc.poll()
-    stdouterr = b''
+    stdouterr = ''
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = proc.stdout.read(read_size)
+        output = proc.stdout.read(read_size).decode()
         if cmd_log:
             cmd_log.write(output)
         if stream_output:
@@ -221,7 +221,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         ec = proc.poll()
 
     # read remaining data (all of it)
-    output = proc.stdout.read()
+    output = proc.stdout.read().decode()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()

@@ -54,6 +54,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
+from easybuild.tools.py2vs3 import reload
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -279,7 +280,7 @@ class EnhancedTestCase(TestCase):
         except Exception as err:
             myerr = err
             if verbose:
-                print "err: %s" % err
+                print("err: %s" % err)
 
         if logfile and os.path.exists(logfile):
             logtxt = read_file(logfile)
@@ -398,7 +399,7 @@ class TestLoaderFiltered(unittest.TestLoader):
 
             retained_tests = ', '.join(retained_test_names)
             tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
-            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+            print("Filtered %s tests using '%s', retained %d/%d tests: %s" % tup)
 
             test_cases = [test_case_class(t) for t in retained_test_names]
         else:

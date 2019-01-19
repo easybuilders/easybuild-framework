@@ -287,9 +287,10 @@ class ExtOption(CompleterOption):
                 default = getattr(parser.get_default_values(), dest, None)
                 if default is None:
                     default = type(value)()
-                if not (hasattr(default, '__add__') and
-                        (hasattr(default, '__neg__') or hasattr(default, '__getslice__'))):
-                    msg = "Unsupported type %s for action %s (requires + and one of negate or slice)"
+                # 'add*' actions require that the default value is of type list or tuple,
+                # which supports composing via '+' and slicing
+                if not isinstance(default, (list, tuple)):
+                    msg = "Unsupported type %s for action %s (requires list)"
                     self.log.raiseException(msg % (type(default), action))
                 if action in ('add', 'add_flex'):
                     lvalue = default + value

@@ -169,10 +169,13 @@ class MultiDiff(object):
                     # track meta info (which filenames are relevant)
                     changes_dict.setdefault(diff_line, set()).add(meta)
 
-            # sort: lines with most changes last, limit number to MAX_DIFF_GROUPS
-            lines = sorted(lines, key=lambda line: len(changes_dict[line]))[:MAX_DIFF_GROUPS]
+            # sort lines with most changes last;
+            # sort lines with equal number of changes alphabetically to ensure consistent output;
+            # limit number to MAX_DIFF_GROUPS
+            lines = sorted(lines, key=lambda line: (len(changes_dict[line]), line))[:MAX_DIFF_GROUPS]
 
             for diff_line in lines:
+
                 squigly_line = squigly_dict.get(diff_line, '')
                 line = ['%s %s' % (line_no, self.colorize(diff_line, squigly_line))]
 
@@ -224,7 +227,7 @@ class MultiDiff(object):
 
         diff = False
         for i in range(len(self.base_lines)):
-            lines = filter(None, self.get_line(i))
+            lines = [line for line in self.get_line(i) if line]
             if lines:
                 output.append('\n'.join([limit(line, term_width) for line in lines]))
                 diff = True

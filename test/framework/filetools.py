@@ -334,7 +334,7 @@ class FileToolsTest(EnhancedTestCase):
             res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
         except std_urllib.URLError:
-            print "Skipping timeout test in test_download_file (working offline)"
+            print("Skipping timeout test in test_download_file (working offline)")
 
         # also test behaviour of download_file under --dry-run
         build_options = {
@@ -805,8 +805,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
-        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
         expected = "7 %(endcol)s-%(endcol)s toolchain = {"
@@ -831,8 +831,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
-        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
 
         # different toolchain in toy-0.0-gompi-2018a-test: '+' line with squigly line underneath to mark removed chars
         expected = "7 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
@@ -905,7 +905,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
         # set umask hard to run test reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         # prep files/dirs/(broken) symlinks is test dir
 
@@ -1190,8 +1190,12 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
         # no crash on non-existing package
+        self.mock_stdout(True)
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(stdout.startswith("Failed to download https://pypi.python.org/simple/nosuchpackageonpypiever"))
 
     def test_apply_patch(self):
         """ Test apply_patch """
@@ -1682,7 +1686,7 @@ class FileToolsTest(EnhancedTestCase):
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
-                print "Ignoring download error in test_get_source_tarball_from_git, working offline?"
+                print("Ignoring download error in test_get_source_tarball_from_git, working offline?")
             else:
                 raise err
 
