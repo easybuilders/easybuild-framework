@@ -837,6 +837,7 @@ class EasyBlockTest(EnhancedTestCase):
         builddir = eb.builddir
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
+
         eb.cfg['cleanupoldbuild'] = True
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
@@ -853,6 +854,66 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout.close()
         sys.stdout = stdoutorig
         eb.close_log()
+
+    def test_make_builddir(self):
+        """Test make_dir method."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'http://example.com'",
+            "description = 'test easyconfig'",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+        ])
+        self.writeEC()
+
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.gen_builddir()
+
+        # by default, make_builddir will re-create the build directory (i.e. remove existing & re-create)
+        eb.make_builddir()
+        builddir = eb.builddir
+        testfile = os.path.join(builddir, 'test123', 'foobar.txt')
+        write_file(testfile, 'test123')
+        self.assertTrue(os.path.exists(testfile))
+
+        eb.make_builddir()
+        self.assertEqual(builddir, eb.builddir)
+        # file is gone because directory was removed and re-created
+        self.assertFalse(os.path.exists(testfile))
+        self.assertFalse(os.path.exists(os.path.dirname(testfile)))
+        self.assertEqual(os.listdir(eb.builddir), [])
+
+        # make sure that build directory does *not* get re-created when we're building in installation directory
+        # and we're iterating over a list of (pre)config/build/installopts
+        eb.build_in_installdir = True
+        eb.make_builddir()
+        # also need to create install directory since build dir == install dir
+        eb.make_installdir()
+        builddir = eb.builddir
+        testfile = os.path.join(builddir, 'test123', 'foobar.txt')
+        write_file(testfile, 'test123')
+        self.assertTrue(os.path.exists(testfile))
+        self.assertEqual(os.listdir(eb.builddir), ['test123'])
+        self.assertEqual(os.listdir(os.path.join(eb.builddir, 'test123')), ['foobar.txt'])
+
+        # with iteration count > 0, build directory is not re-created because of build-in-installdir
+        eb.iter_idx = 1
+        eb.make_builddir()
+        eb.make_installdir()
+        self.assertEqual(builddir, eb.builddir)
+        self.assertTrue(os.path.exists(testfile))
+        self.assertEqual(os.listdir(eb.builddir), ['test123'])
+        self.assertEqual(os.listdir(os.path.join(eb.builddir, 'test123')), ['foobar.txt'])
+
+        # resetting iteration index to 0 results in re-creating build directory
+        eb.iter_idx = 0
+        eb.make_builddir()
+        eb.make_installdir()
+        self.assertEqual(builddir, eb.builddir)
+        self.assertFalse(os.path.exists(testfile))
+        self.assertFalse(os.path.exists(os.path.dirname(testfile)))
+        self.assertEqual(os.listdir(eb.builddir), [])
 
     def test_get_easyblock_instance(self):
         """Test get_easyblock_instance function."""

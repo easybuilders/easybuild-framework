@@ -822,7 +822,7 @@ class EasyConfigTest(EnhancedTestCase):
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
-            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
+            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s"],',
             '}',
             'dependencies = [',
             '   ("Java", "1.7.80"),'
@@ -860,6 +860,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
+        lib_arch_regex = re.compile('^lib/[a-z0-9_]+$')  # should match lib/x86_64, lib/aarch64, lib/ppc64le, etc.
+        dirs1 = eb['sanity_check_paths']['dirs'][1]
+        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
         self.assertEqual(eb['modloadmsg'], "Java: 1.7.80, 1.7; Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
@@ -2012,6 +2015,8 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
 
+        arch_regex = re.compile('^[a-z0-9_]+$')
+
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
@@ -2026,7 +2031,14 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '',
         }
-        self.assertEqual(template_constant_dict(ec), expected)
+        res = template_constant_dict(ec)
+
+        # 'arch' needs to be handled separately, since value depends on system architecture
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        self.assertEqual(res, expected)
 
         ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
         # fiddle with version to check version_minor template ('0' should be retained)
@@ -2046,7 +2058,13 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '-deps',
         }
-        self.assertEqual(template_constant_dict(ec), expected)
+        res = template_constant_dict(ec)
+
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""

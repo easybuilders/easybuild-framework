@@ -857,8 +857,12 @@ class EasyBlock(object):
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
 
-        # always make build dir
-        self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+        # always make build dir,
+        # unless we're building in installation directory and we iterating over a list of (pre)config/build/installopts,
+        # otherwise we wipe the already partially populated installation directory,
+        # see https://github.com/easybuilders/easybuild-framework/issues/2556
+        if not (self.build_in_installdir and self.iter_idx > 0):
+            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
 
         trace_msg("build dir: %s" % self.builddir)
 

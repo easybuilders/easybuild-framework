@@ -29,8 +29,10 @@ be used within an Easyconfig file.
 
 :author: Stijn De Weirdt (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Kenneth Hoste (Ghent University)
 """
 import re
+import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -42,6 +44,7 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
+    ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
     ('nameletter', "First letter of software name"),
     ('toolchain_name', "Toolchain name"),
     ('toolchain_version', "Toolchain version"),
@@ -153,6 +156,9 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     _log.debug("config: %s", config)
 
+    # set 'arch' for system architecture based on 'machine' (4th) element of platform.uname() return value
+    template_values['arch'] = platform.uname()[4]
+
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
         if name in ignore:
@@ -231,7 +237,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                 continue
             try:
                 template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = t_v.lower()
-            except:
+            except Exception:
                 _log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)" %
                            (name, t_v, type(t_v)))
 
@@ -289,7 +295,8 @@ def template_documentation():
     # step 4. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+        namelower = TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}
+        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, namelower, name))
 
     # step 5. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)

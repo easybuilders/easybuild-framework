@@ -818,6 +818,13 @@ class Toolchain(object):
         else:
             raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
+        if rpath_filter_dirs is None:
+            rpath_filter_dirs = []
+
+        # always include filter for 'stubs' library directory,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
+        rpath_filter_dirs.append('.*/lib(64)?/stubs/?')
+
         # directory where all wrappers will be placed
         wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
 
@@ -832,7 +839,7 @@ class Toolchain(object):
         if rpath_filter is None:
             rpath_filter = ['/lib.*', '/usr.*']
             self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
-        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
+        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs])
         self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
 
         rpath_include = ','.join(rpath_include_dirs or [])
