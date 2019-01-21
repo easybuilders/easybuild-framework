@@ -394,7 +394,7 @@ def pick_version(req_ver, avail_vers):
                 selected_ver = retained_vers[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
-                selected_ver = sorted([LooseVersion(v) for v in avail_vers])[0]
+                selected_ver = sorted(avail_vers, key=LooseVersion)[0]
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
