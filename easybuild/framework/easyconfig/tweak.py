@@ -389,7 +389,7 @@ def pick_version(req_ver, avail_vers):
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if v <= LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if LooseVersion(v) <= LooseVersion(ver)]
             if retained_vers:
                 selected_ver = retained_vers[-1]
             else:
@@ -560,6 +560,7 @@ def select_or_generate_ec(fp, paths, specs):
     # SOFTWARE VERSION
 
     vers = unique([x[0]['version'] for x in ecs_and_files])
+    vers.sort(key=LooseVersion)
     _log.debug("Found %d unique software versions: %s" % (len(vers), vers))
 
     ver = specs.pop('version', None)
