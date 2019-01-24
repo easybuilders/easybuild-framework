@@ -538,8 +538,8 @@ def select_or_generate_ec(fp, paths, specs):
     _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # TOOLCHAIN VERSION
-
-    tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files], sortkey=LooseVersion)
+    tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files if x[0]['toolchain']['version']],
+                    sortkey=LooseVersion)
     _log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))
 
     tcver = specs.pop('toolchain_version', None)
@@ -562,7 +562,7 @@ def select_or_generate_ec(fp, paths, specs):
 
     # SOFTWARE VERSION
 
-    vers = unique([x[0]['version'] for x in ecs_and_files], sortkey=LooseVersion)
+    vers = unique([x[0]['version'] for x in ecs_and_files if x[0]['version']], sortkey=LooseVersion)
 
     _log.debug("Found %d unique software versions: %s" % (len(vers), vers))
 
