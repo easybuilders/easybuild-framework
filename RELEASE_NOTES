@@ -7,22 +7,21 @@ v3.8.1 (January 29th 2019)
 --------------------------
 
 bugfix release
-- various enhancements, including:
-  - speedup check os dependency (#2703)
+- various minor enhancements, including:
+  - speed up checking of OS dependencies (#2703)
   - add support for 'eb --show-system-info' (#2722)
-  - add support for %(arch)s template value in easyconfig files (x86-64, aarch64, ppc64le, ...) (#2728)
+  - add support for '%(arch)s' template value in easyconfig files (x86-64, aarch64, ppc64le, ...) (#2728)
 - various bug fixes, including:
   - add timestamp to reprod dir while in tmp space (#2705)
   - avoid '+' in directory name for g++ rpath wrapper (#2710)
-  - pre-install vsc-install < 0.11.4 to avoid requiring mock Python package (#2717)
-  - fix check_pr_eligible_to_merge to only consider the status of the last test report (#2720)
-  - don't recreate build directory when buildininstalldir is enabled for iterative installations (#2724)
+  - pre-install vsc-install < 0.11.4 in bootstrap script to avoid requiring 'mock' Python package (#2717)
+  - fix check in --merge-pr whether PR is eligible for merging in to only consider the status of the last test report (#2720)
+  - don't recreate build directory when 'buildininstalldir' is enabled for iterative installations (#2724)
   - filter (CUDA) lib*/stubs paths in RPATH wrapper script (#2725)
 - other changes:
   - replace 'except IOError, err:' pattern with 'except IOError as err:' for compatibility with Python 3.x (#2711)
   - make all print statements compatible with Python 3 (#2715)
   - avoid use of sys.maxint in dependencies_for (#2716)
-  - bump copyright to 2019 (#2718)
 
 
 v3.8.0 (December 18th 2018)
