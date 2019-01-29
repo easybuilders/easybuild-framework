@@ -61,7 +61,7 @@ class IntelFFTW(Fftw):
         if get_software_root('icc') is None:
             if get_software_root('PGI'):
                 compsuff = '_pgi'
-            elif get_software_root('GCC'):
+            elif get_software_root('GCC') or get_software_root('GCCcore'):
                 compsuff = '_gnu'
             else:
                 error_msg = "Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries."
