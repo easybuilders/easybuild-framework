@@ -244,11 +244,10 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, headers = url.head(**kwargs) 
+        links = headers.getheader('Link')
     except socket.gaierror as err:
         _log.warning("Error occurred while performing get request: %s", err)
-        status, headers = 0, None
-
-    links = headers.getheader('Link')
+        status, headers, links = 0, None, None
 
     if links:
         match = re.search(r"page=(\d+)>; rel=\"last\"", links)
