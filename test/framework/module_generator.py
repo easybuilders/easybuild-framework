@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,7 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import curr_module_paths
-from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
@@ -1066,6 +1066,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
+
+    def test_dependencies_for(self):
+        """Test for dependencies_for function."""
+        expected = [
+            'GCC/6.4.0-2.28',
+            'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+            'OpenBLAS/0.2.20-GCC-6.4.0-2.28',
+            'FFTW/3.3.7-gompi-2018a',
+            'ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20',
+            'hwloc/1.11.8-GCC-6.4.0-2.28',
+            'gompi/2018a',
+        ]
+        self.assertEqual(dependencies_for('foss/2018a', self.modtool), expected)
+
+        # only with depth=0, only direct dependencies are returned
+        self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
 
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):

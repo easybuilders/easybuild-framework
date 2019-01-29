@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -471,4 +471,4 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
                 "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
             ])
 
-    print '\n'.join(lines)
+    print('\n'.join(lines))

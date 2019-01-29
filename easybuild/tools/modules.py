@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -233,7 +233,7 @@ class ModulesTool(object):
             else:
                 raise EasyBuildError("Failed to determine version from option '%s' output: %s",
                                      self.VERSION_OPTION, txt)
-        except (OSError), err:
+        except (OSError) as err:
             raise EasyBuildError("Failed to check version: %s", err)
 
         if self.REQ_VERSION is None and self.MAX_VERSION is None:
@@ -755,8 +755,8 @@ class ModulesTool(object):
                 tweak_fn = kwargs.get('tweak_stdout')
                 if tweak_fn is not None:
                     stdout = tweak_fn(stdout)
-                exec stdout
-            except Exception, err:
+                exec(stdout)
+            except Exception as err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)", err, out)
 
@@ -1274,7 +1274,7 @@ class Lmod(ModulesTool):
                     cache_file = open(cache_fp, 'w')
                     cache_file.write(stdout)
                     cache_file.close()
-                except (IOError, OSError), err:
+                except (IOError, OSError) as err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
     def use(self, path, priority=None):

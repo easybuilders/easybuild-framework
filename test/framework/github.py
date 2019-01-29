@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -474,6 +474,7 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['issue_comments'] = [
             {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
             {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
             {'body': "this is just a regular comment"},
         ]
