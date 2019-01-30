@@ -270,6 +270,61 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
 
+    def test_architecture_specific_dependency(self):
+        """ test specifying deps for specific architectures """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = ['
+            '   ("first", "1.1"),'
+            '   {"name": "second", "version": "2.2"},',
+            '   {"name": "third", "arch": "ppc64le", "version": "3.3"},',
+            '   {"name": "third", "arch": "x86_64", "version": "3.4"},',
+            '   {"name": "third", "arch": True, "version": "3.5"},',
+            ']',
+            'builddependencies = [',
+            '   ("first", "1.1"),',
+            '   {"name": "second", "version": "2.2"},',
+            '   {"name": "third", "version": "3.3", "arch": "ppc64le"},'
+            ']',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+        # should include builddependencies
+        self.assertEqual(len(eb.dependencies()), 3)
+        self.assertEqual(len(eb.builddependencies()), 3)
+
+        first = eb.dependencies()[0]
+        second = eb.dependencies()[1]
+        third = eb.dependencies()[2]
+
+        self.assertEqual(first['name'], "first")
+        self.assertEqual(first['version'], "1.1")
+        self.assertEqual(first['versionsuffix'], '')
+        self.assertEqual(first['arch'], True)
+
+        self.assertEqual(second['name'], "second")
+        self.assertEqual(second['version'], "2.2")
+        self.assertEqual(second['versionsuffix'], '')
+        self.assertEqual(second['arch'], True)
+
+        # same tests for builddependencies
+        first = eb.builddependencies()[0]
+        second = eb.builddependencies()[1]
+
+        self.assertEqual(first['name'], "first")
+        self.assertEqual(second['name'], "second")
+
+        self.assertEqual(first['version'], "1.1")
+        self.assertEqual(second['version'], "2.2")
+
+        #self.assertErrorRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
+
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
         self.contents = '\n'.join([
