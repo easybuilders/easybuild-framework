@@ -50,7 +50,7 @@ from easybuild.tools.utilities import quote_py_str
 EB_FORMAT_EXTENSION = '.eb'
 
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
-REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
+REFORMAT_FORCED_PARAMS = ['sanity_check_paths', 'iterate_builddependencies'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
@@ -170,9 +170,15 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item in param_val:
                         comment = self._get_item_comments(param_name, item).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
+                        if isinstance(item, (list)):
+                            itemstr = '[' + (",\n " + INDENT_4SPACES).join([
+                                self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
+                                for subitem in item]) + ']'
+                        else:
+                            itemstr = self._reformat_line(param_name, item, addlen=addlen)
                         res += item_tmpl % {
                             'comment': comment,
-                            'item': self._reformat_line(param_name, item, addlen=addlen)
+                            'item': itemstr
                         }
 
                 # end with closing character: ], ), }
@@ -236,6 +242,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                     if key in DEPENDENCY_PARAMETERS:
                         valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                    elif key == 'iterate_builddependencies':
+                        valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:

@@ -863,6 +863,8 @@ class EasyBlock(object):
         # otherwise we wipe the already partially populated installation directory,
         # see https://github.com/easybuilders/easybuild-framework/issues/2556
         if not (self.build_in_installdir and self.iter_idx > 0):
+            # make sure we no longer sit in the build directory before cleaning it.
+            change_dir(self.orig_workdir)
             self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
 
         trace_msg("build dir: %s" % self.builddir)
@@ -1478,7 +1480,11 @@ class EasyBlock(object):
         # this will only be done during first iteration, since after that the options won't be lists anymore
         for opt in ITERATE_OPTIONS:
             # keep track of list, supply first element as first option to handle
-            if isinstance(self.cfg[opt], (list, tuple)):
+            if isinstance(self.cfg[opt], (list, tuple)) and self.cfg[opt] != [[]]:
+                if opt.startswith('iterate_') and self.iter_idx == 0:
+                    # save original common value (e.g. builddependencies)
+                    commonopt = opt[len('iterate_'):]
+                    self.iter_opts[commonopt] = self.cfg[commonopt]
                 self.iter_opts[opt] = self.cfg[opt]  # copy
                 self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
@@ -1487,11 +1493,15 @@ class EasyBlock(object):
 
         # pop first element from all *_list options as next value to use
         for opt in self.iter_opts:
-            if len(self.iter_opts[opt]) > self.iter_idx:
-                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
-            else:
-                self.cfg[opt] = ''  # empty list => empty option as next value
-            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+            if opt in ITERATE_OPTIONS:
+                if opt.startswith('iterate_'):
+                    commonopt = opt[len('iterate_'):]
+                    self.cfg[commonopt] = self.iter_opts[opt][self.iter_idx] + self.iter_opts[commonopt]
+                elif len(self.iter_opts[opt]) > self.iter_idx:
+                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+                else:
+                    self.cfg[opt] = ''  # empty list => empty option as next value
+                self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = True
@@ -1822,6 +1832,7 @@ class EasyBlock(object):
 
         # list of paths to include in RPATH filter;
         # only include builddir if we're not building in installation directory
+        self.rpath_filter_dirs = []
         self.rpath_filter_dirs.append(tempfile.gettempdir())
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
@@ -1829,6 +1840,7 @@ class EasyBlock(object):
         # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
+        self.rpath_include_dirs = []
         self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib'))
         self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib64'))
         self.rpath_include_dirs.append('$ORIGIN')
@@ -2678,14 +2690,6 @@ class EasyBlock(object):
             """Return source step specified."""
             return get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
 
-        def prepare_step_spec(initial):
-            """Return prepare step specification."""
-            if initial:
-                substeps = [lambda x: x.prepare_step]
-            else:
-                substeps = [lambda x: x.guess_start_dir]
-            return (PREPARE_STEP, 'preparing', substeps, False)
-
         install_substeps = [
             (False, lambda x: x.stage_install_step),
             (False, lambda x: x.make_installdir),
@@ -2696,10 +2700,11 @@ class EasyBlock(object):
             """Return install step specification."""
             return get_step(INSTALL_STEP, "installing", install_substeps, True, initial=initial)
 
-        # format for step specifications: (stop_name: (description, list of functions, skippable))
+        # format for step specifications: (step_name, description, list of functions, skippable)
 
         # core steps that are part of the iterated loop
         patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step], True)
+        prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
         test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
@@ -2710,7 +2715,7 @@ class EasyBlock(object):
             ready_step_spec(True),
             source_step_spec(True),
             patch_step_spec,
-            prepare_step_spec(True),
+            prepare_step_spec,
             configure_step_spec,
             build_step_spec,
             test_step_spec,
@@ -2723,7 +2728,7 @@ class EasyBlock(object):
             ready_step_spec(False),
             source_step_spec(False),
             patch_step_spec,
-            prepare_step_spec(False),
+            prepare_step_spec,
             configure_step_spec,
             build_step_spec,
             test_step_spec,

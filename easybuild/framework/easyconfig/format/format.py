@@ -63,7 +63,7 @@ GROUPED_PARAMS = [
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
     ['source_urls', 'sources', 'patches', 'checksums'],
-    DEPENDENCY_PARAMETERS,
+    ['iterate_builddependencies'] + DEPENDENCY_PARAMETERS,
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],

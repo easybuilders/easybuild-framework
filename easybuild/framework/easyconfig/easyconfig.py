@@ -83,7 +83,8 @@ _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
-ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+ITERATE_OPTIONS = ['iterate_builddependencies',
+                   'preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
 # name of easyconfigs archive subdirectory
 EASYCONFIGS_ARCHIVE_DIR = '__archive__'
@@ -542,7 +543,12 @@ class EasyConfig(object):
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
-        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
+        builddeps = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
+        iterbuilddeps = [[self._parse_dependency(dep, build_only=True) for dep in x]
+                         for x in self['iterate_builddependencies']]
+        self['iterate_builddependencies'] = iterbuilddeps
+        # temporary include all iter builddeps for finalize_dependencies
+        self['builddependencies'] = builddeps + [dep for x in iterbuilddeps for dep in x]
         self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
         self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
 
@@ -554,6 +560,8 @@ class EasyConfig(object):
 
         # finalize dependencies w.r.t. minimal toolchains & module names
         self._finalize_dependencies()
+        # reset builddependencies to original value
+        self['builddependencies'] = builddeps
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
@@ -665,7 +673,7 @@ class EasyConfig(object):
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)):
+            if isinstance(self[opt], (list, tuple)) or opt.endswith('_iteropt'):
                 opt_counts.append((opt, len(self[opt])))
 
         # make sure that options that specify lists have the same length
