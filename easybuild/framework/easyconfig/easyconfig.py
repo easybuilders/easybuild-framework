@@ -175,7 +175,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
-    """
+    r"""
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
 
