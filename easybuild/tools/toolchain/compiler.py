@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -88,6 +88,7 @@ class Compiler(Toolchain):
         'static': (False, "Build static library"),
         '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
+        'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
     }
@@ -149,7 +150,7 @@ class Compiler(Toolchain):
     def set_options(self, options):
         """Process compiler toolchain options."""
         self._set_compiler_toolchainoptions()
-        self.log.debug('_compiler_set_options: compiler toolchain options %s' % self.options)
+        self.log.devel('_compiler_set_options: compiler toolchain options %s', self.options)
         super(Compiler, self).set_options(options)
 
     def set_variables(self):
@@ -158,7 +159,7 @@ class Compiler(Toolchain):
         self._set_optimal_architecture()
         self._set_compiler_flags()
 
-        self.log.debug('set_variables: compiler variables %s' % self.variables)
+        self.log.devel('set_variables: compiler variables %s', self.variables)
         super(Compiler, self).set_variables()
 
     def _set_compiler_toolchainoptions(self):
@@ -227,7 +228,6 @@ class Compiler(Toolchain):
         if self.options.get('cciscxx', None):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
                            (self.variables['CXX'], self.variables['CC']))
-            # FIXME (stdweird): shouldn't this be the other way around??
             self.variables['CXX'] = self.variables['CC']
 
     def _set_compiler_flags(self):
@@ -246,8 +246,19 @@ class Compiler(Toolchain):
                                  (default_opt_level, self.COMPILER_OPT_FLAGS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
-        optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                   [self.options.option(default_opt_level)]
+        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
+                    [self.options.option(default_opt_level)])[:1]
+
+        # only apply if the vectorize toolchainopt is explicitly set
+        # otherwise the individual compiler toolchain file should make sure that
+        # vectorization is disabled for noopt and lowopt, and enabled otherwise.
+        if self.options.get('vectorize') is not None:
+            vectoptions = self.options.option('vectorize')
+            vectflags = vectoptions[self.options['vectorize']]
+            # avoid double use of such flags, or e.g. -fno-tree-vectorize followed by -ftree-vectorize
+            if isinstance(optflags[0], list):
+                optflags[0] = [flag for flag in optflags[0] if flag not in vectoptions.values()]
+            optflags.append(vectflags)
 
         optarchflags = []
         if build_option('optarch') == OPTARCH_GENERIC:
@@ -260,7 +271,7 @@ class Compiler(Toolchain):
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
+        self.variables.nextend('OPTFLAGS', optflags + optarchflags)
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
@@ -281,34 +292,48 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        use_generic = False
-        optarch = build_option('optarch') 
+        ec_optarch = self.options.get('optarch', False)
+        if isinstance(ec_optarch, basestring):
+            if OPTARCH_MAP_CHAR in ec_optarch:
+                error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
+                error_msg += "the <compiler%sflags> syntax is not allowed. " % OPTARCH_MAP_CHAR
+                error_msg += "Use <flags> (omitting the first dash) for the specific compiler."
+                raise EasyBuildError(error_msg)
+            else:
+                optarch = ec_optarch
+        else:
+            optarch = build_option('optarch')
+
         # --optarch is specified with flags to use
+        if optarch is not None and isinstance(optarch, dict):
+            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
+            # first try module names, then the family in optarch
+            current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
+                                      [getattr(self, 'COMPILER_FAMILY', None)])
+            for current_compiler in current_compiler_names:
+                if current_compiler in optarch:
+                    optarch = optarch[current_compiler]
+                    break
+            # still a dict: no option for this compiler
+            if isinstance(optarch, dict):
+                optarch = None
+                self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
+                              current_compiler)
+
+        use_generic = False
         if optarch is not None:
             # optarch has been parsed as a simple string
             if isinstance(optarch, basestring):
                 if optarch == OPTARCH_GENERIC:
                     use_generic = True
-
-            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
-            elif isinstance(optarch, dict):
-                current_compiler = getattr(self, 'COMPILER_FAMILY', None)
-                if current_compiler in optarch:
-                    if optarch[current_compiler] == OPTARCH_GENERIC:
-                        use_generic = True
-                    else:
-                        optarch = optarch[current_compiler]
-                # no option for this compiler
-                else:
-                    optarch = None
-                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", 
-                            current_compiler)
             else:
                 raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 
-        if use_generic == True:
+        if use_generic:
             if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
                 optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+            else:
+                optarch = None
         # Specified optarch default value
         elif default_optarch and optarch is None:
             optarch = default_optarch
@@ -317,11 +342,17 @@ class Compiler(Toolchain):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
-            self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
+            self.log.info("_set_optimal_architecture: using %s as optarch for %s.", optarch, self.arch)
             self.options.options_map['optarch'] = optarch
 
-        if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
-            raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s", self.arch)
+        if self.options.options_map.get('optarch', None) is None:
+            optarch_flags_str = "%soptarch flags" % ('', 'generic ')[use_generic]
+            error_msg = "Don't know how to set %s for %s/%s! " % (optarch_flags_str, self.arch, self.cpu_family)
+            error_msg += "Use --optarch='<flags>' to override (see "
+            error_msg += "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html "
+            error_msg += "for details) and consider contributing your settings back (see "
+            error_msg += "http://easybuild.readthedocs.io/en/latest/Contributing.html)."
+            raise EasyBuildError(error_msg)
 
     def comp_family(self, prefix=None):
         """

@@ -9,8 +9,8 @@ description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 comp_name = 'iccifort'
-comp_ver = '2013.5.192'
-gccsuff = '-GCC-4.8.3'
+comp_ver = '2016.1.150'
+gccsuff = '-GCC-4.9.3-2.25'
 cudacomp = (comp_name, '%s%s' % (comp_ver, gccsuff))
 
 dependencies = [

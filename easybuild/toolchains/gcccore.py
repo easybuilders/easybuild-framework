@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,3 +37,6 @@ class GCCcore(Gcc):
     # Replace the default compiler module name with our own
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    # GCCcore is only guaranteed to be present in recent toolchains
+    # for old versions of some toolchains (GCC, intel) it is not part of the hierarchy and hence optional
+    OPTIONAL = True

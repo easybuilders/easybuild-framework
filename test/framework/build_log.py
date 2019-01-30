@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2017 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,12 +31,13 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from datetime import datetime, timedelta
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, dry_run_msg, dry_run_warning
+from easybuild.tools.build_log import print_error, print_msg, print_warning, time_str_since
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -112,8 +113,15 @@ class BuildLogTest(EnhancedTestCase):
         log.error("err: %s", 'msg: %s')
         stderr = self.get_stderr()
         self.mock_stderr(False)
-        # no output to stderr (should all go to log file)
-        self.assertEqual(stderr, '')
+
+        more_info = "see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        expected_stderr = '\n\n'.join([
+            "\nWARNING: Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
+            "\nWARNING: Deprecated functionality, will no longer work in v2.0: onemorewarning",
+            "\nWARNING: Deprecated functionality, will no longer work in v2.0: lastwarning",
+        ]) + '\n\n'
+        self.assertEqual(stderr, expected_stderr)
+
         try:
             log.exception("oops")
         except EasyBuildError:
@@ -164,6 +172,21 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
+        write_file(tmplog, '')
+        logToFile(tmplog, enable=True)
+
+        # also test use of 'more_info' named argument for log.deprecated
+        self.mock_stderr(True)
+        log.deprecated("\nthis is just a test\n", newer_ver, more_info="(see URLGOESHERE for more information)")
+        self.mock_stderr(False)
+        logtxt = read_file(tmplog)
+        expected_logtxt = '\n'.join([
+            "[WARNING] :: Deprecated functionality, will no longer work in v10000001: ",
+            "this is just a test",
+            "(see URLGOESHERE for more information)",
+        ])
+        self.assertTrue(logtxt.strip().endswith(expected_logtxt))
+
     def test_log_levels(self):
         """Test whether log levels are respected"""
         fd, tmplog = tempfile.mkstemp()
@@ -176,6 +199,7 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=True)
         log = getLogger('test_easybuildlog')
 
+        self.mock_stderr(True)  # avoid that some log statement spit out stuff to stderr while tests are running
         for level in ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'DEVEL']:
             log.setLevelName(level)
             log.raiseError = False
@@ -186,18 +210,20 @@ class BuildLogTest(EnhancedTestCase):
             log.info('fyi')
             log.debug('gdb')
             log.devel('tmi')
+        self.mock_stderr(False)
 
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
 
         root = getRootLoggerName()
 
-        devel_msg = r"%s.test_easybuildlog \[DEVEL\] :: tmi" % root
-        debug_msg = r"%s.test_easybuildlog \[DEBUG\] :: gdb" % root
-        info_msg = r"%s.test_easybuildlog \[INFO\] :: fyi" % root
-        warning_msg = r"%s.test_easybuildlog \[WARNING\] :: this is a warning" % root
-        deprecated_msg = r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality, .*: almost kaput; see .*" % root
-        error_msg = r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root
+        prefix = '%s.test_easybuildlog' % root
+        devel_msg = r"%s \[DEVEL\] :: tmi" % prefix
+        debug_msg = r"%s \[DEBUG\] :: gdb" % prefix
+        info_msg = r"%s \[INFO\] :: fyi" % prefix
+        warning_msg = r"%s \[WARNING\] :: this is a warning" % prefix
+        deprecated_msg = r"%s \[WARNING\] :: Deprecated functionality, .*: almost kaput; see .*" % prefix
+        error_msg = r"%s \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % prefix
 
         expected_logtxt = '\n'.join([
             error_msg,
@@ -209,10 +235,146 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
+    def test_print_warning(self):
+        """Test print_warning"""
+        def run_check(args, silent=False, expected_stderr=''):
+            """Helper function to check stdout/stderr produced via print_warning."""
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            print_warning(*args, silent=silent)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, '')
+            self.assertEqual(stderr, expected_stderr)
+
+        run_check(['You have been warned.'], expected_stderr="\nWARNING: You have been warned.\n\n")
+        run_check(['You have been %s.', 'warned'], expected_stderr="\nWARNING: You have been warned.\n\n")
+        run_check(['You %s %s %s.', 'have', 'been', 'warned'], expected_stderr="\nWARNING: You have been warned.\n\n")
+        run_check(['You have been warned.'], silent=True)
+        run_check(['You have been %s.', 'warned'], silent=True)
+        run_check(['You %s %s %s.', 'have', 'been', 'warned'], silent=True)
+
+        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_warning, 'foo', unknown_arg='bar')
+
+    def test_print_error(self):
+        """Test print_error"""
+        def run_check(args, silent=False, expected_stderr=''):
+            """Helper function to check stdout/stderr produced via print_error."""
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.assertErrorRegex(SystemExit, '1', print_error, *args, silent=silent)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, '')
+            self.assertTrue(stderr.startswith(expected_stderr))
+
+        run_check(['You have failed.'], expected_stderr="ERROR: You have failed.\n")
+        run_check(['You have %s.', 'failed'], expected_stderr="ERROR: You have failed.\n")
+        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="ERROR: You have failed.\n")
+        run_check(['You have failed.'], silent=True)
+        run_check(['You have %s.', 'failed'], silent=True)
+        run_check(['%s %s %s.', 'You', 'have', 'failed'], silent=True)
+
+        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
+
+    def test_print_msg(self):
+        """Test print_msg"""
+        def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):
+            """Helper function to check stdout/stderr produced via print_msg."""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            print_msg(msg, *args, **kwargs)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertEqual(stderr, expected_stderr)
+
+        run_check("testing, 1, 2, 3", [], expected_stdout="== testing, 1, 2, 3\n")
+        run_check("testing, %s", ['1, 2, 3'], expected_stdout="== testing, 1, 2, 3\n")
+        run_check("testing, %s, %s, %s", ['1', '2', '3'], expected_stdout="== testing, 1, 2, 3\n")
+        run_check("testing, 1, 2, 3", [], expected_stdout="== testing, 1, 2, 3", newline=False)
+        run_check("testing, %s, 2, %s", ['1', '3'], expected_stdout="== testing, 1, 2, 3", newline=False)
+        run_check("testing, 1, 2, 3", [], expected_stdout="testing, 1, 2, 3\n", prefix=False)
+        run_check("testing, 1, 2, 3", [], expected_stdout="testing, 1, 2, 3", prefix=False, newline=False)
+        run_check("testing, 1, 2, 3", [], expected_stderr="== testing, 1, 2, 3\n", stderr=True)
+        run_check("testing, 1, 2, 3", [], expected_stderr="== testing, 1, 2, 3", stderr=True, newline=False)
+        run_check("testing, 1, %s, 3", ['2'], expected_stderr="== testing, 1, 2, 3", stderr=True, newline=False)
+        run_check("testing, 1, 2, 3", [], expected_stderr="testing, 1, 2, 3\n", stderr=True, prefix=False)
+        run_check("testing, 1, 2, 3", [], expected_stderr="testing, 1, 2, 3", stderr=True, prefix=False, newline=False)
+        run_check("testing, 1, 2, 3", [], silent=True)
+        run_check("testing, 1, %s, %s", ['2', '3'], silent=True)
+        run_check("testing, 1, 2, 3", [], silent=True, stderr=True)
+        run_check("testing, %s, %s, 3", ['1', '2'], silent=True, stderr=True)
+
+        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_msg, 'foo', unknown_arg='bar')
+
+    def test_time_str_since(self):
+        """Test time_str_since"""
+        self.assertEqual(time_str_since(datetime.now()), '< 1s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1.1)), '00h00m01s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=37.1)), '00h00m37s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=60.1)), '00h01m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=81.1)), '00h01m21s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1358.1)), '00h22m38s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3600.1)), '01h00m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3960.1)), '01h06m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=4500.1)), '01h15m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=12305.1)), '03h25m05s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=54321.1)), '15h05m21s')
+
+    def test_dry_run_msg(self):
+        """Test dry_run_msg"""
+        def run_check(msg, args, expected_stdout='', **kwargs):
+            """Helper function to check stdout/stderr produced via dry_run_msg."""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            dry_run_msg(msg, *args, **kwargs)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertEqual(stderr, '')
+
+        run_check("test 123", [], expected_stdout="test 123\n")
+        run_check("test %s", ['123'], expected_stdout="test 123\n")
+        run_check("test 123", [], silent=True)
+        run_check("test %s", ['123'], silent=True)
+
+        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", dry_run_msg, 'foo', unknown_arg='bar')
+
+    def test_dry_run_warning(self):
+        """Test dry_run_warningmsg"""
+        def run_check(msg, args, expected_stdout='', **kwargs):
+            """Helper function to check stdout/stderr produced via dry_run_warningmsg."""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            dry_run_warning(msg, *args, **kwargs)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertEqual(stderr, '')
+
+        run_check("test 123", [], expected_stdout="\n!!!\n!!! WARNING: test 123\n!!!\n\n")
+        run_check("test %s", ['123'], expected_stdout="\n!!!\n!!! WARNING: test 123\n!!!\n\n")
+        run_check("test 123", [], silent=True)
+        run_check("test %s", ['123'], silent=True)
+
+        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", dry_run_warning, 'foo', unknown_arg='bar')
+
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

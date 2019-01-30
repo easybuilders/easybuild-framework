@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2015-2017 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ def process_easyconfig_file(ec_file):
     """Process an easyconfig file: fix if it's broken, back it up before fixing it inline (if requested)."""
     ectxt = read_file(ec_file)
     name, easyblock = fetch_parameters_from_easyconfig(ectxt, ['name', 'easyblock'])
-    derived_easyblock_class = get_easyblock_class(easyblock, name=name, default_fallback=False)
+    derived_easyblock_class = get_easyblock_class(easyblock, name=name, error_on_missing_easyblock=False)
 
     fixed_ectxt = fix_broken_easyconfig(ectxt, derived_easyblock_class)
 
@@ -96,7 +96,7 @@ def process_easyconfig_file(ec_file):
                     i += 1
                 os.rename(ec_file, backup_ec_file)
                 log.info("Backed up %s to %s" % (ec_file, backup_ec_file))
-            except OSError, err:
+            except OSError as err:
                 raise EasyBuildError("Failed to backup %s before rewriting it: %s", ec_file, err)
 
         write_file(ec_file, fixed_ectxt)
@@ -122,7 +122,7 @@ try:
 
     try:
         import easybuild.easyblocks.generic.configuremake
-    except ImportError, err:
+    except ImportError as err:
         raise EasyBuildError("easyblocks are not available in Python search path: %s", err)
 
     for path in go.args:
@@ -137,9 +137,9 @@ try:
     for ec_file in ec_files:
         try:
             process_easyconfig_file(ec_file)
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             log.warning("Ignoring issue when processing %s: %s", ec_file, err)
 
-except EasyBuildError, err:
+except EasyBuildError as err:
     sys.stderr.write("ERROR: %s\n" % err)
     sys.exit(1)

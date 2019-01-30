@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,8 +53,8 @@ FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'homepage', 'name', 'toolchain', 'version'] \
-                                  + DEPENDENCY_PARAMETERS
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_list', 'homepage', 'name', 'toolchain',
+                                   'version'] + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
 GROUPED_PARAMS = [
@@ -62,8 +62,7 @@ GROUPED_PARAMS = [
     ['name', 'version', 'versionprefix', 'versionsuffix'],
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
-    ['sources', 'source_urls'],
-    ['patches'],
+    ['source_urls', 'sources', 'patches', 'checksums'],
     DEPENDENCY_PARAMETERS,
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
@@ -85,7 +84,7 @@ def get_format_version(txt):
         try:
             maj_min = res.groupdict()
             format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
-        except (KeyError, TypeError), err:
+        except (KeyError, TypeError) as err:
             raise EasyBuildError("Failed to get version from match %s: %s", res.groups(), err)
     return format_version
 

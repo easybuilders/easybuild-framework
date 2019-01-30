@@ -7,15 +7,18 @@ docstring test
 """
 name = "toy"
 
-homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
-docurls = ["https://github.com/hpcugent/easybuild/wiki"]
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% toy."
+docurls = ["https://github.com/easybuilders/easybuild/wiki"]
 
 software_license = GPLv2
-software_license_urls = ['https://github.com/hpcugent/easybuild/wiki/License']
+software_license_urls = ['https://github.com/easybuilders/easybuild/wiki/License']
 
 sources = ['%(name)s-0.0.tar.gz']  # purposely fixed to 0.0
-checksums = ['be662daa971a640e40be5c804d9d7d10']  # (MD5) source checksum
+checksums = [
+    'be662daa971a640e40be5c804d9d7d10',  # MD5
+    '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # SHA256
+]
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],
@@ -26,12 +29,12 @@ moduleclass = 'tools'
 
 [SUPPORTED]
 versions = 1.0, 0.0
-toolchains = goolf == 1.4.10, dummy == dummy
+toolchains = foss == 2018a, dummy == dummy
 
 [DEFAULT]
 
 [DEPENDENCIES]
 # various types of (meaningless) dependencies: simply, with toolchain/suffix
-GCC = 4.6.4
-OpenMPI = 1.6.4; GCC == 4.6.4
-OpenBLAS = 0.2.6 suffix:-LAPACK-3.4.2; gompi == 1.3.12
+GCC = 6.4.0-2.28
+OpenMPI = 2.1.2; GCC == 6.4.0-2.28
+OpenBLAS = 0.2.20; GCC == 6.4.0-2.28

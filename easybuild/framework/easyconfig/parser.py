@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     param_values = []
     for param in params:
-        regex = re.compile(r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        regex = re.compile(r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*(#.*)?$" % param, re.M)
         res = regex.search(rawtxt)
         if res:
             param_values.append(res.group('param').strip("'\""))
@@ -157,7 +157,7 @@ class EasyConfigParser(object):
 
         try:
             self.rawcontent = self.get_fn[0](*self.get_fn[1])
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
         if not isinstance(self.rawcontent, basestring):
@@ -207,7 +207,7 @@ class EasyConfigParser(object):
 
         try:
             self.set_fn[0](*self.set_fn[1])
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Failed to process content with %s: %s", self.set_fn, err)
 
     def set_specifications(self, specs):

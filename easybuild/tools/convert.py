@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2017 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -202,10 +202,10 @@ class ListOfStringsAndDictOfStrings(Convert):
                     'raise_allowed': True,
                 }
                 res.append(DictOfStrings(element, **kwargs))
-            except AllowedValueError, msg:
+            except AllowedValueError as msg:
                 # reraise it as regular ValueError
                 raise ValueError(str(msg))
-            except ValueError, msg:
+            except ValueError as msg:
                 # ValueError because the string can't be converted to DictOfStrings
                 # assuming regular string value
                 self.log.debug('ValueError catched with message %s, treat as regular string.' % msg)

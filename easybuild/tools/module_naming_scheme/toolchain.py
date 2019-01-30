@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2017 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,9 +66,8 @@ def det_toolchain_element_details(tc, elem):
         _log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
         _log.debug("Full list of toolchain specifications: %s" % tc_ec)
     tc_ec = tc_ec[0]['ec']
-    tc_deps = tc_ec['dependencies']
     tc_elem_details = None
-    for tc_dep in tc_deps:
+    for tc_dep in tc_ec.dependencies():
         if tc_dep['name'] == elem:
             tc_elem_details = tc_dep
             _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))

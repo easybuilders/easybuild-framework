@@ -11,7 +11,7 @@
 # the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for PGI compilers (pgcc, pgc++, pgfortran) as toolchain compilers.
+Support for PGI compilers (pgcc, pgc++, pgf90/pgfortran) as toolchain compilers.
 
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
@@ -65,6 +65,7 @@ class Pgi(Compiler):
         'defaultprec': ['Mflushz'],
         'loose': ['Mfprelaxed'],
         'veryloose': ['Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', 'Mfpapprox'],
+        'vectorize': {False: 'Mnovect', True: 'Mvect'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
@@ -83,7 +84,7 @@ class Pgi(Compiler):
     COMPILER_CXX = None
 
     COMPILER_F77 = 'pgf77'
-    COMPILER_F90 = 'pgfortran'
+    COMPILER_F90 = 'pgf90'
     COMPILER_FC = 'pgfortran'
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {

@@ -25,7 +25,7 @@ sources = [SOURCELOWER_TAR_GZ]
 
 [SUPPORTED]
 versions = 1.5.10, 1.5.11, 1.5.13, 1.5.14, 1.6.2, 1.6.3, 1.6.6
-toolchains = goolf == 1.4.10, ictce == 4.1.13, goalf == 1.1.0-no-OFED
+toolchains = foss == 2018a, intel == 2018a
 
 [DEFAULT]
 easyblock = ConfigureMake

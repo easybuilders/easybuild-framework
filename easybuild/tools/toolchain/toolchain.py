@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,11 +38,10 @@ import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-import easybuild.tools.toolchain
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, find_eb_script, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -50,6 +49,7 @@ from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
+from easybuild.tools.utilities import trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -58,6 +58,21 @@ CCACHE = 'ccache'
 F90CACHE = 'f90cache'
 
 RPATH_WRAPPERS_SUBDIR = 'rpath_wrappers'
+
+# available capabilities of toolchains
+# values match method names supported by Toolchain class (except for 'cuda')
+TOOLCHAIN_CAPABILITY_BLAS_FAMILY = 'blas_family'
+TOOLCHAIN_CAPABILITY_COMP_FAMILY = 'comp_family'
+TOOLCHAIN_CAPABILITY_CUDA = 'cuda'
+TOOLCHAIN_CAPABILITY_LAPACK_FAMILY = 'lapack_family'
+TOOLCHAIN_CAPABILITY_MPI_FAMILY = 'mpi_family'
+TOOLCHAIN_CAPABILITIES = [
+    TOOLCHAIN_CAPABILITY_BLAS_FAMILY,
+    TOOLCHAIN_CAPABILITY_COMP_FAMILY,
+    TOOLCHAIN_CAPABILITY_CUDA,
+    TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
+    TOOLCHAIN_CAPABILITY_MPI_FAMILY,
+]
 
 
 class Toolchain(object):
@@ -186,7 +201,7 @@ class Toolchain(object):
                 else:
                     raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
 
-            self.log.debug("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
+            self.log.devel("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
 
     def _restore_class_constants(self):
         """Restored class constants that need to be restored when a new instance is created."""
@@ -194,9 +209,9 @@ class Toolchain(object):
         for cst in self.CLASS_CONSTANT_COPIES[key]:
             newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
             if hasattr(self, cst):
-                self.log.debug("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
+                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
             else:
-                self.log.debug("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+                self.log.devel("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
 
             setattr(self, cst, newval)
 
@@ -222,9 +237,9 @@ class Toolchain(object):
             Needs to be defined for super() relations
         """
         if self.options.option('packed-linker-options'):
-            self.log.debug("set_variables: toolchain variables. packed-linker-options.")
+            self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')
-        self.log.debug("set_variables: toolchain variables. Do nothing.")
+        self.log.devel("set_variables: toolchain variables. Do nothing.")
 
     def generate_vars(self):
         """Convert the variables in simple vars"""
@@ -250,7 +265,7 @@ class Toolchain(object):
         if offset is None:
             offset = ''
         txt = sep.join(["%s%s" % (offset, x) for x in res])
-        self.log.debug("show_variables:\n%s" % txt)
+        self.log.debug("show_variables:\n%s", txt)
         return txt
 
     def get_software_root(self, names):
@@ -319,7 +334,7 @@ class Toolchain(object):
         """
         # short-circuit to returning module name for this (non-dummy) toolchain
         if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
+            self.log.devel("_toolchain_exists: %s toolchain always exists, returning True", DUMMY_TOOLCHAIN_NAME)
             return True
         else:
             if self.mod_short_name is None:
@@ -355,24 +370,24 @@ class Toolchain(object):
         suffix = dependency.get('versionsuffix', '')
 
         if 'version' in dependency:
-            version = "".join([dependency['version'], toolchain, suffix])
-            self.log.debug("get_dependency_version: version in dependency return %s", version)
+            version = ''.join([dependency['version'], toolchain, suffix])
+            self.log.devel("get_dependency_version: version in dependency return %s", version)
             return version
         else:
-            toolchain_suffix = "".join([toolchain, suffix])
+            toolchain_suffix = ''.join([toolchain, suffix])
             matches = self.modules_tool.available(dependency['name'], toolchain_suffix)
             # Find the most recent (or default) one
             if len(matches) > 0:
                 version = matches[-1][-1]
-                self.log.debug("get_dependency_version: version not in dependency return %s", version)
+                self.log.devel("get_dependency_version: version not in dependency return %s", version)
                 return
             else:
                 raise EasyBuildError("No toolchain version for dependency name %s (suffix %s) found",
                                      dependency['name'], toolchain_suffix)
 
-    def add_dependencies(self, dependencies):
-        """ Verify if the given dependencies exist and add them """
-        self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
+    def _check_dependencies(self, dependencies):
+        """ Verify if the given dependencies exist and return them """
+        self.log.debug("_check_dependencies: adding toolchain dependencies %s", dependencies)
 
         # use *full* module name to check existence of dependencies, since the modules may not be available in the
         # current $MODULEPATH without loading the prior dependencies in a module hierarchy
@@ -382,22 +397,35 @@ class Toolchain(object):
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
 
         # check whether modules exist
+        self.log.debug("_check_dependencies: MODULEPATH: %s", os.environ['MODULEPATH'])
         if self.dry_run:
             deps_exist = [True] * len(dep_mod_names)
         else:
             deps_exist = self.modules_tool.exist(dep_mod_names)
 
         missing_dep_mods = []
+        deps = []
         for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
-            self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
             if dep_exists:
-                self.dependencies.append(dep)
-                self.log.debug('add_dependencies: added toolchain dependency %s' % str(dep))
+                deps.append(dep)
+                self.log.devel("_check_dependencies: added toolchain dependency %s", str(dep))
             else:
                 missing_dep_mods.append(dep_mod_name)
 
         if missing_dep_mods:
-            raise EasyBuildError("Missing modules for one or more dependencies: %s", ', '.join(missing_dep_mods))
+            raise EasyBuildError("Missing modules for dependencies (use --robot?): %s", ', '.join(missing_dep_mods))
+
+        return deps
+
+    def add_dependencies(self, dependencies):
+        """
+        [DEPRECATED] Verify if the given dependencies exist, and return them.
+
+        This method is deprecated.
+        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
+        """
+        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
+        self.dependencies = self._check_dependencies(dependencies)
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -411,10 +439,10 @@ class Toolchain(object):
         var_suff = '_MODULE_NAME'
         tc_elems = {}
         for var in dir(self):
-            if var.endswith(var_suff):
+            if var.endswith(var_suff) and getattr(self, var) is not None:
                 tc_elems.update({var[:-len(var_suff)]: getattr(self, var)})
 
-        _log.debug("Toolchain definition for %s: %s" % (self.as_dict(), tc_elems))
+        self.log.debug("Toolchain definition for %s: %s", self.as_dict(), tc_elems)
         return tc_elems
 
     def is_dep_in_toolchain_module(self, name):
@@ -491,7 +519,8 @@ class Toolchain(object):
                     self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
 
             # load modules for all dependencies
-            self.log.debug("Loading module for toolchain: %s" % tc_mod)
+            self.log.debug("Loading module for toolchain: %s", tc_mod)
+            trace_msg("loading toolchain module: " + tc_mod)
             self.modules_tool.load([tc_mod])
 
         # append toolchain module to list of modules
@@ -520,8 +549,25 @@ class Toolchain(object):
                         self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
         else:
             # load modules for all dependencies
-            self.log.debug("Loading modules for dependencies: %s" % dep_mods)
+            self.log.debug("Loading modules for dependencies: %s", dep_mods)
             self.modules_tool.load(dep_mods)
+
+            if self.dependencies:
+                build_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if dep['build_only']]
+                if build_dep_mods:
+                    trace_msg("loading modules for build dependencies:")
+                    for dep_mod in build_dep_mods:
+                        trace_msg(' * ' + dep_mod)
+                else:
+                    trace_msg("(no build dependencies specified)")
+
+                run_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if not dep['build_only']]
+                if run_dep_mods:
+                    trace_msg("loading modules for (runtime) dependencies:")
+                    for dep_mod in run_dep_mods:
+                        trace_msg(' * ' + dep_mod)
+                else:
+                    trace_msg("(no (runtime) dependencies specified)")
 
         # append dependency modules to list of modules
         self.modules.extend(dep_mods)
@@ -578,7 +624,7 @@ class Toolchain(object):
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
         self.toolchain_dep_mods = dependencies_for(mod_name, self.modules_tool, depth=0)
-        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
+        self.log.debug("List of toolchain dependencies from toolchain module: %s", self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name
         toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
@@ -588,11 +634,10 @@ class Toolchain(object):
             if self.is_required(elem_name) or self.is_dep_in_toolchain_module(elem_name):
                 continue
             # not required and missing: remove from toolchain definition
-            self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
+            self.log.debug("Removing %s from list of optional toolchain elements.", elem_name)
             toolchain_definition.remove(elem_name)
 
-        self.log.debug("List of toolchain dependencies from toolchain module: %s" % self.toolchain_dep_mods)
-        self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
+        self.log.debug("List of toolchain elements from toolchain definition: %s", toolchain_definition)
 
         if all(map(self.is_dep_in_toolchain_module, toolchain_definition)):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
@@ -631,30 +676,49 @@ class Toolchain(object):
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             c_comps = ['gcc', 'g++']
-            fortran_comps =  ['gfortran']
+            fortran_comps = ['gfortran']
         else:
             c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
             fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
         return (c_comps, fortran_comps)
 
-    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None):
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        return False
+
+    def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
+                rpath_filter_dirs=None, rpath_include_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
+        :param deps: list of dependencies
         :param onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
+        :param rpath_include_dirs: extra directories to include in RPATH
         """
+
+        # do all dependencies have a toolchain version?
+        if deps is None:
+            deps = []
+        self.dependencies = self._check_dependencies(deps)
+        if not len(deps) == len(self.dependencies):
+            self.log.debug("dep %s (%s)" % (len(deps), deps))
+            self.log.debug("tc.dep %s (%s)" % (len(self.dependencies), self.dependencies))
+            raise EasyBuildError('Not all dependencies have a matching toolchain version')
+
         if loadmod:
             self._load_modules(silent=silent)
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
+
+            trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
 
             if not self.dry_run:
                 self._verify_toolchain()
@@ -664,11 +728,11 @@ class Toolchain(object):
 
             # set the variables
             # onlymod can be comma-separated string of variables not to be set
-            if onlymod == True:
-                self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
+            if onlymod is True:
+                self.log.debug("prepare: do not set additional variables onlymod=%s", onlymod)
                 self.generate_vars()
             else:
-                self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
+                self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
                 # add LDFLAGS and CPPFLAGS from dependencies to self.vars
                 self._add_dependency_variables()
@@ -682,7 +746,7 @@ class Toolchain(object):
 
         if build_option('rpath'):
             if self.options.get('rpath', True):
-                self.prepare_rpath_wrappers()
+                self.prepare_rpath_wrappers(rpath_filter_dirs, rpath_include_dirs)
                 self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
@@ -728,7 +792,7 @@ class Toolchain(object):
 
         cache_path = which(cache_tool)
         if cache_path is None:
-            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache_tool)
         else:
             self.symlink_commands({cache_tool: (cache_path, compilers)})
 
@@ -740,24 +804,30 @@ class Toolchain(object):
         """
         Check whether command at specified location already is an RPATH wrapper script rather than the actual command
         """
-        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(path)) == RPATH_WRAPPERS_SUBDIR
+        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(os.path.dirname(path))) == RPATH_WRAPPERS_SUBDIR
         calls_rpath_args = 'rpath_args.py $CMD' in read_file(path)
         return in_rpath_wrappers_dir and calls_rpath_args
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         """
-        self.log.experimental("Using wrapper scripts for compiler/linker commands that enforce RPATH linking")
-
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
         else:
             raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
-        wrapper_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        if rpath_filter_dirs is None:
+            rpath_filter_dirs = []
+
+        # always include filter for 'stubs' library directory,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
+        rpath_filter_dirs.append('.*/lib(64)?/stubs/?')
+
+        # directory where all wrappers will be placed
+        wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
@@ -765,19 +835,19 @@ class Toolchain(object):
         rpath_args_py = find_eb_script('rpath_args.py')
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
-        # prepend location to wrappers to $PATH
-        setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
-
         # figure out list of patterns to use in rpath filter
         rpath_filter = build_option('rpath_filter')
         if rpath_filter is None:
             rpath_filter = ['/lib.*', '/usr.*']
             self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
-        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
-        self.log.debug("Combined RPATH filter: '%s'" % rpath_filter)
+        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs])
+        self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
+
+        rpath_include = ','.join(rpath_include_dirs or [])
+        self.log.debug("Combined RPATH include paths: '%s'", rpath_include)
 
         # create wrappers
-        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
             orig_cmd = which(cmd)
 
             if orig_cmd:
@@ -786,6 +856,13 @@ class Toolchain(object):
                 if self.is_rpath_wrapper(orig_cmd):
                     self.log.info("%s already seems to be an RPATH wrapper script, not wrapping it again!", orig_cmd)
                     continue
+
+                # determine location for this wrapper
+                # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
+                # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
+                # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
+                wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
+                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
@@ -805,11 +882,16 @@ class Toolchain(object):
                     'python': sys.executable,
                     'rpath_args_py': rpath_args_py,
                     'rpath_filter': rpath_filter,
+                    'rpath_include': rpath_include,
                     'rpath_wrapper_log': rpath_wrapper_log,
+                    'wrapper_dir': wrapper_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
                 self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
+
+                # prepend location to this wrapper to $PATH
+                setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
@@ -824,11 +906,11 @@ class Toolchain(object):
 
         if cpp is not None:
             for p in cpp:
-                if not p in cpp_paths:
+                if p not in cpp_paths:
                     cpp_paths.append(p)
         if ld is not None:
             for p in ld:
-                if not p in ld_paths:
+                if p not in ld_paths:
                     ld_paths.append(p)
 
         if not names:
@@ -853,7 +935,7 @@ class Toolchain(object):
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
 
-        self.log.debug("_setenv_variables: setting variables: donotset=%s" % donotset)
+        self.log.devel("_setenv_variables: setting variables: donotset=%s", donotset)
         if self.dry_run:
             dry_run_msg("Defining build environment...\n", silent=not verbose)
 
@@ -866,10 +948,10 @@ class Toolchain(object):
 
         for key, val in sorted(self.vars.items()):
             if key in donotsetlist:
-                self.log.debug("_setenv_variables: not setting environment variable %s (value: %s)." % (key, val))
+                self.log.debug("_setenv_variables: not setting environment variable %s (value: %s).", key, val)
                 continue
 
-            self.log.debug("_setenv_variables: setting environment variable %s to %s" % (key, val))
+            self.log.debug("_setenv_variables: setting environment variable %s to %s", key, val)
             setvar(key, val, verbose=verbose)
 
             # also set unique named variables that can be used in Makefiles
@@ -901,3 +983,7 @@ class Toolchain(object):
     def mpi_family(self):
         "Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."
         return None
+
+    def cleanup(self):
+        """Clean up after using this toolchain"""
+        pass

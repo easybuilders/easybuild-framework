@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -11,7 +11,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ EasyBuild support for gmpolf compiler toolchain (includes GCC, MPICH2, OpenBLAS,
 """
 
 from easybuild.toolchains.gmpich import Gmpich
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -41,4 +42,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Gmpolf(Gmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpolf'
-    SUBTOOLCHAIN = Gmpich.NAME
+    SUBTOOLCHAIN = [Gmpich.NAME, Golf.NAME]

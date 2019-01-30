@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2015-2017 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -9,7 +9,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,11 +29,12 @@ Support for including additional Python modules, for easyblocks, module naming s
 :author: Kenneth Hoste (Ghent University)
 """
 import os
+import re
 import sys
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import expand_glob_paths, symlink
+from easybuild.tools.filetools import expand_glob_paths, read_file, symlink
 # these are imported just to we can reload them later
 import easybuild.tools.module_naming_scheme
 import easybuild.toolchains
@@ -142,6 +143,11 @@ def verify_imports(pymods, pypkg, from_path):
         _log.debug("Import of %s from %s verified", pymod_spec, from_path)
 
 
+def is_software_specific_easyblock(module):
+    """Determine whether Python module at specified location is a software-specific easyblock."""
+    return bool(re.search('^class EB_.*\(.*\):\s*$', read_file(module), re.M))
+
+
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
     easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
@@ -155,14 +161,13 @@ def include_easyblocks(tmpdir, paths):
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 
-        # generic easyblocks are expected to be in a directory named 'generic'
-        parent_dir = os.path.basename(os.path.dirname(easyblock_module))
-        if parent_dir == 'generic':
-            target_path = os.path.join(easyblocks_dir, 'generic', filename)
-        else:
+        if is_software_specific_easyblock(easyblock_module):
             target_path = os.path.join(easyblocks_dir, filename)
+        else:
+            target_path = os.path.join(easyblocks_dir, 'generic', filename)
 
-        symlink(easyblock_module, target_path)
+        if not os.path.exists(target_path):
+            symlink(easyblock_module, target_path)
 
     included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
     included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
@@ -204,7 +209,8 @@ def include_module_naming_schemes(tmpdir, paths):
     for mns_module in allpaths:
         filename = os.path.basename(mns_module)
         target_path = os.path.join(mns_dir, filename)
-        symlink(mns_module, target_path)
+        if not os.path.exists(target_path):
+            symlink(mns_module, target_path)
 
     included_mns = [x for x in os.listdir(mns_dir) if x not in ['__init__.py']]
     _log.debug("Included module naming schemes: %s", included_mns)
@@ -244,7 +250,8 @@ def include_toolchains(tmpdir, paths):
         else:
             target_path = os.path.join(tcs_dir, filename)
 
-        symlink(toolchain_module, target_path)
+        if not os.path.exists(target_path):
+            symlink(toolchain_module, target_path)
 
     included_toolchains = [x for x in os.listdir(tcs_dir) if x not in ['__init__.py'] + toolchain_subpkgs]
     _log.debug("Included toolchains: %s", included_toolchains)
