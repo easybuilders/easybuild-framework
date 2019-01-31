@@ -831,7 +831,7 @@ class EasyConfig(object):
         """
         iterbuilddeps = self['iterate_builddependencies'] or []
         if iterbuilddeps and not isinstance(iterbuilddeps[0], dict):
-            #flatten if not iterating yet
+            # flatten if not iterating yet
             iterbuilddeps = flatten(iterbuilddeps)
         return iterbuilddeps + self['builddependencies']
 
