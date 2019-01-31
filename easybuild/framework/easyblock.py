@@ -869,6 +869,13 @@ class EasyBlock(object):
 
         trace_msg("build dir: %s" % self.builddir)
 
+    def reset_changes(self):
+        """
+        Reset environment
+        """
+        env.reset_changes()
+        restore_env(self.initial_environ)
+
     def gen_installdir(self):
         """
         Generate the name of the installation directory.
@@ -2672,7 +2679,7 @@ class EasyBlock(object):
         ready_substeps = [
             (False, lambda x: x.check_readiness_step),
             (True, lambda x: x.make_builddir),
-            (True, lambda x: env.reset_changes),
+            (True, lambda x: x.reset_changes),
             (True, lambda x: x.handle_iterate_opts),
         ]
 
