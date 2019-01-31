@@ -73,7 +73,7 @@ from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
-from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.utilities import flatten, quote_py_str, remove_unwanted_chars
 from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 
@@ -832,7 +832,7 @@ class EasyConfig(object):
         iterbuilddeps = self['iterate_builddependencies'] or []
         if iterbuilddeps and not isinstance(iterbuilddeps[0], dict):
             #flatten if not iterating yet
-            iterbuilddeps = [dep for deps in iterbuilddeps for dep in deps]
+            iterbuilddeps = flatten(iterbuilddeps)
         return iterbuilddeps + self['builddependencies']
 
     @property
@@ -1105,8 +1105,8 @@ class EasyConfig(object):
             val = self[key]
             orig_val = self._config[key][0]
             if key == 'iterate_builddependencies':
-                val = [dep for deps in val for dep in deps]
-                orig_val = [dep for deps in orig_val for dep in deps]
+                val = flatten(val)
+                orig_val = flatten(orig_val)
             for idx, dep in enumerate(val):
 
                 # reference to original dep dict, this is the one we should be updating

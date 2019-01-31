@@ -56,7 +56,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import flatten, quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.tweak', fname=False)
@@ -835,8 +835,8 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         val = parsed_ec['ec'][key]
         orig_val = parsed_ec['ec']._config[key][0]
         if key == 'iterate_builddependencies':
-            val = [dep for deps in val for dep in deps]
-            orig_val = [dep for deps in orig_val for dep in deps]
+            val = flatten(val)
+            orig_val = flatten(orig_val)
         for idx, dep in enumerate(val):
             # reference to original dep dict, this is the one we should be updating
             orig_dep = orig_val[idx]
