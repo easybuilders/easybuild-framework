@@ -543,12 +543,9 @@ class EasyConfig(object):
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
-        builddeps = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
-        iterbuilddeps = [[self._parse_dependency(dep, build_only=True) for dep in x]
-                         for x in self['iterate_builddependencies']]
-        self['iterate_builddependencies'] = iterbuilddeps
-        # temporary include all iter builddeps for finalize_dependencies
-        self['builddependencies'] = builddeps + [dep for x in iterbuilddeps for dep in x]
+        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
+        self['iterate_builddependencies'] = [[self._parse_dependency(dep, build_only=True) for dep in x]
+                                             for x in self['iterate_builddependencies']]
         self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
         self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
 
@@ -560,8 +557,6 @@ class EasyConfig(object):
 
         # finalize dependencies w.r.t. minimal toolchains & module names
         self._finalize_dependencies()
-        # reset builddependencies to original value
-        self['builddependencies'] = builddeps
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
@@ -1101,13 +1096,18 @@ class EasyConfig(object):
 
         filter_deps = build_option('filter_deps')
 
-        for key in DEPENDENCY_PARAMETERS:
+        for key in DEPENDENCY_PARAMETERS + ['iterate_builddependencies']:
             # loop over a *copy* of dependency dicts (with resolved templates);
             # to update the original dep dict, we need to index with idx into self._config[key][0]...
-            for idx, dep in enumerate(self[key]):
+            val = self[key]
+            orig_val = self._config[key][0]
+            if key == 'iterate_builddependencies':
+                val = [dep for deps in val for dep in deps]
+                orig_val = [dep for deps in orig_val for dep in deps]
+            for idx, dep in enumerate(val):
 
                 # reference to original dep dict, this is the one we should be updating
-                orig_dep = self._config[key][0][idx]
+                orig_dep = orig_val[idx]
 
                 if filter_deps and orig_dep['name'] in filter_deps:
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
