@@ -50,7 +50,7 @@ FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_V
 FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
 FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 
-DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
+DEPENDENCY_PARAMETERS = ['iterate_builddependencies', 'builddependencies', 'dependencies', 'hiddendependencies']
 
 # values for these keys will not be templated in dump()
 EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_list', 'homepage', 'name', 'toolchain',
@@ -63,7 +63,7 @@ GROUPED_PARAMS = [
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
     ['source_urls', 'sources', 'patches', 'checksums'],
-    ['iterate_builddependencies'] + DEPENDENCY_PARAMETERS,
+    DEPENDENCY_PARAMETERS,
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],

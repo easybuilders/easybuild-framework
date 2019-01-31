@@ -50,7 +50,7 @@ from easybuild.tools.utilities import quote_py_str
 EB_FORMAT_EXTENSION = '.eb'
 
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
-REFORMAT_FORCED_PARAMS = ['sanity_check_paths', 'iterate_builddependencies'] + DEPENDENCY_PARAMETERS
+REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
 REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['iterate_builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
@@ -242,10 +242,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
                 if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
-                    if key in DEPENDENCY_PARAMETERS:
-                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
-                    elif key == 'iterate_builddependencies':
+                    if key == 'iterate_builddependencies':
                         valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                    elif key in DEPENDENCY_PARAMETERS:
+                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:

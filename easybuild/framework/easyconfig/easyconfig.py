@@ -1096,7 +1096,7 @@ class EasyConfig(object):
 
         filter_deps = build_option('filter_deps')
 
-        for key in DEPENDENCY_PARAMETERS + ['iterate_builddependencies']:
+        for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
             # to update the original dep dict, we need to index with idx into self._config[key][0]...
             val = self[key]
