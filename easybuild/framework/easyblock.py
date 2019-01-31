@@ -219,6 +219,7 @@ class EasyBlock(object):
 
         # keep track of initial environment we start in, so we can restore it if needed
         self.initial_environ = copy.deepcopy(os.environ)
+        self.reset_environ = None
         self.tweaked_env_vars = {}
 
         # should we keep quiet?
@@ -874,7 +875,10 @@ class EasyBlock(object):
         Reset environment
         """
         env.reset_changes()
-        restore_env(self.initial_environ)
+        if self.reset_environ is None:
+            self.reset_environ = copy.deepcopy(os.environ)
+        else:
+            restore_env(self.reset_environ)
 
     def gen_installdir(self):
         """
