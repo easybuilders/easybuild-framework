@@ -52,6 +52,7 @@ EB_FORMAT_EXTENSION = '.eb'
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths', 'iterate_builddependencies'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
+REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['iterate_builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
     'sanity_check_paths': ['files', 'dirs'],
@@ -140,6 +141,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # note: this does not take into account the parameter name + '=', only the value
         line_too_long = len(param_strval) + addlen > REFORMAT_THRESHOLD_LENGTH
         forced = param_name in REFORMAT_FORCED_PARAMS
+        list_of_lists_of_tuples = param_name in REFORMAT_LIST_OF_LISTS_OF_TUPLES
 
         if param_name in REFORMAT_SKIPPED_PARAMS:
             self.log.info("Skipping reformatting value for parameter '%s'", param_name)
@@ -170,7 +172,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item in param_val:
                         comment = self._get_item_comments(param_name, item).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
-                        if isinstance(item, (list)):
+                        if isinstance(item, list) and list_of_lists_of_tuples:
                             itemstr = '[' + (",\n " + INDENT_4SPACES).join([
                                 self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
                                 for subitem in item]) + ']'
