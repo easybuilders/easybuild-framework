@@ -34,7 +34,6 @@ import shutil
 import sys
 import tempfile
 from unittest import TextTestRunner
-from urllib2 import URLError
 
 import easybuild.main
 import easybuild.tools.build_log
@@ -55,6 +54,7 @@ from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIG
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
+from easybuild.tools.py2vs3 import URLError
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -985,7 +985,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_from_pr(self):
         """Test fetching easyconfigs from a PR."""
         if self.github_token is None:
-            print "Skipping test_from_pr, no GitHub token available?"
+            print("Skipping test_from_pr, no GitHub token available?")
             return
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1030,14 +1030,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             pr_tmpdir = os.path.join(tmpdir, 'eb-\S{6}', 'files_pr1239')
             regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
-        except URLError, err:
-            print "Ignoring URLError '%s' in test_from_pr" % err
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
 
     def test_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
         if self.github_token is None:
-            print "Skipping test_from_pr, no GitHub token available?"
+            print("Skipping test_from_pr, no GitHub token available?")
             return
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1086,14 +1086,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-        except URLError, err:
-            print "Ignoring URLError '%s' in test_from_pr" % err
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
 
     def test_from_pr_x(self):
         """Test combination of --from-pr with --extended-dry-run."""
         if self.github_token is None:
-            print "Skipping test_from_pr_x, no GitHub token available?"
+            print("Skipping test_from_pr_x, no GitHub token available?")
             return
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1125,8 +1125,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for msg_regex in msg_regexs:
                 self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
 
-        except URLError, err:
-            print "Ignoring URLError '%s' in test_from_pr_x" % err
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr_x" % err)
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -1343,7 +1343,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.experimental('x')
             # sanity check, should never be reached if it works.
             self.assertTrue(False, "Experimental logging should be disabled by setting the --disable-experimental option")
-        except easybuild.tools.build_log.EasyBuildError, err:
+        except easybuild.tools.build_log.EasyBuildError as err:
             # check error message
             self.assertTrue('Experimental functionality.' in str(err))
 
@@ -1353,7 +1353,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         )
         try:
             log.experimental('x')
-        except easybuild.tools.build_log.EasyBuildError, err:
+        except easybuild.tools.build_log.EasyBuildError as err:
             self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
 
         # set it back
@@ -1382,7 +1382,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.deprecated('x', str(orig_value))
             stderr = self.get_stderr()
             self.mock_stderr(False)
-        except easybuild.tools.build_log.EasyBuildError, err:
+        except easybuild.tools.build_log.EasyBuildError as err:
             self.assertTrue(False, 'Deprecated logging should work')
 
         stderr_regex = re.compile("^\nWARNING: Deprecated functionality, will no longer work in")
@@ -1396,7 +1396,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.deprecated('x', str(orig_value))
             # not supposed to get here
             self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
-        except easybuild.tools.build_log.EasyBuildError, err2:
+        except easybuild.tools.build_log.EasyBuildError as err2:
             self.assertTrue('DEPRECATED' in str(err2))
 
         # force higher version by prefixing it with 1, which should result in deprecation errors
@@ -1407,7 +1407,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.deprecated('x', str(orig_value))
             # not supposed to get here
             self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
-        except easybuild.tools.build_log.EasyBuildError, err3:
+        except easybuild.tools.build_log.EasyBuildError as err3:
             self.assertTrue('DEPRECATED' in str(err3))
 
         # set it back
@@ -2354,7 +2354,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_preview_pr(self):
         """Test --preview-pr."""
         if self.github_token is None:
-            print "Skipping test_preview_pr, no GitHub token available?"
+            print("Skipping test_preview_pr, no GitHub token available?")
             return
 
         self.mock_stdout(True)
@@ -2376,7 +2376,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_review_pr(self):
         """Test --review-pr."""
         if self.github_token is None:
-            print "Skipping test_review_pr, no GitHub token available?"
+            print("Skipping test_review_pr, no GitHub token available?")
             return
 
         self.mock_stdout(True)
@@ -2608,7 +2608,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
         if self.github_token is None:
-            print "Skipping test_new_update_pr, no GitHub token available?"
+            print("Skipping test_new_update_pr, no GitHub token available?")
             return
 
         # copy toy test easyconfig
@@ -2805,7 +2805,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --new-pr to delete easyconfigs."""
 
         if self.github_token is None:
-            print "Skipping test_new_pr_delete, no GitHub token available?"
+            print("Skipping test_new_pr_delete, no GitHub token available?")
             return
 
         args = [
@@ -2830,7 +2830,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --new-pr with automatic dependency lookup."""
 
         if self.github_token is None:
-            print "Skipping test_new_pr_dependencies, no GitHub token available?"
+            print("Skipping test_new_pr_dependencies, no GitHub token available?")
             return
 
         foo_eb = '\n'.join([
@@ -2878,7 +2878,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """
         Test use of --merge-pr (dry run)"""
         if self.github_token is None:
-            print "Skipping test_merge_pr, no GitHub token available?"
+            print("Skipping test_merge_pr, no GitHub token available?")
             return
 
         args = [
@@ -2952,7 +2952,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
         if self.github_token is None:
-            print "Skipping test_empty_pr, no GitHub token available?"
+            print("Skipping test_empty_pr, no GitHub token available?")
             return
 
         # get file from develop branch
@@ -3306,7 +3306,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:
-            print "Skipping test_debug_lmod, required Lmod as modules tool"
+            print("Skipping test_debug_lmod, required Lmod as modules tool")
 
     def test_use_color(self):
         """Test use_color function."""
@@ -3444,7 +3444,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             try:
                 import pep8
             except ImportError:
-                print "Skipping test_check_contrib_style, since pycodestyle or pep8 is not available"
+                print("Skipping test_check_contrib_style, since pycodestyle or pep8 is not available")
                 return
 
         regex = re.compile(r"Running style check on 2 easyconfig\(s\)(.|\n)*>> All style checks PASSed!", re.M)

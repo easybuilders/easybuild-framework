@@ -141,7 +141,7 @@ class ToyBuildTest(EnhancedTestCase):
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
                                   raise_error=raise_error, testing=testing)
-        except Exception, err:
+        except Exception as err:
             myerr = err
             if raise_error:
                 raise myerr
@@ -435,7 +435,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         # set umask hard to verify default reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         # test specifying a non-existing group
         allargs = [toy_ec_file] + args + ['--group=thisgroupdoesnotexist']
@@ -448,14 +448,14 @@ class ToyBuildTest(EnhancedTestCase):
         curr_grp = grp.getgrgid(gid).gr_name
 
         for umask, cfg_group, ec_group, dir_perms, fil_perms, bin_perms in [
-            (None, None, None, 0755, 0644, 0755),  # default: inherit session umask
-            (None, None, curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in ec
-            (None, curr_grp, None, 0750, 0640, 0750),  # default umask, but with specified group in cfg
-            (None, 'notagrp', curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in both cfg and ec
-            ('000', None, None, 0777, 0666, 0777),  # stupid empty umask
-            ('032', None, None, 0745, 0644, 0745),  # no write/execute for group, no write for other
-            ('030', None, curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
-            ('077', None, None, 0700, 0600, 0700),  # no access for other/group
+            (None, None, None, 0o755, 0o644, 0o755),  # default: inherit session umask
+            (None, None, curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in ec
+            (None, curr_grp, None, 0o750, 0o640, 0o750),  # default umask, but with specified group in cfg
+            (None, 'notagrp', curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in cfg/ec
+            ('000', None, None, 0o777, 0o666, 0o777),  # stupid empty umask
+            ('032', None, None, 0o745, 0o644, 0o745),  # no write/execute for group, no write for other
+            ('030', None, curr_grp, 0o740, 0o640, 0o740),  # no write for group, with specified group
+            ('077', None, None, 0o700, 0o600, 0o700),  # no access for other/group
         ]:
             # empty the install directory, to ensure any created directories adher to the permissions
             shutil.rmtree(self.test_installpath)
@@ -485,9 +485,9 @@ class ToyBuildTest(EnhancedTestCase):
             # verify permissions
             paths_perms = [
                 # no write permissions for group/other, regardless of umask
-                (('software', 'toy', '0.0'), dir_perms & ~ 0022),
-                (('software', 'toy', '0.0', 'bin'), dir_perms & ~ 0022),
-                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms & ~ 0022),
+                (('software', 'toy', '0.0'), dir_perms & ~ 0o022),
+                (('software', 'toy', '0.0', 'bin'), dir_perms & ~ 0o022),
+                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms & ~ 0o022),
             ]
             # only software subdirs are chmod'ed for 'protected' installs, so don't check those if a group is specified
             if group is None:
@@ -506,7 +506,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             for path, correct_perms in paths_perms:
                 fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
-                perms = os.stat(fullpath).st_mode & 0777
+                perms = os.stat(fullpath).st_mode & 0o777
                 tup = (fullpath, oct(correct_perms), oct(perms), umask, cfg_group, ec_group)
                 msg = "Path %s has %s permissions: %s (umask: %s, group: %s - %s)" % tup
                 self.assertEqual(perms, correct_perms, msg)
@@ -520,24 +520,24 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_permissions_installdir(self):
         """Test --read-only-installdir and --group-write-installdir."""
         # set umask hard to verify default reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         self.test_toy_build()
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % self.test_installpath)
         shutil.rmtree(self.test_installpath)
 
         self.test_toy_build(extra_args=['--read-only-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % self.test_installpath)
         adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
         self.test_toy_build(extra_args=['--group-writable-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o775, "%s has group write permissions" % self.test_installpath)
 
         # restore original umask
         os.umask(orig_umask)
@@ -1746,7 +1746,7 @@ class ToyBuildTest(EnhancedTestCase):
         for path in paths:
 
             if path.endswith('.yeb') and 'yaml' not in sys.modules:
-                print "Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)"
+                print("Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)")
                 continue
 
             args = [

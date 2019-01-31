@@ -214,7 +214,7 @@ class ParallelBuildTest(EnhancedTestCase):
         try:
             import gc3libs  # noqa (ignore unused import)
         except ImportError:
-            print "GC3Pie not available, skipping test"
+            print("GC3Pie not available, skipping test")
             return
 
         # put GC3Pie config in place to use local host and fork/exec

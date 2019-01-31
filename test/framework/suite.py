@@ -105,7 +105,7 @@ fancylogger.setLogLevelError()
 # make sure temporary files can be created/used
 try:
     set_tmpdir(raise_error=True)
-except EasyBuildError, err:
+except EasyBuildError as err:
     sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
     sys.exit(1)
 
@@ -130,7 +130,7 @@ try:
     xml_dir = 'test-reports'
     res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(SUITE)
     xml_msg = ", XML output of tests available in %s directory" % xml_dir
-except ImportError, err:
+except ImportError as err:
     sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
     res = unittest.TextTestRunner().run(SUITE)
 
@@ -138,7 +138,7 @@ fancylogger.logToFile(log_fn, enable=False)
 
 if not res.wasSuccessful():
     sys.stderr.write("ERROR: Not all tests were successful.\n")
-    print "Log available at %s" % log_fn, xml_msg
+    print("Log available at %s%s" % (log_fn, xml_msg))
     sys.exit(2)
 else:
     for fn in glob.glob('%s*' % log_fn):
