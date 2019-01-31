@@ -46,7 +46,7 @@ import easybuild.tools.github as gh
 try:
     import keyring
     HAVE_KEYRING = True
-except ImportError as err:
+except ImportError:
     HAVE_KEYRING = False
 
 

@@ -88,13 +88,13 @@ try:
     import keyring
     from keyrings.alt.file import PlaintextKeyring
     keyring.set_keyring(PlaintextKeyring())
-except ImportError as err:
+except ImportError:
     try:
         # with old versions of keyring, PlaintextKeyring comes from keyring.backends
         import keyring
         from keyring.backends.file import PlaintextKeyring
         keyring.set_keyring(PlaintextKeyring())
-    except ImportError as err:
+    except ImportError:
         pass
 
 # disable all logging to significantly speed up tests

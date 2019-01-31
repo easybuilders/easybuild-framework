@@ -1354,7 +1354,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         try:
             log.experimental('x')
         except easybuild.tools.build_log.EasyBuildError as err:
-            self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
+            self.assertTrue(False, "Experimental logging should be allowed by the --experimental option: %s" % err)
 
         # set it back
         easybuild.tools.build_log.EXPERIMENTAL = orig_value
@@ -1383,7 +1383,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stderr = self.get_stderr()
             self.mock_stderr(False)
         except easybuild.tools.build_log.EasyBuildError as err:
-            self.assertTrue(False, 'Deprecated logging should work')
+            self.assertTrue(False, "Deprecated logging should work: %s" % err)
 
         stderr_regex = re.compile("^\nWARNING: Deprecated functionality, will no longer work in")
         self.assertTrue(stderr_regex.search(stderr), "Pattern '%s' found in: %s" % (stderr_regex.pattern, stderr))
