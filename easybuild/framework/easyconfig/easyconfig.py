@@ -668,7 +668,7 @@ class EasyConfig(object):
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)) or opt.endswith('_iteropt'):
+            if isinstance(self[opt], (list, tuple)) or opt.startswith('iterate_'):
                 opt_counts.append((opt, len(self[opt])))
 
         # make sure that options that specify lists have the same length
