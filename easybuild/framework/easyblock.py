@@ -1491,11 +1491,7 @@ class EasyBlock(object):
         # this will only be done during first iteration, since after that the options won't be lists anymore
         for opt in ITERATE_OPTIONS:
             # keep track of list, supply first element as first option to handle
-            if isinstance(self.cfg[opt], (list, tuple)) and self.cfg[opt] != [[]]:
-                if opt.startswith('iterate_') and self.iter_idx == 0:
-                    # save original common value (e.g. builddependencies)
-                    commonopt = opt[len('iterate_'):]
-                    self.iter_opts[commonopt] = self.cfg[commonopt]
+            if isinstance(self.cfg[opt], (list, tuple)) and self.cfg[opt] and not isinstance(self.cfg[opt][0], dict):
                 self.iter_opts[opt] = self.cfg[opt]  # copy
                 self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
@@ -1504,15 +1500,11 @@ class EasyBlock(object):
 
         # pop first element from all *_list options as next value to use
         for opt in self.iter_opts:
-            if opt in ITERATE_OPTIONS:
-                if opt.startswith('iterate_'):
-                    commonopt = opt[len('iterate_'):]
-                    self.cfg[commonopt] = self.iter_opts[opt][self.iter_idx] + self.iter_opts[commonopt]
-                elif len(self.iter_opts[opt]) > self.iter_idx:
-                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
-                else:
-                    self.cfg[opt] = ''  # empty list => empty option as next value
-                self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+            if len(self.iter_opts[opt]) > self.iter_idx:
+                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+            else:
+                self.cfg[opt] = ''  # empty list => empty option as next value
+            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = True

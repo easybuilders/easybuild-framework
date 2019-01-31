@@ -812,10 +812,9 @@ class EasyConfig(object):
 
         :param build_only: only return build dependencies, discard others
         """
-        if build_only:
-            deps = self['builddependencies']
-        else:
-            deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+        deps = self.builddependencies()
+        if not build_only:
+            deps = self['dependencies'] + deps + self['hiddendependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -830,7 +829,11 @@ class EasyConfig(object):
         """
         return the parsed build dependencies
         """
-        return self['builddependencies']
+        iterbuilddeps = self['iterate_builddependencies'] or []
+        if iterbuilddeps and not isinstance(iterbuilddeps[0], dict):
+            #flatten if not iterating yet
+            iterbuilddeps = [dep for deps in iterbuilddeps for dep in deps]
+        return iterbuilddeps + self['builddependencies']
 
     @property
     def name(self):
