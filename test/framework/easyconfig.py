@@ -1385,13 +1385,13 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('configopts', 'SOME_VALUE')
         configopts_tmp = ec['configopts']
         ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
-        self.assertEquals(ec['configopts'], configopts_tmp)
+        self.assertEqual(ec['configopts'], configopts_tmp)
 
         # for unallowed duplicates when a list is used
         ec.update('patches', ['foo2.patch', 'bar2.patch'])
         patches_tmp = copy.deepcopy(ec['patches'])
         ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
-        self.assertEquals(ec['patches'], patches_tmp)
+        self.assertEqual(ec['patches'], patches_tmp)
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""

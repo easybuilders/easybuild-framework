@@ -86,7 +86,7 @@ class GithubTest(EnhancedTestCase):
             expected = [(None, ['a_directory', 'second_dir'], ['README.md']),
                         ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
                         ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
-            self.assertEquals([x for x in self.ghfs.walk(None)], expected)
+            self.assertEqual([x for x in self.ghfs.walk(None)], expected)
         except IOError:
             pass
 
@@ -97,7 +97,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            self.assertEquals(self.ghfs.read("a_directory/a_file.txt").strip(), "this is a line of text")
+            self.assertEqual(self.ghfs.read("a_directory/a_file.txt").strip(), "this is a line of text")
         except IOError:
             pass
 
@@ -109,7 +109,7 @@ class GithubTest(EnhancedTestCase):
 
         try:
             fp = self.ghfs.read("a_directory/a_file.txt", api=False)
-            self.assertEquals(open(fp, 'r').read().strip(), "this is a line of text")
+            self.assertEqual(open(fp, 'r').read().strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
             pass
@@ -122,18 +122,18 @@ class GithubTest(EnhancedTestCase):
 
         pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
 
-        self.assertEquals(pr_data['number'], 1)
-        self.assertEquals(pr_data['title'], "a pr")
+        self.assertEqual(pr_data['number'], 1)
+        self.assertEqual(pr_data['title'], "a pr")
         self.assertFalse(any(key in pr_data for key in ['issue_comments', 'review', 'status_last_commit']))
 
         pr_data, pr_url = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
-        self.assertEquals(pr_data['number'], 2)
-        self.assertEquals(pr_data['title'], "an open pr (do not close this please)")
+        self.assertEqual(pr_data['number'], 2)
+        self.assertEqual(pr_data['title'], "an open pr (do not close this please)")
         self.assertTrue(pr_data['issue_comments'])
-        self.assertEquals(pr_data['issue_comments'][0]['body'], "this is a test")
+        self.assertEqual(pr_data['issue_comments'][0]['body'], "this is a test")
         self.assertTrue(pr_data['reviews'])
-        self.assertEquals(pr_data['reviews'][0]['state'], "APPROVED")
-        self.assertEquals(pr_data['reviews'][0]['user']['login'], 'boegel')
+        self.assertEqual(pr_data['reviews'][0]['state'], "APPROVED")
+        self.assertEqual(pr_data['reviews'][0]['user']['login'], 'boegel')
         self.assertEqual(pr_data['status_last_commit'], 'pending')
 
     def test_list_prs(self):
