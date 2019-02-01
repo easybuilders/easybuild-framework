@@ -683,29 +683,30 @@ class EasyConfig(object):
         build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
 
         faulty_deps = []
-        for i, hidden_dep in enumerate(self['hiddendependencies']):
+
+        # templating must be temporarily disabled to obtain modifiable and original lists
+        # see comments in resolve_template
+        enable_templating = self.enable_templating
+        self.enable_templating = False
+        orig_hiddendeps = self['hiddendependencies']
+        self.enable_templating = enable_templating
+
+        for orig_hidden_dep, hidden_dep in zip(orig_hiddendeps, self['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
 
             # track whether this hidden dep is listed as a build dep
             if visible_mod_name in build_dep_mod_names or hidden_mod_name in build_dep_mod_names:
-                # templating must be temporarily disabled when updating a value in a dict;
-                # see comments in resolve_template
-                enable_templating = self.enable_templating
-                self.enable_templating = False
-                self['hiddendependencies'][i]['build_only'] = True
-                self.enable_templating = enable_templating
-                # reload hidden_dep to pick up change
-                hidden_dep = self['hiddendependencies'][i]
+                orig_hidden_dep['build_only'] = True
 
             # replace deps by hidden deps in list of (build)dependencies
             if visible_mod_name in dep_mod_names:
                 for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d if d['full_mod_name'] != visible_mod_name else hidden_dep for d in self[key]]
+                    self[key] = [d if d['full_mod_name'] != visible_mod_name else orig_hidden_dep for d in self[key]]
                 self.log.debug("Replaced (build)dependency matching hidden dependency %s", hidden_dep)
             elif hidden_mod_name in dep_mod_names:
                 for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d if d['full_mod_name'] != hidden_mod_name else hidden_dep for d in self[key]]
+                    self[key] = [d if d['full_mod_name'] != hidden_mod_name else orig_hidden_dep for d in self[key]]
                 self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
                                hidden_dep)
             else:
