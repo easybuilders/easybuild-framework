@@ -512,7 +512,7 @@ class EasyConfig(object):
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
         # we need toolchain to be set when we call _parse_dependency
-        for key in ['toolchain'] + local_vars.keys():
+        for key in ['toolchain'] + list(local_vars.keys()):
             # validations are skipped, just set in the config
             if key in self._config.keys():
                 self[key] = local_vars[key]
@@ -1179,9 +1179,9 @@ class EasyConfig(object):
         self.template_values.update(template_values)
 
         # cleanup None values
-        for k, v in self.template_values.items():
-            if v is None:
-                del self.template_values[k]
+        for key, val in list(self.template_values.items()):
+            if val is None:
+                del self.template_values[key]
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
