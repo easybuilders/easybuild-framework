@@ -180,11 +180,11 @@ def is_readable(path):
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
 
-def read_file(path, log_error=True):
+def read_file(path, log_error=True, mode='r'):
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
-        with open(path, 'r') as handle:
+        with open(path, mode) as handle:
             txt = handle.read()
     except IOError as err:
         if log_error:

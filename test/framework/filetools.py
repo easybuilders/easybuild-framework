@@ -44,7 +44,7 @@ from unittest import TextTestRunner
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import URLError, std_urllib
+from easybuild.tools.py2vs3 import std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -194,18 +194,18 @@ class FileToolsTest(EnhancedTestCase):
         # put a directory 'foo' in place (should be ignored by 'which')
         foo = os.path.join(self.test_prefix, 'foo')
         ft.mkdir(foo)
-        ft.adjust_permissions(foo, stat.S_IRUSR|stat.S_IXUSR)
+        ft.adjust_permissions(foo, stat.S_IRUSR | stat.S_IXUSR)
         # put executable file 'bar' in place
         bar = os.path.join(self.test_prefix, 'bar')
         ft.write_file(bar, '#!/bin/bash')
-        ft.adjust_permissions(bar, stat.S_IRUSR|stat.S_IXUSR)
+        ft.adjust_permissions(bar, stat.S_IRUSR | stat.S_IXUSR)
         self.assertEqual(ft.which('foo'), None)
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
         # add another location to 'bar', which should only return the first location by default
         barbis = os.path.join(self.test_prefix, 'more', 'bar')
         ft.write_file(barbis, '#!/bin/bash')
-        ft.adjust_permissions(barbis, stat.S_IRUSR|stat.S_IXUSR)
+        ft.adjust_permissions(barbis, stat.S_IRUSR | stat.S_IXUSR)
         os.environ['PATH'] = '%s:%s' % (os.environ['PATH'], os.path.dirname(barbis))
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
@@ -226,7 +226,8 @@ class FileToolsTest(EnhancedTestCase):
             'md5': '7167b64b1ca062b9674ffef46f9325db',
             'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
             'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
-            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733eb7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
+            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733e' +
+                      'b7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
         # make sure checksums computation/verification is correct
@@ -500,7 +501,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # creating the symlink
         link = os.path.join(self.test_prefix, 'test.link')
-        ft.symlink(fp, link) # test if is symlink is valid is done elsewhere
+        ft.symlink(fp, link)  # test if is symlink is valid is done elsewhere
 
         # Attempting to remove a valid symlink
         ft.remove_file(link)
@@ -594,6 +595,9 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
+
+        # test use of 'mode' in read_file
+        self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -946,7 +950,7 @@ class FileToolsTest(EnhancedTestCase):
         # test default behaviour:
         # recursive, add permissions, relative to existing permissions, both files and dirs, skip symlinks
         # add user execution, group write permissions
-        ft.adjust_permissions(self.test_prefix, stat.S_IXUSR|stat.S_IWGRP)
+        ft.adjust_permissions(self.test_prefix, stat.S_IXUSR | stat.S_IWGRP)
 
         # foo file: rwxrw-r--
         foo_perms = os.stat(os.path.join(self.test_prefix, 'foo'))[stat.ST_MODE]
@@ -984,7 +988,7 @@ class FileToolsTest(EnhancedTestCase):
             ft.symlink(test_files[-1], os.path.join(testdir, 'symlink%s' % idx))
 
         # by default, 50% of failures are allowed (to be robust against failures to change permissions)
-        perms = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR
+        perms = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
 
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
@@ -1459,7 +1463,7 @@ class FileToolsTest(EnhancedTestCase):
         # check error handling (after creating a permission problem with removing files/dirs)
         ft.write_file(testfile, 'bar')
         ft.mkdir(test_dir)
-        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR|stat.S_IWGRP|stat.S_IWOTH, add=False)
+        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_file, testfile)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove, testfile)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_dir, test_dir)
@@ -1673,14 +1677,14 @@ class FileToolsTest(EnhancedTestCase):
         target_dir = os.path.join(self.test_prefix, 'target')
 
         try:
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
             # (only) tarball is created in specified target dir
             self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test.tar.gz')))
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
 
             del git_config['tag']
             git_config['commit'] = '8456f86'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
+            ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
             self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test2.tar.gz')))
             self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
 
@@ -1809,6 +1813,7 @@ class FileToolsTest(EnhancedTestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
