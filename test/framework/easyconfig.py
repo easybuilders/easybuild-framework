@@ -170,9 +170,9 @@ class EasyConfigTest(EnhancedTestCase):
         # dummy toolchain, installversion == version
         self.assertEqual(det_full_ec_version(ec), "3.14")
 
-        os.chmod(self.eb_file, 0000)
+        os.chmod(self.eb_file, 0o000)
         self.assertErrorRegex(EasyBuildError, "Permission denied", EasyConfig, self.eb_file)
-        os.chmod(self.eb_file, 0755)
+        os.chmod(self.eb_file, 0o755)
 
         self.contents += "\nsyntax_error'"
         self.prep()
@@ -1549,7 +1549,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.test_dump()
             del os.environ['EASYBUILD_DUMP_AUTOPEP8']
         except ImportError:
-            print "Skipping test_dump_autopep8, since autopep8 is not available"
+            print("Skipping test_dump_autopep8, since autopep8 is not available")
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
@@ -1771,7 +1771,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(dottxt, EXPECTED_DOTTXT_TOY_DEPS)
 
         except ImportError:
-            print "Skipping test_dep_graph, since pygraph is not available"
+            print("Skipping test_dep_graph, since pygraph is not available")
 
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""

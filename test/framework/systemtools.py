@@ -356,7 +356,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting core count (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         orig_sched_getaffinity = st.sched_getaffinity
-        cpus = [1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L]
+        cpus = [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0]
         st.sched_getaffinity = lambda: cpus
         self.assertEqual(get_avail_core_count(), 6)
         st.sched_getaffinity = orig_sched_getaffinity

@@ -1114,7 +1114,7 @@ class EasyBlockTest(EnhancedTestCase):
             res = None
             try:
                 res = eb.obtain_file(file_url)
-            except EasyBuildError, err:
+            except EasyBuildError as err:
                 # if this fails, it should be because there's no online access
                 download_fail_regex = re.compile('socket error')
                 self.assertTrue(download_fail_regex.search(str(err)))
@@ -1128,7 +1128,7 @@ class EasyBlockTest(EnhancedTestCase):
                 eb_regex = re.compile("EasyBuild: building software with ease")
                 self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))
             else:
-                print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
+                print("ignoring failure to download %s in test_obtain_file, testing offline?" % file_url)
 
         shutil.rmtree(tmpdir)
 
@@ -1155,7 +1155,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         try:
             eb.check_readiness_step()
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             err_regex = re.compile("Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
