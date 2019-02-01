@@ -677,7 +677,7 @@ class EasyConfig(object):
 
     def filter_hidden_deps(self):
         """
-        Filter hidden dependencies from list of (build) dependencies.
+        Replace dependencies by hidden dependencies in list of (build) dependencies, where appropriate.
         """
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
         build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
@@ -695,15 +695,17 @@ class EasyConfig(object):
                 self.enable_templating = False
                 self['hiddendependencies'][i]['build_only'] = True
                 self.enable_templating = enable_templating
+                # reload hidden_dep to pick up change
+                hidden_dep = self['hiddendependencies'][i]
 
-            # filter hidden dep from list of (build)dependencies
+            # replace deps by hidden deps in list of (build)dependencies
             if visible_mod_name in dep_mod_names:
                 for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d for d in self[key] if d['full_mod_name'] != visible_mod_name]
-                self.log.debug("Removed (build)dependency matching hidden dependency %s", hidden_dep)
+                    self[key] = [d if d['full_mod_name'] != visible_mod_name else hidden_dep for d in self[key]]
+                self.log.debug("Replaced (build)dependency matching hidden dependency %s", hidden_dep)
             elif hidden_mod_name in dep_mod_names:
                 for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d for d in self[key] if d['full_mod_name'] != hidden_mod_name]
+                    self[key] = [d if d['full_mod_name'] != hidden_mod_name else hidden_dep for d in self[key]]
                 self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
                                hidden_dep)
             else:
@@ -812,7 +814,7 @@ class EasyConfig(object):
         if build_only:
             deps = self['builddependencies']
         else:
-            deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+            deps = self['dependencies'] + self['builddependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -1501,11 +1503,6 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
             for dep in ec['builddependencies']:
                 _log.debug("Adding build dependency %s for app %s." % (dep, name))
                 easyconfig['builddependencies'].append(dep)
-
-            # add hidden dependencies
-            for dep in ec['hiddendependencies']:
-                _log.debug("Adding hidden dependency %s for app %s." % (dep, name))
-                easyconfig['hiddendependencies'].append(dep)
 
             # add dependencies (including build & hidden dependencies)
             for dep in ec.dependencies():
