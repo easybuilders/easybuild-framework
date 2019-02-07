@@ -207,7 +207,7 @@ class GithubTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.mock_stdout(True)
-        gh.close_pr(2, 'just a test')
+        gh.close_pr(2, motivation_msg='just a test')
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
