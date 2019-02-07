@@ -684,7 +684,8 @@ class EasyConfig(object):
 
         faulty_deps = []
 
-        # templating must be temporarily disabled to obtain modifiable and original lists
+        # templating must be temporarily disabled to obtain reference to original list ('orig_hiddendeps'),
+        # so its elements can be changed in place
         # see comments in resolve_template
         enable_templating = self.enable_templating
         self.enable_templating = False
