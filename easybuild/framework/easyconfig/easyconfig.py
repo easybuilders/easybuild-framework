@@ -679,38 +679,41 @@ class EasyConfig(object):
         """
         Replace dependencies by hidden dependencies in list of (build) dependencies, where appropriate.
         """
-        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
-        build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
-
         faulty_deps = []
 
-        # templating must be temporarily disabled to obtain reference to original list ('orig_hiddendeps'),
-        # so its elements can be changed in place
-        # see comments in resolve_template
-        enable_templating = self.enable_templating
-        self.enable_templating = False
-        orig_hiddendeps = self['hiddendependencies']
-        self.enable_templating = enable_templating
-
-        for orig_hidden_dep, hidden_dep in zip(orig_hiddendeps, self['hiddendependencies']):
+        for hidden_idx, hidden_dep in enumerate(self['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
 
-            # track whether this hidden dep is listed as a build dep
-            if visible_mod_name in build_dep_mod_names or hidden_mod_name in build_dep_mod_names:
-                orig_hidden_dep['build_only'] = True
+            # replace (build) dependencies with their equivalent hidden (build) dependency (if any)
+            replaced = False
+            for key in ['builddependencies', 'dependencies']:
+                for idx, dep in enumerate(self[key]):
+                    dep_mod_name = dep['full_mod_name']
+                    if dep_mod_name in [visible_mod_name, hidden_mod_name]:
 
-            # replace deps by hidden deps in list of (build)dependencies
-            if visible_mod_name in dep_mod_names:
-                for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d if d['full_mod_name'] != visible_mod_name else orig_hidden_dep for d in self[key]]
-                self.log.debug("Replaced (build)dependency matching hidden dependency %s", hidden_dep)
-            elif hidden_mod_name in dep_mod_names:
-                for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d if d['full_mod_name'] != hidden_mod_name else orig_hidden_dep for d in self[key]]
-                self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
-                               hidden_dep)
-            else:
+                        # templating must be temporarily disabled to obtain reference to original lists,
+                        # so their elements can be changed in place
+                        # see comments in resolve_template
+                        enable_templating = self.enable_templating
+                        self.enable_templating = False
+
+                        # track whether this hidden dep is listed as a build dep
+                        orig_hidden_dep = self['hiddendependencies'][hidden_idx]
+                        if key == 'builddependencies':
+                            orig_hidden_dep['build_only'] = True
+                        # actual replacement
+                        self[key][idx] = orig_hidden_dep
+                        replaced = True
+
+                        self.enable_templating = enable_templating
+                        if dep_mod_name == visible_mod_name:
+                            msg = "Replaced (build)dependency matching hidden dependency %s"
+                        else:
+                            msg = "Hidden (build)dependency %s is already marked to be installed as a hidden module"
+                        self.log.debug(msg, hidden_dep)
+
+            if not replaced:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
@@ -718,6 +721,7 @@ class EasyConfig(object):
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
+            dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
