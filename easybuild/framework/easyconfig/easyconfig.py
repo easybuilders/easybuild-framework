@@ -172,7 +172,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
-    """
+    r"""
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
 
@@ -512,7 +512,7 @@ class EasyConfig(object):
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
         # we need toolchain to be set when we call _parse_dependency
-        for key in ['toolchain'] + local_vars.keys():
+        for key in ['toolchain'] + list(local_vars):
             # validations are skipped, just set in the config
             if key in self._config.keys():
                 self[key] = local_vars[key]
@@ -1179,9 +1179,9 @@ class EasyConfig(object):
         self.template_values.update(template_values)
 
         # cleanup None values
-        for k, v in self.template_values.items():
-            if v is None:
-                del self.template_values[k]
+        for key in list(self.template_values):
+            if self.template_values[key] is None:
+                del self.template_values[key]
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):

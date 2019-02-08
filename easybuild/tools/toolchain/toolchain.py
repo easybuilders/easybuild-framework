@@ -804,7 +804,8 @@ class Toolchain(object):
         Check whether command at specified location already is an RPATH wrapper script rather than the actual command
         """
         in_rpath_wrappers_dir = os.path.basename(os.path.dirname(os.path.dirname(path))) == RPATH_WRAPPERS_SUBDIR
-        calls_rpath_args = 'rpath_args.py $CMD' in read_file(path)
+        # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
+        calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
         return in_rpath_wrappers_dir and calls_rpath_args
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):

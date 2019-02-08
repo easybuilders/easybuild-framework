@@ -104,8 +104,8 @@ class ToolchainOptions(dict):
             elif isinstance(res, (list, tuple,)):
                 # allow for template per element
                 res = self.options_map[name]
-                for i in xrange(0, len(res)):
-                    res[i] = res[i] % templatedict
+                for idx, elem in enumerate(res):
+                    res[idx] = elem % templatedict
             else:
                 # check if True?
                 res = self.options_map[name]

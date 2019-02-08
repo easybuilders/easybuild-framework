@@ -1088,7 +1088,7 @@ class Section(dict):
 class ConfigObj(Section):
     """An object to read, create, and write config files."""
 
-    _keyword = re.compile(br'''^ # line start
+    _keyword = re.compile(r'''^ # line start
         (\s*)                   # indentation
         (                       # keyword
             (?:".*?")|          # double quotes
@@ -1101,7 +1101,7 @@ class ConfigObj(Section):
         ''',
         re.VERBOSE)
 
-    _sectionmarker = re.compile(br'''^
+    _sectionmarker = re.compile(r'''^
         (\s*)                     # 1: indentation
         ((?:\[\s*)+)              # 2: section marker open
         (                         # 3: section name open
@@ -1118,7 +1118,7 @@ class ConfigObj(Section):
     # or single values and comments
     # FIXME: this regex adds a '' to the end of comma terminated lists
     #   workaround in ``_handle_value``
-    _valueexp = re.compile(br'''^
+    _valueexp = re.compile(r'''^
         (?:
             (?:
                 (
@@ -1145,7 +1145,7 @@ class ConfigObj(Section):
         re.VERBOSE)
 
     # use findall to get the members of a list value
-    _listvalueexp = re.compile(br'''
+    _listvalueexp = re.compile(r'''
         (
             (?:".*?")|          # double quotes
             (?:'.*?')|          # single quotes
@@ -1157,7 +1157,7 @@ class ConfigObj(Section):
 
     # this regexp is used for the value
     # when lists are switched off
-    _nolistvalue = re.compile(br'''^
+    _nolistvalue = re.compile(r'''^
         (
             (?:".*?")|          # double quotes
             (?:'.*?')|          # single quotes
@@ -1169,10 +1169,10 @@ class ConfigObj(Section):
         re.VERBOSE)
 
     # regexes for finding triple quoted values on one line
-    _single_line_single = re.compile(br"^'''(.*?)'''\s*(#.*)?$")
-    _single_line_double = re.compile(br'^"""(.*?)"""\s*(#.*)?$')
-    _multi_line_single = re.compile(br"^(.*?)'''\s*(#.*)?$")
-    _multi_line_double = re.compile(br'^(.*?)"""\s*(#.*)?$')
+    _single_line_single = re.compile(r"^'''(.*?)'''\s*(#.*)?$")
+    _single_line_double = re.compile(r'^"""(.*?)"""\s*(#.*)?$')
+    _multi_line_single = re.compile(r"^(.*?)'''\s*(#.*)?$")
+    _multi_line_double = re.compile(r'^(.*?)"""\s*(#.*)?$')
 
     _triple_quote = {
         "'''": (_single_line_single, _multi_line_single),
@@ -1551,10 +1551,10 @@ class ConfigObj(Section):
             if reset_comment:
                 comment_list = []
             cur_index += 1
-            line = infile[cur_index]
+            line = infile[cur_index].decode()
             sline = line.strip()
             # do we have anything on the line ?
-            if not sline or sline.startswith(b'#'):
+            if not sline or sline.startswith('#'):
                 reset_comment = False
                 comment_list.append(line)
                 continue
@@ -1573,8 +1573,8 @@ class ConfigObj(Section):
                 (indent, sect_open, sect_name, sect_close, comment) = mat.groups()
                 if indent and (self.indent_type is None):
                     self.indent_type = indent
-                cur_depth = sect_open.count(b'[')
-                if cur_depth != sect_close.count(b']'):
+                cur_depth = sect_open.count('[')
+                if cur_depth != sect_close.count(']'):
                     self._handle_error("Cannot compute the section depth at line %s.",
                                        NestingError, infile, cur_index)
                     continue

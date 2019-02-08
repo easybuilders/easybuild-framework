@@ -1502,13 +1502,14 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['TMPDIR'] = long_tmpdir
         tc, stdout, stderr = prep()
         self.assertEqual(stdout, '')
-        regex = re.compile("^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{6}$")
+        # basename of tmpdir will be 6 chars in Python 2, 8 chars in Python 3
+        regex = re.compile(r"^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{6,8}$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
         # new $TMPDIR should be /tmp/xxxxxx
         tmpdir = os.environ.get('TMPDIR')
         self.assertTrue(tmpdir.startswith('/tmp'))
-        self.assertEqual(len(tmpdir), 11)
+        self.assertTrue(len(tmpdir) in (11, 13))
 
         # also test cleanup method to ensure short $TMPDIR is cleaned up properly
         self.assertTrue(os.path.exists(tmpdir))
