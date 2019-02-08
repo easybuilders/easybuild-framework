@@ -1399,7 +1399,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
-        self.assertEqual(ec['dependencies'], [])
+        self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
 
         build_options = {
             'hide_deps': ['toy'],
@@ -1408,7 +1408,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
-        self.assertEqual(ec['dependencies'], [])
+        self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
 
     def test_quote_str(self):
         """Test quote_str function."""
