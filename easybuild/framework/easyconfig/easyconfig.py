@@ -697,16 +697,15 @@ class EasyConfig(object):
                         # see comments in resolve_template
                         enable_templating = self.enable_templating
                         self.enable_templating = False
-
                         # track whether this hidden dep is listed as a build dep
                         orig_hidden_dep = self['hiddendependencies'][hidden_idx]
                         if key == 'builddependencies':
                             orig_hidden_dep['build_only'] = True
                         # actual replacement
                         self[key][idx] = orig_hidden_dep
-                        replaced = True
-
                         self.enable_templating = enable_templating
+
+                        replaced = True
                         if dep_mod_name == visible_mod_name:
                             msg = "Replaced (build)dependency matching hidden dependency %s"
                         else:
