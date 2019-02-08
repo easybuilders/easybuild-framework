@@ -1593,12 +1593,12 @@ class EasyBlock(object):
         # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
-            self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuild_version')! "
-                          "Assuming the latest version")
+            self.log.warning("Easyconfig does not specify an EasyBuild-version (key 'easybuild_version')! "
+                             "Assuming the latest version")
         else:
             if LooseVersion(easybuild_version) < VERSION:
-                self.log.warn("EasyBuild-version %s is older than the currently running one. Proceed with caution!",
-                              easybuild_version)
+                self.log.warning("EasyBuild-version %s is older than the currently running one. Proceed with caution!",
+                                 easybuild_version)
             elif LooseVersion(easybuild_version) > VERSION:
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
@@ -2919,7 +2919,7 @@ def build_and_install_one(ecdict, init_env):
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError as err:
-                _log.warn("Unable to commit easyconfig to repository: %s", err)
+                _log.warning("Unable to commit easyconfig to repository: %s", err)
 
         # cleanup logs
         app.close_log()
@@ -3008,7 +3008,7 @@ def reproduce_build(app, reprod_dir_root):
         app.cfg.dump(reprod_spec)
         _log.info("Dumped easyconfig instance to %s", reprod_spec)
     except NotImplementedError as err:
-        _log.warn("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
+        _log.warning("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
 
     # also archive the relevant easyblocks
     reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')

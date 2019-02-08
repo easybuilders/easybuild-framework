@@ -217,7 +217,7 @@ class PbsJob(object):
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
             hours = max_walltime
 
         if ppn is None:
@@ -227,7 +227,7 @@ class PbsJob(object):
         if cores is None:
             cores = max_cores
         if cores > max_cores:
-            self.log.warn("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
+            self.log.warning("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
             cores = max_cores
 
         # only allow cores and hours for now.

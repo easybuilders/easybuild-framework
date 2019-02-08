@@ -190,14 +190,14 @@ class GC3Pie(JobBackend):
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
             hours = max_walltime
         named_args['requested_walltime'] = hours * hr
 
         if cores:
             named_args['requested_cores'] = cores
         else:
-            self.log.warn("Number of cores to request not specified, falling back to whatever GC3Pie does by default")
+            self.log.warning("Number of cores to request not specified, falling back to GC3Pie default")
 
         return Application(['/bin/sh', '-c', script], **named_args)
 

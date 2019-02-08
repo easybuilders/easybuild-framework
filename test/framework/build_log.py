@@ -105,7 +105,7 @@ class BuildLogTest(EnhancedTestCase):
         log.setLevelName('DEBUG')
         log.debug("123 debug")
         log.info("foobar info")
-        log.warn("justawarning")
+        log.warning("justawarning")
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
@@ -155,7 +155,7 @@ class BuildLogTest(EnhancedTestCase):
 
         # test formatting log messages by providing extra arguments
         logToFile(tmplog, enable=True)
-        log.warn("%s", "bleh"),
+        log.warning("%s", "bleh")
         log.info("%s+%s = %d", '4', '2', 42)
         args = ['this', 'is', 'just', 'a', 'test']
         log.debug("%s %s %s %s %s", *args)

@@ -197,7 +197,7 @@ class Compiler(Toolchain):
                 if value is None:
                     if prefix is not None:
                         # only warn if prefix is set, not all languages may be supported (e.g., no Fortran for CUDA)
-                        self.log.warn("_set_compiler_vars: %s compiler variable %s undefined" % (prefix, var))
+                        self.log.warning("_set_compiler_vars: %s compiler variable %s undefined" % (prefix, var))
                     else:
                         raise EasyBuildError("_set_compiler_vars: compiler variable %s undefined", var)
 

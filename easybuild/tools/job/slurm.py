@@ -173,7 +173,7 @@ class SlurmJob(object):
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
             hours = max_walltime
         self.job_specs['time'] = hours * 60
 
@@ -182,4 +182,4 @@ class SlurmJob(object):
             self.job_specs['ntasks'] = cores
             self.job_specs['ntasks-per-node'] = cores
         else:
-            self.log.warn("Number of cores to request not specified, falling back to whatever Slurm does by default")
+            self.log.warning("Number of cores to request not specified, falling back to whatever Slurm does by default")

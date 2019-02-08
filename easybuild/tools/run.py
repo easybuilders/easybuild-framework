@@ -501,7 +501,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         if check_ec:
             raise EasyBuildError('cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
         else:
-            _log.warn('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.warning('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
     elif not ec:
         if log_all:
             _log.info('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
@@ -516,7 +516,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
             if use_regexp:
                 raise EasyBuildError(message)
             else:
-                _log.warn(message)
+                _log.warning(message)
 
     if simple:
         if ec:

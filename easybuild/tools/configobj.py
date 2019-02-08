@@ -1220,9 +1220,9 @@ class ConfigObj(Section):
             options = _options
         else:
             import warnings
-            warnings.warn('Passing in an options dictionary to ConfigObj() is '
-                          'deprecated. Use **options instead.',
-                          DeprecationWarning, stacklevel=2)
+            warnings.warning('Passing in an options dictionary to ConfigObj() is '
+                             'deprecated. Use **options instead.',
+                             DeprecationWarning, stacklevel=2)
 
             # TODO: check the values too.
             for entry in options:
