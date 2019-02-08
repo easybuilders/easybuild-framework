@@ -10,7 +10,7 @@ echo "import easybuild.main"
 python3 -c "import easybuild.main"
 echo "set_up_configuration()"
 python3 -c "from easybuild.tools.options import set_up_configuration; set_up_configuration()"
-for subsuite in config docs filetools modules; do
+for subsuite in config containers docs filetools modules; do
     echo "test.framework.${subsuite}"
     python3 -O -m test.framework.${subsuite}
 done
