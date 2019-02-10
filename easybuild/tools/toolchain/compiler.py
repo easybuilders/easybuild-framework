@@ -47,6 +47,7 @@ OPTARCH_GENERIC = 'GENERIC'
 OPTARCH_SEP = ';'
 OPTARCH_MAP_CHAR = ':'
 
+
 def mk_infix(prefix):
     """Create an infix based on the given prefix."""
     infix = ''
@@ -82,7 +83,7 @@ class Compiler(Toolchain):
         'verbose': (False, "Verbose output"),
         'debug': (False, "Enable debug"),
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
-        'r8' : (False, "Real is 8 byte real"),  # fortran only
+        'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
         'cstd': (None, "Specify C standard"),
         'shared': (False, "Build shared library"),
@@ -97,7 +98,7 @@ class Compiler(Toolchain):
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
         DEFAULT_OPT_LEVEL: 'O2',
-        '32bit' : 'm32',
+        '32bit': 'm32',
         'cstd': 'std=%(value)s',
         'debug': 'g',
         'lowopt': 'O1',
@@ -195,11 +196,11 @@ class Compiler(Toolchain):
                 value = getattr(self, compvar, None)
 
                 if value is None:
-                    if prefix is not None:
-                        # only warn if prefix is set, not all languages may be supported (e.g., no Fortran for CUDA)
-                        self.log.warning("_set_compiler_vars: %s compiler variable %s undefined" % (prefix, var))
-                    else:
+                    if infix is None:
                         raise EasyBuildError("_set_compiler_vars: compiler variable %s undefined", var)
+                    else:
+                        # only warn if infix is set, not all languages may be supported (e.g., no Fortran for CUDA)
+                        self.log.warning("_set_compiler_vars: %s compiler variable %s undefined", infix, var)
 
                 self.variables[pref_var] = value
                 if is32bit:
@@ -235,9 +236,9 @@ class Compiler(Toolchain):
         """Collect the flags set, and add them as variables too"""
 
         flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
-        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
+        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS
                   if self.options.get(x, False)]
-        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
+        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS
                   if self.options.get(x, False)]
 
         # Allow a user-defined default optimisation
@@ -247,7 +248,7 @@ class Compiler(Toolchain):
                                  (default_opt_level, self.COMPILER_OPT_FLAGS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
-        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
+        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] +
                     [self.options.option(default_opt_level)])[:1]
 
         # only apply if the vectorize toolchainopt is explicitly set
