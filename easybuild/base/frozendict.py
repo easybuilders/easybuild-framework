@@ -22,6 +22,7 @@ It can be used as a drop-in replacement for dictionaries where immutability is d
 """
 import operator
 from collections import Mapping
+from functools import reduce
 
 from easybuild.base import fancylogger
 

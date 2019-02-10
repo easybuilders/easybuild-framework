@@ -29,6 +29,7 @@
 """
 import operator
 import re
+from functools import reduce
 
 from distutils.version import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg

@@ -39,7 +39,6 @@ import copy
 import glob
 import os
 import random
-import string
 import tempfile
 import time
 from abc import ABCMeta
@@ -47,7 +46,7 @@ from abc import ABCMeta
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import create_base_metaclass, string_type
+from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -648,7 +647,7 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     }
 
     if add_salt:
-        salt = ''.join(random.choice(string.letters) for i in range(5))
+        salt = ''.join(random.choice(ascii_letters) for i in range(5))
         filename_parts = filename.split('.')
         filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
 

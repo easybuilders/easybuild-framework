@@ -1220,9 +1220,9 @@ class ConfigObj(Section):
             options = _options
         else:
             import warnings
-            warnings.warn('Passing in an options dictionary to ConfigObj() is '
-                          'deprecated. Use **options instead.',
-                          DeprecationWarning, stacklevel=2)
+            warnings.warning('Passing in an options dictionary to ConfigObj() is '
+                             'deprecated. Use **options instead.',
+                             DeprecationWarning, stacklevel=2)
 
             # TODO: check the values too.
             for entry in options:
@@ -1250,7 +1250,7 @@ class ConfigObj(Section):
         if isinstance(infile, string_type):
             self.filename = infile
             if os.path.isfile(infile):
-                h = open(infile, 'rb')
+                h = open(infile, 'r')
                 infile = h.read() or []
                 h.close()
             elif self.file_error:
@@ -1317,7 +1317,7 @@ class ConfigObj(Section):
                         break
                 break
 
-            infile = [line.rstrip(b'\r\n') for line in infile]
+            infile = [line.rstrip('\r\n') for line in infile]
 
         self._parse(infile)
         # if we had any errors, now is the time to raise them
@@ -1458,7 +1458,7 @@ class ConfigObj(Section):
 
         # No encoding specified - so we need to check for UTF8/UTF16
         for BOM, (encoding, final_encoding) in BOMS.items():
-            if not line.startswith(BOM):
+            if not line.encode().startswith(BOM):
                 continue
             else:
                 # BOM discovered
@@ -1551,7 +1551,7 @@ class ConfigObj(Section):
             if reset_comment:
                 comment_list = []
             cur_index += 1
-            line = infile[cur_index].decode()
+            line = infile[cur_index]
             sline = line.strip()
             # do we have anything on the line ?
             if not sline or sline.startswith('#'):

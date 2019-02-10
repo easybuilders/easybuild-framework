@@ -37,7 +37,6 @@ Documentation-related functionality
 import copy
 import inspect
 import os
-import string
 from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
@@ -58,7 +57,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
@@ -591,7 +590,7 @@ def list_software_rst(software, detailed=False):
     # links to per-letter tables
     letter_refs = ''
     key_letters = nub(sorted(k[0].lower() for k in software.keys()))
-    for letter in string.lowercase:
+    for letter in ascii_lowercase:
         if letter in key_letters:
             if letter_refs:
                 letter_refs += " - :ref:`list_software_letter_%s`" % letter

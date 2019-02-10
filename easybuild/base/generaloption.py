@@ -37,6 +37,7 @@ import os
 import re
 import sys
 import textwrap
+from functools import reduce
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, Values
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 from optparse import gettext as _gettext  # this is gettext.gettext normally
