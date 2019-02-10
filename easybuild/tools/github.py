@@ -36,7 +36,6 @@ import os
 import random
 import re
 import socket
-import string
 import sys
 import tempfile
 import time
@@ -51,7 +50,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
-from easybuild.tools.py2vs3 import HTTPError, URLError, urlopen
+from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import nub, only_if_module_is_available
 
@@ -155,7 +154,7 @@ class Githubfs(object):
         else:
             try:
                 return githubobj['type'] == GITHUB_DIR_TYPE
-            except:
+            except Exception:
                 return False
 
     @staticmethod
@@ -163,7 +162,7 @@ class Githubfs(object):
         """Check if this path points to a file"""
         try:
             return githubobj['type'] == GITHUB_FILE_TYPE
-        except:
+        except Exception:
             return False
 
     def listdir(self, path):
@@ -551,7 +550,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     _log.debug("Cloning from %s", github_url)
 
     # salt to use for names of remotes/branches that are created
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
+    salt = ''.join(random.choice(ascii_letters) for _ in range(5))
 
     remote_name = 'pr_target_account_%s_%s' % (target_account, salt)
 
@@ -750,9 +749,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # checkout target branch
     if pr_branch is None:
         if ec_paths:
-            label = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+            label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
         else:
-            label = ''.join(random.choice(string.letters) for _ in range(10))
+            label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
 
     # create branch to commit to and push;
@@ -788,7 +787,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # push to GitHub
     github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
+    salt = ''.join(random.choice(ascii_letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (target_account, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -1444,7 +1443,7 @@ def check_github():
     print_msg(msg, log=_log, prefix=False, newline=False)
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo, res, push_err = None, None, None
-    branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
+    branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
         remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master',
