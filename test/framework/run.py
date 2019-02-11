@@ -194,13 +194,13 @@ class RunTest(EnhancedTestCase):
         """Test run_cmd_qa with log_output enabled"""
         (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'}, log_all=True)
         self.assertEqual(ec, 0)
-        self.assertEquals(out, "n: \n1\n2\n3\n4\n5\n")
+        self.assertEqual(out, "n: \n1\n2\n3\n4\n5\n")
 
         run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd_qa*.log'))
         self.assertEqual(len(run_cmd_logs), 1)
         run_cmd_log_txt = read_file(run_cmd_logs[0])
         extra_pref = "# output for interactive command: echo 'n: '; read n; seq 1 $n\n\n"
-        self.assertEquals(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
+        self.assertEqual(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
 
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""

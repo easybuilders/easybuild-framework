@@ -1059,7 +1059,7 @@ def reasons_for_closing(pr_data):
     return possible_reasons
 
 
-def close_pr(pr, motivation_msg):
+def close_pr(pr, motivation_msg=None):
     """
     Close specified pull request
 
