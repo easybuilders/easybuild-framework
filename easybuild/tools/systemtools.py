@@ -133,7 +133,7 @@ def sched_getaffinity():
     cpu_mask_t = ctypes.c_ulong
     cpu_setsize = 1024
     n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
-    n_mask_bits = cpu_setsize / n_cpu_bits
+    n_mask_bits = cpu_setsize // n_cpu_bits
 
     class cpu_set_t(ctypes.Structure):
         """Class that implements the cpu_set_t struct."""
@@ -393,7 +393,7 @@ def get_cpu_speed():
         if is_readable(MAX_FREQ_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
             txt = read_file(MAX_FREQ_FP)
-            cpu_freq = float(txt) / 1000
+            cpu_freq = float(txt) // 1000
 
         # Linux without cpu scaling
         elif is_readable(PROC_CPUINFO_FP):
@@ -416,7 +416,7 @@ def get_cpu_speed():
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             # returns clock frequency in cycles/sec, but we want MHz
-            cpu_freq = float(out.strip()) / (1000 ** 2)
+            cpu_freq = float(out.strip()) // (1000 ** 2)
 
     else:
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
@@ -754,7 +754,7 @@ def use_group(group_name):
 def det_parallelism(par=None, maxpar=None):
     """
     Determine level of parallelism that should be used.
-    Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) / 6)
+    Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) // 6)
     """
     if par is not None:
         if not isinstance(par, int):
@@ -771,7 +771,7 @@ def det_parallelism(par=None, maxpar=None):
                 out = 2 ** 32 - 1
             maxuserproc = int(out)
             # assume 6 processes per build thread + 15 overhead
-            par_guess = int((maxuserproc - 15) / 6)
+            par_guess = int((maxuserproc - 15) // 6)
             if par_guess < par:
                 par = par_guess
                 _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
