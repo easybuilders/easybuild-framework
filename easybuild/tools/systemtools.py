@@ -203,14 +203,14 @@ def get_total_memory():
         meminfo = read_file(PROC_MEMINFO_FP)
         mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
         if mem_mo:
-            memtotal = int(mem_mo.group(1)) / 1024
+            memtotal = int(mem_mo.group(1)) // 1024
 
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
-            memtotal = int(out.strip()) / (1024**2)
+            memtotal = int(out.strip()) // (1024**2)
 
     if memtotal is None:
         memtotal = UNKNOWN
