@@ -87,7 +87,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
@@ -2618,7 +2618,7 @@ class EasyBlock(object):
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
-            self.log.info("Running method %s part of step %s" % ('_'.join(step_method.func_code.co_names), step))
+            self.log.info("Running method %s part of step %s" % (extract_method_name(step_method), step))
 
             if self.dry_run:
                 self.dry_run_msg("[%s method]", step_method(self).__name__)
