@@ -170,11 +170,14 @@ class Client(object):
         # TODO: in recent python: Context manager
         conn = self.get_connection(method, url, body, headers)
         status = conn.code
-        body = conn.read()
-        try:
-            pybody = json.loads(body)
-        except ValueError:
-            pybody = body
+        if method == self.HEAD:
+            pybody = conn.headers
+        else:
+            body = conn.read()
+            try:
+                pybody = json.loads(body)
+            except ValueError:
+                pybody = body
         fancylogger.getLogger().debug('reponse len: %s ', len(pybody))
         conn.close()
         return status, pybody
