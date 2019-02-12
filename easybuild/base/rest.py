@@ -35,7 +35,6 @@ based on https://github.com/jpaugh/agithub/commit/1e2575825b165c1cb7cbd85c22e256
 :author: Jens Timmerman
 """
 import base64
-import urllib
 from functools import partial
 try:
     import json
@@ -43,7 +42,7 @@ except ImportError:
     import simplejson as json
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener
+from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, urlencode
 
 
 class Client(object):
@@ -182,7 +181,7 @@ class Client(object):
     def urlencode(self, params):
         if not params:
             return ''
-        return '?' + urllib.urlencode(params)
+        return '?' + urlencode(params)
 
     def hash_pass(self, password, username=None):
         if not username:
@@ -195,7 +194,7 @@ class Client(object):
         else:
             sep = ''
         request = Request(self.url + sep + url, data=body)
-        for header, value in headers.iteritems():
+        for header, value in headers.items():
             request.add_header(header, value)
         request.get_method = lambda: method
         fancylogger.getLogger().debug('opening request:  %s%s%s', self.url, sep, url)

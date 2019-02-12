@@ -37,6 +37,7 @@ from collections import OrderedDict  # noqa
 from io import StringIO  # noqa
 from string import ascii_letters, ascii_lowercase  # noqa
 from urllib.request import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
+from urllib.parse import urlencode  # noqa
 
 # reload function (no longer a built-in in Python 3)
 # importlib only works with Python 3.4 & newer

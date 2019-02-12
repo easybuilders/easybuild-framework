@@ -31,7 +31,6 @@ Unit tests for talking to GitHub.
 import os
 import random
 import re
-import string
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -40,7 +39,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.py2vs3 import URLError
+from easybuild.tools.py2vs3 import URLError, ascii_letters
 import easybuild.tools.github as gh
 
 try:
@@ -97,7 +96,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            self.assertEqual(self.ghfs.read("a_directory/a_file.txt").strip(), "this is a line of text")
+            self.assertEqual(self.ghfs.read("a_directory/a_file.txt").strip(), b"this is a line of text")
         except IOError:
             pass
 
@@ -333,7 +332,7 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_install_github_token, keyring module not available")
             return
 
-        random_user = ''.join(random.choice(string.letters) for _ in range(10))
+        random_user = ''.join(random.choice(ascii_letters) for _ in range(10))
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
         # poor mans mocking of getpass
