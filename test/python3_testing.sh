@@ -10,7 +10,7 @@ echo "import easybuild.main"
 python3 -c "import easybuild.main"
 echo "set_up_configuration()"
 python3 -c "from easybuild.tools.options import set_up_configuration; set_up_configuration()"
-for subsuite in asyncprocess build_log config containers docs easyconfig filetools github modules run systemtools toolchain; do
+for subsuite in asyncprocess build_log config containers docs easyconfig filetools github module_generator modules run systemtools toolchain; do
     echo "test.framework.${subsuite}"
     python3 -O -m test.framework.${subsuite}
 done
