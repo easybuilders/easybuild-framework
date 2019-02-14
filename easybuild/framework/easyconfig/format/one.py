@@ -52,7 +52,7 @@ EB_FORMAT_EXTENSION = '.eb'
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
-REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['iterate_builddependencies']
+REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
     'sanity_check_paths': ['files', 'dirs'],
@@ -236,10 +236,11 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                 val = ecfg[key]
                 if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
-                    if key == 'iterate_builddependencies':
-                        valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
-                    elif key in DEPENDENCY_PARAMETERS:
-                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                    if key in DEPENDENCY_PARAMETERS:
+                        if key in ecfg.iterate_options:
+                            valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                        else:
+                            valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:

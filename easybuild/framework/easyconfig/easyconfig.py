@@ -83,7 +83,7 @@ _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
-ITERATE_OPTIONS = ['iterate_builddependencies',
+ITERATE_OPTIONS = ['builddependencies',
                    'preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
 # name of easyconfigs archive subdirectory
@@ -540,12 +540,19 @@ class EasyConfig(object):
 
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
+        # create a list of all options that are actually going to be iterated over
+        self.iterate_options = [opt for opt in ITERATE_OPTIONS
+            if (isinstance(self[opt], (list, tuple)) and
+                (opt != 'builddependencies' or (self[opt] and isinstance(self[opt][0][0], (list,tuple)))))]
+
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
-        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
-        self['iterate_builddependencies'] = [[self._parse_dependency(dep, build_only=True) for dep in x]
-                                             for x in self['iterate_builddependencies']]
+        if 'builddependencies' in self.iterate_options:
+            self['builddependencies'] = [[self._parse_dependency(dep, build_only=True) for dep in x]
+                                         for x in self['builddependencies']]
+        else:
+            self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
         self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
         self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
 
@@ -668,7 +675,7 @@ class EasyConfig(object):
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)) or opt.startswith('iterate_'):
+            if opt in self.iterate_options:
                 opt_counts.append((opt, len(self[opt])))
 
         # make sure that options that specify lists have the same length
@@ -684,29 +691,37 @@ class EasyConfig(object):
         """
         faulty_deps = []
 
+        # templating must be temporarily disabled to obtain reference to original lists,
+        # so their elements can be changed in place
+        # see comments in resolve_template
+        enable_templating = self.enable_templating
+        self.enable_templating = False
+        orig_deps = dict([(key, self[key]) for key in ['dependencies', 'builddependencies', 'hiddendependencies']])
+        self.enable_templating = enable_templating
+
+        if 'builddependencies' in self.iterate_options:
+            deplists = self['builddependencies'] + [self['dependencies']]
+            orig_deplists = orig_deps['builddependencies'] + [orig_deps['dependencies']]
+        else:
+            deplists = [self['builddependencies'], self['dependencies']]
+            orig_deplists = [orig_deps['builddependencies'], orig_deps['dependencies']]
+
         for hidden_idx, hidden_dep in enumerate(self['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
 
             # replace (build) dependencies with their equivalent hidden (build) dependency (if any)
             replaced = False
-            for key in ['builddependencies', 'dependencies']:
-                for idx, dep in enumerate(self[key]):
+            for deplist, orig_deplist in zip(deplists, orig_deplists):
+                for idx, dep in enumerate(deplist):
                     dep_mod_name = dep['full_mod_name']
                     if dep_mod_name in [visible_mod_name, hidden_mod_name]:
 
-                        # templating must be temporarily disabled to obtain reference to original lists,
-                        # so their elements can be changed in place
-                        # see comments in resolve_template
-                        enable_templating = self.enable_templating
-                        self.enable_templating = False
                         # track whether this hidden dep is listed as a build dep
-                        orig_hidden_dep = self['hiddendependencies'][hidden_idx]
-                        if key == 'builddependencies':
-                            orig_hidden_dep['build_only'] = True
+                        orig_hidden_dep = orig_deps['hiddendependencies'][hidden_idx]
+                        orig_hidden_dep['build_only'] = dep['build_only']
                         # actual replacement
-                        self[key][idx] = orig_hidden_dep
-                        self.enable_templating = enable_templating
+                        orig_deplist[idx] = orig_hidden_dep
 
                         replaced = True
                         if dep_mod_name == visible_mod_name:
@@ -837,11 +852,11 @@ class EasyConfig(object):
         """
         return the parsed build dependencies
         """
-        iterbuilddeps = self['iterate_builddependencies'] or []
-        if iterbuilddeps and not isinstance(iterbuilddeps[0], dict):
+        builddeps = self['builddependencies']
+        if 'builddependencies' in self.iterate_options and not isinstance(builddeps[0], dict):
             # flatten if not iterating yet
-            iterbuilddeps = flatten(iterbuilddeps)
-        return iterbuilddeps + self['builddependencies']
+            builddeps = flatten(builddeps)
+        return builddeps
 
     @property
     def name(self):
@@ -1112,7 +1127,7 @@ class EasyConfig(object):
             # to update the original dep dict, we need to index with idx into self._config[key][0]...
             val = self[key]
             orig_val = self._config[key][0]
-            if key == 'iterate_builddependencies':
+            if key in self.iterate_options:
                 val = flatten(val)
                 orig_val = flatten(orig_val)
             for idx, dep in enumerate(val):

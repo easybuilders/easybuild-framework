@@ -834,7 +834,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         # to update the original dep dict, we need to index with idx into self._config[key][0]...
         val = parsed_ec['ec'][key]
         orig_val = parsed_ec['ec']._config[key][0]
-        if key == 'iterate_builddependencies':
+        if key in parsed_ec['ec'].iterate_options:
             val = flatten(val)
             orig_val = flatten(orig_val)
         for idx, dep in enumerate(val):

@@ -1478,9 +1478,9 @@ class EasyBlock(object):
         # handle configure/build/install options that are specified as lists
         # set first element to be used, keep track of list in self.iter_opts
         # this will only be done during first iteration, since after that the options won't be lists anymore
-        for opt in ITERATE_OPTIONS:
+        if self.iter_idx == 0:
             # keep track of list, supply first element as first option to handle
-            if isinstance(self.cfg[opt], (list, tuple)) and self.cfg[opt] and not isinstance(self.cfg[opt][0], dict):
+            for opt in self.cfg.iterate_options:
                 self.iter_opts[opt] = self.cfg[opt]  # copy
                 self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
@@ -1840,7 +1840,7 @@ class EasyBlock(object):
         self.rpath_include_dirs.append('$ORIGIN/../lib64')
 
         # in case of iterating builddependencies, unload any already loaded modules in reverse order
-        if 'iterate_builddependencies' in self.iter_opts:
+        if 'builddependencies' in self.iter_opts:
             if self.iter_idx > 0:
                 self.modules_tool.unload(reversed(self.loaded_modules))
             # do not unload modules that were loaded before the toolchain preparation.
@@ -1848,7 +1848,7 @@ class EasyBlock(object):
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
                                rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
-        if 'iterate_builddependencies' in self.iter_opts:
+        if 'builddependencies' in self.iter_opts:
             self.loaded_modules = self.modules_tool.loaded_modules()[len(orig_modules):]
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
