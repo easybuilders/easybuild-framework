@@ -855,7 +855,7 @@ class RobotTest(EnhancedTestCase):
         ]
         self.assertEqual(iimpi_hierarchy, expected)
 
-        iccifortcuda_hierarchy = get_toolchain_hierarchy({'name': 'iccifortcuda', 'version': 'test'},
+        iccifortcuda_hierarchy = get_toolchain_hierarchy({'name': 'iccifortcuda', 'version': '2016.1.150'},
                                                          incl_capabilities=True)
         expected = [
             {
@@ -878,7 +878,7 @@ class RobotTest(EnhancedTestCase):
             },
             {
                 'name': 'iccifortcuda',
-                'version': 'test',
+                'version': '2016.1.150',
                 'comp_family': 'Intel',
                 'mpi_family': None,
                 'lapack_family': None,
