@@ -96,7 +96,7 @@ def dependencies_for(mod_name, modtool, depth=None):
     mods = loadregex.findall(modtxt)
 
     if depth is None or depth > 0:
-        if depth > 0:
+        if depth and depth > 0:
             depth = depth - 1
         # recursively determine dependencies for these dependency modules, until depth is non-positive
         moddeps = [dependencies_for(mod, modtool, depth=depth) for mod in mods]

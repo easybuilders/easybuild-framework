@@ -65,7 +65,7 @@ class TestModuleNamingSchemeMore(ModuleNamingScheme):
                     res += '%s:%s,' % (item_key, ec[key][item_key])
             else:
                 res += str(ec[key])
-        ec_sha1 = sha1(res).hexdigest()
+        ec_sha1 = sha1(res.encode()).hexdigest()
         _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
         return os.path.join(ec['name'], ec_sha1)
 
