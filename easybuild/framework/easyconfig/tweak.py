@@ -270,7 +270,8 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         _log.warning("Tweaking version: checksums cleared, verification disabled.")
 
     # we need to treat list values separately, i.e. we prepend to the current value (if any)
-    for (key, val) in list(tweaks.items()):
+    for key in list(tweaks):
+        val = tweaks[key]
 
         if isinstance(val, list):
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
