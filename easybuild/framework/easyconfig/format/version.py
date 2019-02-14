@@ -145,7 +145,14 @@ class VersionOperator(object):
         elif not isinstance(test_version, EasyVersion):
             raise EasyBuildError("test: argument should be a string or EasyVersion (type %s)", type(test_version))
 
-        res = self.operator(test_version, self.version)
+        try:
+            res = self.operator(test_version, self.version)
+        except TypeError:
+            # fallback for case when 'dummy' version is compared with proper version
+            # this results in a TypeError in Python 3 (comparing 'str' with 'int'), but not in Python 2
+            # any comparison is meaningless in this case, so always returning True as result should be fine
+            res = True
+
         self.log.debug("result of testing expression '%s %s %s': %s",
                        test_version, self.REVERSE_OPERATOR_MAP[self.operator], self.version, res)
 
