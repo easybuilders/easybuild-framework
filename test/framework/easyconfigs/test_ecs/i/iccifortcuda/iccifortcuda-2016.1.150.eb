@@ -1,7 +1,7 @@
 easyblock = 'Toolchain'
 
 name = 'iccifortcuda'
-version = 'test'
+version = '2016.1.150'
 
 homepage = '(none)'
 description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL, with CUDA toolkit"""
