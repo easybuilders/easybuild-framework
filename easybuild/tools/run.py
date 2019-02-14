@@ -197,7 +197,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
-        proc.stdin.write(inp)
+        proc.stdin.write(inp.encode())
     proc.stdin.close()
 
     # use small read size when streaming output, to make it stream more fluently
@@ -379,7 +379,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
-            out = recv_some(p)
+            out = recv_some(p).decode()
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out
@@ -450,7 +450,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Process stopped. Read all remaining data
     try:
         if p.stdout:
-            out = p.stdout.read()
+            out = p.stdout.read().decode()
             stdout_err += out
             if cmd_log:
                 cmd_log.write(out)
