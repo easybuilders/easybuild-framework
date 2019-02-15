@@ -166,7 +166,11 @@ class ModulesTool(object):
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = self.COMMAND
-        env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
+
+        if self.COMMAND_ENVIRONMENT:
+            env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
+        else:
+            env_cmd_path = None
 
         self.mod_paths = None
         if mod_paths is not None:
