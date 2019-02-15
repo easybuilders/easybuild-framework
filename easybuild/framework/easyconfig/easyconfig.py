@@ -541,20 +541,20 @@ class EasyConfig(object):
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
         # create a list of all options that are actually going to be iterated over
+        # builddependencies are always a list, need to look deeper down below
         self.iterate_options = [opt for opt in ITERATE_OPTIONS
-                                if (isinstance(self[opt], (list, tuple)) and
-                                    (opt != 'builddependencies' or
-                                     (self[opt] and isinstance(self[opt][0][0], (list, tuple)))))]
+                                if opt != 'builddependencies' and isinstance(self[opt], (list, tuple))]
 
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
-        if 'builddependencies' in self.iterate_options:
-            self['builddependencies'] = [[self._parse_dependency(dep, build_only=True)
-                                          for dep in x] for x in self['builddependencies']]
+        builddeps = self['builddependencies']
+        if builddeps and isinstance(builddeps[0], (list, tuple)) and isinstance(builddeps[0][0], (list, tuple)):
+            self.iterate_options.append('builddependencies')
+            builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
         else:
-            self['builddependencies'] = [self._parse_dependency(dep, build_only=True)
-                                         for dep in self['builddependencies']]
+            builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
+        self['builddependencies'] = builddeps
         self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
         self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
 
