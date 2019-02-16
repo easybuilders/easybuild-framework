@@ -34,13 +34,9 @@ import sys
 import tempfile
 from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
-from vsc.utils.missing import nub
-
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import curr_module_paths
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
@@ -49,6 +45,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import EnvironmentModulesC, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
+
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -233,7 +230,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.assertTrue(full_module_name in self.modtool.loaded_modules())
         self.modtool.purge()
-
 
     def test_load(self):
         """Test load part in generated module file."""
@@ -491,7 +487,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
@@ -539,7 +535,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
@@ -949,7 +945,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
-            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*','*', ecfile))[0])
+            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', ecfile))[0])
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
@@ -1103,6 +1099,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

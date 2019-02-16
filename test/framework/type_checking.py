@@ -257,18 +257,19 @@ class TypeCheckingTest(EnhancedTestCase):
         lib_dict.update({'versionsuffix': ''})
 
         # to_dependency doesn't touch values of non-dict type
-        self.assertEqual(to_dependency(('foo', '1.3')), ('foo','1.3'))
-        self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), ('foo', '1.3', '-suff', ('GCC','4.8.2')))
+        self.assertEqual(to_dependency(('foo', '1.3')), ('foo', '1.3'))
+        expected = ('foo', '1.3', '-suff', ('GCC', '4.8.2'))
+        self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), expected)
         self.assertEqual(to_dependency('foo/1.3'), 'foo/1.3')
 
-        self.assertEqual(to_dependency({'name':'fftw/3.3.4.2', 'external_module': True}),
-            {
-                'external_module': True,
-                'full_mod_name': 'fftw/3.3.4.2',
-                'name': None,
-                'short_mod_name': 'fftw/3.3.4.2',
-                'version': None,
-            })
+        expected = {
+            'external_module': True,
+            'full_mod_name': 'fftw/3.3.4.2',
+            'name': None,
+            'short_mod_name': 'fftw/3.3.4.2',
+            'version': None,
+        }
+        self.assertEqual(to_dependency({'name': 'fftw/3.3.4.2', 'external_module': True}), expected)
 
         foo_dict = {
             'name': 'foo',
@@ -293,10 +294,10 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # no name/version
         self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
-            to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+                              to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
         # too many values
-        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*",
-            to_dependency, {'lib': '1.2.8', 'foo':'1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+        dep_spec = {'lib': '1.2.8', 'foo': '1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'}
+        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
 
     def test_to_dependencies(self):
         """Test to_dependencies function."""
@@ -317,7 +318,7 @@ class TypeCheckingTest(EnhancedTestCase):
             'foo/1.2.3',
             ('foo', '1.2.3'),
             ('bar', '4.5.6', '-test'),
-            ('foobar', '1.3.5', '', ('GCC','4.7.2')),
+            ('foobar', '1.3.5', '', ('GCC', '4.7.2')),
             {'name': 'toy', 'version': '0.0'},
             {'name': 'toy', 'version': '0.0', 'versionsuffix': '-bleh'},
             {'name': 'toy', 'version': '0.0', 'toolchain': {'name': 'gompi', 'version': '2015a'}},
@@ -381,7 +382,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type(dependencies, DEPENDENCIES))
 
         # wrong keys (name/version is strictly required)
-        self.assertFalse(is_value_of_type([{'a':'b', 'c':'d'}], DEPENDENCIES))
+        self.assertFalse(is_value_of_type([{'a': 'b', 'c': 'd'}], DEPENDENCIES))
 
         # not a list
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a'}, DEPENDENCIES))
@@ -424,7 +425,7 @@ class TypeCheckingTest(EnhancedTestCase):
         """Test as_hashable function."""
         hashable_value = (
             ('one', (1,)),
-            ('two', (1,2)),
+            ('two', (1, 2)),
         )
         self.assertEqual(as_hashable({'one': [1], 'two': [1, 2]}), hashable_value)
 
@@ -587,10 +588,12 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42,))
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
