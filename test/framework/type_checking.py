@@ -297,7 +297,7 @@ class TypeCheckingTest(EnhancedTestCase):
                               to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
         # too many values
         dep_spec = {'lib': '1.2.8', 'foo': '1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'}
-        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
+        self.assertErrorRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
 
     def test_to_dependencies(self):
         """Test to_dependencies function."""
