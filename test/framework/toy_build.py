@@ -258,7 +258,8 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$', toy_module_txt, re.M))
+            pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
@@ -329,7 +330,8 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
         orig_sys_path = sys.path[:]
-        # add directory in which easyconfig file can be found to Python search path, since we're not specifying it full path below
+        # add directory in which easyconfig file can be found to Python search path,
+        # since we're not specifying it full path below
         tmpdir = tempfile.mkdtemp()
         # note get_paths_for expects easybuild/easyconfigs subdir
         ecs_path = os.path.join(tmpdir, "easybuild", "easyconfigs")
@@ -641,7 +643,6 @@ class ToyBuildTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         write_file(test_ec, read_file(toy_ec) + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
-        error_pattern = "Failed to get application instance.*: Found group spec in tuple format that is not a 2-tuple:"
         self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
                               raise_error=True, raise_systemexit=True)
 
@@ -937,7 +938,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             for modname in ['GCC', 'OpenMPI']:
                 regex = re.compile('load.*' + modname, re.M)
-                self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
+                self.assertFalse(regex.search(toy_modtxt),
+                                 "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
@@ -1369,11 +1371,11 @@ class ToyBuildTest(EnhancedTestCase):
         args = common_args + ['--module-syntax=Tcl']
 
         # install module once (without --module-only), so it can be backed up
-        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
 
         # forced reinstall, no backup of module file because --backup-modules (or --module-only) is not used
-        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
         toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 0)
@@ -1381,7 +1383,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         # note: no need to specificy --backup-modules, enabled automatically under --module-only
-        outtxt = self.eb_main(args + ['--module-only'], do_build=True, raise_error=True)
+        self.eb_main(args + ['--module-only'], do_build=True, raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -1832,7 +1834,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # also test use of --rpath-filter
         args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
-        outtxt = self.test_toy_build(extra_args=args, raise_error=True)
+        self.test_toy_build(extra_args=args, raise_error=True)
 
         # check whether rpath filter was set correctly
         rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
@@ -2003,4 +2005,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

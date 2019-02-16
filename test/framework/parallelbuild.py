@@ -34,7 +34,6 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.job.slurm as slurm
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
@@ -362,4 +361,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

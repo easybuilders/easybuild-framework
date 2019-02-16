@@ -31,7 +31,6 @@ Unit tests for systemtools.py
 import re
 import sys
 
-from os.path import exists as orig_os_path_exists
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
@@ -317,9 +316,11 @@ def mocked_run_cmd(cmd, **kwargs):
     else:
         return run_cmd(cmd, **kwargs)
 
+
 def mocked_uname():
     """Mocked version of platform.uname, with specified contents for known machine names."""
     return ('Linux', 'localhost', '3.16', '3.16', MACHINE_NAME, '')
+
 
 class SystemToolsTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
@@ -627,12 +628,12 @@ class SystemToolsTest(EnhancedTestCase):
         ext = get_shared_lib_ext()
         self.assertTrue(ext in ['dylib', 'so'])
 
-    def test_shared_lib_ext_native(self):
+    def test_shared_lib_ext_linux(self):
         """Test getting extension for shared libraries (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         self.assertEqual(get_shared_lib_ext(), 'so')
 
-    def test_shared_lib_ext_native(self):
+    def test_shared_lib_ext_darwin(self):
         """Test getting extension for shared libraries (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         self.assertEqual(get_shared_lib_ext(), 'dylib')
@@ -771,5 +772,7 @@ def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

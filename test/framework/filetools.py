@@ -226,7 +226,7 @@ class FileToolsTest(EnhancedTestCase):
             'md5': '7167b64b1ca062b9674ffef46f9325db',
             'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
             'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
-            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733e' +
+            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733e'
                       'b7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
@@ -1816,4 +1816,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
