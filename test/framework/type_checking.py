@@ -257,10 +257,13 @@ class TypeCheckingTest(EnhancedTestCase):
         lib_dict.update({'versionsuffix': ''})
 
         # to_dependency doesn't touch values of non-dict type
-        self.assertEqual(to_dependency(('foo', '1.3')), ('foo', '1.3'))
-        expected = ('foo', '1.3', '-suff', ('GCC', '4.8.2'))
-        self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), expected)
-        self.assertEqual(to_dependency('foo/1.3'), 'foo/1.3')
+        dep_specs = [
+            ('foo', '1.3'),
+            ('foo', '1.3', '-suff', ('GCC', '4.8.2')),
+            'foo/1.3',
+        ]
+        for dep_spec in dep_specs:
+            self.assertEqual(to_dependency(dep_spec), dep_spec)
 
         expected = {
             'external_module': True,
