@@ -1768,7 +1768,13 @@ class EasyConfigTest(EnhancedTestCase):
             # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
             # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
             dottxt = read_file(dot_file)
-            self.assertEqual(dottxt, EXPECTED_DOTTXT_TOY_DEPS)
+
+            self.assertTrue(dottxt.startswith('digraph graphname {'))
+
+            # compare sorted output, since order of lines can change
+            ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
+            ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
+            self.assertEqual(ordered_dottxt, ordered_expected)
 
         except ImportError:
             print "Skipping test_dep_graph, since pygraph is not available"
