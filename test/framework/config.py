@@ -34,15 +34,13 @@ import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path, source_paths, install_path, get_repositorypath
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
-from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
-from easybuild.tools.environment import modify_env
+from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
@@ -576,7 +574,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildConfigTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
