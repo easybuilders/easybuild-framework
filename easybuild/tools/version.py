@@ -61,8 +61,10 @@ def get_git_revision():
     try:
         path = os.path.dirname(__file__)
         gitrepo = git.Git(path)
-        # 'encode' is required to make sure a regular string is returned rather than a unicode string
-        res = gitrepo.rev_list('HEAD').splitlines()[0].encode('ascii')
+        res = gitrepo.rev_list('HEAD').splitlines()[0]
+        # 'encode' is required to make sure a regular string is returned rather than a unicode string (only in Python 2)
+        if not isinstance(res, str):
+            res = res.encode('ascii')
     except git.GitCommandError:
         res = UNKNOWN
 
