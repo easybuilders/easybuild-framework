@@ -91,5 +91,9 @@ def this_is_easybuild():
     # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
     msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
-    # 'encode' is required to make sure a regular string is returned rather than a unicode string
-    return msg.encode('ascii')
+
+    # 'encode' is required to make sure a regular string is returned rather than a unicode string (only in Python 2)
+    if not isinstance(msg, str):
+        msg = msg.encode('ascii')
+
+    return msg

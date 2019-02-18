@@ -1478,6 +1478,7 @@ class EasyBlockTest(EnhancedTestCase):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
         # make sure both return a non-Unicode string
         self.assertTrue(isinstance(get_git_revision(), str))
+        res = this_is_easybuild()
         self.assertTrue(isinstance(this_is_easybuild(), str))
 
     def test_stale_module_caches(self):
