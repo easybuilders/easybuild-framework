@@ -66,3 +66,15 @@ def raise_with_traceback(exception_class, message, traceback):
 def extract_method_name(method_func):
     """Extract method name from lambda function."""
     return '_'.join(method_func.func_code.co_names)
+
+
+def mk_wrapper_baseclass(metaclass):
+
+    class WrapperBase(object):
+        """
+        Wrapper class that provides proxy access to an instance of some internal instance.
+        """
+        __metaclass__ = metaclass
+        __wraps__ = None
+
+    return WrapperBase
