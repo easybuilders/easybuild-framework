@@ -62,7 +62,8 @@ def get_git_revision():
         path = os.path.dirname(__file__)
         gitrepo = git.Git(path)
         res = gitrepo.rev_list('HEAD').splitlines()[0]
-        # 'encode' is required to make sure a regular string is returned rather than a unicode string (only in Python 2)
+        # 'encode' may be required to make sure a regular string is returned rather than a unicode string
+        # (only needed in Python 2; in Python 3, regular strings are already unicode)
         if not isinstance(res, str):
             res = res.encode('ascii')
     except git.GitCommandError:
@@ -94,7 +95,8 @@ def this_is_easybuild():
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
     msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
 
-    # 'encode' is required to make sure a regular string is returned rather than a unicode string (only in Python 2)
+    # 'encode' may be required to make sure a regular string is returned rather than a unicode string
+    # (only needed in Python 2; in Python 3, regular strings are already unicode)
     if not isinstance(msg, str):
         msg = msg.encode('ascii')
 
