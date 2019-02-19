@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,7 @@ EasyBuild support for giolfc compiler toolchain (includes GCC+CUDA, IntelMPI, Op
 """
 
 from easybuild.toolchains.gimpic import Gimpic
+from easybuild.toolchains.golfc import Golfc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -37,5 +38,5 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Giolfc(Gimpic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, IntelMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'giolfc'
-    SUBTOOLCHAIN = Gimpic.NAME
+    SUBTOOLCHAIN = [Gimpic.NAME, Golfc.NAME]
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -74,7 +74,7 @@ class RepositoryTest(EnhancedTestCase):
         """Test using GitRepository."""
         # only run this test if git Python module is available
         try:
-            from git import GitCommandError
+            from git import GitCommandError  # noqa
         except ImportError:
             print "(skipping GitRepository test)"
             return
@@ -116,7 +116,7 @@ class RepositoryTest(EnhancedTestCase):
         """Test using SvnRepository."""
         # only run this test if pysvn Python module is available
         try:
-            from pysvn import ClientError
+            from pysvn import ClientError  # noqa
         except ImportError:
             print "(skipping SvnRepository test)"
             return
@@ -129,11 +129,15 @@ class RepositoryTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
         shutil.rmtree(repo.wc)
 
-    def test_hgrepo(self):
+    # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
+    # we can consider re-enabling it when moving to a more recent Ubuntu version in the Travis config
+    # (which implies dropping support for Python 2.6)
+    # cfr. https://github.com/easybuilders/easybuild-framework/pull/2678
+    def DISABLED_test_hgrepo(self):
         """Test using HgRepository."""
         # only run this test if pysvn Python module is available
         try:
-            import hglib
+            import hglib  # noqa
         except ImportError:
             print "(skipping HgRepository test)"
             return
@@ -189,8 +193,10 @@ class RepositoryTest(EnhancedTestCase):
             path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
             check_ec(path, [{'time': 1.23}])
 
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
-            check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+            stats1 = {'time': 1.23, 'size': 123}
+            stats2 = [{'time': 0.9, 'size': 2}]
+            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', stats1, stats2)
+            check_ec(path, stats2 + [stats1])
 
             easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
         else:
@@ -202,10 +208,12 @@ class RepositoryTest(EnhancedTestCase):
 
         shutil.rmtree(self.path, True)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 """
 
 from easybuild.toolchains.pompi import Pompi
+from easybuild.toolchains.pmkl import Pmkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -42,4 +43,4 @@ class Pomkl(Pompi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'pomkl'
-    SUBTOOLCHAIN = Pompi.NAME
+    SUBTOOLCHAIN = [Pompi.NAME, Pmkl.NAME]

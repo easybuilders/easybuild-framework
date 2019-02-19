@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,10 +29,11 @@ be used within an Easyconfig file.
 
 :author: Stijn De Weirdt (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Kenneth Hoste (Ghent University)
 """
 import re
+import platform
 from vsc.utils import fancylogger
-from distutils.version import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -42,6 +43,7 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
+    ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
     ('nameletter', "First letter of software name"),
     ('toolchain_name', "Toolchain name"),
     ('toolchain_version', "Toolchain version"),
@@ -80,23 +82,23 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
     # source url constants
-    ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
+    ('APACHE_SOURCE', 'https://archive.apache.org/dist/%(namelower)s',
      'apache.org source url'),
-    ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
+    ('BITBUCKET_SOURCE', 'https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
      'bitbucket.org source url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
-    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
+    ('BITBUCKET_DOWNLOADS', 'https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
      'bitbucket.org downloads url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
-    ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
+    ('CRAN_SOURCE', 'https://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
-    ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
+    ('FTPGNOME_SOURCE', 'https://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
     ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
-     'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
+     'GitHub source URL (namelower is used if github_account easyconfig parameter is not specified)'),
     ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
-     'GitHub source URL (lowercase name, requires github_account easyconfig parameter to be specified)'),
-    ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
+     'GitHub source URL (lowercase name, namelower is used if github_account easyconfig parameter is not specified)'),
+    ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/gnu/%(namelower)s',
+    ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
      'gnu.org source url'),
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),
@@ -106,19 +108,19 @@ TEMPLATE_CONSTANTS = [
      'pypi source url'),  # e.g., Cython, Sphinx
     ('PYPI_LOWER_SOURCE', 'https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
      'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
-    ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
+    ('R_SOURCE', 'https://cran.r-project.org/src/base/R-%(version_major)s',
      'cran.r-project.org (base) source url'),
-    ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
+    ('SOURCEFORGE_SOURCE', 'https://download.sourceforge.net/%(namelower)s',
      'sourceforge.net source url'),
-    ('XORG_DATA_SOURCE', 'http://xorg.freedesktop.org/archive/individual/data/',
+    ('XORG_DATA_SOURCE', 'https://xorg.freedesktop.org/archive/individual/data/',
      'xorg data source url'),
-    ('XORG_LIB_SOURCE', 'http://xorg.freedesktop.org/archive/individual/lib/',
+    ('XORG_LIB_SOURCE', 'https://xorg.freedesktop.org/archive/individual/lib/',
      'xorg lib source url'),
-    ('XORG_PROTO_SOURCE', 'http://xorg.freedesktop.org/archive/individual/proto/',
+    ('XORG_PROTO_SOURCE', 'https://xorg.freedesktop.org/archive/individual/proto/',
      'xorg proto source url'),
-    ('XORG_UTIL_SOURCE', 'http://xorg.freedesktop.org/archive/individual/util/',
+    ('XORG_UTIL_SOURCE', 'https://xorg.freedesktop.org/archive/individual/util/',
      'xorg util source url'),
-    ('XORG_XCB_SOURCE', 'http://xorg.freedesktop.org/archive/individual/xcb/',
+    ('XORG_XCB_SOURCE', 'https://xorg.freedesktop.org/archive/individual/xcb/',
      'xorg xcb source url'),
 
     # TODO, not urgent, yet nice to have:
@@ -152,6 +154,9 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     template_values = {}
 
     _log.debug("config: %s", config)
+
+    # set 'arch' for system architecture based on 'machine' (4th) element of platform.uname() return value
+    template_values['arch'] = platform.uname()[4]
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
@@ -231,7 +236,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                 continue
             try:
                 template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = t_v.lower()
-            except:
+            except Exception:
                 _log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)" %
                            (name, t_v, type(t_v)))
 
@@ -289,7 +294,8 @@ def template_documentation():
     # step 4. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+        namelower = TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}
+        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, namelower, name))
 
     # step 5. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)

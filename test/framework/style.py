@@ -1,5 +1,5 @@
 ##
-# Copyright 2016-2018 Ghent University
+# Copyright 2016-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,10 +37,10 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:
-    import pycodestyle
+    import pycodestyle  # noqa
 except ImportError:
     try:
-        import pep8
+        import pep8  # noqa
     except ImportError:
         pass
 
@@ -102,4 +102,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

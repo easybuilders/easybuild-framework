@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,9 +33,9 @@ Generating module files.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+import copy
 import os
 import re
-import sys
 import tempfile
 from distutils.version import LooseVersion
 from textwrap import wrap
@@ -45,7 +45,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, modules_tool
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -85,19 +85,21 @@ def module_load_regex(modfilepath):
     return re.compile(regex, re.M)
 
 
-def dependencies_for(mod_name, modtool, depth=sys.maxint):
+def dependencies_for(mod_name, modtool, depth=None):
     """
     Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
-    :param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
+    :param depth: recursion depth (default is None, which corresponds to infinite recursion depth)
     """
     mod_filepath = modtool.modulefile_path(mod_name)
     modtxt = read_file(mod_filepath)
     loadregex = module_load_regex(mod_filepath)
     mods = loadregex.findall(modtxt)
 
-    if depth > 0:
+    if depth is None or depth > 0:
+        if depth > 0:
+            depth = depth - 1
         # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, modtool, depth=depth - 1) for mod in mods]
+        moddeps = [dependencies_for(mod, modtool, depth=depth) for mod in mods]
     else:
         # ignore any deeper dependencies
         moddeps = []
@@ -105,7 +107,7 @@ def dependencies_for(mod_name, modtool, depth=sys.maxint):
     # add dependencies of dependency modules only if they're not there yet
     for moddepdeps in moddeps:
         for dep in moddepdeps:
-            if not dep in mods:
+            if dep not in mods:
                 mods.append(dep)
 
     return mods
@@ -122,6 +124,7 @@ class ModuleGenerator(object):
 
     MODULE_FILE_EXTENSION = None
     MODULE_SHEBANG = None
+    DOT_MODULERC = '.modulerc'
 
     # a single level of indentation
     INDENTATION = ' ' * 4
@@ -131,6 +134,8 @@ class ModuleGenerator(object):
         self.app = application
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.fake_mod_path = tempfile.mkdtemp()
+
+        self.modules_tool = modules_tool()
 
     def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -157,7 +162,7 @@ class ModuleGenerator(object):
                 mkdir(os.path.dirname(class_mod_file), parents=True)
                 os.symlink(mod_filepath, class_mod_file)
 
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Failed to create symlinks from %s to %s: %s", class_mod_files, mod_filepath, err)
 
     def define_env_var(self, env_var):
@@ -197,6 +202,110 @@ class ModuleGenerator(object):
         """
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
+    def _modulerc_check_module_version(self, module_version):
+        """
+        Check value type & contents of specified module-version spec.
+
+        :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
+        :return: True if spec is OK
+        """
+        res = False
+        if module_version:
+            if isinstance(module_version, dict):
+                expected_keys = ['modname', 'sym_version', 'version']
+                if sorted(module_version.keys()) == expected_keys:
+                    res = True
+                else:
+                    raise EasyBuildError("Incorrect module_version spec, expected keys: %s", expected_keys)
+            else:
+                raise EasyBuildError("Incorrect module_version value type: %s", type(module_version))
+
+        return res
+
+    def _write_modulerc_file(self, modulerc_path, modulerc_txt, wrapped_mod_name=None):
+        """
+        Write modulerc file with specified contents.
+
+        :param modulerc_path: location of .modulerc file to write
+        :param modulerc_txt: contents of .modulerc file
+        :param wrapped_mod_name: name of module file for which a wrapper is defined in the .modulerc file (if any)
+        """
+        if os.path.exists(modulerc_path) and not (build_option('force') or build_option('rebuild')):
+            raise EasyBuildError("Found existing .modulerc at %s, not overwriting without --force or --rebuild",
+                                 modulerc_path)
+
+        # Lmod 6.x requires that module being wrapped is in same location as .modulerc file...
+        if wrapped_mod_name is not None:
+            if isinstance(self.modules_tool, Lmod) and LooseVersion(self.modules_tool.version) < LooseVersion('7.0'):
+                mod_dir = os.path.dirname(modulerc_path)
+
+                # need to consider existing module file in both Tcl (no extension) & Lua (.lua extension) syntax...
+                wrapped_mod_fp = os.path.join(mod_dir, os.path.basename(wrapped_mod_name))
+                wrapped_mod_exists = os.path.exists(wrapped_mod_fp)
+                if not wrapped_mod_exists and self.MODULE_FILE_EXTENSION:
+                    wrapped_mod_exists = os.path.exists(wrapped_mod_fp + self.MODULE_FILE_EXTENSION)
+
+                if not wrapped_mod_exists:
+                    error_msg = "Expected module file %s not found; " % wrapped_mod_fp
+                    error_msg += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory!"
+                    raise EasyBuildError(error_msg)
+
+        write_file(modulerc_path, modulerc_txt, backup=True)
+
+    def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
+        """
+        Generate contents of .modulerc file, in Tcl syntax (compatible with all module tools, incl. Lmod).
+        If 'filepath' is specified, the .modulerc file will be written as well.
+
+        :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
+        :param filepath: location where .modulerc file should be written to
+        :param modulerc_txt: contents of .modulerc to use
+        :return: contents of .modulerc file
+        """
+        if modulerc_txt is None:
+
+            self.log.info("Generating .modulerc contents in Tcl syntax (args: module_version: %s", module_version)
+            modulerc = [ModuleGeneratorTcl.MODULE_SHEBANG]
+
+            if self._modulerc_check_module_version(module_version):
+
+                module_version_statement = "module-version %(modname)s %(sym_version)s"
+
+                # for Environment Modules we need to guard the module-version statement,
+                # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
+                # which occur because the .modulerc is parsed twice
+                # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
+                # and returns the corresponding real version in case the argument is an existing symbolic version
+                # cfr. https://sourceforge.net/p/modules/mailman/message/33399425/
+                if self.modules_tool.__class__ == EnvironmentModulesC:
+
+                    keys = ['modname', 'sym_version', 'version']
+                    modname, sym_version, version = [module_version[key] for key in keys]
+
+                    # determine module name with symbolic version
+                    if version in modname:
+                        # take a copy so we don't modify original value
+                        module_version = copy.copy(module_version)
+                        module_version['sym_modname'] = modname.replace(version, sym_version)
+                    else:
+                        raise EasyBuildError("Version '%s' does not appear in module name '%s'", version, modname)
+
+                    module_version_statement = '\n'.join([
+                        'if {"%(sym_modname)s" eq [module-info version %(sym_modname)s]} {',
+                        ' ' * 4 + module_version_statement,
+                        "}",
+                    ])
+
+                modulerc.append(module_version_statement % module_version)
+
+            modulerc_txt = '\n'.join(modulerc)
+
+        if filepath:
+            self.log.info("Writing %s with contents:\n%s", filepath, modulerc_txt)
+            self._write_modulerc_file(filepath, modulerc_txt, wrapped_mod_name=module_version['modname'])
+
+        return modulerc_txt
+
     # From this point on just not implemented methods
 
     def check_group(self, group, error_msg=None):
@@ -213,7 +322,7 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None):
+    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
         """
         Return formatted conditional statement, with given condition and body.
 
@@ -221,6 +330,7 @@ class ModuleGenerator(object):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        :param indent: indent if/else body
         """
         raise NotImplementedError
 
@@ -459,7 +569,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None):
+    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
         """
         Return formatted conditional statement, with given condition and body.
 
@@ -467,6 +577,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        :param indent: indent if/else body
         """
         if negative:
             lines = ["if { ![ %s ] } {" % condition]
@@ -474,14 +585,18 @@ class ModuleGeneratorTcl(ModuleGenerator):
             lines = ["if { [ %s ] } {" % condition]
 
         for line in body.split('\n'):
-            lines.append(self.INDENTATION + line)
+            if indent:
+                line = self.INDENTATION + line
+            lines.append(line)
 
         if else_body is None:
             lines.extend(['}', ''])
         else:
             lines.append('} else {')
             for line in else_body.split('\n'):
-                lines.append(self.INDENTATION + line)
+                if indent:
+                    line = self.INDENTATION + line
+                lines.append(line)
             lines.extend(['}', ''])
 
         return '\n'.join(lines)
@@ -546,7 +661,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
         if build_option('mod_depends_on') or depends_on:
-            if not modules_tool().supports_depends_on:
+            if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
@@ -566,9 +681,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Add a message that should be printed when loading the module.
         """
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
-        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
+        msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         print_cmd = "puts stderr %s" % quote_str(msg)
-        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd)])
+        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd, indent=False)])
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
@@ -736,6 +851,14 @@ class ModuleGeneratorLua(ModuleGenerator):
     START_STR = '[==['
     END_STR = ']==]'
 
+    def __init__(self, *args, **kwargs):
+        """ModuleGeneratorLua constructor."""
+        super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
+
+        if self.modules_tool:
+            if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
+                self.DOT_MODULERC = '.modulerc.lua'
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -744,10 +867,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
+        lmod_version = self.modules_tool.version
         min_lmod_version = '6.0.8'
 
-        if lmod_version != 'NOT_FOUND' and LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
+        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
             if error_msg is None:
                 error_msg = "You are not part of '%s' group of users that have access to this software; " % group
                 error_msg += "Please consult with user support how to become a member of this group"
@@ -773,7 +896,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "-- %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None):
+    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
         """
         Return formatted conditional statement, with given condition and body.
 
@@ -781,6 +904,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        :param indent: indent if/else body
         """
         if negative:
             lines = ["if not %s then" % condition]
@@ -788,14 +912,18 @@ class ModuleGeneratorLua(ModuleGenerator):
             lines = ["if %s then" % condition]
 
         for line in body.split('\n'):
-            lines.append(self.INDENTATION + line)
+            if indent:
+                line = self.INDENTATION + line
+            lines.append(line)
 
         if else_body is None:
             lines.extend(['end', ''])
         else:
             lines.append('else')
             for line in else_body.split('\n'):
-                lines.append(self.INDENTATION + line)
+                if indent:
+                    line = self.INDENTATION + line
+                lines.append(line)
             lines.extend(['end', ''])
 
         return '\n'.join(lines)
@@ -858,7 +986,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
         if build_option('mod_depends_on') or depends_on:
-            if not modules_tool().supports_depends_on:
+            if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
@@ -886,7 +1014,37 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
         stmt = 'io.stderr:write(%s%s%s)' % (self.START_STR, self.check_str(msg), self.END_STR)
-        return '\n' + self.conditional_statement('mode() == "load"', stmt)
+        return '\n' + self.conditional_statement('mode() == "load"', stmt, indent=False)
+
+    def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
+        """
+        Generate contents of .modulerc(.lua) file, in Lua syntax (but only if Lmod is recent enough, i.e. >= 7.7.38)
+
+        :param module_version: specs for module-version statement (dict with 'modname', 'sym_version' & 'version' keys)
+        :param filepath: location where .modulerc file should be written to
+        :param modulerc_txt: contents of .modulerc to use
+        :return: contents of .modulerc file
+        """
+        if modulerc_txt is None:
+            lmod_ver = self.modules_tool.version
+            min_ver = '7.7.38'
+
+            if LooseVersion(lmod_ver) >= LooseVersion(min_ver):
+                self.log.info("Found Lmod v%s >= v%s, so will generate .modulerc.lua in Lua syntax", lmod_ver, min_ver)
+
+                modulerc = []
+
+                if self._modulerc_check_module_version(module_version):
+                    module_version_statement = 'module_version("%(modname)s", "%(sym_version)s")'
+                    modulerc.append(module_version_statement % module_version)
+
+                modulerc_txt = '\n'.join(modulerc)
+
+            else:
+                self.log.info("Lmod v%s < v%s, need to stick to Tcl syntax for .modulerc", lmod_ver, min_ver)
+
+        return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
+                                                        modulerc_txt=modulerc_txt)
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -91,6 +91,6 @@ __path__ = extend_path(__path__, __name__)
     os.mkdir(dirname)
     create_subdirs(dirname)
 
-except (IOError, OSError), err:
+except (IOError, OSError) as err:
     sys.stderr.write("Repo setup failed: %s" % err)
     sys.exit(1)

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,9 +29,11 @@ EasyBuild support for GCC compiler toolchain.
 """
 
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 class GccToolchain(GCCcore):
     """Simple toolchain with just the GCC compilers."""
     NAME = 'GCC'
     COMPILER_MODULE_NAME = [NAME]
-    SUBTOOLCHAIN = GCCcore.NAME
+    SUBTOOLCHAIN = [GCCcore.NAME, DUMMY_TOOLCHAIN_NAME]
+    OPTIONAL = False

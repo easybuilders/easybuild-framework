@@ -1,0 +1,29 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   C, C++, Objective-C compiler, based on LLVM.  Does not
+include C++ standard library -- use libstdc++ from GCC. - Homepage: http://clang.llvm.org/
+}
+}
+
+module-whatis {C, C++, Objective-C compiler, based on LLVM.  Does not
+include C++ standard library -- use libstdc++ from GCC. - Homepage: http://clang.llvm.org/}
+
+set root    /prefix/software/Clang/3.2-GCC-6.4.0-2.28
+
+conflict    Clang
+
+if { ![is-loaded GCC/6.4.0-2.28] } {
+    module load GCC/6.4.0-2.28
+}
+
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	PATH		$root/bin
+
+setenv	EBROOTCLANG		"$root"
+setenv	EBVERSIONCLANG		"3.2"
+setenv	EBDEVELCLANG		"$root/easybuild/Clang-3.2-GCC-6.4.0-2.28-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

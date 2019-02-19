@@ -1,0 +1,42 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   GCC based compiler toolchain including
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK. - Homepage: (none)
+}
+}
+
+module-whatis {GCC based compiler toolchain including
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK. - Homepage: (none)}
+
+set root    /prefix/software/foss/2018a
+
+conflict    foss
+
+if { ![is-loaded GCC/6.4.0-2.28] } {
+    module load GCC/6.4.0-2.28
+}
+
+if { ![is-loaded OpenMPI/2.1.2-GCC-6.4.0-2.28] } {
+    module load OpenMPI/2.1.2-GCC-6.4.0-2.28
+}
+
+if { ![is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28] } {
+    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28
+}
+
+if { ![is-loaded FFTW/3.3.7-gompi-2018a] } {
+    module load FFTW/3.3.7-gompi-2018a
+}
+
+if { ![is-loaded ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20] } {
+    module load ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20
+}
+
+
+setenv	EBROOTFOSS		"$root"
+setenv	EBVERSIONFOSS		"2018a"
+setenv	EBDEVELFOSS		"$root/easybuild/foss-2018a-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

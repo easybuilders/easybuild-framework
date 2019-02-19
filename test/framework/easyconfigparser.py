@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,7 +31,6 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.format import Dependency
@@ -116,7 +115,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['name'], 'libpng')
         # first version/toolchain listed is default
         self.assertEqual(ec['version'], '1.5.10')
-        self.assertEqual(ec['toolchain'], {'name': 'goolf', 'version': '1.4.10'})
+        self.assertEqual(ec['toolchain'], {'name': 'foss', 'version': '2018a'})
 
         # dependencies should be parsed correctly
         deps = ec['dependencies']
@@ -124,22 +123,22 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(deps[0].name(), 'zlib')
         self.assertEqual(deps[0].version(), '1.2.5')
 
-        fn = os.path.join(TESTDIRBASE, 'v2.0', 'goolf.eb')
+        fn = os.path.join(TESTDIRBASE, 'v2.0', 'foss.eb')
         ecp = EasyConfigParser(fn)
 
         ec = ecp.get_config_dict()
-        self.assertEqual(ec['name'], 'goolf')
-        self.assertEqual(ec['version'], '1.4.10')
+        self.assertEqual(ec['name'], 'foss')
+        self.assertEqual(ec['version'], '2018a')
         self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
 
         # dependencies should be parsed correctly
         deps = [
             # name, version, versionsuffix, toolchain
-            ('GCC', '4.7.2', None, None),
-            ('OpenMPI', '1.6.4', None, {'name': 'GCC', 'version': '4.7.2'}),
-            ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2', {'name': 'gompi', 'version': '1.4.10'}),
-            ('FFTW', '3.3.3', None, {'name': 'gompi', 'version': '1.4.10'}),
-            ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2', {'name': 'gompi', 'version': '1.4.10'}),
+            ('GCC', '6.4.0-2.28', None, None),
+            ('OpenMPI', '2.1.2', None, {'name': 'GCC', 'version': '6.4.0-2.28'}),
+            ('OpenBLAS', '0.2.20', None, {'name': 'GCC', 'version': '6.4.0-2.28'}),
+            ('FFTW', '3.3.7', None, {'name': 'gompi', 'version': '2018a'}),
+            ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20', {'name': 'gompi', 'version': '2018a'}),
         ]
         for i, (name, version, versionsuffix, toolchain) in enumerate(deps):
             self.assertEqual(ec['dependencies'][i].name(), name)
@@ -154,7 +153,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         """Test passing of raw contents to EasyConfigParser."""
         ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb')
         ec_txt1 = read_file(ec_file1)
-        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         ec_txt2 = read_file(ec_file2)
 
         ecparser = EasyConfigParser(ec_file1)
@@ -168,7 +167,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ecparser.rawcontent, ec_txt2)
         ec = ecparser.get_config_dict()
         self.assertEqual(ec['name'], 'gzip')
-        self.assertEqual(ec['toolchain']['name'], 'goolf')
+        self.assertEqual(ec['toolchain']['name'], 'foss')
 
         self.assertErrorRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
 
@@ -206,6 +205,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

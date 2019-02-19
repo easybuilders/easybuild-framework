@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -74,5 +74,3 @@ class ToolchainVariables(Variables):
             lib.BEGIN.IS_BEGIN = True
             lib.END = make_lfl(False)
             lib.END.IS_END = True
-
-

@@ -1,0 +1,36 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL. - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/
+    }
+}
+
+module-whatis {Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL. - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/}
+
+set root    /tmp/intel/2018a
+
+conflict   intel 
+
+if { ![is-loaded icc/2018.1.163] } {
+    module load icc/2018.1.163
+}
+
+if { ![is-loaded ifort/2018.1.163] } {
+    module load ifort/2018.1.163
+}
+
+if { ![is-loaded impi/2018.1.163] } {
+    module load impi/2018.1.163
+}
+
+if { ![is-loaded imkl/2018.1.163] } {
+    module load imkl/2018.1.163
+}
+
+
+setenv	EBROOTINTEL		"$root"
+setenv	EBVERSIONINTEL		"2018a"
+setenv	EBDEVELINTEL		"$root/easybuild/intel-2018a-easybuild-devel"
+
+
+# built with EasyBuild version 1.9.0dev

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -155,18 +155,6 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
 
     returns the job
     """
-    # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
-    easybuild_vars = {}
-    for name in os.environ:
-        if name.startswith("EASYBUILD"):
-            easybuild_vars[name] = os.environ[name]
-
-    for env_var in ["PYTHONPATH", "MODULEPATH"]:
-        if env_var in os.environ:
-            easybuild_vars[env_var] = os.environ[env_var]
-
-    _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
-
     # obtain unique name based on name/easyconfig version tuple
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
@@ -194,7 +182,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     if build_option('job_cores'):
         extra['cores'] = build_option('job_cores')
 
-    job = job_backend.make_job(command, name, easybuild_vars, **extra)
+    job = job_backend.make_job(command, name, **extra)
     job.module = easyconfig['ec'].full_mod_name
 
     return job
@@ -212,5 +200,5 @@ def prepare_easyconfig(ec):
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
-    except (OSError, EasyBuildError), err:
+    except (OSError, EasyBuildError) as err:
         raise EasyBuildError("An error occurred while preparing %s: %s", ec, err)

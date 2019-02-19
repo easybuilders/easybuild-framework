@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import MODULECLASS_BASE
 
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
@@ -90,7 +91,8 @@ DEFAULT_CONFIG = {
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
-    'github_account': [None, "GitHub account name to be used to resolve template values in source URLs", BUILD],
+    'github_account': ['%(namelower)s', "GitHub account name to be used to resolve template values in source URLs",
+                       BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
@@ -171,7 +173,7 @@ DEFAULT_CONFIG = {
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
-    'moduleclass': ['base', 'Module class to be used for this software', MODULES],
+    'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
@@ -190,6 +192,8 @@ DEFAULT_CONFIG = {
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
+    'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
+                          "and will be archived in the next major release of EasyBuild", OTHER],
 }
 
 
