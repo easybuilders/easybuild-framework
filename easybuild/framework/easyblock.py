@@ -1930,16 +1930,12 @@ class EasyBlock(object):
             raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         # obtain name and module path for default extention class
-        if hasattr(exts_defaultclass, '__iter__'):
-            self.log.nosupport("Module path for default class is explicitly defined", '2.0')
-
-        elif isinstance(exts_defaultclass, string_type):
+        if isinstance(exts_defaultclass, string_type):
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
-
         else:
-            raise EasyBuildError("Improper default extension class specification, should be list/tuple or string.")
+            raise EasyBuildError("Improper default extension class specification, should be string.")
 
         # get class instances for all extensions
         exts_cnt = len(self.exts)
