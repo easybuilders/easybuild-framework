@@ -457,9 +457,7 @@ class EasyBlock(object):
         Find source file for extensions.
         """
         exts_sources = []
-        self.cfg.enable_templating = False
-        exts_list = self.cfg['exts_list']
-        self.cfg.enable_templating = True
+        exts_list = self.cfg.get_ref('exts_list')
 
         if self.dry_run:
             self.dry_run_msg("\nList of sources/patches for extensions:")
@@ -477,9 +475,7 @@ class EasyBlock(object):
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
-                    self.cfg.enable_templating = False
-                    ext_options = copy.deepcopy(self.cfg['exts_default_options'])
-                    self.cfg.enable_templating = True
+                    ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
 
                     def_src_tmpl = "%(name)s-%(version)s.tar.gz"
 
@@ -1373,10 +1369,8 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
-        # disabling templating is required here to support legacy string templates like name/version
-        self.cfg.enable_templating = False
-        exts_filter = self.cfg['exts_filter']
-        self.cfg.enable_templating = True
+        # obtaining untemplated reference value is required here to support legacy string templates like name/version
+        exts_filter = self.cfg.get_ref('exts_filter')
 
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
@@ -1473,11 +1467,12 @@ class EasyBlock(object):
         """Handle options relevant during iterated part of build/install procedure."""
 
         # disable templating in this function, since we're messing about with values in self.cfg
+        prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
-        # handle configure/build/install options that are specified as lists
+        # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
-        # this will only be done during first iteration, since after that the options won't be lists anymore
+        # only needs to be done during first iteration, since after that the options won't be lists anymore
         if self.iter_idx == 0:
             # keep track of list, supply first element as first option to handle
             for opt in self.cfg.iterate_options:
@@ -1487,7 +1482,7 @@ class EasyBlock(object):
         if self.iter_opts:
             self.log.info("Current iteration index: %s", self.iter_idx)
 
-        # pop first element from all *_list options as next value to use
+        # pop first element from all iterative easyconfig parameters as next value to use
         for opt in self.iter_opts:
             if len(self.iter_opts[opt]) > self.iter_idx:
                 self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
@@ -1496,7 +1491,7 @@ class EasyBlock(object):
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
         # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = True
+        self.cfg.enable_templating = prev_enable_templating
 
         # prepare for next iteration (if any)
         self.iter_idx += 1
@@ -1504,6 +1499,7 @@ class EasyBlock(object):
     def restore_iterate_opts(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
+        prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
         for opt in self.iter_opts:
@@ -1511,7 +1507,7 @@ class EasyBlock(object):
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
         # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = True
+        self.cfg.enable_templating = prev_enable_templating
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
@@ -1824,20 +1820,20 @@ class EasyBlock(object):
 
         # list of paths to include in RPATH filter;
         # only include builddir if we're not building in installation directory
-        self.rpath_filter_dirs = []
-        self.rpath_filter_dirs.append(tempfile.gettempdir())
+        self.rpath_filter_dirs = [tempfile.gettempdir()]
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
         # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
-        self.rpath_include_dirs = []
-        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib'))
-        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib64'))
-        self.rpath_include_dirs.append('$ORIGIN')
-        self.rpath_include_dirs.append('$ORIGIN/../lib')
-        self.rpath_include_dirs.append('$ORIGIN/../lib64')
+        self.rpath_include_dirs = [
+            os.path.join(self.installdir, 'lib'),
+            os.path.join(self.installdir, 'lib64'),
+            '$ORIGIN',
+            '$ORIGIN/../lib',
+            '$ORIGIN/../lib64',
+        ]
 
         # in case of iterating builddependencies, unload any already loaded modules in reverse order
         if 'builddependencies' in self.iter_opts:
@@ -1853,6 +1849,7 @@ class EasyBlock(object):
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
+        self.tweaked_env_vars = {}
         for var in ['TMPDIR']:
             if os.environ.get(var) != self.initial_environ.get(var):
                 self.tweaked_env_vars[var] = os.environ.get(var)
@@ -3275,9 +3272,7 @@ def inject_checksums(ecs, checksum_type):
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
-                    app.cfg.enable_templating = False
-                    exts_default_options = app.cfg['exts_default_options']
-                    app.cfg.enable_templating = True
+                    exts_default_options = app.cfg.get_ref('exts_default_options')
 
                     for key, val in sorted(ext_options.items()):
                         if key != 'checksums' and val != exts_default_options.get(key):

@@ -820,23 +820,26 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     :return: Location of the modified easyconfig file
     """
     # Fully parse the original easyconfig
-    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
+    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]['ec']
+
     # Replace the toolchain if the mapping exists
-    tc_name = parsed_ec['ec']['toolchain']['name']
+    tc_name = parsed_ec['toolchain']['name']
     if tc_name in toolchain_mapping:
         new_toolchain = toolchain_mapping[tc_name]
-        _log.debug("Replacing parent toolchain %s with %s", parsed_ec['ec']['toolchain'], new_toolchain)
-        parsed_ec['ec']['toolchain'] = new_toolchain
+        _log.debug("Replacing parent toolchain %s with %s", parsed_ec['toolchain'], new_toolchain)
+        parsed_ec['toolchain'] = new_toolchain
 
     # Replace the toolchains of all the dependencies
     for key in DEPENDENCY_PARAMETERS:
         # loop over a *copy* of dependency dicts (with resolved templates);
-        # to update the original dep dict, we need to index with idx into self._config[key][0]...
-        val = parsed_ec['ec'][key]
-        orig_val = parsed_ec['ec']._config[key][0]
-        if key in parsed_ec['ec'].iterate_options:
+        # to update the original dep dict, we need to get a reference with templating disabled...
+        val = parsed_ec[key]
+        orig_val = parsed_ec.get_ref(key)
+
+        if key in parsed_ec.iterate_options:
             val = flatten(val)
             orig_val = flatten(orig_val)
+
         for idx, dep in enumerate(val):
             # reference to original dep dict, this is the one we should be updating
             orig_dep = orig_val[idx]
@@ -853,10 +856,10 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
                 orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
     # Determine the name of the modified easyconfig and dump it to target_dir
-    ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
+    ec_filename = '%s-%s.eb' % (parsed_ec['name'], det_full_ec_version(parsed_ec))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
-    parsed_ec['ec'].dump(tweaked_spec, always_overwrite=False, backup=True)
+    parsed_ec.dump(tweaked_spec, always_overwrite=False, backup=True)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
 
     return tweaked_spec
