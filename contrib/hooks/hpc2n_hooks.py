@@ -13,7 +13,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 # Add/remove dependencies and/or patches
 # Access to the raw values before templating and such.
-def parse_hook(ec):
+def parse_hook(ec, *args, **kwargs):
 
     # Internal helper function
     def add_extra_dependencies(ec, dep_type, extra_deps):
