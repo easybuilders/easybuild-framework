@@ -74,7 +74,6 @@ def parse_hook(ec):
         add_extra_dependencies(ec, 'dependencies', extra_deps)
 
 
-
 def pre_configure_hook(self, *args, **kwargs):
     if self.name == 'GROMACS':
         # HPC2N always uses -DGMX_USE_NVML=ON on GPU builds
