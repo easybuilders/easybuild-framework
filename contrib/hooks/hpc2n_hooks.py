@@ -27,7 +27,8 @@ def parse_hook(ec):
                 if isinstance(extra_deps, tuple):
                     ec[dep_type].append(extra_deps)
                 else:
-                    raise EasyBuildError("parse_hook: Type of extra_deps argument (%s), for 'osdependencies' must be tuple, found %s" % (extra_deps, type(extra_deps)))
+                    raise EasyBuildError("parse_hook: Type of extra_deps argument (%s), for 'osdependencies' must be "
+                                         "tuple, found %s" % (extra_deps, type(extra_deps)))
         else:
             raise EasyBuildError("parse_hook: Incorrect dependency type in add_extra_dependencies: %s" % dep_type)
 
@@ -98,9 +99,12 @@ def pre_configure_hook(self, *args, **kwargs):
                 if get_software_root('libevent'):
                     extra_opts += "--with-libevent=$EBROOTLIBEVENT "
                 else:
-                    raise EasyBuildError("Error in pre_configure_hook for OpenMPI: External use of PMIx requires external libevent, which was not found. Check parse_hook for dependency settings.")
+                    raise EasyBuildError("Error in pre_configure_hook for OpenMPI: External use of PMIx requires "
+                                         "external libevent, which was not found. "
+                                         "Check parse_hook for dependency settings.")
             else:
-                raise EasyBuildError("Error in pre_configure_hook for OpenMPI: PMIx not defined in dependencies. Check parse_hook for dependency settings.")
+                raise EasyBuildError("Error in pre_configure_hook for OpenMPI: PMIx not defined in dependencies. "
+                                     "Check parse_hook for dependency settings.")
 
             if get_software_root('UCX'):
                 extra_opts += "--with-ucx=$EBROOTUCX "
@@ -173,7 +177,9 @@ def pre_module_hook(self, *args, **kwargs):
 
     if self.name == 'OpenBLAS':
         self.log.info("[pre-module hook] Set OMP_NUM_THREADS=1 in OpenBLAS module")
-        self.cfg.update('modluafooter', 'if ((mode() == "load" and os.getenv("OMP_NUM_THREADS") == nil) or (mode() == "unload" and os.getenv("__OpenBLAS_set_OMP_NUM_THREADS") == "1")) then setenv("OMP_NUM_THREADS","1"); setenv("__OpenBLAS_set_OMP_NUM_THREADS", "1") end')
+        self.cfg.update('modluafooter', 'if ((mode() == "load" and os.getenv("OMP_NUM_THREADS") == nil) '
+                        'or (mode() == "unload" and os.getenv("__OpenBLAS_set_OMP_NUM_THREADS") == "1")) then '
+                        'setenv("OMP_NUM_THREADS","1"); setenv("__OpenBLAS_set_OMP_NUM_THREADS", "1") end')
 
     if self.name == 'OpenMPI':
         if LooseVersion(self.version) < LooseVersion('2.1'):
