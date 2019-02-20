@@ -10,8 +10,8 @@ echo "import easybuild.main"
 python3 -c "import easybuild.main"
 echo "set_up_configuration()"
 python3 -c "from easybuild.tools.options import set_up_configuration; set_up_configuration()"
-# test subsuites to fix: easyconfigversion, ebconfigobj, hooks, options, repository (?), scripts, toy_build
-for subsuite in asyncprocess build_log config containers docs easyblock easyconfig easyconfigformat easyconfigparser environment filetools format_convert github include license module_generator modules modulestool package parallelbuild robot run systemtools toolchain toolchainvariables tweak type_checking variables yeb; do
+# test subsuites to fix: easyconfigversion, ebconfigobj, hooks, repository (?), scripts, toy_build
+for subsuite in asyncprocess build_log config containers docs easyblock easyconfig easyconfigformat easyconfigparser environment filetools format_convert github include license module_generator modules modulestool options package parallelbuild robot run systemtools toolchain toolchainvariables tweak type_checking variables yeb; do
     echo "test.framework.${subsuite}"
     python3 -O -m test.framework.${subsuite}
 done

@@ -3235,10 +3235,9 @@ def inject_checksums(ecs, checksum_type):
                     ext_name = "'%s'" % ext['name']
 
                 # for some extensions, only a name if specified (so no sources/patches)
-                if ext.keys() == ['name']:
+                if list(ext.keys()) == ['name']:
                     exts_list_lines.append("%s%s," % (INDENT_4SPACES, ext_name))
                 else:
-
                     if ext['version'] == app.version:
                         ext_version = 'version'
                     else:
