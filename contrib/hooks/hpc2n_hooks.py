@@ -34,8 +34,8 @@ def parse_hook(ec):
     extra_deps = []
 
     if ec.name == 'OpenMPI':
-	if LooseVersion(ec.version) >= LooseVersion('2') and LooseVersion(ec.version) < LooseVersion('2.1.2'):
-	    ec.log.info("[parse hook] Adding pmi and lustre patches")
+        if LooseVersion(ec.version) >= LooseVersion('2') and LooseVersion(ec.version) < LooseVersion('2.1.2'):
+            ec.log.info("[parse hook] Adding pmi and lustre patches")
             if LooseVersion(ec.version) < LooseVersion('2.1.1'):
                 ec['patches'].append('OpenMPI-2.0.0_fix_bad-include_of_pmi_h.patch')
 
@@ -48,10 +48,10 @@ def parse_hook(ec):
             else:
                 ec['patches'].append('OpenMPI-2.1.1_fix_lustre.patch')
 
-	if LooseVersion(ec.version) == LooseVersion('4.0.0'):
+        if LooseVersion(ec.version) == LooseVersion('4.0.0'):
             ec['patches'].append('OpenMPI-4.0.0_fix_configure_bug.patch')
 
-	if LooseVersion(ec.version) >= LooseVersion('2.1'):
+        if LooseVersion(ec.version) >= LooseVersion('2.1'):
             pmix_version = '1.2.5'
             ucx_version = '1.4.0'
             if LooseVersion(ec.version) >= LooseVersion('3'):
@@ -78,20 +78,20 @@ def parse_hook(ec):
 def pre_configure_hook(self, *args, **kwargs):
     if self.name == 'GROMACS':
         # HPC2N always uses -DGMX_USE_NVML=ON on GPU builds
-	if get_software_root('CUDA'):
-	    self.log.info("[pre-configure hook] Adding -DGMX_USE_NVML=ON")
-	    self.cfg.update('configopts', "-DGMX_USE_NVML=ON ")
+        if get_software_root('CUDA'):
+            self.log.info("[pre-configure hook] Adding -DGMX_USE_NVML=ON")
+            self.cfg.update('configopts', "-DGMX_USE_NVML=ON ")
 
     if self.name == 'OpenMPI':
         extra_opts = ""
         # Old versions don't work with PMIx, use slurms PMI1
-	if LooseVersion(self.version) < LooseVersion('2.1'):
+        if LooseVersion(self.version) < LooseVersion('2.1'):
             extra_opts += "--with-pmi=/lap/slurm "
             if LooseVersion(self.version) >= LooseVersion('2'):
                 extra_opts += "--with-munge "
 
         # Using PMIx dependency in easyconfig, see above
-	if LooseVersion(self.version) >= LooseVersion('2.1'):
+        if LooseVersion(self.version) >= LooseVersion('2.1'):
             if get_software_root('PMIx'):
                 extra_opts += "--with-pmix=$EBROOTPMIX "
                 # Use of external PMIx requires external libevent
@@ -106,7 +106,7 @@ def pre_configure_hook(self, *args, **kwargs):
             if get_software_root('UCX'):
                 extra_opts += "--with-ucx=$EBROOTUCX "
 
-	if LooseVersion(self.version) >= LooseVersion('2'):
+        if LooseVersion(self.version) >= LooseVersion('2'):
             extra_opts += "--with-cma "
             extra_opts += "--with-lustre "
 
@@ -118,17 +118,17 @@ def pre_configure_hook(self, *args, **kwargs):
         self.log.info("[pre-configure hook] Adding %s" % extra_opts)
         self.cfg.update('configopts', extra_opts)
 
-	if LooseVersion(self.version) >= LooseVersion('2.1'):
+        if LooseVersion(self.version) >= LooseVersion('2.1'):
             self.log.info("[pre-configure hook] Re-enabling ucx")
             self.cfg['configopts'] = self.cfg['configopts'].replace('--without-ucx', ' ')
 
         self.log.info("[pre-configure hook] Re-enabling dlopen")
-	self.cfg['configopts'] = self.cfg['configopts'].replace('--disable-dlopen', ' ')
+        self.cfg['configopts'] = self.cfg['configopts'].replace('--disable-dlopen', ' ')
 
     if self.name == 'PMIx':
         self.log.info("[pre-configure hook] Adding --with-munge")
         self.cfg.update('configopts', "--with-munge ")
-	if LooseVersion(self.version) >= LooseVersion('2'):
+        if LooseVersion(self.version) >= LooseVersion('2'):
             self.log.info("[pre-configure hook] Adding --with-tests-examples")
             self.cfg.update('configopts', "--with-tests-examples ")
             self.log.info("[pre-configure hook] Adding --disable-per-user-config-files")
@@ -156,10 +156,10 @@ def pre_module_hook(self, *args, **kwargs):
         # Add I_MPI_PMI_LIBRARY to module for IntelMPI so it works with
         # srun.
         self.log.info("[pre-module hook] Set I_MPI_PMI_LIBRARY in impi module")
-	# Must be done this way, updating self.cfg['modextravars']
-	# directly doesn't work due to templating.
-	en_templ = self.cfg.enable_templating
-	self.cfg.enable_templating = False
+        # Must be done this way, updating self.cfg['modextravars']
+        # directly doesn't work due to templating.
+        en_templ = self.cfg.enable_templating
+        self.cfg.enable_templating = False
         shlib_ext = get_shared_lib_ext()
         pmix_root = get_software_root('PMIx')
         if pmix_root:
@@ -170,14 +170,14 @@ def pre_module_hook(self, *args, **kwargs):
             self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
         else:
             self.cfg['modextravars'].update({'I_MPI_PMI_LIBRARY': "/lap/slurm/lib/libpmi.so"})
-	self.cfg.enable_templating = en_templ
+        self.cfg.enable_templating = en_templ
 
     if self.name == 'OpenBLAS':
         self.log.info("[pre-module hook] Set OMP_NUM_THREADS=1 in OpenBLAS module")
         self.cfg.update('modluafooter', 'if ((mode() == "load" and os.getenv("OMP_NUM_THREADS") == nil) or (mode() == "unload" and os.getenv("__OpenBLAS_set_OMP_NUM_THREADS") == "1")) then setenv("OMP_NUM_THREADS","1"); setenv("__OpenBLAS_set_OMP_NUM_THREADS", "1") end')
 
     if self.name == 'OpenMPI':
-	if LooseVersion(self.version) < LooseVersion('2.1'):
+        if LooseVersion(self.version) < LooseVersion('2.1'):
             mpi_type = 'openmpi'
         elif LooseVersion(self.version) < LooseVersion('3'):
             mpi_type = 'pmix_v1'

@@ -20,10 +20,10 @@ def pre_configure_hook(self, *args, **kwargs):
 
         # Now we delete some options
         # For newer versions of OpenMPI we can re-enable ucx, i.e. delete the --without-ucx flag
-	if LooseVersion(self.version) >= LooseVersion('2.1'):
+        if LooseVersion(self.version) >= LooseVersion('2.1'):
             self.log.info("[pre-configure hook] Re-enabling ucx")
             self.cfg['configopts'] = self.cfg['configopts'].replace('--without-ucx', ' ')
 
         # And we can remove the --disable-dlopen option from the easyconfig file
         self.log.info("[pre-configure hook] Re-enabling dlopen")
-	self.cfg['configopts'] = self.cfg['configopts'].replace('--disable-dlopen', ' ')
+        self.cfg['configopts'] = self.cfg['configopts'].replace('--disable-dlopen', ' ')
