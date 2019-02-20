@@ -548,15 +548,18 @@ class EasyConfig(object):
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
+        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
+        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+
+        # need to take into account that builddependencies may need to be iterated over,
+        # i.e. when the value is a list of lists of tuples
         builddeps = self['builddependencies']
-        if builddeps and isinstance(builddeps[0], (list, tuple)) and isinstance(builddeps[0][0], (list, tuple)):
+        if builddeps and all(isinstance(x, (list, tuple)) for b in builddeps for x in b):
             self.iterate_options.append('builddependencies')
             builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
         else:
             builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
         self['builddependencies'] = builddeps
-        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
-        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
 
         # restore templating
         self.enable_templating = prev_enable_templating
@@ -670,15 +673,14 @@ class EasyConfig(object):
         # when lists are used, they should be all of same length
         # list of length 1 are treated as if it were strings in EasyBlock
         opt_counts = []
-        for opt in ITERATE_OPTIONS:
+        for opt in self.iterate_options:
 
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
             if self.get(opt, None) is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if opt in self.iterate_options:
-                opt_counts.append((opt, len(self[opt])))
+            opt_counts.append((opt, len(self[opt])))
 
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
@@ -693,37 +695,33 @@ class EasyConfig(object):
         """
         faulty_deps = []
 
-        # templating must be temporarily disabled to obtain reference to original lists,
-        # so their elements can be changed in place
-        # see comments in resolve_template
-        enable_templating = self.enable_templating
-        self.enable_templating = False
-        orig_deps = dict([(key, self[key]) for key in ['dependencies', 'builddependencies', 'hiddendependencies']])
-        self.enable_templating = enable_templating
+        # obtain reference to original lists, so their elements can be changed in place
+        deps = dict([(key, self.get_ref(key)) for key in ['dependencies', 'builddependencies', 'hiddendependencies']])
 
         if 'builddependencies' in self.iterate_options:
-            deplists = self['builddependencies'] + [self['dependencies']]
-            orig_deplists = orig_deps['builddependencies'] + [orig_deps['dependencies']]
+            deplists = deps['builddependencies']
         else:
-            deplists = [self['builddependencies'], self['dependencies']]
-            orig_deplists = [orig_deps['builddependencies'], orig_deps['dependencies']]
+            deplists = [deps['builddependencies']]
 
-        for hidden_idx, hidden_dep in enumerate(self['hiddendependencies']):
+        deplists.append(deps['dependencies'])
+
+        for hidden_idx, hidden_dep in enumerate(deps['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
 
             # replace (build) dependencies with their equivalent hidden (build) dependency (if any)
             replaced = False
-            for deplist, orig_deplist in zip(deplists, orig_deplists):
+            for deplist in deplists:
                 for idx, dep in enumerate(deplist):
                     dep_mod_name = dep['full_mod_name']
                     if dep_mod_name in [visible_mod_name, hidden_mod_name]:
 
                         # track whether this hidden dep is listed as a build dep
-                        orig_hidden_dep = orig_deps['hiddendependencies'][hidden_idx]
-                        orig_hidden_dep['build_only'] = dep['build_only']
+                        hidden_dep = deps['hiddendependencies'][hidden_idx]
+                        hidden_dep['build_only'] = dep['build_only']
+
                         # actual replacement
-                        orig_deplist[idx] = orig_hidden_dep
+                        deplist[idx] = hidden_dep
 
                         replaced = True
                         if dep_mod_name == visible_mod_name:
@@ -855,7 +853,7 @@ class EasyConfig(object):
         return the parsed build dependencies
         """
         builddeps = self['builddependencies']
-        if 'builddependencies' in self.iterate_options and not isinstance(builddeps[0], dict):
+        if 'builddependencies' in self.iterate_options and builddeps and not isinstance(builddeps[0], dict):
             # flatten if not iterating yet
             builddeps = flatten(builddeps)
         return builddeps
@@ -1126,16 +1124,20 @@ class EasyConfig(object):
 
         for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
-            # to update the original dep dict, we need to index with idx into self._config[key][0]...
-            val = self[key]
-            orig_val = self._config[key][0]
+            deps = self[key]
+
+            # to update the original dep dict, we need to get a reference with templating disabled...
+            deps_ref = self.get_ref(key)
+
+            # take into account that this *dependencies parameters may be iterated over
             if key in self.iterate_options:
-                val = flatten(val)
-                orig_val = flatten(orig_val)
-            for idx, dep in enumerate(val):
+                deps = flatten(deps)
+                deps_ref = flatten(deps_ref)
+
+            for idx, dep in enumerate(deps):
 
                 # reference to original dep dict, this is the one we should be updating
-                orig_dep = orig_val[idx]
+                orig_dep = deps_ref[idx]
 
                 if filter_deps and orig_dep['name'] in filter_deps:
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
@@ -1241,6 +1243,24 @@ class EasyConfig(object):
             value = resolve_template(value, self.template_values)
 
         return value
+
+    def get_ref(self, key):
+        """
+        Obtain reference to original/untemplated value of specified easyconfig parameter
+        rather than a copied value with templated values.
+        """
+        # see also comments in resolve_template
+
+        # temporarily disable templating
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
+        ref = self[key]
+
+        # restore previous value for 'enable_templating'
+        self.enable_templating = prev_enable_templating
+
+        return ref
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):

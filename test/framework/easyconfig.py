@@ -2438,6 +2438,38 @@ class EasyConfigTest(EnhancedTestCase):
             ec = EasyConfig(test_ec)
             self.assertTrue(ec.filename(), os.path.basename(test_ec))
 
+    def test_get_ref(self):
+        """Test get_ref method."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-iter.eb'))
+
+        # without using get_ref, we get a (templated) copy rather than the original value
+        sources = ec['sources']
+        self.assertEqual(sources, ['toy-0.0.tar.gz'])
+        self.assertFalse(sources is ec._config['sources'][0])
+
+        # same for .get
+        sources = ec.get('sources')
+        self.assertEqual(sources, ['toy-0.0.tar.gz'])
+        self.assertFalse(sources is ec._config['sources'][0])
+
+        # with get_ref, we get the original untemplated value
+        sources_ref = ec.get_ref('sources')
+        self.assertEqual(sources_ref, ['%(name)s-%(version)s.tar.gz'])
+        self.assertTrue(sources_ref is ec._config['sources'][0])
+
+        sanity_check_paths_ref = ec.get_ref('sanity_check_paths')
+        self.assertTrue(sanity_check_paths_ref is ec._config['sanity_check_paths'][0])
+
+        # also items inside are still references to original (i.e. not copies)
+        self.assertTrue(sanity_check_paths_ref['files'] is ec._config['sanity_check_paths'][0]['files'])
+
+        # get_ref also works for values other than lists/dicts
+        self.assertEqual(ec['description'], "Toy C program, 100% toy.")
+        descr_ref = ec.get_ref('description')
+        self.assertEqual(descr_ref, "Toy C program, 100% %(name)s.")
+        self.assertTrue(descr_ref is ec._config['description'][0])
+
 
 def suite():
     """ returns all the testcases in this module """
