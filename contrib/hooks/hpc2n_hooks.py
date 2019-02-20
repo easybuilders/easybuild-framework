@@ -167,7 +167,9 @@ def pre_module_hook(self, *args, **kwargs):
         pmix_root = get_software_root('PMIx')
         if pmix_root:
             mpi_type = 'pmix_v3'
-            self.cfg['modextravars'].update({'I_MPI_PMI_LIBRARY': os.path.join(pmix_root, "lib", "libpmi." + shlib_ext)})
+            self.cfg['modextravars'].update({
+                'I_MPI_PMI_LIBRARY': os.path.join(pmix_root, "lib", "libpmi." + shlib_ext)
+            })
             self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
             # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
             self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
