@@ -1,8 +1,8 @@
 # Small example of how to add/delete a configure option.
 
-
 # We need to be able to distinguish between versions of OpenMPI
 from distutils.version import LooseVersion
+
 
 def pre_configure_hook(self, *args, **kwargs):
     # Check that we're dealing with the correct easyconfig file
