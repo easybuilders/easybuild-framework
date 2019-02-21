@@ -54,7 +54,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         super(EasyBuildLibTest, self).setUp()
 
         # make sure BuildOptions instance is re-created
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.tmpdir = tempfile.mkdtemp()
 
