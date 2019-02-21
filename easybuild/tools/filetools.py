@@ -447,7 +447,6 @@ def pypi_source_urls(pkg_name):
     tmpdir = tempfile.mkdtemp()
     urls_html = os.path.join(tmpdir, '%s_urls.html' % pkg_name)
     if download_file(os.path.basename(urls_html), simple_url, urls_html) is None:
-        print("Failed to download %s to determine available PyPI URLs for %s" % (simple_url, pkg_name))
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
