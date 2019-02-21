@@ -152,6 +152,11 @@ class GithubTest(EnhancedTestCase):
         output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(expected, output)
 
+        # test handling of github pagination
+        parameters = ('all', 'created', 'asc')
+        output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertTrue(len(output.splitlines()) > 1)
+
     def test_reasons_for_closing(self):
         """Test reasons_for_closing function."""
         if self.skip_github_tests:
