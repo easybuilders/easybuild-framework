@@ -1033,7 +1033,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, 'eb-\S{6,8}', 'files_pr1239')
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr1239')
             regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError as err:

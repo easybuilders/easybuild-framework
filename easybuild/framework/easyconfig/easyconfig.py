@@ -729,7 +729,7 @@ class EasyConfig(object):
 
         if range_sep in version_spec:
             # remove range characters ('[' and ']') to obtain lower/upper version limits
-            version_limits = re.sub('[\[\]]', '', version_spec).split(range_sep)
+            version_limits = re.sub(r'[\[\]]', '', version_spec).split(range_sep)
             if len(version_limits) == 2:
                 res['lower'], res['upper'] = version_limits
                 if res['lower'] and res['upper'] and LooseVersion(res['lower']) > LooseVersion(res['upper']):
