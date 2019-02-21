@@ -2539,7 +2539,7 @@ class EasyBlock(object):
                 perms |= stat.S_IROTH
                 self.log.debug("Also ensuring read permissions for others on install dir (no group specified)")
 
-            umask = build_option('umask')
+            umask = self.cfg['umask']
             if umask is not None:
                 # umask is specified as a string, so interpret it first as integer in octal, then take complement (~)
                 perms &= ~int(umask, 8)

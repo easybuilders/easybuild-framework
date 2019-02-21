@@ -136,6 +136,7 @@ DEFAULT_CONFIG = {
     'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
                              'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
+    'umask': ['', "Set custom umask in octal format", FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                          'If not, this is added to the guessed path.'), FILEMANAGEMENT],
 
