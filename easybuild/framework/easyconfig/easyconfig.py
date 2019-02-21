@@ -574,9 +574,14 @@ class EasyConfig(object):
             depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
+            depr_msg = ', '.join(depr_msgs)
+
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            depr_ver = '%s.0' % depr_maj_ver
+
             more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
-            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
+
+            self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
     def validate(self, check_osdeps=True):
         """
