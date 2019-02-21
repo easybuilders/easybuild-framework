@@ -222,7 +222,7 @@ def write_file(path, txt, append=False, forced=False, backup=False, always_overw
             backed_up_fp = back_up_file(path)
             _log.info("Existing file %s backed up to %s", path, backed_up_fp)
             if verbose:
-                print_msg("Backup of %s created at %s" % (path, backed_up_fp))
+                print_msg("Backup of %s created at %s" % (path, backed_up_fp), silent=build_option('silent'))
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
