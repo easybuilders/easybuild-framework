@@ -429,7 +429,7 @@ class ToolchainTest(EnhancedTestCase):
 
             optarch_flags = tc.options.options_map['optarch']
 
-            self.assertEquals(flags, optarch_flags)
+            self.assertEqual(flags, optarch_flags)
 
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
             if flags == '':
@@ -1553,4 +1553,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
