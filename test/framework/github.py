@@ -402,6 +402,7 @@ class GithubTest(EnhancedTestCase):
             'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': [ec_path],
+            'silent': True,
             'valid_module_classes': module_classes(),
             'validate': False,
         })
