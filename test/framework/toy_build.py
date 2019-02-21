@@ -534,21 +534,35 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec)
 
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_bin = os.path.join(toy_install_dir, 'bin', 'toy')
+
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % toy_install_dir)
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
+        self.assertEqual(toy_bin_perms, 0755, "%s has default permissions" % toy_bin_perms)
+
         shutil.rmtree(self.test_installpath)
 
         self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
-        adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
+        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % toy_install_dir)
+        installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
+        self.assertEqual(toy_bin_perms, 0555, "%s has read-only permissions" % toy_bin_perms)
+
+        adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
         self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
         self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
+        self.assertEqual(toy_bin_perms, 0775, "%s has group write permissions" % toy_bin_perms)
 
         # restore original umask
         os.umask(orig_umask)
