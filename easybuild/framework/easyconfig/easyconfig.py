@@ -941,6 +941,9 @@ class EasyConfig(object):
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
+        if not ectxt.endswith('\n'):
+            ectxt += '\n'
+
         write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
         self.enable_templating = orig_enable_templating
@@ -1679,7 +1682,7 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
         warning_msg = "Failed to determine toolchain hierarchy for %(name)s/%(version)s when determining " % parent_tc
         warning_msg += "subtoolchain for dependency '%s': %s" % (dep['name'], err)
         _log.warning(warning_msg)
-        print_warning(warning_msg)
+        print_warning(warning_msg, silent=build_option('silent'))
         toolchain_hierarchy = []
 
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,
