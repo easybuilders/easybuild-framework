@@ -102,7 +102,7 @@ script:
     - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
     # try and make sure output of running tests is clean (no printed messages/warnings)
     - IGNORE_PATTERNS="vsc\.install\.shared_setup|no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages"
-    - PRINTS_COUNT=$(cat test_framework_suite.log | egrep -v "${IGNORE_PATTERNS}" | grep -c '\.\n*[A-Za-z]')
+    - PRINTS_COUNT=$(cat test_framework_suite.log | egrep -v "${IGNORE_PATTERNS}" | grep -c '\.\n*[A-Za-z]' || true)
     - test "$PRINTS_COUNT" = "0" || (echo "Found $PRINTS_COUNT printed messages in output of test suite" && exit 1)
     # check bootstrap script version
     # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
