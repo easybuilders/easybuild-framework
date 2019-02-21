@@ -270,7 +270,6 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
             data.extend(page_data)
         else:
             data = page_data
-            break
 
     _log.debug("get request result for %s: status: %d, data: %s", url, status, data)
     return (status, data)
