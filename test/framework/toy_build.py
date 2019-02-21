@@ -606,7 +606,10 @@ class ToyBuildTest(EnhancedTestCase):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
+
+            self.mock_stdout(True)
             outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
+            self.mock_stdout(False)
 
             if get_module_syntax() == 'Tcl':
                 pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
@@ -1510,7 +1513,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
 
+        self.mock_stdout(True)
         self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
+        self.mock_stdout(False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
