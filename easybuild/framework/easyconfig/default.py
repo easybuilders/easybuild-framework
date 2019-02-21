@@ -200,7 +200,7 @@ def sorted_categories():
     """
     returns the categories in the correct order
     """
-    categories = ALL_CATEGORIES.values()
+    categories = list(ALL_CATEGORIES.values())
     categories.sort(key=lambda c: c[0])
     return categories
 

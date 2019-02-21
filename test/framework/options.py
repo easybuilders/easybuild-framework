@@ -54,7 +54,7 @@ from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIG
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
-from easybuild.tools.py2vs3 import URLError
+from easybuild.tools.py2vs3 import URLError, reload
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -422,7 +422,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 if custom is not None:
                     args.extend(['-e', custom])
 
-                self.eb_main(args, logfile=dummylogfn, verbose=True)
+                self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
                 logtxt = read_file(self.logfile)
 
                 # check whether all parameter types are listed
@@ -1033,7 +1033,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, 'eb-\S{6}', 'files_pr1239')
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr1239')
             regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError as err:
@@ -2205,8 +2205,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.generic.generictest']
 
+    def mk_eb_test_cmd(self, args):
+        """Construct test command for 'eb' with given options."""
+        return '; '.join([
+            "cd %s" % self.test_prefix,
+            "%s -O -m easybuild.main %s" % (sys.executable, ' '.join(args)),
+        ])
+
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""
+
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
@@ -2219,10 +2227,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mns_regex = re.compile(r'^\s*TestIncludedMNS', re.M)
 
         # TestIncludedMNS module naming scheme is not available by default
-        args = [
-            '--avail-module-naming-schemes',
-        ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        args = ['--avail-module-naming-schemes']
+        test_cmd = self.mk_eb_test_cmd(args)
+        logtxt, _ = run_cmd(test_cmd, simple=False)
         self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
@@ -2236,11 +2243,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # clear log
         write_file(self.logfile, '')
 
-        args = [
-            '--avail-module-naming-schemes',
-            '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
-        ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
+        test_cmd = self.mk_eb_test_cmd(args)
+        logtxt, _ = run_cmd(test_cmd, simple=False)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
 
     def test_use_included_module_naming_scheme(self):
@@ -2297,10 +2302,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tc_regex = re.compile(r'^\s*test_included_toolchain: TestIncludedCompiler', re.M)
 
         # TestIncludedCompiler is not available by default
-        args = [
-            '--list-toolchains',
-        ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        args = ['--list-toolchains']
+        test_cmd = self.mk_eb_test_cmd(args)
+        logtxt, _ = run_cmd(test_cmd, simple=False)
         self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
@@ -2319,11 +2323,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(os.path.join(self.test_prefix, 'test_tc.py'), tc_txt)
 
-        args = [
-            '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
-            '--list-toolchains',
-        ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        args.append('--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix))
+        test_cmd = self.mk_eb_test_cmd(args)
+        logtxt, _ = run_cmd(test_cmd, simple=False)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
 
     def test_cleanup_tmpdir(self):

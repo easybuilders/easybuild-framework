@@ -728,11 +728,11 @@ class EasyConfig(object):
         range_sep = ':'  # version range separator (e.g. ]1.0:2.0])
 
         if range_sep in version_spec:
-            # remove range characters to obtain lower/upper version limits
-            version_limits = version_spec.translate(None, '][').split(range_sep)
+            # remove range characters ('[' and ']') to obtain lower/upper version limits
+            version_limits = re.sub(r'[\[\]]', '', version_spec).split(range_sep)
             if len(version_limits) == 2:
                 res['lower'], res['upper'] = version_limits
-                if res['lower'] and res['upper'] and LooseVersion(res['lower']) > LooseVersion('upper'):
+                if res['lower'] and res['upper'] and LooseVersion(res['lower']) > LooseVersion(res['upper']):
                     raise EasyBuildError("Incorrect version range, found lower limit > higher limit: %s", version_spec)
             else:
                 raise EasyBuildError("Incorrect version range, expected lower/upper limit: %s", version_spec)
