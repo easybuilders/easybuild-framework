@@ -261,7 +261,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True)
 
         args.append('--skip')
+        self.mock_stdout(True)
         outtxt = self.eb_main(args, do_build=True, verbose=True)
+        self.mock_stdout(False)
 
         found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
         found = re.search(found_msg, outtxt, re.M)
