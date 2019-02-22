@@ -61,7 +61,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
@@ -722,7 +721,7 @@ def gather_reverse_dependencies():
 
         # TODO: use show instead of load and parse direct dependencies recursively to make it faster
         modules_tool().purge()
-        modules_tool().load([mod_name])  
+        modules_tool().load([mod_name])
         dependencies = modules_tool().list()
 
         for dependency in dependencies:
