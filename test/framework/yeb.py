@@ -71,6 +71,7 @@ class YebTest(EnhancedTestCase):
         build_options = {
             'check_osdeps': False,
             'external_modules_metadata': {},
+            'silent': True,
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)

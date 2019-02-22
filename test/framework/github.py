@@ -148,7 +148,13 @@ class GithubTest(EnhancedTestCase):
 
         expected = "PR #1: a pr"
 
+        self.mock_stdout(True)
         output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(stdout.startswith("== Listing PRs with parameters: "))
+
         self.assertEqual(expected, output)
 
     def test_reasons_for_closing(self):
@@ -395,6 +401,7 @@ class GithubTest(EnhancedTestCase):
             'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': [ec_path],
+            'silent': True,
             'valid_module_classes': module_classes(),
             'validate': False,
         })

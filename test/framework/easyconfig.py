@@ -61,8 +61,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, remove_file, symlink
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -203,6 +203,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dependency(self):
         """ test all possible ways of specifying dependencies """
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -273,6 +275,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -511,6 +515,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
+        init_config(build_options={'silent': True})
+
+        change_dir(self.test_prefix)
 
         tcname = 'GCC'
         tcver = '4.6.3'
@@ -1069,7 +1076,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         orig_value = easybuild.tools.build_log.CURRENT_VERSION
         easybuild.tools.build_log.CURRENT_VERSION = '3.9'
+        self.mock_stderr(True)
         self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
+        self.mock_stderr(False)
         easybuild.tools.build_log.CURRENT_VERSION = orig_value
 
     def test_letter_dir(self):
@@ -1721,7 +1730,7 @@ class EasyConfigTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
-        self.assertTrue(ectxt.endswith("# trailing comment"))
+        self.assertTrue(ectxt.endswith("# trailing comment\n"))
 
         # reparsing the dumped easyconfig file should work
         EasyConfig(testec)
@@ -1911,6 +1920,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_copy(self):
         """Test copy method of EasyConfig object."""
+        init_config(build_options={'silent': True})
+
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
@@ -1942,6 +1953,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_copy_easyconfigs(self):
         """Test copy_easyconfigs function."""
+        init_config(build_options={'silent': True})
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         target_dir = os.path.join(self.test_prefix, 'copied_ecs')
@@ -2439,6 +2451,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_filename(self):
         """Test filename method of EasyConfig class."""
+        init_config(build_options={'silent': True})
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         test_ecs = [

@@ -99,7 +99,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
         # supported
         if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain'] for key in keys):
-            print_warning("Combining --try-toolchain* with other build options is not fully supported: using regex")
+            warning_msg = "Combining --try-toolchain* with other build options is not fully supported: using regex"
+            print_warning(warning_msg, silent=build_option('silent'))
             revert_to_regex = True
 
         if not revert_to_regex:
@@ -743,7 +744,7 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     # Warn if we are changing compiler families, this is very likely to cause problems
     if target_compiler_family != source_tc_spec['comp_family']:
         print_warning("Your request will result in a compiler family switch (%s to %s). Here be dragons!" %
-                      (source_tc_spec['comp_family'], target_compiler_family))
+                      (source_tc_spec['comp_family'], target_compiler_family), silent=build_option('silent'))
 
     return minimal_matching_toolchain
 

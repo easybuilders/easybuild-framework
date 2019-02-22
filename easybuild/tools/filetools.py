@@ -222,7 +222,7 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
             backed_up_fp = back_up_file(path)
             _log.info("Existing file %s backed up to %s", path, backed_up_fp)
             if verbose:
-                print_msg("Backup of %s created at %s" % (path, backed_up_fp))
+                print_msg("Backup of %s created at %s" % (path, backed_up_fp), silent=build_option('silent'))
 
     # figure out mode to use for open file handle
     # cfr. https://docs.python.org/3/library/functions.html#open
@@ -455,7 +455,6 @@ def pypi_source_urls(pkg_name):
     tmpdir = tempfile.mkdtemp()
     urls_html = os.path.join(tmpdir, '%s_urls.html' % pkg_name)
     if download_file(os.path.basename(urls_html), simple_url, urls_html) is None:
-        print("Failed to download %s to determine available PyPI URLs for %s" % (simple_url, pkg_name))
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
