@@ -206,7 +206,13 @@ def dep_graph(filename, specs):
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
-            dgr.add_edge((spec['module'], dep))
+            try:
+                dgr.add_edge((spec['module'], dep))
+            except Exception as e:
+                if "already in digraph" in str(e):
+                    continue
+                else:
+                    raise e
             if dep in spec['ec'].build_dependencies:
                 dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
