@@ -558,6 +558,8 @@ class EasyBuildOptions(GeneralOption):
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
             'list-installed-software': ("Show list of installed software", 'choice', 'store_or_None', 'simple',
                                         ['simple', 'detailed']),
+            'list-reverse-dependencies': ("Show list of reverse dependencies of installed software", 'choice', 'store_or_None', 'simple',
+                                        ['simple', 'detailed']),
             'list-software': ("Show list of supported software", 'choice', 'store_or_None', 'simple',
                               ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",

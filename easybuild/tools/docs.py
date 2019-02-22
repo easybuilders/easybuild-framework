@@ -61,6 +61,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
@@ -705,6 +706,44 @@ def list_software_txt(software, detailed=False):
             lines.append('')
 
     return '\n'.join(lines)
+
+
+def gather_reverse_dependencies():
+    """
+    Gather reverse dependencies from installed modules.
+
+    :return: dictionary with reverse dependencies
+    """
+    reverse_dependencies = {}
+
+    module_avail_cmd = "module -t avail 2>&1 | grep -v ':$'"
+    module_purge_load_list_cmd = "module purge; module load %s; module -t list 2>&1 | grep -v %s"
+
+    available_modules, _ = run_cmd(module_avail_cmd)
+
+    for module in available_modules.splitlines():
+        dependencies, _ = run_cmd(module_purge_load_list_cmd % (module,module))
+        for dependency in dependencies.splitlines():
+            if dependency not in reverse_dependencies:
+                reverse_dependencies[dependency] = []
+            reverse_dependencies[dependency].append(module)
+    
+    return reverse_dependencies
+
+
+def list_reverse_dependencies(output_format=FORMAT_TXT):
+    """
+    Show reverse dependencies of installed software
+
+    :param output_format: output format to use
+    :return: multi-line string presenting requested info
+    """
+
+    reverse_dependencies = gather_reverse_dependencies()
+
+    #TODO: format output
+
+    return reverse_dependencies
 
 
 def list_toolchains(output_format=FORMAT_TXT):
