@@ -122,7 +122,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, ver, max_ver=None, more_info=None, *args, **kwargs):
+    def deprecated(self, msg, ver, max_ver=None, more_info=None, silent=False, *args, **kwargs):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
@@ -131,12 +131,13 @@ class EasyBuildLog(fancylogger.FancyLogger):
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
         :param more_info: additional message with instructions where to get more information
+        :param silent: stay silent (don't *print* deprecation warnings, only log them)
         """
         # provide log_callback function that both logs a warning and prints to stderr
         def log_callback_warning_and_print(msg):
             """Log warning message, and also print it to stderr."""
             self.warning(msg)
-            sys.stderr.write('\nWARNING: ' + msg + '\n\n')
+            print_warning(msg, silent=silent)
 
         kwargs['log_callback'] = log_callback_warning_and_print
 

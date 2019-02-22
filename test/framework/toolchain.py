@@ -64,6 +64,8 @@ class ToolchainTest(EnhancedTestCase):
         self.orig_get_cpu_model = st.get_cpu_model
         self.orig_get_cpu_vendor = st.get_cpu_vendor
 
+        init_config(build_options={'silent': True})
+
     def tearDown(self):
         """Cleanup after toolchain test."""
         st.get_cpu_architecture = self.orig_get_cpu_architecture
@@ -313,8 +315,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether overriding the optarch flag works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
-            build_options = {'optarch': optarch_var}
-            init_config(build_options=build_options)
+            init_config(build_options={'optarch': optarch_var, 'silent': True})
             for enable in [True, False]:
                 tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({'optarch': enable})
@@ -338,8 +339,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether --optarch=GENERIC works as intended."""
         for generic in [False, True]:
             if generic:
-                build_options = {'optarch': 'GENERIC'}
-                init_config(build_options=build_options)
+                init_config(build_options={'optarch': 'GENERIC', 'silent': True})
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
                 'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
@@ -411,8 +411,7 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
-            build_options = {'optarch': optarch_var}
-            init_config(build_options=build_options)
+            init_config(build_options={'optarch': optarch_var, 'silent': True})
             tc = self.get_toolchain(toolchain, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
@@ -775,7 +774,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
 
         # test specifying custom template for MPI commands
-        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
 
     def test_prepare_deps(self):
@@ -934,7 +933,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test independency of toolchain instances."""
 
         # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
-        init_config(build_options={'optarch': 'test'})
+        init_config(build_options={'optarch': 'test', 'silent': True})
 
         tc_cflags = {
             'CrayCCE': "-O2 -homp -craype-verbose",
@@ -1367,7 +1366,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # enable --rpath and prepare toolchain
-        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
+        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*'], 'silent': True})
         tc = self.get_toolchain('gompi', version='2018a')
 
         # preparing RPATH wrappers requires --experimental, need to bypass that here
@@ -1467,6 +1466,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
+
+        # this test relies on warnings being printed
+        init_config(build_options={'silent': False})
 
         def prep():
             """Helper function: create & prepare toolchain"""

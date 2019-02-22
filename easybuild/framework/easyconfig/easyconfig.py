@@ -572,9 +572,14 @@ class EasyConfig(object):
             depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
+            depr_msg = ', '.join(depr_msgs)
+
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            depr_ver = '%s.0' % depr_maj_ver
+
             more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
-            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
+
+            self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
     def validate(self, check_osdeps=True):
         """
@@ -933,6 +938,9 @@ class EasyConfig(object):
             self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
+
+        if not ectxt.endswith('\n'):
+            ectxt += '\n'
 
         write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
@@ -1673,7 +1681,7 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
         warning_msg = "Failed to determine toolchain hierarchy for %(name)s/%(version)s when determining " % parent_tc
         warning_msg += "subtoolchain for dependency '%s': %s" % (dep['name'], err)
         _log.warning(warning_msg)
-        print_warning(warning_msg)
+        print_warning(warning_msg, silent=build_option('silent'))
         toolchain_hierarchy = []
 
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,

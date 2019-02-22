@@ -524,22 +524,45 @@ class ToyBuildTest(EnhancedTestCase):
         # set umask hard to verify default reliably
         orig_umask = os.umask(0o022)
 
-        self.test_toy_build()
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0o777
-        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % self.test_installpath)
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec_txt = read_file(toy_ec)
+        # take away read permissions, to check whether they are correctly restored by EasyBuild after installation
+        test_ec_txt += "\npostinstallcmds = ['chmod -R og-r %(installdir)s']"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec)
+
+        toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_bin = os.path.join(toy_install_dir, 'bin', 'toy')
+
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % toy_install_dir)
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+        self.assertEqual(toy_bin_perms, 0o755, "%s has default permissions" % toy_bin_perms)
+
         shutil.rmtree(self.test_installpath)
 
-        self.test_toy_build(extra_args=['--read-only-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0o777
-        self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % self.test_installpath)
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0o777
-        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % self.test_installpath)
-        adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % toy_install_dir)
+        installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+        self.assertEqual(toy_bin_perms, 0o555, "%s has read-only permissions" % toy_bin_perms)
+
+        adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
-        self.test_toy_build(extra_args=['--group-writable-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0o777
+        self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o775, "%s has group write permissions" % self.test_installpath)
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+        self.assertEqual(toy_bin_perms, 0o775, "%s has group write permissions" % toy_bin_perms)
 
         # restore original umask
         os.umask(orig_umask)
@@ -607,7 +630,10 @@ class ToyBuildTest(EnhancedTestCase):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
+
+            self.mock_stdout(True)
             outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
+            self.mock_stdout(False)
 
             if get_module_syntax() == 'Tcl':
                 pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
@@ -1511,7 +1537,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
 
+        self.mock_stdout(True)
         self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
+        self.mock_stdout(False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)

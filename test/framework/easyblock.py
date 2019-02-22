@@ -367,6 +367,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_extra(self):
         """Test for make_module_extra."""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -456,6 +458,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_dep(self):
         """Test for make_module_dep"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -545,6 +549,7 @@ class EasyBlockTest(EnhancedTestCase):
         build_options = {
             'check_osdeps': False,
             'robot_path': [test_ecs_path],
+            'silent': True,
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -625,6 +630,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_step(self):
         """Test the extensions_step"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -660,6 +667,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -1134,7 +1143,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_check_readiness(self):
         """Test check_readiness method."""
-        init_config(build_options={'validate': False})
+        init_config(build_options={'validate': False, 'silent': True})
 
         # check that check_readiness step works (adding dependencies, etc.)
         ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
@@ -1257,6 +1266,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
+        init_config(build_options={'silent': True})
+
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 

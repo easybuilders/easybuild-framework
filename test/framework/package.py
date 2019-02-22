@@ -179,6 +179,8 @@ class PackageTest(EnhancedTestCase):
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
+        init_config(build_options={'silent': True})
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
         test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
