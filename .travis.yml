@@ -104,7 +104,7 @@ script:
     - IGNORE_PATTERNS="vsc\.install\.shared_setup|no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|required Lmod as modules tool"
     # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
     - PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
-    - test -z "$PRINTED_MSG" || (echo "Found printed messages in output of test suite: $PRINTED_MSG" && exit 1)
+    - test "x$PRINTED_MSG" = "x" || (echo "Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
     # check bootstrap script version
     # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
