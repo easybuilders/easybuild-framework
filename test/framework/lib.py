@@ -54,7 +54,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         super(EasyBuildLibTest, self).setUp()
 
         # make sure BuildOptions instance is re-created
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.tmpdir = tempfile.mkdtemp()
 
@@ -68,7 +69,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         """Utility function to set up EasyBuild configuration."""
 
         # wipe BuildOption singleton instance, so it gets re-created when set_up_configuration is called
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.assertFalse(BuildOptions in BuildOptions._instances)
         set_up_configuration(silent=True)

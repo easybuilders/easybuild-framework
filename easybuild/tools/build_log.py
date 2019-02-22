@@ -136,8 +136,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         def log_callback_warning_and_print(msg):
             """Log warning message, and also print it to stderr."""
             self.warning(msg)
-            if not silent:
-                sys.stderr.write('\nWARNING: ' + msg + '\n\n')
+            print_warning(msg, silent=silent)
 
         kwargs['log_callback'] = log_callback_warning_and_print
 
