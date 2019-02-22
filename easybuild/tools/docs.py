@@ -716,18 +716,21 @@ def gather_reverse_dependencies():
     """
     reverse_dependencies = {}
 
-    module_avail_cmd = "module -t avail 2>&1 | grep -v ':$'"
-    module_purge_load_list_cmd = "module purge; module load %s; module -t list 2>&1 | grep -v %s"
+    available_modules = modules_tool().available()
 
-    available_modules, _ = run_cmd(module_avail_cmd)
+    for mod_name in available_modules:
 
-    for module in available_modules.splitlines():
-        dependencies, _ = run_cmd(module_purge_load_list_cmd % (module,module))
-        for dependency in dependencies.splitlines():
-            if dependency not in reverse_dependencies:
-                reverse_dependencies[dependency] = []
-            reverse_dependencies[dependency].append(module)
-    
+        # TODO: use show instead of load and parse direct dependencies recursively to make it faster
+        modules_tool().purge()
+        modules_tool().load([mod_name])  
+        dependencies = modules_tool().list()
+
+        for dependency in dependencies:
+            dep_mod_name = dependency['mod_name']
+            if dep_mod_name not in reverse_dependencies:
+                reverse_dependencies[dep_mod_name] = []
+            reverse_dependencies[dep_mod_name].append(mod_name)
+
     return reverse_dependencies
 
 
@@ -741,7 +744,7 @@ def list_reverse_dependencies(output_format=FORMAT_TXT):
 
     reverse_dependencies = gather_reverse_dependencies()
 
-    #TODO: format output
+    # TODO: format output
 
     return reverse_dependencies
 
