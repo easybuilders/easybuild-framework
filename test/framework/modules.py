@@ -535,7 +535,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(res, ['impi/2016', 'intel/2016'])
 
         else:
-            print("Skipping test_path_to_top_of_module_tree_lua, requires Lmod as modules tool")
+            print("Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool")
 
     def test_interpret_raw_path_lua(self):
         """Test interpret_raw_path_lua method"""
