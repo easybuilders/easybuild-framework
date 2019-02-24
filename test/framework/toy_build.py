@@ -40,13 +40,10 @@ from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
@@ -260,7 +257,8 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$', toy_module_txt, re.M))
+            pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
@@ -331,7 +329,8 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
         orig_sys_path = sys.path[:]
-        # add directory in which easyconfig file can be found to Python search path, since we're not specifying it full path below
+        # add directory in which easyconfig file can be found to Python search path,
+        # since we're not specifying it full path below
         tmpdir = tempfile.mkdtemp()
         # note get_paths_for expects easybuild/easyconfigs subdir
         ecs_path = os.path.join(tmpdir, "easybuild", "easyconfigs")
@@ -524,22 +523,45 @@ class ToyBuildTest(EnhancedTestCase):
         # set umask hard to verify default reliably
         orig_umask = os.umask(0022)
 
-        self.test_toy_build()
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec_txt = read_file(toy_ec)
+        # take away read permissions, to check whether they are correctly restored by EasyBuild after installation
+        test_ec_txt += "\npostinstallcmds = ['chmod -R og-r %(installdir)s']"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec)
+
+        toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_bin = os.path.join(toy_install_dir, 'bin', 'toy')
+
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % toy_install_dir)
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
+        self.assertEqual(toy_bin_perms, 0755, "%s has default permissions" % toy_bin_perms)
+
         shutil.rmtree(self.test_installpath)
 
-        self.test_toy_build(extra_args=['--read-only-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
-        adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
+        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % toy_install_dir)
+        installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
+        self.assertEqual(toy_bin_perms, 0555, "%s has read-only permissions" % toy_bin_perms)
+
+        adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
-        self.test_toy_build(extra_args=['--group-writable-installdir'])
-        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
         self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
+
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
+        self.assertEqual(toy_bin_perms, 0775, "%s has group write permissions" % toy_bin_perms)
 
         # restore original umask
         os.umask(orig_umask)
@@ -607,7 +629,10 @@ class ToyBuildTest(EnhancedTestCase):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
+
+            self.mock_stdout(True)
             outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
+            self.mock_stdout(False)
 
             if get_module_syntax() == 'Tcl':
                 pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
@@ -643,10 +668,8 @@ class ToyBuildTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         write_file(test_ec, read_file(toy_ec) + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
-        error_pattern = "Failed to get application instance.*: Found group spec in tuple format that is not a 2-tuple:"
         self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
                               raise_error=True, raise_systemexit=True)
-
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
@@ -940,7 +963,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             for modname in ['GCC', 'OpenMPI']:
                 regex = re.compile('load.*' + modname, re.M)
-                self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
+                self.assertFalse(regex.search(toy_modtxt),
+                                 "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
@@ -1372,11 +1396,11 @@ class ToyBuildTest(EnhancedTestCase):
         args = common_args + ['--module-syntax=Tcl']
 
         # install module once (without --module-only), so it can be backed up
-        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
 
         # forced reinstall, no backup of module file because --backup-modules (or --module-only) is not used
-        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
         toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 0)
@@ -1384,7 +1408,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         # note: no need to specificy --backup-modules, enabled automatically under --module-only
-        outtxt = self.eb_main(args + ['--module-only'], do_build=True, raise_error=True)
+        self.eb_main(args + ['--module-only'], do_build=True, raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -1512,7 +1536,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
 
+        self.mock_stdout(True)
         self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
+        self.mock_stdout(False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
@@ -1835,7 +1861,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # also test use of --rpath-filter
         args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
-        outtxt = self.test_toy_build(extra_args=args, raise_error=True)
+        self.test_toy_build(extra_args=args, raise_error=True)
 
         # check whether rpath filter was set correctly
         rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
@@ -2004,7 +2030,7 @@ def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

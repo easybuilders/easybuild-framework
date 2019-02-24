@@ -858,8 +858,12 @@ class EasyBlock(object):
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
 
-        # always make build dir
-        self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+        # always make build dir,
+        # unless we're building in installation directory and we iterating over a list of (pre)config/build/installopts,
+        # otherwise we wipe the already partially populated installation directory,
+        # see https://github.com/easybuilders/easybuild-framework/issues/2556
+        if not (self.build_in_installdir and self.iter_idx > 0):
+            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
 
         trace_msg("build dir: %s" % self.builddir)
 
@@ -2528,21 +2532,21 @@ class EasyBlock(object):
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
 
-            # add read permissions for everybody on all files, taking into account group (if any)
-            perms = stat.S_IRUSR | stat.S_IRGRP
-            self.log.debug("Ensuring read permissions for user/group on install dir (recursively)")
-            if self.group is None:
-                perms |= stat.S_IROTH
-                self.log.debug("Also ensuring read permissions for others on install dir (no group specified)")
+        # add read permissions for everybody on all files, taking into account group (if any)
+        perms = stat.S_IRUSR | stat.S_IRGRP
+        self.log.debug("Ensuring read permissions for user/group on install dir (recursively)")
+        if self.group is None:
+            perms |= stat.S_IROTH
+            self.log.debug("Also ensuring read permissions for others on install dir (no group specified)")
 
-            umask = build_option('umask')
-            if umask is not None:
-                # umask is specified as a string, so interpret it first as integer in octal, then take complement (~)
-                perms &= ~int(umask, 8)
-                self.log.debug("Taking umask '%s' into account when ensuring read permissions to install dir", umask)
+        umask = build_option('umask')
+        if umask is not None:
+            # umask is specified as a string, so interpret it first as integer in octal, then take complement (~)
+            perms &= ~int(umask, 8)
+            self.log.debug("Taking umask '%s' into account when ensuring read permissions to install dir", umask)
 
-            adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully added read permissions '%s' recursively on install dir", oct(perms))
+        adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
+        self.log.info("Successfully added read permissions '%s' recursively on install dir", oct(perms))
 
     def test_cases_step(self):
         """

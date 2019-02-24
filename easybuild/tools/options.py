@@ -92,6 +92,7 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.repository.repository import avail_repositories
+from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -572,10 +573,11 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store', None, 'S', {'metavar': 'REGEX'}),
             'show-config': ("Show current EasyBuild configuration (only non-default + selected settings)",
                             None, 'store_true', False),
-            'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
+            'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
+            'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
         })
 
@@ -795,7 +797,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
-                self.options.avail_hooks,
+                self.options.avail_hooks, self.options.show_system_info,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -1037,6 +1039,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_default_moduleclasses:
             msg += self.show_default_moduleclasses()
 
+        # dump system information
+        if self.options.show_system_info:
+            msg += self.show_system_info()
+
         if self.options.avail_hooks:
             msg += self.avail_list('hooks (in order of execution)', KNOWN_HOOKS)
 
@@ -1103,6 +1109,35 @@ class EasyBuildOptions(GeneralOption):
         maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
         for name, descr in DEFAULT_MODULECLASSES:
             lines.append("\t%s:%s%s" % (name, (" " * (maxlen - len(name))), descr))
+        return '\n'.join(lines)
+
+    def show_system_info(self):
+        """Show system information."""
+        system_info = get_system_info()
+        cpu_features = get_cpu_features()
+        lines = [
+            "System information (%s):" % system_info['hostname'],
+            '',
+            "* OS:",
+            "  -> name: %s" % system_info['os_name'],
+            "  -> type: %s" % system_info['os_type'],
+            "  -> version: %s" % system_info['os_version'],
+            "  -> platform name: %s" % system_info['platform_name'],
+            '',
+            "* CPU:",
+            "  -> vendor: %s" % system_info['cpu_vendor'],
+            "  -> architecture: %s" % get_cpu_architecture(),
+            "  -> family: %s" % get_cpu_family(),
+            "  -> model: %s" % system_info['cpu_model'],
+            "  -> speed: %s" % system_info['cpu_speed'],
+            "  -> cores: %s" % system_info['core_count'],
+            "  -> features: %s" % ','.join(cpu_features),
+            '',
+            "* software:",
+            "  -> glibc version: %s" % system_info['glibc_version'],
+            "  -> Python binary: %s" % sys.executable,
+            "  -> Python version: %s" % sys.version.split(' ')[0],
+        ]
         return '\n'.join(lines)
 
     def show_config(self):

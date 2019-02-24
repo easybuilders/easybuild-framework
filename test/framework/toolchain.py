@@ -63,6 +63,8 @@ class ToolchainTest(EnhancedTestCase):
         self.orig_get_cpu_model = st.get_cpu_model
         self.orig_get_cpu_vendor = st.get_cpu_vendor
 
+        init_config(build_options={'silent': True})
+
     def tearDown(self):
         """Cleanup after toolchain test."""
         st.get_cpu_architecture = self.orig_get_cpu_architecture
@@ -312,8 +314,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether overriding the optarch flag works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
-            build_options = {'optarch': optarch_var}
-            init_config(build_options=build_options)
+            init_config(build_options={'optarch': optarch_var, 'silent': True})
             for enable in [True, False]:
                 tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({'optarch': enable})
@@ -337,8 +338,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether --optarch=GENERIC works as intended."""
         for generic in [False, True]:
             if generic:
-                build_options = {'optarch': 'GENERIC'}
-                init_config(build_options=build_options)
+                init_config(build_options={'optarch': 'GENERIC', 'silent': True})
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
                 'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
@@ -410,8 +410,7 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
-            build_options = {'optarch': optarch_var}
-            init_config(build_options=build_options)
+            init_config(build_options={'optarch': optarch_var, 'silent': True})
             tc = self.get_toolchain(toolchain, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
@@ -429,7 +428,7 @@ class ToolchainTest(EnhancedTestCase):
 
             optarch_flags = tc.options.options_map['optarch']
 
-            self.assertEquals(flags, optarch_flags)
+            self.assertEqual(flags, optarch_flags)
 
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
             if flags == '':
@@ -774,7 +773,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
 
         # test specifying custom template for MPI commands
-        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
 
     def test_prepare_deps(self):
@@ -933,7 +932,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test independency of toolchain instances."""
 
         # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
-        init_config(build_options={'optarch': 'test'})
+        init_config(build_options={'optarch': 'test', 'silent': True})
 
         tc_cflags = {
             'CrayCCE': "-O2 -homp -craype-verbose",
@@ -1366,7 +1365,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # enable --rpath and prepare toolchain
-        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
+        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*'], 'silent': True})
         tc = self.get_toolchain('gompi', version='2018a')
 
         # preparing RPATH wrappers requires --experimental, need to bypass that here
@@ -1403,7 +1402,8 @@ class ToolchainTest(EnhancedTestCase):
 
         # check whether fake g++ was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
-        out, _ = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        out, ec = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        self.assertEqual(ec, 0)
         expected = ' '.join([
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=/foo',
@@ -1412,6 +1412,44 @@ class ToolchainTest(EnhancedTestCase):
             '-L/bar',
             '$FOO',
             '-DX=""',
+        ])
+        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+
+        # check whether 'stubs' library directory are correctly filtered out
+        args = [
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs/',  # should be filtered (no -rpath)
+            '-L/tmp/foo/',
+            '-L/prefix/software/stubs/1.2.3/lib',  # should NOT be filtered
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs/',  # should be filtered (no -rpath)
+            '-L/prefix/software/foobar/4.5/notreallystubs',  # should NOT be filtered
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/zlib/1.2.11/lib',
+            '-L/prefix/software/bleh/0/lib/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/foobar/4.5/stubsbutnotreally',  # should NOT be filtered
+        ]
+        cmd = "g++ ${USER}.c %s" % ' '.join(args)
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+
+        expected = ' '.join([
+            '-Wl,--disable-new-dtags',
+            '-Wl,-rpath=/tmp/foo/',
+            '-Wl,-rpath=/prefix/software/stubs/1.2.3/lib',
+            '-Wl,-rpath=/prefix/software/foobar/4.5/notreallystubs',
+            '-Wl,-rpath=/prefix/software/zlib/1.2.11/lib',
+            '-Wl,-rpath=/prefix/software/foobar/4.5/stubsbutnotreally',
+            '%(user)s.c',
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs/',
+            '-L/tmp/foo/',
+            '-L/prefix/software/stubs/1.2.3/lib',
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs',
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs/',
+            '-L/prefix/software/foobar/4.5/notreallystubs',
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs',
+            '-L/prefix/software/zlib/1.2.11/lib',
+            '-L/prefix/software/bleh/0/lib/stubs',
+            '-L/prefix/software/foobar/4.5/stubsbutnotreally',
         ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
@@ -1427,6 +1465,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
+
+        # this test relies on warnings being printed
+        init_config(build_options={'silent': False})
 
         def prep():
             """Helper function: create & prepare toolchain"""
@@ -1514,4 +1555,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

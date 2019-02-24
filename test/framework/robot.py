@@ -1419,7 +1419,7 @@ class RobotTest(EnhancedTestCase):
 
         # we must allow use of deprecated toolchain in this case
         self.allow_deprecated_behaviour()
-        init_config()
+        init_config(build_options={'silent': True})
 
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
@@ -1439,6 +1439,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'consider_archived_easyconfigs': True,
             'robot_path': [test_ecs],
+            'silent': True,
         })
         res = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
         self.assertEqual([ec['full_mod_name'] for ec in res], ['intel/2012a', 'gzip/1.5-intel-2012a'])
@@ -1477,4 +1478,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

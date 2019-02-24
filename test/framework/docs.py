@@ -44,7 +44,7 @@ class DocsTest(EnhancedTestCase):
         gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
         modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
-            'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
+            'ConfigureMake': ['configopts', 'buildopts', 'installopts'],
         }
         doc_functions = ['build_step', 'configure_step', 'test_step']
 
@@ -291,8 +291,7 @@ def suite():
     """ returns all test cases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    # also check the setUp for debug
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

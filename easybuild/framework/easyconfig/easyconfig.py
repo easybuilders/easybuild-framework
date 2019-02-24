@@ -174,7 +174,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
-    """
+    r"""
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
 
@@ -574,9 +574,14 @@ class EasyConfig(object):
             depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
+            depr_msg = ', '.join(depr_msgs)
+
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            depr_ver = '%s.0' % depr_maj_ver
+
             more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
-            self.log.deprecated(', '.join(depr_msgs), '%s.0' % depr_maj_ver, more_info=more_info_depr_ec)
+
+            self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
     def validate(self, check_osdeps=True):
         """
@@ -677,36 +682,42 @@ class EasyConfig(object):
 
     def filter_hidden_deps(self):
         """
-        Filter hidden dependencies from list of (build) dependencies.
+        Replace dependencies by hidden dependencies in list of (build) dependencies, where appropriate.
         """
-        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
-        build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
-
         faulty_deps = []
-        for i, hidden_dep in enumerate(self['hiddendependencies']):
+
+        for hidden_idx, hidden_dep in enumerate(self['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
 
-            # track whether this hidden dep is listed as a build dep
-            if visible_mod_name in build_dep_mod_names or hidden_mod_name in build_dep_mod_names:
-                # templating must be temporarily disabled when updating a value in a dict;
-                # see comments in resolve_template
-                enable_templating = self.enable_templating
-                self.enable_templating = False
-                self['hiddendependencies'][i]['build_only'] = True
-                self.enable_templating = enable_templating
+            # replace (build) dependencies with their equivalent hidden (build) dependency (if any)
+            replaced = False
+            for key in ['builddependencies', 'dependencies']:
+                for idx, dep in enumerate(self[key]):
+                    dep_mod_name = dep['full_mod_name']
+                    if dep_mod_name in [visible_mod_name, hidden_mod_name]:
 
-            # filter hidden dep from list of (build)dependencies
-            if visible_mod_name in dep_mod_names:
-                for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d for d in self[key] if d['full_mod_name'] != visible_mod_name]
-                self.log.debug("Removed (build)dependency matching hidden dependency %s", hidden_dep)
-            elif hidden_mod_name in dep_mod_names:
-                for key in ['builddependencies', 'dependencies']:
-                    self[key] = [d for d in self[key] if d['full_mod_name'] != hidden_mod_name]
-                self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
-                               hidden_dep)
-            else:
+                        # templating must be temporarily disabled to obtain reference to original lists,
+                        # so their elements can be changed in place
+                        # see comments in resolve_template
+                        enable_templating = self.enable_templating
+                        self.enable_templating = False
+                        # track whether this hidden dep is listed as a build dep
+                        orig_hidden_dep = self['hiddendependencies'][hidden_idx]
+                        if key == 'builddependencies':
+                            orig_hidden_dep['build_only'] = True
+                        # actual replacement
+                        self[key][idx] = orig_hidden_dep
+                        self.enable_templating = enable_templating
+
+                        replaced = True
+                        if dep_mod_name == visible_mod_name:
+                            msg = "Replaced (build)dependency matching hidden dependency %s"
+                        else:
+                            msg = "Hidden (build)dependency %s is already marked to be installed as a hidden module"
+                        self.log.debug(msg, hidden_dep)
+
+            if not replaced:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
@@ -714,6 +725,7 @@ class EasyConfig(object):
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
+            dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
@@ -812,7 +824,7 @@ class EasyConfig(object):
         if build_only:
             deps = self['builddependencies']
         else:
-            deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+            deps = self['dependencies'] + self['builddependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -928,6 +940,9 @@ class EasyConfig(object):
             self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
+
+        if not ectxt.endswith('\n'):
+            ectxt += '\n'
 
         write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
@@ -1502,11 +1517,6 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 _log.debug("Adding build dependency %s for app %s." % (dep, name))
                 easyconfig['builddependencies'].append(dep)
 
-            # add hidden dependencies
-            for dep in ec['hiddendependencies']:
-                _log.debug("Adding hidden dependency %s for app %s." % (dep, name))
-                easyconfig['hiddendependencies'].append(dep)
-
             # add dependencies (including build & hidden dependencies)
             for dep in ec.dependencies():
                 _log.debug("Adding dependency %s for app %s." % (dep, name))
@@ -1672,7 +1682,7 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
         warning_msg = "Failed to determine toolchain hierarchy for %(name)s/%(version)s when determining " % parent_tc
         warning_msg += "subtoolchain for dependency '%s': %s" % (dep['name'], err)
         _log.warning(warning_msg)
-        print_warning(warning_msg)
+        print_warning(warning_msg, silent=build_option('silent'))
         toolchain_hierarchy = []
 
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,

@@ -367,6 +367,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_extra(self):
         """Test for make_module_extra."""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -456,6 +458,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_dep(self):
         """Test for make_module_dep"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -545,6 +549,7 @@ class EasyBlockTest(EnhancedTestCase):
         build_options = {
             'check_osdeps': False,
             'robot_path': [test_ecs_path],
+            'silent': True,
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -625,6 +630,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_step(self):
         """Test the extensions_step"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -660,6 +667,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -837,6 +846,7 @@ class EasyBlockTest(EnhancedTestCase):
         builddir = eb.builddir
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
+
         eb.cfg['cleanupoldbuild'] = True
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
@@ -853,6 +863,66 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout.close()
         sys.stdout = stdoutorig
         eb.close_log()
+
+    def test_make_builddir(self):
+        """Test make_dir method."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'http://example.com'",
+            "description = 'test easyconfig'",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+        ])
+        self.writeEC()
+
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.gen_builddir()
+
+        # by default, make_builddir will re-create the build directory (i.e. remove existing & re-create)
+        eb.make_builddir()
+        builddir = eb.builddir
+        testfile = os.path.join(builddir, 'test123', 'foobar.txt')
+        write_file(testfile, 'test123')
+        self.assertTrue(os.path.exists(testfile))
+
+        eb.make_builddir()
+        self.assertEqual(builddir, eb.builddir)
+        # file is gone because directory was removed and re-created
+        self.assertFalse(os.path.exists(testfile))
+        self.assertFalse(os.path.exists(os.path.dirname(testfile)))
+        self.assertEqual(os.listdir(eb.builddir), [])
+
+        # make sure that build directory does *not* get re-created when we're building in installation directory
+        # and we're iterating over a list of (pre)config/build/installopts
+        eb.build_in_installdir = True
+        eb.make_builddir()
+        # also need to create install directory since build dir == install dir
+        eb.make_installdir()
+        builddir = eb.builddir
+        testfile = os.path.join(builddir, 'test123', 'foobar.txt')
+        write_file(testfile, 'test123')
+        self.assertTrue(os.path.exists(testfile))
+        self.assertEqual(os.listdir(eb.builddir), ['test123'])
+        self.assertEqual(os.listdir(os.path.join(eb.builddir, 'test123')), ['foobar.txt'])
+
+        # with iteration count > 0, build directory is not re-created because of build-in-installdir
+        eb.iter_idx = 1
+        eb.make_builddir()
+        eb.make_installdir()
+        self.assertEqual(builddir, eb.builddir)
+        self.assertTrue(os.path.exists(testfile))
+        self.assertEqual(os.listdir(eb.builddir), ['test123'])
+        self.assertEqual(os.listdir(os.path.join(eb.builddir, 'test123')), ['foobar.txt'])
+
+        # resetting iteration index to 0 results in re-creating build directory
+        eb.iter_idx = 0
+        eb.make_builddir()
+        eb.make_installdir()
+        self.assertEqual(builddir, eb.builddir)
+        self.assertFalse(os.path.exists(testfile))
+        self.assertFalse(os.path.exists(os.path.dirname(testfile)))
+        self.assertEqual(os.listdir(eb.builddir), [])
 
     def test_get_easyblock_instance(self):
         """Test get_easyblock_instance function."""
@@ -1073,7 +1143,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_check_readiness(self):
         """Test check_readiness method."""
-        init_config(build_options={'validate': False})
+        init_config(build_options={'validate': False, 'silent': True})
 
         # check that check_readiness step works (adding dependencies, etc.)
         ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
@@ -1196,6 +1266,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
+        init_config(build_options={'silent': True})
+
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
@@ -1509,4 +1581,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

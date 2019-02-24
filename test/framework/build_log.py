@@ -109,6 +109,7 @@ class BuildLogTest(EnhancedTestCase):
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
+        log.deprecated("thisisnotprinted", '1.0', max_ver='2.0', silent=True)
         log.error("kaput")
         log.error("err: %s", 'msg: %s')
         stderr = self.get_stderr()
@@ -138,6 +139,7 @@ class BuildLogTest(EnhancedTestCase):
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*" % root,
+            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*" % root,
             r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root,
             root + r".test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
             r"%s.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops" % root,
@@ -377,4 +379,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

@@ -72,6 +72,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_obtain_ec_for(self):
         """Test obtain_ec_for function."""
+        init_config(build_options={'silent': True})
+
         test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         # find existing easyconfigs
         specs = {
@@ -146,8 +148,7 @@ class TweakTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
 
         # existing file does get overwritten when --force is used
-        build_options = {'force': True}
-        init_config(build_options=build_options)
+        init_config(build_options={'force': True, 'silent': True})
         write_file(tweaked_toy_ec, '')
         tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
@@ -189,8 +190,9 @@ class TweakTest(EnhancedTestCase):
         """Test matching a toolchain to lowest possible in a hierarchy"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
         foss_hierarchy = get_toolchain_hierarchy({'name': 'foss', 'version': '2018a'}, incl_capabilities=True)
@@ -249,8 +251,9 @@ class TweakTest(EnhancedTestCase):
         """Test mapping between two toolchain hierarchies"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
         foss_tc = {'name': 'foss', 'version': '2018a'}
@@ -352,8 +355,9 @@ class TweakTest(EnhancedTestCase):
         """Test mapping of easyconfig to target hierarchy"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': [test_easyconfigs],
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
 
@@ -401,4 +405,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
