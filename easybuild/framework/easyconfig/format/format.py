@@ -298,8 +298,8 @@ class EBConfigObj(object):
                     # parse value as a section, recursively
                     new_value = self.parse_sections(value, current.get_nested_dict())
 
-                    self.log.debug('Converted section key %s value %s in new key %s new value %s' %
-                                   (key, value, new_key, new_value))
+                    self.log.debug("Converted section key %s value %s in new key %s new value %s",
+                                   key, value, new_key, new_value)
                     current[new_key] = new_value
 
             else:

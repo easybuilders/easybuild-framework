@@ -265,6 +265,19 @@ class EasyConfigVersion(EnhancedTestCase):
         # test updated data
         self.assertEqual(ovop.get_data(versop), new_data)
 
+    def test_hashing(self):
+        """Test hashing of VersionOperator and ToolchainVersionOperator instances."""
+
+        test_cases = [
+            VersionOperator('1.2.3'),
+            VersionOperator('> 1.2.3'),
+            ToolchainVersionOperator('foo'),
+            ToolchainVersionOperator('foo > 1.2.3'),
+        ]
+
+        for test_case in test_cases:
+            self.assertTrue(hash(test_case))
+
 
 def suite():
     """ returns all the testcases in this module """

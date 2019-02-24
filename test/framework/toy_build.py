@@ -295,7 +295,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verify': False,
             'verbose': False,
         }
-        err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*global name 'run_cmd'"
+        err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*name 'run_cmd' is not defined"
         self.assertErrorRegex(EasyBuildError, err_regex, self.test_toy_build, **kwargs)
 
     def test_toy_build_formatv2(self):
@@ -388,7 +388,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '--toolchain=dummy,dummy',
                 '--experimental',
             ]
-            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
             specs['version'] = version
 
@@ -1975,13 +1975,13 @@ class ToyBuildTest(EnhancedTestCase):
             "   print('start hook triggered')",
             '',
             "def parse_hook(ec):",
-            "   print ec.name, ec.version",
+            "   print('%s %s' % (ec.name, ec.version))",
             # print sources value to check that raw untemplated strings are exposed in parse_hook
-            "   print ec['sources']",
+            "   print(ec['sources'])",
             # try appending to postinstallcmd to see whether the modification is actually picked up
             # (required templating to be disabled before parse_hook is called)
             "   ec['postinstallcmds'].append('echo toy')",
-            "   print ec['postinstallcmds'][-1]",
+            "   print(ec['postinstallcmds'][-1])",
             '',
             "def pre_configure_hook(self):",
             "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
@@ -2000,7 +2000,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file])
+        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file], raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
