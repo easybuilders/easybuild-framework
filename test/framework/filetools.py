@@ -1504,6 +1504,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
         self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
 
+        # also test case-sensitive searching
+        var_defs, hits_bis = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits_bis, [])
+
+        var_defs, hits_bis = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits_bis, hits)
+
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
