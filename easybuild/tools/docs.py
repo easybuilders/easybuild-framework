@@ -37,6 +37,7 @@ Documentation-related functionality
 import copy
 import inspect
 import os
+import re
 import string
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
@@ -61,6 +62,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
@@ -713,19 +715,32 @@ def gather_reverse_dependencies():
 
     :return: dictionary with reverse dependencies
     """
+
+    def get_dependencies(mod_name, dependencies):
+        """Recursive function to gather dependencies from output of module show."""
+
+        # lmod cache was ignored when using modules_tool().available, let's reuse it here (irrelevant if not using lmod)
+        module_show, _ = run_cmd('LMOD_IGNORE_CACHE=0 module show %s' % mod_name, trace=False)
+
+        # is this complete?
+        matches = re.findall(r"(?:load|prereq|depends_on)\(\"(.*/.*)\"\)", module_show)
+
+        for match in matches:
+            if match not in dependencies:
+                dependencies.extend([match])
+                dependencies.extend([dep for dep in get_dependencies(match, dependencies) if dep not in dependencies])
+
+        return dependencies
+
     reverse_dependencies = {}
 
     available_modules = modules_tool().available()
 
     for mod_name in available_modules:
 
-        # TODO: use show instead of load and parse direct dependencies recursively to make it faster
-        modules_tool().purge()
-        modules_tool().load([mod_name])
-        dependencies = modules_tool().list()
+        dependencies = get_dependencies(mod_name, [])
 
-        for dependency in dependencies:
-            dep_mod_name = dependency['mod_name']
+        for dep_mod_name in dependencies:
             if dep_mod_name not in reverse_dependencies:
                 reverse_dependencies[dep_mod_name] = []
             reverse_dependencies[dep_mod_name].append(mod_name)
