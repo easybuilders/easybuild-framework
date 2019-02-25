@@ -34,9 +34,10 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import easybuild.framework
+import easybuild.tools.repository.filerepo
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
-from easybuild.tools.utilities import only_if_module_is_available
+from easybuild.tools.filetools import change_dir, mkdir, read_file, write_file
+from easybuild.tools.utilities import import_available_modules, only_if_module_is_available
 
 
 class GeneralTest(EnhancedTestCase):
@@ -119,6 +120,32 @@ class GeneralTest(EnhancedTestCase):
                 txt = read_file(path)
                 for regex in docstring_regexes:
                     self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+
+    def test_import_available_modules(self):
+        """Test for import_available_modules function."""
+
+        res = import_available_modules('easybuild.tools.repository')
+        self.assertEqual(len(res), 5)
+        # don't check all, since some required specific Python packages to be installed...
+        self.assertTrue(easybuild.tools.repository.filerepo in res)
+
+        # replicate situation where import_available_modules failed when running in directory where modules are located
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2659
+        #      and https://github.com/easybuilders/easybuild-framework/issues/2742
+        test123 = os.path.join(self.test_prefix, 'test123')
+        mkdir(test123)
+        write_file(os.path.join(test123, '__init__.py'), '')
+        write_file(os.path.join(test123, 'one.py'), '')
+        write_file(os.path.join(test123, 'two.py'), '')
+        write_file(os.path.join(test123, 'three.py'), '')
+
+        change_dir(self.test_prefix)
+        res = import_available_modules('test123')
+
+        import test123.one
+        import test123.two
+        import test123.three
+        self.assertEqual([test123.one, test123.three, test123.two], res)
 
 
 def suite():

@@ -117,7 +117,16 @@ def import_available_modules(namespace):
     """
     modules = []
     for path in sys.path:
-        for module in sorted(glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py']))):
+
+        cand_modpath_glob = os.path.sep.join([path] + namespace.split('.') + ['*.py'])
+
+        # if sys.path entry being considered is the empty string
+        # (which corresponds to Python packages/modules in current working directory being considered),
+        # we need to strip off / from the start of the path
+        if path == '' and cand_modpath_glob.startswith(os.path.sep):
+            cand_modpath_glob = cand_modpath_glob.lstrip(os.path.sep)
+
+        for module in sorted(glob.glob(cand_modpath_glob)):
             if not module.endswith('__init__.py'):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])
@@ -126,7 +135,10 @@ def import_available_modules(namespace):
                     mod = __import__(modpath, globals(), locals(), [''])
                 except ImportError as err:
                     raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
-                modules.append(mod)
+
+                if mod not in modules:
+                    modules.append(mod)
+
     return modules
 
 
