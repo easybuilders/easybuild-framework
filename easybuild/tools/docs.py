@@ -719,6 +719,11 @@ def gather_reverse_dependencies():
     def get_dependencies(mod_name, dependencies):
         """Recursive function to gather dependencies from output of module show."""
 
+        if mod_name in dependencies:
+            return dependencies[mod_name]
+        else:
+            dependencies[mod_name] = []
+
         # lmod cache was ignored when using modules_tool().available, let's reuse it here (irrelevant if not using lmod)
         module_show, _ = run_cmd('LMOD_IGNORE_CACHE=0 module show %s' % mod_name, trace=False)
 
@@ -726,21 +731,23 @@ def gather_reverse_dependencies():
         matches = re.findall(r"(?:load|prereq|depends_on)\(\"(.*/.*)\"\)", module_show)
 
         for match in matches:
-            if match not in dependencies:
-                dependencies.extend([match])
-                dependencies.extend([dep for dep in get_dependencies(match, dependencies) if dep not in dependencies])
+            if match not in dependencies[mod_name]:
+                dependencies[mod_name].extend([match])
+                dependencies[mod_name].extend([dep for dep in get_dependencies(match, dependencies)
+                                               if dep not in dependencies[mod_name]])
 
-        return dependencies
+        return dependencies[mod_name]
 
+    dependencies = {}
     reverse_dependencies = {}
 
     available_modules = modules_tool().available()
 
     for mod_name in available_modules:
 
-        dependencies = get_dependencies(mod_name, [])
+        mod_deps = get_dependencies(mod_name, dependencies)
 
-        for dep_mod_name in dependencies:
+        for dep_mod_name in mod_deps:
             if dep_mod_name not in reverse_dependencies:
                 reverse_dependencies[dep_mod_name] = []
             reverse_dependencies[dep_mod_name].append(mod_name)
