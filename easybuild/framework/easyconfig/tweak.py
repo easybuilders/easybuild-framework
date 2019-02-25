@@ -1055,10 +1055,10 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         candidate_ver_list.append(r'%s\..*' % major_version)
     candidate_ver_list.append(r'.*')  # Include a major version search
 
-    potential_version_matches, highest_version = [], None
+    potential_version_mappings, highest_version = [], None
 
     for candidate_ver in candidate_ver_list:
-        if not potential_version_matches:
+        if not potential_version_mappings:
             for toolchain in toolchain_hierarchy:
 
                 # determine search pattern based on toolchain, version prefix/suffix & version regex
@@ -1085,10 +1085,10 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                     else:
                         raise EasyBuildError("Failed to determine version from contents of %s", path)
 
-                    potential_version_matches.append({'path': path, 'toolchain': toolchain, 'version': version})
+                    potential_version_mappings.append({'path': path, 'toolchain': toolchain, 'version': version})
 
     if highest_versions_only and highest_version is not None:
-        potential_version_matches = [d for d in potential_version_matches if d['version'] == highest_version]
+        potential_version_mappings = [d for d in potential_version_mappings if d['version'] == highest_version]
 
-    _log.debug("Found potential version match for %s: %s", dep, potential_version_matches)
-    return potential_version_matches
+    _log.debug("Found potential version mappings for %s: %s", dep, potential_version_mappings)
+    return potential_version_mappings
