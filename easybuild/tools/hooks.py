@@ -120,7 +120,7 @@ def load_hooks(hooks_path):
 def verify_hooks(hooks):
     """Check whether list of obtained hooks only includes known hooks."""
     unknown_hooks = []
-    for key in hooks:
+    for key in sorted(hooks):
         if key not in KNOWN_HOOKS:
             unknown_hooks.append(key)
 
