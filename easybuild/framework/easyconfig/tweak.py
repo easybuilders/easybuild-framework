@@ -978,7 +978,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 # Search for available updates for this dependency:
                 # First get highest version candidate paths for this (include search through subtoolchains)
                 potential_version_mappings = find_potential_version_mappings(dep, toolchain_mapping,
-                                                                            versionsuffix_mapping=versonsuffix_mapping)
+                                                                             versionsuffix_mapping=versonsuffix_mapping)
                 # Only highest version match is retained by default in potential_version_mappings,
                 # compare that version to the original version and replace if appropriate (upgrades only).
                 if potential_version_mappings:
