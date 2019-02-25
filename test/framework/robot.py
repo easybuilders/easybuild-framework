@@ -1472,6 +1472,7 @@ class RobotTest(EnhancedTestCase):
         ref_paths = [os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb')]
         self.assertEqual(paths, ref_paths)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])

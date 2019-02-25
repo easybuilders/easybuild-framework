@@ -299,42 +299,49 @@ class TweakTest(EnhancedTestCase):
             'robot_path': [test_easyconfigs],
         })
         toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}
-        expected_toolchain_stub = '-GCC-4.9.3-2.26'
-        expected_paths = [os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4' + expected_toolchain_stub + '.eb')]
-        paths, toolchain_stub = get_matching_easyconfig_candidates('gzip', toolchain)
-        self.assertEqual(toolchain_stub, expected_toolchain_stub)
+        paths, toolchain_suff = get_matching_easyconfig_candidates('gzip-', toolchain)
+        expected_toolchain_suff = '-GCC-4.9.3-2.26'
+        self.assertEqual(toolchain_suff, expected_toolchain_suff)
+        expected_paths = [os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4' + expected_toolchain_suff + '.eb')]
         self.assertEqual(paths, expected_paths)
+
+        paths, toolchain_stub = get_matching_easyconfig_candidates('nosuchmatch', toolchain)
+        self.assertEqual(paths, [])
+        self.assertEqual(toolchain_stub, expected_toolchain_suff)
 
     def test_map_common_versionsuffixes(self):
         """Test mapping between two toolchain hierarchies"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': [test_easyconfigs],
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
+
         gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
+
         toolchain_mapping = map_toolchain_hierarchies(iccifort_binutils_tc, gcc_binutils_tc, self.modtool)
         possible_mappings = map_common_versionsuffixes('binutils', iccifort_binutils_tc, toolchain_mapping)
-        expected_mappings = {'-binutils-2.25': '-binutils-2.26'}
-        self.assertEqual(possible_mappings, expected_mappings)
+        self.assertEqual(possible_mappings, {'-binutils-2.25': '-binutils-2.26'})
 
         # Make sure we only map upwards, here it's gzip 1.4 in gcc and 1.6 in iccifort
         possible_mappings = map_common_versionsuffixes('gzip', iccifort_binutils_tc, toolchain_mapping)
-        expected_mappings = {}
-        self.assertEqual(possible_mappings, expected_mappings)
+        self.assertEqual(possible_mappings, {})
+
+        # newer gzip is picked up other way around (GCC -> iccifort)
         toolchain_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
         possible_mappings = map_common_versionsuffixes('gzip', gcc_binutils_tc, toolchain_mapping)
-        expected_mappings = {'-gzip-1.4': '-gzip-1.6'}
-        self.assertEqual(possible_mappings, expected_mappings)
+        self.assertEqual(possible_mappings, {'-gzip-1.4': '-gzip-1.6'})
 
     def test_find_potential_version_mappings(self):
         """Test ability to find potential version mappings of a dependency for a given toolchain mapping"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': [test_easyconfigs],
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
 
@@ -344,8 +351,11 @@ class TweakTest(EnhancedTestCase):
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
         ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
         parsed_ec = process_easyconfig(ec_spec)[0]
-        gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip']
-        potential_versions = find_potential_version_mappings(gzip_dep[0], tc_mapping, [])
+        gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip'][0]
+        self.assertEqual(gzip_dep['full_mod_name'], 'gzip/1.4-GCC-4.9.3-2.26')
+
+        potential_versions = find_potential_version_mappings(gzip_dep, tc_mapping)
+        self.assertEqual(len(potential_versions), 1)
         # Should see version 1.6 of gzip with iccifort toolchain
         expected_dep_path = os.path.join(test_easyconfigs, 'g', 'gzip',
                                          'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb')
@@ -354,11 +364,12 @@ class TweakTest(EnhancedTestCase):
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        init_config(build_options={
+        build_options = {
             'robot_path': [test_easyconfigs],
             'silent': True,
             'valid_module_classes': module_classes(),
-        })
+        }
+        init_config(build_options=build_options)
         get_toolchain_hierarchy.clear()
 
         gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
@@ -378,10 +389,7 @@ class TweakTest(EnhancedTestCase):
                             value == tweaked_dict['builddependencies'][0][key])
 
         # Now test the case where we try to update the dependencies
-        init_config(build_options={
-            'valid_module_classes': module_classes(),
-            'robot_path': [test_easyconfigs],
-        })
+        init_config(build_options=build_options)
         get_toolchain_hierarchy.clear()
         tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping, update_dep_versions=True)
         tweaked_ec = process_easyconfig(tweaked_spec)[0]
