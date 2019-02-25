@@ -33,7 +33,6 @@ correctly by easybuild.
 from datetime import date
 from optparse import OptionParser
 
-import easybuild.tools.config as config
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.build_log import EasyBuildError
@@ -42,20 +41,20 @@ from easybuild.tools.options import set_up_configuration
 
 # parse options
 parser = OptionParser()
-parser.add_option("-v", "--verbose", action="count", dest="verbose",
-     help="Be more verbose, can be used multiple times.")
+parser.add_option("-v", "--verbose", action="count", dest="verbose", default=0,
+                  help="Be more verbose, can be used multiple times.")
 parser.add_option("-q", "--quiet", action="store_true", dest="quiet",
-     help="Don't be verbose, in fact, be quiet.")
+                  help="Don't be verbose, in fact, be quiet.")
 parser.add_option("-b", "--branch", action="store", dest="branch",
-     help="Choose the branch to link to (default develop).")
+                  help="Choose the branch to link to (default develop).")
 parser.add_option("-u", "--username", action="store", dest="username",
-     help="Choose the user to link to (default easybuilders).")
+                  help="Choose the user to link to (default easybuilders).")
 parser.add_option("-r", "--repo", action="store", dest="repo",
-     help="Choose the branch to link to (default easybuild-easyconfigs).")
+                  help="Choose the branch to link to (default easybuild-easyconfigs).")
 parser.add_option("-p", "--path", action="store", dest="path",
-     help="Specify a path inside the repo (default easybuild/easyconfigs).")
+                  help="Specify a path inside the repo (default easybuild/easyconfigs).")
 parser.add_option("-l", "--local", action="store_true", dest="local",
-     help="Use a local path, not on github.com (Default false)")
+                  help="Use a local path, not on github.com (Default false)")
 
 options, args = parser.parse_args()
 
@@ -86,14 +85,18 @@ if options.local:
     import os
     walk = os.walk
     join = os.path.join
-    read = lambda ec_file: ec_file
+
+    def read(ec_file):
+        return ec_file
 
     log.info('parsing easyconfigs from location %s' % options.path)
 else:
     fs = Githubfs(options.username, options.repo, options.branch)
     walk = Githubfs(options.username, options.repo, options.branch).walk
     join = fs.join
-    read = lambda ec_file: fs.read(ec_file, api=False)
+
+    def read(ec_file):
+        return fs.read(ec_file, api=False)
 
     log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
@@ -142,35 +145,33 @@ configs = sorted(configs, key=lambda config: config.name.lower())
 firstl = ""
 
 # print out the configs in markdown format for the wiki
-print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) "
-print "to see to the list of easyconfig files."
-print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) "
-print "to go to the easyblock for this package."
-print "## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat())
-print "<center>"
-print " - ".join(["[%(letter)s](#%(letter)s)" % \
-    {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
-print "</center>"
+print("Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) ")
+print("to see to the list of easyconfig files.")
+print("And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) ")
+print("to go to the easyblock for this package.")
+print("## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat()))
+print("<center>")
+print(" - ".join(["[%(l)s](#%(l)s)" % {'l': l} for l in sorted(set([c.name[0].upper() for c in configs]))]))
+print("</center>")
 
-for config in configs:
-    if config.name[0].lower() != firstl:
-        firstl = config.name[0].lower()
+for cfg in configs:
+    if cfg.name[0].lower() != firstl:
+        firstl = cfg.name[0].lower()
         # print the first letter and the number of packages starting with this letter we support
-        print "\n### %(letter)s (%(count)d packages) <a name='%(letter)s'/>\n" % {
+        print("\n### %(letter)s (%(count)d packages) <a name='%(letter)s'/>\n" % {
                 'letter': firstl.upper(),
                 'count': len([x for x in configs if x.name[0].lower() == firstl]),
-            }
-    print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] "
-    print "(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
-            (options.branch, firstl, config.name)
-    if config.easyblock:
-        print "[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] "
-        print " (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
-            (options.branch, firstl, config.easyblock)
+            })
+    print("* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] ")
+    tmpl = "(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)"
+    print(tmpl % (options.branch, firstl, cfg.name))
+    if cfg.easyblock:
+        print("[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] ")
+        tmpl = " (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)"
+        print(tmpl % (options.branch, firstl, cfg.easyblock))
     else:
-        print "&nbsp;&nbsp;&nbsp;&nbsp;"
-    if config['homepage'] != "(none)":
-        print "[ %s](%s)" % (config.name, config['homepage'])
+        print("&nbsp;&nbsp;&nbsp;&nbsp;")
+    if cfg['homepage'] != "(none)":
+        print("[ %s](%s)" % (cfg.name, cfg['homepage']))
     else:
-        print config.name
-
+        print(cfg.name)
