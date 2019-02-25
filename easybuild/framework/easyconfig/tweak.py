@@ -51,6 +51,7 @@ from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, A
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
@@ -152,7 +153,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
             # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
-            # We can leave any dependencies they may have as they will only be used if required (or originally listed)
+            # Also filter any dependencies of the hierarchy (unless they were originally listed for tweaking)
             _log.debug("Filtering out toolchain hierarchy and dependencies for %s", source_toolchain)
             if source_toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
                 path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
@@ -976,17 +977,17 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             elif update_dep_versions:
                 # Search for available updates for this dependency:
                 # First get highest version candidate paths for this (include search through subtoolchains)
-                potential_version_matches = find_potential_version_mappings(dep, toolchain_mapping,
+                potential_version_mappings = find_potential_version_mappings(dep, toolchain_mapping,
                                                                             versionsuffix_mapping=versonsuffix_mapping)
-                # Only highest version match is retained by default in potential_version_matches,
+                # Only highest version match is retained by default in potential_version_mappings,
                 # compare that version to the original version and replace if appropriate (upgrades only).
-                if potential_version_matches:
-                    highest_version_match = potential_version_matches[0]['version']
+                if potential_version_mappings:
+                    highest_version_match = potential_version_mappings[0]['version']
                     if LooseVersion(highest_version_match) > LooseVersion(dep['version']):
                         _log.info("Updating version of %s dependency from %s to %s", dep['name'], dep['version'],
                                   highest_version_match)
                         _log.info("Depending on your configuration, this will be resolved with one of the following "
-                                  "easyconfigs: \n%s", '\n'.join(cand['path'] for cand in potential_version_matches))
+                                  "easyconfigs: \n%s", '\n'.join(cand['path'] for cand in potential_version_mappings))
                         orig_dep['version'] = highest_version_match
                         if orig_dep['versionsuffix'] in versonsuffix_mapping:
                             dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
@@ -1071,10 +1072,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                 cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False,
                                                 case_sensitive=True)
 
-                # Filter out easyconfigs that have been tweaked in this instance
-                # (they sit in the tempdir in a subdir that starts with 'tweaked_*')
-                tweaked_ec_stub = os.path.join(tempfile.gettempdir(), 'tweaked_')
-                cand_paths = [path for path in cand_paths if not path.startswith(tweaked_ec_stub)]
+                # Filter out easyconfigs that have been tweaked in this instance, they are not relevant here
+                tweaked_ecs_paths, _ = alt_easyconfig_paths(tempfile.gettempdir(), tweaked_ecs=True)
+                cand_paths = [path for path in cand_paths if not path.startswith(tweaked_ecs_paths)]
 
                 # Add what is left to the possibilities
                 for path in cand_paths:
