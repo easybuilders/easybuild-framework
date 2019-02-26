@@ -83,7 +83,7 @@ def ec_filename_for(path):
 
 def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
-    # keep track of originally listed easyconfigs (via their path)
+    # keep track of originally listed easyconfigs (via their filename)
     listed_ec_filenames = [os.path.basename(ec['spec']) for ec in easyconfigs]
 
     tweaked_ecs_path, tweaked_ecs_deps_path = None, None
