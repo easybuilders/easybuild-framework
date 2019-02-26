@@ -922,21 +922,17 @@ class EasyConfig(object):
             if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
                 templ_val[self.template_values[key]] = key
 
-<<<<<<< HEAD
         if convert_yeb and is_yeb_format(self.path, None):
             ectxt = self.parser.convert_and_dump_yeb_as_eb(self, default_values, templ_const, templ_val)
         else:
-            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
-=======
-        try:
-            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
-        except NotImplementedError as err:
-            # need to restore enable_templating value in case this method is caught in a try/except block and ignored
-            # (the ability to dump is not a hard requirement for build success)
-            self.enable_templating = orig_enable_templating
-            raise NotImplementedError(err)
+            try:
+                ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+            except NotImplementedError as err:
+                # restore enable_templating value in case this method is caught in a try/except block and ignored
+                # (the ability to dump is not a hard requirement for build success)
+                self.enable_templating = orig_enable_templating
+                raise NotImplementedError(err)
 
->>>>>>> develop
         self.log.debug("Dumped easyconfig: %s", ectxt)
 
         if build_option('dump_autopep8'):
