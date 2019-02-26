@@ -83,8 +83,8 @@ def ec_filename_for(path):
 
 def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
-    # keep track of originally listed easyconfigs (via their filename)
-    listed_ec_filenames = [os.path.basename(ec['spec']) for ec in easyconfigs]
+    # keep track of originally listed easyconfigs (via their path)
+    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
     tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     if targetdirs is not None:
@@ -159,15 +159,15 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
                 toolchain_ec = process_easyconfig(path)
                 toolchain_deps = resolve_dependencies(toolchain_ec, modtool, retain_all_deps=True)
-                toolchain_dep_filenames = [os.path.basename(dep['spec']) for dep in toolchain_deps]
+                toolchain_dep_paths = [dep['spec'] for dep in toolchain_deps]
                 # only retain toolchain dependencies that are not in original list of easyconfigs to tweak
-                toolchain_dep_filenames = [td for td in toolchain_dep_filenames if td not in listed_ec_filenames]
+                toolchain_dep_paths = [td for td in toolchain_dep_paths if td not in listed_ec_paths]
             else:
-                toolchain_dep_filenames = []
+                toolchain_dep_paths = []
 
             i = 0
             while i < len(orig_ecs):
-                if os.path.basename(orig_ecs[i]['spec']) in toolchain_dep_filenames:
+                if orig_ecs[i]['spec'] in toolchain_dep_paths:
                     # drop elements in toolchain hierarchy
                     del orig_ecs[i]
                 else:
@@ -193,7 +193,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
 
         new_ec_file = None
         verification_build_specs = copy.copy(build_specs)
-        if os.path.basename(orig_ec['spec']) in listed_ec_filenames:
+        if orig_ec['spec'] in listed_ec_paths:
             if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
