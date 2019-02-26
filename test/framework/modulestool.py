@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,19 +31,16 @@ import os
 import re
 import stat
 import sys
-import tempfile
 from vsc.utils import fancylogger
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
-import easybuild.tools.options as eboptions
-from easybuild.tools import config, modules
+from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which, write_file
-from easybuild.tools.modules import modules_tool, Lmod
+from easybuild.tools.modules import Lmod
 from test.framework.utilities import init_config
 
 
@@ -183,7 +180,7 @@ class ModulesToolTest(EnhancedTestCase):
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
             ])
             write_file(fake_path, fake_lmod_txt)
-            os.chmod(fake_path, stat.S_IRUSR|stat.S_IXUSR)
+            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
             os.environ['LMOD_CMD'] = fake_path
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
@@ -218,5 +215,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
-
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

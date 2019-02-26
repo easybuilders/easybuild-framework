@@ -1,5 +1,5 @@
 # #
-# Copyright 2018-2018 Ghent University
+# Copyright 2018-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         super(EasyBuildLibTest, self).setUp()
 
         # make sure BuildOptions instance is re-created
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.tmpdir = tempfile.mkdtemp()
 
@@ -68,7 +69,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         """Utility function to set up EasyBuild configuration."""
 
         # wipe BuildOption singleton instance, so it gets re-created when set_up_configuration is called
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.assertFalse(BuildOptions in BuildOptions._instances)
         set_up_configuration(silent=True)
@@ -117,9 +119,9 @@ class EasyBuildLibTest(EnhancedTestCase):
 
         modtool = modules_tool()
         modtool.use(test_mods_path)
-        self.assertTrue('GCC/4.7.2' in modtool.available())
-        modtool.load(['GCC/4.7.2'])
-        self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/4.7.2'}])
+        self.assertTrue('GCC/6.4.0-2.28' in modtool.available())
+        modtool.load(['GCC/6.4.0-2.28'])
+        self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
 
 
 def suite():
@@ -127,4 +129,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

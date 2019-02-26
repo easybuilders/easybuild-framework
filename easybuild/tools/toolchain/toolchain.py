@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -385,9 +385,9 @@ class Toolchain(object):
                 raise EasyBuildError("No toolchain version for dependency name %s (suffix %s) found",
                                      dependency['name'], toolchain_suffix)
 
-    def add_dependencies(self, dependencies):
-        """ Verify if the given dependencies exist and add them """
-        self.log.debug("add_dependencies: adding toolchain dependencies %s", dependencies)
+    def _check_dependencies(self, dependencies):
+        """ Verify if the given dependencies exist and return them """
+        self.log.debug("_check_dependencies: adding toolchain dependencies %s", dependencies)
 
         # use *full* module name to check existence of dependencies, since the modules may not be available in the
         # current $MODULEPATH without loading the prior dependencies in a module hierarchy
@@ -397,22 +397,35 @@ class Toolchain(object):
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
 
         # check whether modules exist
-        self.log.debug("add_dependencies: MODULEPATH: %s", os.environ['MODULEPATH'])
+        self.log.debug("_check_dependencies: MODULEPATH: %s", os.environ['MODULEPATH'])
         if self.dry_run:
             deps_exist = [True] * len(dep_mod_names)
         else:
             deps_exist = self.modules_tool.exist(dep_mod_names)
 
         missing_dep_mods = []
+        deps = []
         for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
             if dep_exists:
-                self.dependencies.append(dep)
-                self.log.devel("add_dependencies: added toolchain dependency %s", str(dep))
+                deps.append(dep)
+                self.log.devel("_check_dependencies: added toolchain dependency %s", str(dep))
             else:
                 missing_dep_mods.append(dep_mod_name)
 
         if missing_dep_mods:
-            raise EasyBuildError("Missing modules for one or more dependencies: %s", ', '.join(missing_dep_mods))
+            raise EasyBuildError("Missing modules for dependencies (use --robot?): %s", ', '.join(missing_dep_mods))
+
+        return deps
+
+    def add_dependencies(self, dependencies):
+        """
+        [DEPRECATED] Verify if the given dependencies exist, and return them.
+
+        This method is deprecated.
+        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
+        """
+        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
+        self.dependencies = self._check_dependencies(dependencies)
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -674,12 +687,14 @@ class Toolchain(object):
         """Return whether or not this toolchain is deprecated."""
         return False
 
-    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None, rpath_include_dirs=None):
+    def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
+                rpath_filter_dirs=None, rpath_include_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
+        :param deps: list of dependencies
         :param onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
@@ -688,6 +703,16 @@ class Toolchain(object):
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         :param rpath_include_dirs: extra directories to include in RPATH
         """
+
+        # do all dependencies have a toolchain version?
+        if deps is None:
+            deps = []
+        self.dependencies = self._check_dependencies(deps)
+        if not len(deps) == len(self.dependencies):
+            self.log.debug("dep %s (%s)" % (len(deps), deps))
+            self.log.debug("tc.dep %s (%s)" % (len(self.dependencies), self.dependencies))
+            raise EasyBuildError('Not all dependencies have a matching toolchain version')
+
         if loadmod:
             self._load_modules(silent=silent)
 
@@ -794,6 +819,13 @@ class Toolchain(object):
         else:
             raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
+        if rpath_filter_dirs is None:
+            rpath_filter_dirs = []
+
+        # always include filter for 'stubs' library directory,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
+        rpath_filter_dirs.append('.*/lib(64)?/stubs/?')
+
         # directory where all wrappers will be placed
         wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
 
@@ -808,7 +840,7 @@ class Toolchain(object):
         if rpath_filter is None:
             rpath_filter = ['/lib.*', '/usr.*']
             self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
-        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
+        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs])
         self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
 
         rpath_include = ','.join(rpath_include_dirs or [])
@@ -827,7 +859,10 @@ class Toolchain(object):
 
                 # determine location for this wrapper
                 # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
-                wrapper_dir = os.path.join(wrappers_dir, '%s_wrapper' % cmd)
+                # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
+                # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
+                wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
+                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 

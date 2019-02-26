@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,3 +39,7 @@ class Goolf(Gompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolf'
     SUBTOOLCHAIN = [Gompi.NAME, Golf.NAME]
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        return True

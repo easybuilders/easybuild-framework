@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,6 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.job.slurm as slurm
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
@@ -136,12 +135,13 @@ class ParallelBuildTest(EnhancedTestCase):
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
-        self.assertEqual(len(jobs), 8)
-        regex = re.compile("echo '.*/gzip-1.5-goolf-1.4.10.eb'")
+        # only one job submitted since foss/2018a module is already available
+        self.assertEqual(len(jobs), 1)
+        regex = re.compile("echo '.*/gzip-1.5-foss-2018a.eb'")
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
@@ -315,7 +315,8 @@ class ParallelBuildTest(EnhancedTestCase):
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
         topdir = os.path.dirname(os.path.abspath(__file__))
-        test_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        test_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        foss_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a.eb')
 
         build_options = {
             'external_modules_metadata': {},
@@ -324,23 +325,26 @@ class ParallelBuildTest(EnhancedTestCase):
             'validate': False,
             'job_cores': 3,
             'job_max_walltime': 5,
+            'force': True,
         }
         init_config(args=['--job-backend=Slurm'], build_options=build_options)
 
-        easyconfigs = process_easyconfig(test_ec)
+        easyconfigs = process_easyconfig(test_ec) + process_easyconfig(foss_ec)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         self.mock_stdout(True)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.mock_stdout(False)
 
-        self.assertEqual(len(jobs), 8)
+        # jobs are submitted for foss & gzip (listed easyconfigs)
+        self.assertEqual(len(jobs), 2)
 
-        # last job (gzip) has a dependency on second-to-last job (goolf)
-        self.assertEqual(jobs[-2].job_specs['job-name'], 'goolf-1.4.10')
+        # last job (gzip) has a dependency on second-to-last job (foss)
+        self.assertEqual(jobs[0].job_specs['job-name'], 'foss-2018a')
+
         expected = {
-            'dependency': 'afterok:%s' % jobs[-2].jobid,
+            'dependency': 'afterok:%s' % jobs[0].jobid,
             'hold': True,
-            'job-name': 'gzip-1.5-goolf-1.4.10',
+            'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
             'ntasks': 3,
             'ntasks-per-node': 3,
@@ -348,7 +352,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,
         }
-        self.assertEqual(jobs[-1].job_specs, expected)
+        self.assertEqual(jobs[1].job_specs, expected)
 
 
 def suite():
@@ -357,4 +361,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

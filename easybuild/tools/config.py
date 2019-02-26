@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -221,6 +221,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',
+        'map_toolchains',
         'modules_tool_version_check',
         'pre_create_installdir',
     ],
@@ -280,11 +281,13 @@ BUILD_OPTIONS_OTHER = {
 }
 
 
-# based on
+# loosely based on
 # https://wickie.hlrs.de/platforms/index.php/Module_Overview
 # https://wickie.hlrs.de/platforms/index.php/Application_software_packages
+MODULECLASS_BASE = 'base'
 DEFAULT_MODULECLASSES = [
-    ('base', "Default module class"),
+    (MODULECLASS_BASE, "Default module class"),
+    ('astro', "Astronomy, Astrophysics and Cosmology"),
     ('bio', "Bioinformatics, biology and biomedical"),
     ('cae', "Computer Aided Engineering (incl. CFD)"),
     ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
@@ -300,6 +303,7 @@ DEFAULT_MODULECLASSES = [
     ('mpi', "MPI stacks"),
     ('numlib', "Numerical Libraries"),
     ('perf', "Performance tools"),
+    ('quantum', "Quantum Computing"),
     ('phys', "Physics and physical systems simulations"),
     ('system', "System utilities (e.g. highly depending on system OS and hardware)"),
     ('toolchain', "EasyBuild toolchains"),
@@ -396,7 +400,7 @@ def init_build_options(build_options=None, cmdline_options=None):
         # building a dependency graph implies force, so that all dependencies are retained
         # and also skips validation of easyconfigs (e.g. checking os dependencies)
         retain_all_deps = False
-        if cmdline_options.dep_graph:
+        if cmdline_options.dep_graph or cmdline_options.check_conflicts:
             _log.info("Enabling force to generate dependency graph.")
             cmdline_options.force = True
             retain_all_deps = True

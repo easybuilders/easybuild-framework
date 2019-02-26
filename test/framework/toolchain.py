@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -63,6 +63,8 @@ class ToolchainTest(EnhancedTestCase):
         self.orig_get_cpu_model = st.get_cpu_model
         self.orig_get_cpu_vendor = st.get_cpu_vendor
 
+        init_config(build_options={'silent': True})
+
     def tearDown(self):
         """Cleanup after toolchain test."""
         st.get_cpu_architecture = self.orig_get_cpu_architecture
@@ -92,9 +94,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc, None)
         self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
 
-    def test_goalf_toolchain(self):
-        """Test for goalf toolchain."""
-        self.get_toolchain("goalf", version="1.1.0-no-OFED")
+    def test_foss_toolchain(self):
+        """Test for foss toolchain."""
+        self.get_toolchain("foss", version="2018a")
 
     def test_get_variable_dummy_toolchain(self):
         """Test get_variable on dummy toolchain"""
@@ -112,7 +114,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'gcc')
@@ -123,10 +125,9 @@ class ToolchainTest(EnhancedTestCase):
 
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
-        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
-        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpifort')
 
         self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
@@ -135,22 +136,21 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'usempi': True})
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
-        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
-        self.assertEqual(tc.get_variable('F77'), 'mpif77')
-        self.assertEqual(tc.get_variable('F90'), 'mpif90')
-        self.assertEqual(tc.get_variable('FC'), 'mpif90')
+        self.assertEqual(tc.get_variable('F77'), 'mpifort')
+        self.assertEqual(tc.get_variable('F90'), 'mpifort')
+        self.assertEqual(tc.get_variable('FC'), 'mpifort')
 
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
-        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpifort')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpifort')
 
         self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
@@ -159,7 +159,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -171,7 +171,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
         ldflags = tc.get_variable('LDFLAGS', typ=list)
@@ -184,7 +184,7 @@ class ToolchainTest(EnhancedTestCase):
         Check that elements of variables are passed by value, not by reference,
         which is required to ensure correctness.
         """
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
         pass_by_value = True
@@ -208,7 +208,7 @@ class ToolchainTest(EnhancedTestCase):
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default optimization flag (e.g. -O2)
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -217,7 +217,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
-            tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+            tc = self.get_toolchain('foss', version='2018a')
             for enable in [True, False]:
                 tc.set_options({opt: enable})
                 tc.prepare()
@@ -236,7 +236,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
@@ -245,7 +245,7 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(flag in flags)
         self.modtool.purge()
 
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'noopt': True, 'lowopt': True})
         tc.prepare()
         for var in flag_vars:
@@ -254,7 +254,7 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(flag in flags)
         self.modtool.purge()
 
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({'noopt': True, 'lowopt': True, 'opt': True})
         tc.prepare()
         for var in flag_vars:
@@ -270,7 +270,7 @@ class ToolchainTest(EnhancedTestCase):
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
@@ -291,7 +291,7 @@ class ToolchainTest(EnhancedTestCase):
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp', 'vectorize']:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
                 if opt == 'optarch':
@@ -314,10 +314,9 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether overriding the optarch flag works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
-            build_options = {'optarch': optarch_var}
-            init_config(build_options=build_options)
+            init_config(build_options={'optarch': optarch_var, 'silent': True})
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({'optarch': enable})
                 tc.prepare()
                 flag = None
@@ -339,11 +338,10 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether --optarch=GENERIC works as intended."""
         for generic in [False, True]:
             if generic:
-                build_options = {'optarch': 'GENERIC'}
-                init_config(build_options=build_options)
+                init_config(build_options={'optarch': 'GENERIC', 'silent': True})
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
-                'gompi': ('1.3.12', "-march=x86-64 -mtune=generic"),
+                'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
                 'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
             }
             for tcopt_optarch in [False, True]:
@@ -364,7 +362,7 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_family = lambda: st.ARM
         st.get_cpu_model = lambda: 'ARM Cortex-A53'
         st.get_cpu_vendor = lambda: st.ARM
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="4.6.4")
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
@@ -379,7 +377,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="4.6.4")
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
@@ -394,7 +392,7 @@ class ToolchainTest(EnhancedTestCase):
         gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
         toolchains = [
             ('iccifort', '2018.1.163'),
-            ('GCC', '4.7.2'),
+            ('GCC', '6.4.0-2.28'),
             ('GCCcore', '6.2.0'),
             ('PGI', '16.7-GCC-5.4.0-2.26'),
         ]
@@ -412,8 +410,7 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
-            build_options = {'optarch': optarch_var}
-            init_config(build_options=build_options)
+            init_config(build_options={'optarch': optarch_var, 'silent': True})
             tc = self.get_toolchain(toolchain, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
@@ -431,7 +428,7 @@ class ToolchainTest(EnhancedTestCase):
 
             optarch_flags = tc.options.options_map['optarch']
 
-            self.assertEquals(flags, optarch_flags)
+            self.assertEqual(flags, optarch_flags)
 
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
             if flags == '':
@@ -467,7 +464,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_easyconfig_optarch_flags(self):
         """Test whether specifying optarch flags in the easyconfigs works."""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12.eb')
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         toy_txt = read_file(eb_file)
@@ -491,7 +488,7 @@ class ToolchainTest(EnhancedTestCase):
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -509,7 +506,7 @@ class ToolchainTest(EnhancedTestCase):
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default precision: -fno-math-errno flag for GCC
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -525,7 +522,7 @@ class ToolchainTest(EnhancedTestCase):
         }
         for prec in prec_flags:
             for enable in [True, False]:
-                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({prec: enable})
                 tc.prepare()
                 for var in flag_vars:
@@ -548,20 +545,20 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_comp_family(self):
         """Test determining compiler family."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
         self.assertEqual(tc.comp_family(), "GCC")
 
     def test_mpi_family(self):
         """Test determining MPI family."""
         # check subtoolchain w/o MPI
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="6.4.0-2.28")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), None)
         self.modtool.purge()
 
         # check full toolchain including MPI
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "OpenMPI")
         self.modtool.purge()
@@ -576,21 +573,21 @@ class ToolchainTest(EnhancedTestCase):
     def test_blas_lapack_family(self):
         """Test determining BLAS/LAPACK family."""
         # check compiler-only (sub)toolchain
-        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc = self.get_toolchain("GCC", version="6.4.0-2.28")
         tc.prepare()
         self.assertEqual(tc.blas_family(), None)
         self.assertEqual(tc.lapack_family(), None)
         self.modtool.purge()
 
         # check compiler/MPI-only (sub)toolchain
-        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc = self.get_toolchain('gompi', version='2018a')
         tc.prepare()
         self.assertEqual(tc.blas_family(), None)
         self.assertEqual(tc.lapack_family(), None)
         self.modtool.purge()
 
         # check full toolchain including BLAS/LAPACK
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         tc.prepare()
         self.assertEqual(tc.blas_family(), 'OpenBLAS')
         self.assertEqual(tc.lapack_family(), 'OpenBLAS')
@@ -604,9 +601,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.blas_family(), 'IntelMKL')
         self.assertEqual(tc.lapack_family(), 'IntelMKL')
 
-    def test_goolfc(self):
-        """Test whether goolfc is handled properly."""
-        tc = self.get_toolchain("goolfc", version="1.3.12")
+    def test_fosscuda(self):
+        """Test whether fosscuda is handled properly."""
+        tc = self.get_toolchain("fosscuda", version="2018a")
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10'], 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -732,22 +729,18 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
         self.modtool.purge()
 
         # toolchain modules missing a toolchain element should fail verification
         error_msg = "List of toolchain dependency modules and toolchain definition do not match"
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenFFTW")
-        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
-        self.modtool.purge()
-
-        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenBLACS")
+        tc = self.get_toolchain('foss', version='2018a-brokenFFTW')
         self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
         self.modtool.purge()
 
         # missing optional toolchain elements are fine
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()
@@ -761,7 +754,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test mpi_cmd_for function."""
         self.modtool.prepend_module_path(self.test_prefix)
 
-        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc = self.get_toolchain('gompi', version='2018a')
         tc.prepare()
         self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
         self.modtool.purge()
@@ -780,25 +773,24 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
 
         # test specifying custom template for MPI commands
-        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
-        tc = self.get_toolchain('GCC', version='4.6.4')
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         deps = [
             {
                 'name': 'OpenMPI',
-                'version': '1.6.4',
-                'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
-                'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
+                'version': '2.1.2',
+                'full_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'short_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
                 'external_module': False,
                 'build_only': False,
             },
         ]
-        tc.add_dependencies(deps)
-        tc.prepare()
-        mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4']
+        tc.prepare(deps=deps)
+        mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
 
     def test_prepare_deps_external(self):
@@ -806,9 +798,9 @@ class ToolchainTest(EnhancedTestCase):
         deps = [
             {
                 'name': 'OpenMPI',
-                'version': '1.6.4',
-                'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
-                'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
+                'version': '2.1.2',
+                'full_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'short_mod_name': 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
                 'external_module': False,
                 'external_module_metadata': {},
                 'build_only': False,
@@ -824,10 +816,9 @@ class ToolchainTest(EnhancedTestCase):
                 'build_only': False,
             }
         ]
-        tc = self.get_toolchain('GCC', version='4.6.4')
-        tc.add_dependencies(deps)
-        tc.prepare()
-        mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
+        tc.prepare(deps=deps)
+        mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertTrue(os.environ['EBROOTTOY'].endswith('software/toy/0.0'))
         self.assertEqual(os.environ['EBVERSIONTOY'], '0.0')
@@ -845,11 +836,10 @@ class ToolchainTest(EnhancedTestCase):
             },
             'build_only': False,
         }
-        tc = self.get_toolchain('GCC', version='4.6.4')
-        tc.add_dependencies(deps)
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         os.environ['FOOBAR_PREFIX'] = '/foo/bar'
-        tc.prepare()
-        mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
+        tc.prepare(deps=deps)
+        mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertEqual(os.environ['EBROOTTOY'], '/foo/bar')
         self.assertEqual(os.environ['EBVERSIONTOY'], '1.2.3')
@@ -870,8 +860,13 @@ class ToolchainTest(EnhancedTestCase):
         libblas_mt_intel3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
+        libblas_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libblas_intel4 += " -Wl,--end-group -Wl,-Bdynamic"
         libblas_mt_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
         libblas_mt_intel4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+
+        libfft_intel4 = libblas_intel4.replace('-lmkl_intel_lp64', '-lfftw3xc_intel -lmkl_intel_lp64')
+        libfft_mt_intel4 = libblas_mt_intel4.replace('-lmkl_intel_lp64', '-lfftw3xc_intel -lmkl_intel_lp64')
 
         # incl. -lmkl_solver*
         libscalack_intel3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
@@ -881,19 +876,22 @@ class ToolchainTest(EnhancedTestCase):
         libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
         libscalack_intel4 += "-lmkl_core"
 
-        libblas_mt_goolfc = "-lopenblas -lgfortran"
-        libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
-        libfft_mt_goolfc = "-lfftw3_omp -lfftw3 -lpthread"
+        libblas_mt_fosscuda = "-lopenblas -lgfortran"
+        libscalack_fosscuda = "-lscalapack -lopenblas -lgfortran"
+        libfft_mt_fosscuda = "-lfftw3_omp -lfftw3 -lpthread"
 
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         tc.prepare()
-        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
-        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_intel4)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
+        self.assertEqual(os.environ.get('LIBFFT', "(not set)"), libfft_intel4)
+        self.assertEqual(os.environ.get('LIBFFT_MT', "(not set)"), libfft_mt_intel4)
         self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
@@ -923,18 +921,18 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
-        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc = self.get_toolchain('fosscuda', version='2018a')
         tc.set_options({'openmp': True})
         tc.prepare()
-        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
-        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
-        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
 
     def test_independence(self):
         """Test independency of toolchain instances."""
 
         # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
-        init_config(build_options={'optarch': 'test'})
+        init_config(build_options={'optarch': 'test', 'silent': True})
 
         tc_cflags = {
             'CrayCCE': "-O2 -homp -craype-verbose",
@@ -948,7 +946,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayCCE', '2015.06-XC'),
             ('CrayGNU', '2015.06-XC'),
             ('CrayIntel', '2015.06-XC'),
-            ('GCC', '4.7.2'),
+            ('GCC', '6.4.0-2.28'),
             ('iccifort', '2018.1.163'),
         ]
 
@@ -1360,15 +1358,15 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
 
-        # put fake 'gcc' command in place that just echos its arguments
-        fake_gcc = os.path.join(self.test_prefix, 'fake', 'gcc')
-        write_file(fake_gcc, '#!/bin/bash\necho "$@"')
-        adjust_permissions(fake_gcc, stat.S_IXUSR)
+        # put fake 'g++' command in place that just echos its arguments
+        fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
+        write_file(fake_gxx, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_gxx, stat.S_IXUSR)
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # enable --rpath and prepare toolchain
-        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
-        tc = self.get_toolchain('gompi', version='1.3.12')
+        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*'], 'silent': True})
+        tc = self.get_toolchain('gompi', version='2018a')
 
         # preparing RPATH wrappers requires --experimental, need to bypass that here
         tc.log.experimental = lambda x: x
@@ -1380,29 +1378,32 @@ class ToolchainTest(EnhancedTestCase):
         # setting 'rpath' toolchain option to false implies no RPATH wrappers being used
         tc.set_options({'rpath': False})
         tc.prepare()
-        res = which('gcc', retain_all=True)
+        res = which('g++', retain_all=True)
         self.assertTrue(len(res) >= 1)
         self.assertFalse(tc.is_rpath_wrapper(res[0]))
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
-        self.assertTrue(os.path.samefile(res[0], fake_gcc))
+        self.assertTrue(os.path.samefile(res[0], fake_gxx))
 
         # enable 'rpath' toolchain option again (equivalent to the default setting)
         tc.set_options({'rpath': True})
         tc.prepare()
 
         # check that wrapper is indeed in place
-        res = which('gcc', retain_all=True)
-        # there should be at least 2 hits: the RPATH wrapper, and our fake 'gcc' command (there may be real ones too)
+        res = which('g++', retain_all=True)
+        # there should be at least 2 hits: the RPATH wrapper, and our fake 'g++' command (there may be real ones too)
         self.assertTrue(len(res) >= 2)
         self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertEqual(os.path.basename(res[0]), 'g++')
+        self.assertEqual(os.path.basename(os.path.dirname(res[0])), 'gxx_wrapper')
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
-        self.assertTrue(os.path.samefile(res[1], fake_gcc))
-        # any other available 'gcc' commands should not be a wrapper or our fake gcc
-        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gxx))
+        # any other available 'g++' commands should not be a wrapper or our fake g++
+        self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
-        # check whether fake gcc was wrapped and that arguments are what they should be
+        # check whether fake g++ was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
-        out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        out, ec = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        self.assertEqual(ec, 0)
         expected = ' '.join([
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=/foo',
@@ -1414,23 +1415,64 @@ class ToolchainTest(EnhancedTestCase):
         ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
+        # check whether 'stubs' library directory are correctly filtered out
+        args = [
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs/',  # should be filtered (no -rpath)
+            '-L/tmp/foo/',
+            '-L/prefix/software/stubs/1.2.3/lib',  # should NOT be filtered
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs/',  # should be filtered (no -rpath)
+            '-L/prefix/software/foobar/4.5/notreallystubs',  # should NOT be filtered
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/zlib/1.2.11/lib',
+            '-L/prefix/software/bleh/0/lib/stubs',  # should be filtered (no -rpath)
+            '-L/prefix/software/foobar/4.5/stubsbutnotreally',  # should NOT be filtered
+        ]
+        cmd = "g++ ${USER}.c %s" % ' '.join(args)
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+
+        expected = ' '.join([
+            '-Wl,--disable-new-dtags',
+            '-Wl,-rpath=/tmp/foo/',
+            '-Wl,-rpath=/prefix/software/stubs/1.2.3/lib',
+            '-Wl,-rpath=/prefix/software/foobar/4.5/notreallystubs',
+            '-Wl,-rpath=/prefix/software/zlib/1.2.11/lib',
+            '-Wl,-rpath=/prefix/software/foobar/4.5/stubsbutnotreally',
+            '%(user)s.c',
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs/',
+            '-L/tmp/foo/',
+            '-L/prefix/software/stubs/1.2.3/lib',
+            '-L/prefix/software/CUDA/1.2.3/lib/stubs',
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs/',
+            '-L/prefix/software/foobar/4.5/notreallystubs',
+            '-L/prefix/software/CUDA/1.2.3/lib64/stubs',
+            '-L/prefix/software/zlib/1.2.11/lib',
+            '-L/prefix/software/bleh/0/lib/stubs',
+            '-L/prefix/software/foobar/4.5/stubsbutnotreally',
+        ])
+        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+
         # calling prepare() again should *not* result in wrapping the existing RPATH wrappers
         # this can happen when building extensions
         tc.prepare()
-        res = which('gcc', retain_all=True)
+        res = which('g++', retain_all=True)
         self.assertTrue(len(res) >= 2)
         self.assertTrue(tc.is_rpath_wrapper(res[0]))
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
-        self.assertTrue(os.path.samefile(res[1], fake_gcc))
-        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gxx))
+        self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
 
+        # this test relies on warnings being printed
+        init_config(build_options={'silent': False})
+
         def prep():
             """Helper function: create & prepare toolchain"""
             self.modtool.unload(['gompi', 'OpenMPI', 'hwloc', 'GCC'])
-            tc = self.get_toolchain('gompi', version='1.3.12')
+            tc = self.get_toolchain('gompi', version='2018a')
             self.mock_stderr(True)
             self.mock_stdout(True)
             tc.prepare()
@@ -1449,33 +1491,6 @@ class ToolchainTest(EnhancedTestCase):
             os.environ['TMPDIR'] = orig_tmpdir
 
         long_tmpdir = os.path.join(self.test_prefix, 'verylongdirectorythatmaycauseproblemswithopenmpi2')
-
-        # $TMPDIR is left untouched with OpenMPI 1.6.4
-        tc, stdout, stderr = prep()
-        self.assertEqual(stdout, '')
-        self.assertEqual(stderr, '')
-        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
-
-        # ... even with long $TMPDIR
-        os.environ['TMPDIR'] = long_tmpdir
-        tc, stdout, stderr = prep()
-        self.assertEqual(stdout, '')
-        self.assertEqual(stderr, '')
-        self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
-        os.environ['TMPDIR'] = orig_tmpdir
-
-        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
-        tmp_modules = os.path.join(self.test_prefix, 'modules')
-        mkdir(tmp_modules)
-
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
-
-        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
-        ompi_mod_txt = read_file(openmpi_module)
-        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
-
-        self.modtool.use(tmp_modules)
 
         # $TMPDIR is left untouched with OpenMPI 2.x if $TMPDIR is sufficiently short
         os.environ['TMPDIR'] = orig_tmpdir
@@ -1501,6 +1516,35 @@ class ToolchainTest(EnhancedTestCase):
         tc.cleanup()
         self.assertFalse(os.path.exists(tmpdir))
 
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        # copy OpenMPI module used in gompi/2018a to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        tmp_modules = os.path.join(self.test_prefix, 'modules')
+        mkdir(tmp_modules)
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '2.1.2-GCC-6.4.0-2.28')
+        ompi_mod_txt = read_file(openmpi_module)
+        write_file(openmpi_module, ompi_mod_txt.replace('2.1.2', '1.6.4'))
+
+        self.modtool.use(tmp_modules)
+
+        # $TMPDIR is left untouched with OpenMPI 1.6.4
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        # ... even with long $TMPDIR
+        os.environ['TMPDIR'] = long_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
+        os.environ['TMPDIR'] = orig_tmpdir
+
         # we may have created our own short tmpdir above, so make sure to clean things up...
         shutil.rmtree(orig_tmpdir)
 
@@ -1511,4 +1555,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

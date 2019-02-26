@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,7 +28,6 @@ Unit tests for asyncprocess.py.
 @author: Toon Willems (Ghent University)
 """
 
-import os
 import sys
 import time
 from test.framework.utilities import EnhancedTestCase
@@ -65,9 +64,12 @@ class AsyncProcessTest(EnhancedTestCase):
         """cleanup"""
         super(AsyncProcessTest, self).tearDown()
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([AsyncProcessTest()])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

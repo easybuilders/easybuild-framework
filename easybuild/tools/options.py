@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -76,7 +76,7 @@ from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
-from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING
+from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -92,6 +92,7 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.repository.repository import avail_repositories
+from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -189,7 +190,7 @@ def pretty_print_opts(opts_dict):
         opt_val, loc = opts_dict[opt]
         lines.append("{0:<{nwopt}} ({1:}) = {2:}".format(opt, loc, opt_val, nwopt=nwopt))
 
-    print '\n'.join(lines)
+    print('\n'.join(lines))
 
 
 def use_color(colorize, stream=sys.stdout):
@@ -324,6 +325,9 @@ class EasyBuildOptions(GeneralOption):
             hlp = opts[longopt][0]
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
+
+        opts['map-toolchains'] = ("Enable mapping of (sub)toolchains when --try-toolchain(-version) is used",
+                                  None, 'store_true', True)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -566,10 +570,11 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store', None, 'S', {'metavar': 'REGEX'}),
             'show-config': ("Show current EasyBuild configuration (only non-default + selected settings)",
                             None, 'store_true', False),
-            'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
+            'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
+            'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
         })
 
@@ -592,6 +597,10 @@ class EasyBuildOptions(GeneralOption):
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
+            'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
+            'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "
+                                 "supported values: %s" % ", ".join(VALID_CLOSE_PR_REASONS), str, 'store', None),
             'list-prs': ("List pull requests", str, 'store_or_None',
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
@@ -785,7 +794,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
-                self.options.avail_hooks,
+                self.options.avail_hooks, self.options.show_system_info,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -808,6 +817,10 @@ class EasyBuildOptions(GeneralOption):
         # processed twice and fails when trying to parse a dictionary as if it was a string
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
+
+        # make sure --close-pr-reasons has a valid format and if so use it to set close-pr-msg
+        if self.options.close_pr_reasons:
+            self._postprocess_close_pr_reasons()
 
         # make sure --list-prs has a valid format
         if self.options.list_prs:
@@ -845,6 +858,18 @@ class EasyBuildOptions(GeneralOption):
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
                 self.log.info("Keeping optarch raw: %s", self.options.optarch)
+
+    def _postprocess_close_pr_reasons(self):
+        """Postprocess --close-pr-reasons options"""
+        if self.options.close_pr_msg:
+            raise EasyBuildError("Please either specify predefined reasons with --close-pr-reasons or " +
+                                 "a custom message with--close-pr-msg")
+
+        reasons = self.options.close_pr_reasons.split(',')
+        if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
+            raise EasyBuildError("Argument to --close-pr_reasons must be a comma separated list of valid reasons " +
+                                 "among %s" % VALID_CLOSE_PR_REASONS.keys())
+        self.options.close_pr_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in reasons])
 
     def _postprocess_list_prs(self):
         """Postprocess --list-prs options"""
@@ -1011,13 +1036,17 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_default_moduleclasses:
             msg += self.show_default_moduleclasses()
 
+        # dump system information
+        if self.options.show_system_info:
+            msg += self.show_system_info()
+
         if self.options.avail_hooks:
             msg += self.avail_list('hooks (in order of execution)', KNOWN_HOOKS)
 
         if self.options.unittest_file:
             self.log.info(msg)
         else:
-            print msg
+            print(msg)
 
         # cleanup tmpdir and exit
         cleanup_and_exit(self.tmpdir)
@@ -1077,6 +1106,35 @@ class EasyBuildOptions(GeneralOption):
         maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
         for name, descr in DEFAULT_MODULECLASSES:
             lines.append("\t%s:%s%s" % (name, (" " * (maxlen - len(name))), descr))
+        return '\n'.join(lines)
+
+    def show_system_info(self):
+        """Show system information."""
+        system_info = get_system_info()
+        cpu_features = get_cpu_features()
+        lines = [
+            "System information (%s):" % system_info['hostname'],
+            '',
+            "* OS:",
+            "  -> name: %s" % system_info['os_name'],
+            "  -> type: %s" % system_info['os_type'],
+            "  -> version: %s" % system_info['os_version'],
+            "  -> platform name: %s" % system_info['platform_name'],
+            '',
+            "* CPU:",
+            "  -> vendor: %s" % system_info['cpu_vendor'],
+            "  -> architecture: %s" % get_cpu_architecture(),
+            "  -> family: %s" % get_cpu_family(),
+            "  -> model: %s" % system_info['cpu_model'],
+            "  -> speed: %s" % system_info['cpu_speed'],
+            "  -> cores: %s" % system_info['core_count'],
+            "  -> features: %s" % ','.join(cpu_features),
+            '',
+            "* software:",
+            "  -> glibc version: %s" % system_info['glibc_version'],
+            "  -> Python binary: %s" % sys.executable,
+            "  -> Python version: %s" % sys.version.split(' ')[0],
+        ]
         return '\n'.join(lines)
 
     def show_config(self):
@@ -1431,7 +1489,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         else:
             # use tempfile default parent dir
             current_tmpdir = tempfile.mkdtemp(prefix='eb-')
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
 
     # avoid having special characters like '[' and ']' in the tmpdir pathname,
@@ -1471,7 +1529,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
         os.remove(tmptest_file)
 
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir

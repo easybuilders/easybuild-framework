@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -100,7 +100,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
         # supported
         if any(key not in ['toolchain_name', 'toolchain_version', 'toolchain'] for key in keys):
-            print_warning("Combining --try-toolchain* with other build options is not fully supported: using regex")
+            warning_msg = "Combining --try-toolchain* with other build options is not fully supported: using regex"
+            print_warning(warning_msg, silent=build_option('silent'))
             revert_to_regex = True
 
         if not revert_to_regex:
@@ -120,26 +121,26 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             else:
                 target_toolchain['version'] = source_toolchain['version']
 
-            try:
-                src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
-            except EasyBuildError as err:
-                # make sure exception was raised by match_minimum_tc_specs because toolchain mapping could not be done
-                if "No possible mapping from source toolchain" in err.msg:
-
-                    if build_option('force'):
-                        warning_msg = "Combining --try-toolchain with --force for toolchains with unequal capabilities:"
-                        warning_msg += " disabling recursion and not changing (sub)toolchains for dependencies."
-                        print_warning(warning_msg)
-                        revert_to_regex = True
-                        modifying_toolchains = False
-                    else:
+            if build_option('map_toolchains'):
+                try:
+                    src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+                except EasyBuildError as err:
+                    # make sure exception was raised by match_minimum_tc_specs because toolchain mapping didn't work
+                    if "No possible mapping from source toolchain" in err.msg:
                         error_msg = err.msg + '\n'
                         error_msg += "Toolchain %s is not equivalent to toolchain %s in terms of capabilities. "
-                        error_msg += "(If you know what you are doing, you can use --force to proceed anyway.)"
+                        error_msg += "(If you know what you are doing, "
+                        error_msg += "you can use --disable-map-toolchains to proceed anyway.)"
                         raise EasyBuildError(error_msg, target_toolchain['name'], source_toolchain['name'])
-                else:
-                    # simply re-raise the exception if something else went wrong
-                    raise err
+                    else:
+                        # simply re-raise the exception if something else went wrong
+                        raise err
+            else:
+                msg = "Mapping of (sub)toolchains disabled, so falling back to regex mode, "
+                msg += "disabling recursion and not changing (sub)toolchains for dependencies"
+                _log.info(msg)
+                revert_to_regex = True
+                modifying_toolchains = False
 
         if not revert_to_regex:
             _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
@@ -349,7 +350,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
             # get rid of temporary file
             os.remove(tmpfn)
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError("Failed to determine suiting filename for tweaked easyconfig file: %s", err)
 
         if targetdir is None:
@@ -743,7 +744,7 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     # Warn if we are changing compiler families, this is very likely to cause problems
     if target_compiler_family != source_tc_spec['comp_family']:
         print_warning("Your request will result in a compiler family switch (%s to %s). Here be dragons!" %
-                      (source_tc_spec['comp_family'], target_compiler_family))
+                      (source_tc_spec['comp_family'], target_compiler_family), silent=build_option('silent'))
 
     return minimal_matching_toolchain
 

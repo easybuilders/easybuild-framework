@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,7 +46,7 @@ class TestModuleNamingScheme(ModuleNamingScheme):
 
         @return: string with full module name, e.g.: 'gzip/1.5', 'intel/intelmpi/gzip'/1.5'
         """
-        if ec['toolchain']['name'] == 'goolf':
+        if ec['toolchain']['name'] == 'foss':
             mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])
         elif ec['toolchain']['name'] == 'GCC':
             mod_name = os.path.join('gnu', ec['name'], ec['version'])

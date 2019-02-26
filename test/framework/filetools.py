@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,6 @@ import tempfile
 import urllib2
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
@@ -93,7 +92,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
-            ('test.tar.Z', "tar xZf test.tar.Z"),
+            ('test.tar.Z', "tar xzf test.tar.Z"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -195,18 +194,18 @@ class FileToolsTest(EnhancedTestCase):
         # put a directory 'foo' in place (should be ignored by 'which')
         foo = os.path.join(self.test_prefix, 'foo')
         ft.mkdir(foo)
-        ft.adjust_permissions(foo, stat.S_IRUSR|stat.S_IXUSR)
+        ft.adjust_permissions(foo, stat.S_IRUSR | stat.S_IXUSR)
         # put executable file 'bar' in place
         bar = os.path.join(self.test_prefix, 'bar')
         ft.write_file(bar, '#!/bin/bash')
-        ft.adjust_permissions(bar, stat.S_IRUSR|stat.S_IXUSR)
+        ft.adjust_permissions(bar, stat.S_IRUSR | stat.S_IXUSR)
         self.assertEqual(ft.which('foo'), None)
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
         # add another location to 'bar', which should only return the first location by default
         barbis = os.path.join(self.test_prefix, 'more', 'bar')
         ft.write_file(barbis, '#!/bin/bash')
-        ft.adjust_permissions(barbis, stat.S_IRUSR|stat.S_IXUSR)
+        ft.adjust_permissions(barbis, stat.S_IRUSR | stat.S_IXUSR)
         os.environ['PATH'] = '%s:%s' % (os.environ['PATH'], os.path.dirname(barbis))
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
@@ -227,7 +226,8 @@ class FileToolsTest(EnhancedTestCase):
             'md5': '7167b64b1ca062b9674ffef46f9325db',
             'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
             'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
-            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733eb7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
+            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733e'
+                      'b7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
         # make sure checksums computation/verification is correct
@@ -501,7 +501,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # creating the symlink
         link = os.path.join(self.test_prefix, 'test.link')
-        ft.symlink(fp, link) # test if is symlink is valid is done elsewhere
+        ft.symlink(fp, link)  # test if is symlink is valid is done elsewhere
 
         # Attempting to remove a valid symlink
         ft.remove_file(link)
@@ -790,13 +790,13 @@ class FileToolsTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         other_toy_ecs = [
             os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb'),
-            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'),
         ]
 
         # default (colored)
         toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
         lines = multidiff(toy_ec, other_toy_ecs).split('\n')
-        expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb"
+        expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-2018a-test.eb"
 
         red = "\x1b[0;41m"
         green = "\x1b[0;42m"
@@ -828,19 +828,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
-        self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb")
+        self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-2018a-test.eb")
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
         self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
         self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
 
-        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
-        expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy"
+        # different toolchain in toy-0.0-gompi-2018a-test: '+' line with squigly line underneath to mark removed chars
+        expected = "7 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
         self.assertTrue(lines[7].startswith(expected))
         expected = "  ?                       ^^ ^^ "
         self.assertTrue(lines[8].startswith(expected))
-        # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
+        # different toolchain in toy-0.0-gompi-2018a-test: '-' line with squigly line underneath to mark added chars
         expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
         self.assertTrue(lines[9].startswith(expected))
         expected = "  ?                       ^^ ^^ "
@@ -947,7 +947,7 @@ class FileToolsTest(EnhancedTestCase):
         # test default behaviour:
         # recursive, add permissions, relative to existing permissions, both files and dirs, skip symlinks
         # add user execution, group write permissions
-        ft.adjust_permissions(self.test_prefix, stat.S_IXUSR|stat.S_IWGRP)
+        ft.adjust_permissions(self.test_prefix, stat.S_IXUSR | stat.S_IWGRP)
 
         # foo file: rwxrw-r--
         foo_perms = os.stat(os.path.join(self.test_prefix, 'foo'))[stat.ST_MODE]
@@ -985,7 +985,7 @@ class FileToolsTest(EnhancedTestCase):
             ft.symlink(test_files[-1], os.path.join(testdir, 'symlink%s' % idx))
 
         # by default, 50% of failures are allowed (to be robust against failures to change permissions)
-        perms = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR
+        perms = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
 
         ft.adjust_permissions(testdir, perms, recursive=True, ignore_errors=True)
 
@@ -1266,15 +1266,15 @@ class FileToolsTest(EnhancedTestCase):
         target_dir = os.path.join(self.test_prefix, 'GCC')
         self.assertFalse(os.path.exists(target_dir))
 
-        self.assertTrue(os.path.exists(os.path.join(to_copy, 'GCC-4.7.2.eb')))
+        self.assertTrue(os.path.exists(os.path.join(to_copy, 'GCC-6.4.0-2.28.eb')))
 
-        ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '4.7.2' in x])
+        ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertTrue(os.path.exists(target_dir))
         expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb',
-                    'GCC-4.9.3-2.26.eb']
+                    'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
-        # GCC-4.7.2.eb should not get copied, since it's specified as file too ignore
-        self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-4.7.2.eb')))
+        # GCC-6.4.0-2.28.eb should not get copied, since it's specified as file too ignore
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb')))
 
         # clean error when trying to copy a file with copy_dir
         src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
@@ -1456,7 +1456,7 @@ class FileToolsTest(EnhancedTestCase):
         # check error handling (after creating a permission problem with removing files/dirs)
         ft.write_file(testfile, 'bar')
         ft.mkdir(test_dir)
-        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR|stat.S_IWGRP|stat.S_IWOTH, add=False)
+        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_file, testfile)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove, testfile)
         self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_dir, test_dir)
@@ -1496,18 +1496,20 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 4)
+        self.assertEqual(len(hits), 5)
         self.assertTrue(all(os.path.exists(p) for p in hits))
-        self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
-        self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
-        self.assertTrue(hits[2].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
-        self.assertTrue(hits[3].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
+        self.assertTrue(hits[0].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
+        self.assertTrue(hits[1].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
+        self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
+        self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
-                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb', 'hwloc-1.8-gcccuda-2.6.10.eb'])
+        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1516,25 +1518,28 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
-                                '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb', '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb', '$CFGS1/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-7.3.0-2.30.eb', '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2018a.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
         self.assertEqual(var_defs, [])
         expected = [
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
-                                'hwloc-1.6.2-GCC-4.9.3-2.26.eb', 'hwloc-1.8-gcccuda-2.6.10.eb'])
+        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
@@ -1665,14 +1670,14 @@ class FileToolsTest(EnhancedTestCase):
         target_dir = os.path.join(self.test_prefix, 'target')
 
         try:
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
             # (only) tarball is created in specified target dir
             self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test.tar.gz')))
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
 
             del git_config['tag']
             git_config['commit'] = '8456f86'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
+            ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
             self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test2.tar.gz')))
             self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
 
@@ -1802,5 +1807,7 @@ def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

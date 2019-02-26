@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -230,13 +230,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                val = copy.deepcopy(ecfg[key])
-                # include hidden deps back in list of (build)dependencies, they were filtered out via filter_hidden_deps
-                if key == 'dependencies':
-                    val.extend([d for d in ecfg['hiddendependencies'] if not d['build_only']])
-                elif key == 'builddependencies':
-                    val.extend([d for d in ecfg['hiddendependencies'] if d['build_only']])
-
+                val = ecfg[key]
                 if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                     if key in DEPENDENCY_PARAMETERS:
