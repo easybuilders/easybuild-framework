@@ -1805,6 +1805,30 @@ class FileToolsTest(EnhancedTestCase):
         ]:
             self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
 
+    def test_fake_vsc(self):
+        """Test whether importing from 'vsc.*' namespace results in an error after calling install_fake_vsc."""
+
+        ft.install_fake_vsc()
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        try:
+            import vsc  # noqa
+            self.assertTrue(False, "'import vsc' results in an error")
+        except SystemExit:
+            pass
+
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stdout, '')
+
+        error_pattern = r"Detected import from 'vsc' namespace in .*/test/framework/filetools.py \(line [0-9]+\)"
+        regex = re.compile(r"^\nERROR: %s" % error_pattern)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
 
 def suite():
     """ returns all the testcases in this module """
