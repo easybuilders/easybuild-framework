@@ -37,7 +37,6 @@ Documentation-related functionality
 import copy
 import inspect
 import os
-import re
 import string
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
