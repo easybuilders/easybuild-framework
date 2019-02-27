@@ -1834,3 +1834,35 @@ def diff_files(path1, path2):
     file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
     file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
     return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
+
+
+def install_fake_vsc():
+    """
+    Put fake 'vsc' Python package in place, to catch easyblocks/scripts that still import from vsc.* namespace
+    (vsc-base & vsc-install were ingested into the EasyBuild framework for EasyBuild 4.0,
+     see https://github.com/easybuilders/easybuild-framework/pull/2708)
+    """
+    fake_vsc_path = os.path.join(tempfile.gettempdir(), 'fake_vsc')
+    mkdir(os.path.join(fake_vsc_path, 'vsc'), parents=True)
+
+    fake_vsc_init = '\n'.join([
+        'import sys',
+        'import inspect',
+        '',
+        'stack = inspect.stack()',
+        'filename, lineno = "UNKNOWN", "UNKNOWN"',
+        '',
+        'for frame in stack[1:]:',
+        '    _, cand_filename, cand_lineno, _, code_context, _ = frame',
+        '    if code_context:',
+        '        filename, lineno = cand_filename, cand_lineno',
+        '        break',
+        '',
+        'sys.stderr.write("\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno))',
+        'sys.stderr.write("vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n")',
+        'sys.stderr.write("The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n")',
+        'sys.exit(1)',
+    ])
+    write_file(os.path.join(fake_vsc_path, 'vsc', '__init__.py'), fake_vsc_init)
+
+    sys.path.insert(0, fake_vsc_path)
