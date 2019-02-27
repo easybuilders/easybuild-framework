@@ -60,6 +60,7 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
@@ -716,36 +717,20 @@ def gather_reverse_dependencies():
     :return: dictionary with reverse dependencies
     """
 
-    def get_dependencies(mod_name, dependencies):
-        """Recursive function to gather dependencies from output of module show."""
-
-        if mod_name in dependencies:
-            return dependencies[mod_name]
-        else:
-            dependencies[mod_name] = []
-
-        # lmod cache was ignored when using modules_tool().available, let's reuse it here (irrelevant if not using lmod)
-        module_show, _ = run_cmd('LMOD_IGNORE_CACHE=0 module show %s' % mod_name, trace=False)
-
-        # is this complete?
-        matches = re.findall(r"(?:load|prereq|depends_on)\(\"(.*/.*)\"\)", module_show)
-
-        for match in matches:
-            if match not in dependencies[mod_name]:
-                dependencies[mod_name].extend([match])
-                dependencies[mod_name].extend([dep for dep in get_dependencies(match, dependencies)
-                                               if dep not in dependencies[mod_name]])
-
-        return dependencies[mod_name]
-
     dependencies = {}
     reverse_dependencies = {}
 
-    available_modules = modules_tool().available()
+    modtool = modules_tool()
+
+    available_modules = modtool.available()
+
+    print_msg("Found %d different modules" % len(available_modules))
 
     for mod_name in available_modules:
 
-        mod_deps = get_dependencies(mod_name, dependencies)
+        print_msg("Finding dependencies for %s" % mod_name)
+
+        mod_deps = dependencies_for(mod_name, modtool, alldeps=dependencies, full_module_names=True)
 
         for dep_mod_name in mod_deps:
             if dep_mod_name not in reverse_dependencies:

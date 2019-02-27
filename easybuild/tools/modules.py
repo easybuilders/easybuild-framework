@@ -35,6 +35,7 @@ This python module implements the environment modules functionality:
 :author: Jens Timmerman (Ghent University)
 :author: David Brown (Pacific Northwest National Laboratory)
 """
+import glob
 import os
 import re
 import shlex
@@ -647,12 +648,20 @@ class ModulesTool(object):
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
-    def modulefile_path(self, mod_name, strip_ext=False):
+    def modulefile_path(self, mod_name, strip_ext=False, full_module_names=False):
         """
         Get the path of the module file for the specified module
 
         :param mod_name: module name
-        :param strip_ext: strip (.lua) extension from module fileame (if present)"""
+        :param strip_ext: strip (.lua) extension from module filename (if present)
+        :param full_module_names: use $MODULEPATH to build filepath instead of get_value_from_modulefile"""
+
+        if full_module_names:
+            for path in curr_module_paths():
+                modpath = glob.glob(os.path.join(path, mod_name) + '*')
+                if modpath:
+                    return modpath[0]
+
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
