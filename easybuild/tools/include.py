@@ -57,15 +57,13 @@ _log = fancylogger.getLogger('tools.include', fname=False)
 # body for __init__.py file in package directory, which takes care of making sure the package can be distributed
 # across multiple directories
 PKG_INIT_BODY = """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
 """
 
 # more extensive __init__.py specific to easybuild.easyblocks package;
 # this is required because of the way in which the easyblock Python modules are organised in the easybuild-easyblocks
 # repository, i.e. in first-letter subdirectories
 EASYBLOCKS_PKG_INIT_BODY = """
-import pkg_resources
 import pkgutil
 
 # extend path so Python finds our easyblocks in the subdirectories where they are located
@@ -75,8 +73,7 @@ for subdir in subdirs:
 
 del l, subdir, subdirs
 
-# extend path so Python knows this is not the only place to look for modules in this package
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
 """
 
 
@@ -88,7 +85,7 @@ def create_pkg(path, pkg_init_body=None):
         if not os.path.exists(path):
             os.makedirs(path)
 
-        # put __init__.py files in place, with required pkg_resources.declare_namespace statement
+        # put __init__.py files in place, with required pkgutil.extend_path statement
         # note: can't use write_file, since that required build options to be initialised
         with open(init_path, 'w') as handle:
             if pkg_init_body is None:

@@ -129,5 +129,4 @@ implement support for installing particular (groups of) software packages.""",
             'humanfriendly',  # determine whether terminal supports ANSI color
         ],
     },
-    namespace_packages=['easybuild'],
 )

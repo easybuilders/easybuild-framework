@@ -28,7 +28,7 @@ CrayPGI toolchain: Cray compilers (PGI) and MPI via Cray compiler drivers (PrgEn
 """
 from easybuild.toolchains.compiler.craype import CrayPEPGI
 from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
 
 class CrayPGI(CrayPEPGI, CrayMPICH):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (PGI) (PrgEnv-pgi)."""

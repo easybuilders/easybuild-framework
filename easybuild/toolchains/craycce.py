@@ -31,7 +31,7 @@ CrayCCE toolchain: Cray compilers (CCE) and MPI via Cray compiler drivers + LibS
 from easybuild.toolchains.compiler.craype import CrayPECray
 from easybuild.toolchains.linalg.libsci import LibSci
 from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class CrayCCE(CrayPECray, CrayMPICH, LibSci):

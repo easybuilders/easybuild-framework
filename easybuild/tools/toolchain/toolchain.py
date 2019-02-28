@@ -27,6 +27,26 @@ The toolchain module with the abstract Toolchain class.
 
 Creating a new toolchain should be as simple as possible.
 
+Toolchain terminology
+---------------------
+
+Toolchain: group of development related utilities (eg compiler) and libraries (eg MPI, linear algebra)
+    -> eg tc=Toolchain()
+
+
+Toolchain options : options passed to the toolchain through the easyconfig file
+    -> eg tc.options
+
+Options : all options passed to an executable
+    Flags: specific subset of options, typically involved with compilation
+        -> eg tc.variables.CFLAGS
+    LinkOptions: specific subset of options, typically involved with linking
+        -> eg tc.variables.LIBBLAS
+
+TooclchainVariables: list of environment variables that are set when the toolchain is initialised
+           and the toolchain options have been parsed.
+    -> eg tc.variables['X'] will be available as os.environ['X']
+
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
@@ -45,13 +65,17 @@ from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
 from easybuild.tools.systemtools import LINUX, get_os_type
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 from easybuild.tools.utilities import nub, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
+
+# name/version for dummy toolchain
+# if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
+DUMMY_TOOLCHAIN_NAME = 'dummy'
+DUMMY_TOOLCHAIN_VERSION = 'dummy'
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'

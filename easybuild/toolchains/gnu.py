@@ -29,7 +29,7 @@ EasyBuild support for GCC compiler toolchain.
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class GNU(Gcc):

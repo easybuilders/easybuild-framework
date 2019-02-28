@@ -33,7 +33,7 @@ EasyBuild support for PGI compiler toolchain.
 
 from easybuild.toolchains.compiler.pgi import Pgi
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class PgiToolchain(Pgi):
