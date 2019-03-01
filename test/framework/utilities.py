@@ -148,6 +148,7 @@ class EnhancedTestCase(TestCase):
         reload(easybuild)
 
         # required to 'reset' easybuild.tools.module_naming_scheme namespace
+        reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
 
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
@@ -157,15 +158,17 @@ class EnhancedTestCase(TestCase):
                     sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
-        # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
+        # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
+        easybuild.__path__.insert(0, os.path.join(testdir, 'sandbox', 'easybuild'))
         import easybuild.easyblocks
-        reload(easybuild.easyblocks)
         test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
         easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
+        reload(easybuild.easyblocks)
+
         import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
+        reload(easybuild.easyblocks.generic)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,

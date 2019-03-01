@@ -179,7 +179,7 @@ def include_easyblocks(tmpdir, paths):
     import easybuild.easyblocks.generic
 
     # hard inject location to included (generic) easyblocks into Python search path
-    # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
     new_path = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
     easybuild.easyblocks.__path__.insert(0, new_path)
     new_path = os.path.join(new_path, 'generic')
@@ -216,7 +216,7 @@ def include_module_naming_schemes(tmpdir, paths):
     sys.path.insert(0, mns_path)
 
     # hard inject location to included module naming schemes into Python search path
-    # only prepending to sys.path is not enough due to 'declare_namespace' in module_naming_scheme/__init__.py
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in module_naming_scheme/__init__.py
     new_path = os.path.join(mns_path, 'easybuild', 'tools', 'module_naming_scheme')
     easybuild.tools.module_naming_scheme.__path__.insert(0, new_path)
 
@@ -262,7 +262,7 @@ def include_toolchains(tmpdir, paths):
     sys.path.insert(0, toolchains_path)
 
     # reload toolchain modules and hard inject location to included toolchains into Python search path
-    # only prepending to sys.path is not enough due to 'declare_namespace' in toolchains/*/__init__.py
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in toolchains/*/__init__.py
     easybuild.toolchains.__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains'))
     for subpkg in toolchain_subpkgs:
         tcpkg = 'easybuild.toolchains.%s' % subpkg
