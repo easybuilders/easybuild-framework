@@ -31,7 +31,7 @@ Implementation of a test module naming scheme.
 import os
 
 from easybuild.base import fancylogger
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 # prefer hashlib.sha1 (only in Python 2.5 and up) over sha.sha
 try:
