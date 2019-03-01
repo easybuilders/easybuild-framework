@@ -77,7 +77,7 @@ class RunTest(EnhancedTestCase):
 
         (out, ec) = run_cmd(cmd)
         self.assertEqual(ec, 0)
-        self.assertEqual(out, "foo � bar")
+        self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
@@ -213,7 +213,8 @@ class RunTest(EnhancedTestCase):
 
         (out, ec) = run_cmd_qa(cmd, qa)
         self.assertEqual(ec, 0)
-        self.assertEqual(out, "question\nanswer\nfoo � bar")
+        self.assertTrue(out.startswith("question\nanswer\nfoo "))
+        self.assertTrue(out.endswith('bar'))
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
