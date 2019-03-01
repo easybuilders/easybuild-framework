@@ -212,7 +212,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = proc.stdout.read(read_size).decode()
+        output = proc.stdout.read(read_size).decode(errors='replace')
         if cmd_log:
             cmd_log.write(output)
         if stream_output:
@@ -221,7 +221,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         ec = proc.poll()
 
     # read remaining data (all of it)
-    output = proc.stdout.read().decode()
+    output = proc.stdout.read().decode(errors='replace')
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -379,7 +379,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
-            out = recv_some(p).decode()
+            out = recv_some(p).decode(errors='replace')
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out
@@ -450,7 +450,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Process stopped. Read all remaining data
     try:
         if p.stdout:
-            out = p.stdout.read().decode()
+            out = p.stdout.read().decode(errors='replace')
             stdout_err += out
             if cmd_log:
                 cmd_log.write(out)

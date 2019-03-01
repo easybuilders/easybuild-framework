@@ -68,6 +68,17 @@ class RunTest(EnhancedTestCase):
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
+        # test running command that emits non-UTF-8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        write_file(test_file, b"foo \xe2 bar")
+        cmd = "cat %s" % test_file
+
+        (out, ec) = run_cmd(cmd)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "foo � bar")
+
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
@@ -185,10 +196,24 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_qa(self):
         """Basic test for run_cmd_qa function."""
-        (out, ec) = run_cmd_qa("echo question; read x; echo $x", {'question': 'answer'})
+
+        cmd = "echo question; read x; echo $x"
+        qa = {'question': 'answer'}
+        (out, ec) = run_cmd_qa(cmd, qa)
         self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+        # test running command that emits non-UTF8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        write_file(test_file, b"foo \xe2 bar")
+        cmd += "; cat %s" % test_file
+
+        (out, ec) = run_cmd_qa(cmd, qa)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "question\nanswer\nfoo � bar")
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
