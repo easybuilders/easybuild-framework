@@ -219,6 +219,7 @@ class EasyBlock(object):
 
         # keep track of initial environment we start in, so we can restore it if needed
         self.initial_environ = copy.deepcopy(os.environ)
+        self.reset_environ = None
         self.tweaked_env_vars = {}
 
         # should we keep quiet?
@@ -864,6 +865,16 @@ class EasyBlock(object):
             self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
 
         trace_msg("build dir: %s" % self.builddir)
+
+    def reset_changes(self):
+        """
+        Reset environment
+        """
+        env.reset_changes()
+        if self.reset_environ is None:
+            self.reset_environ = copy.deepcopy(os.environ)
+        else:
+            restore_env(self.reset_environ)
 
     def gen_installdir(self):
         """
@@ -1835,17 +1846,9 @@ class EasyBlock(object):
             '$ORIGIN/../lib64',
         ]
 
-        # in case of iterating builddependencies, unload any already loaded modules in reverse order
-        if 'builddependencies' in self.iter_opts:
-            if self.iter_idx > 0:
-                self.modules_tool.unload(reversed(self.loaded_modules))
-            # do not unload modules that were loaded before the toolchain preparation.
-            orig_modules = self.modules_tool.loaded_modules()
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
                                rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
-        if 'builddependencies' in self.iter_opts:
-            self.loaded_modules = self.modules_tool.loaded_modules()[len(orig_modules):]
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
@@ -2669,7 +2672,7 @@ class EasyBlock(object):
         ready_substeps = [
             (False, lambda x: x.check_readiness_step),
             (True, lambda x: x.make_builddir),
-            (True, lambda x: env.reset_changes),
+            (True, lambda x: x.reset_changes),
             (True, lambda x: x.handle_iterate_opts),
         ]
 
