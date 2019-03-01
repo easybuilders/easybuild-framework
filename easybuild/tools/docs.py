@@ -739,7 +739,7 @@ def gather_reverse_dependencies():
     return reverse_dependencies
 
 
-def list_reverse_dependencies(output_format=FORMAT_TXT):
+def list_reverse_dependencies(mod_names, output_format=FORMAT_TXT):
     """
     Show reverse dependencies of installed software
 
@@ -751,7 +751,10 @@ def list_reverse_dependencies(output_format=FORMAT_TXT):
 
     # TODO: format output
 
-    return reverse_dependencies
+    if mod_names == ['all']:
+        return reverse_dependencies
+    else:
+        return {mod_name: reverse_dependencies[mod_name] for mod_name in mod_names}
 
 
 def list_toolchains(output_format=FORMAT_TXT):

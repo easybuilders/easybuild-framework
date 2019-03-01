@@ -246,8 +246,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         detailed = options.list_installed_software == 'detailed'
         print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
 
-    elif options.list_reverse_dependencies:
-        print(list_reverse_dependencies(output_format=options.output_format))
+    elif options.list_reverse_deps:
+        print(list_reverse_dependencies(options.list_reverse_deps, output_format=options.output_format))
 
     elif options.list_software:
         print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
@@ -257,7 +257,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.check_github,
         options.install_github_token,
         options.list_installed_software,
-        options.list_reverse_dependencies,
+        options.list_reverse_deps,
         options.list_software,
         options.close_pr,
         options.list_prs,
@@ -293,7 +293,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # command line options that do not require any easyconfigs to be specified
     new_update_preview_pr = options.new_pr or options.update_pr or options.preview_pr
-    no_ec_opts = [options.aggregate_regtest, options.regtest, search_query, new_update_preview_pr]
+    no_ec_opts = [options.aggregate_regtest, options.regtest, search_query, new_update_preview_pr,
+                  options.list_reverse_deps]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
