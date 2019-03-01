@@ -470,7 +470,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 '--list-toolchains',
                 '--unittest-file=%s' % self.logfile,
                ]
-        self.eb_main(args, logfile=dummylogfn)
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         logtxt = read_file(self.logfile)

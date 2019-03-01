@@ -147,6 +147,9 @@ class EnhancedTestCase(TestCase):
         # this relates to the other 'reload' statements below
         reload(easybuild)
 
+        # required to 'reset' easybuild.tools.module_naming_scheme namespace
+        reload(easybuild.tools.module_naming_scheme)
+
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
         for path in sys.path[:]:
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
