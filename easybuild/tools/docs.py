@@ -36,6 +36,7 @@ Documentation-related functionality
 """
 import copy
 import inspect
+import sys
 import os
 import string
 from distutils.version import LooseVersion
@@ -723,11 +724,7 @@ def gather_reverse_dependencies():
 
     available_modules = modtool.available()
 
-    print_msg("Found %d different modules" % len(available_modules))
-
-    for mod_name in available_modules:
-
-        print_msg("Finding dependencies for %s" % mod_name)
+    for idx, mod_name in enumerate(available_modules):
 
         mod_deps = dependencies_for(mod_name, modtool, alldeps=dependencies, full_module_names=True)
 
@@ -735,6 +732,11 @@ def gather_reverse_dependencies():
             if dep_mod_name not in reverse_dependencies:
                 reverse_dependencies[dep_mod_name] = []
             reverse_dependencies[dep_mod_name].append(mod_name)
+
+        sys.stdout.write('\r%s of %s modules checked' % (idx+1, len(available_modules)))
+        sys.stdout.flush()
+
+    sys.stdout.write('\n')
 
     return reverse_dependencies
 
@@ -754,7 +756,8 @@ def list_reverse_dependencies(mod_names, output_format=FORMAT_TXT):
     if mod_names == ['all']:
         return reverse_dependencies
     else:
-        return dict((mod_name, reverse_dependencies[mod_name]) for mod_name in mod_names)
+        return dict((mod_name, reverse_dependencies[mod_name]) for mod_name in mod_names
+                    if mod_name in reverse_dependencies)
 
 
 def list_toolchains(output_format=FORMAT_TXT):
