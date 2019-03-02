@@ -45,8 +45,14 @@ class IccIfort(IntelIccIfort):
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
+
+        # need to transform a version like '2016a' with something that is safe to compare with '2016.01'
+        # comparing subversions that include letters causes TypeErrors in Python 3
+        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
+        version = self.version.replace('a', '.01').replace('b', '.07')
+
         # iccifort toolchains older than iccifort/2016.1.150-* are deprecated
-        if LooseVersion(self.version) < LooseVersion('2016.1'):
+        if LooseVersion(version) < LooseVersion('2016.1'):
             deprecated = True
         else:
             deprecated = False
