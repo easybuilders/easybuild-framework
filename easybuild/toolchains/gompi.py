@@ -40,8 +40,13 @@ class Gompi(GccToolchain, OpenMPI):
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
+        # need to transform a version like '2016a' with something that is safe to compare with '2000'
+        # comparing subversions that include letters causes TypeErrors in Python 3
+        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
+        version = self.version.replace('a', '.01').replace('b', '.07')
+
         # deprecate oldest gompi toolchains (versions 1.x)
-        if LooseVersion(self.version) < LooseVersion('2000'):
+        if LooseVersion(version) < LooseVersion('2000'):
             deprecated = True
         else:
             deprecated = False

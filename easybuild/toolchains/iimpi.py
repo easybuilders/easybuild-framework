@@ -43,9 +43,14 @@ class Iimpi(IccIfort, IntelMPI):
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
+        # need to transform a version like '2016a' with something that is safe to compare with '8.0', '2000', '2016.01'
+        # comparing subversions that include letters causes TypeErrors in Python 3
+        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
+        version = self.version.replace('a', '.01').replace('b', '.07')
+
         # iimpi toolchains older than iimpi/2016.01 are deprecated
         # iimpi 8.1.5 is an exception, since it used in intel/2016a (which is not deprecated yet)
-        iimpi_ver = LooseVersion(self.version)
+        iimpi_ver = LooseVersion(version)
         if iimpi_ver < LooseVersion('8.0'):
             deprecated = True
         elif iimpi_ver > LooseVersion('2000') and iimpi_ver < LooseVersion('2016.01'):
