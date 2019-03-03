@@ -30,6 +30,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 :author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
+import re
 
 from easybuild.toolchains.iimpi import Iimpi
 from easybuild.toolchains.iimkl import Iimkl
@@ -55,7 +56,8 @@ class Intel(Iimpi, IntelMKL, IntelFFTW):
         # intel toolchains older than intel/2016a are deprecated
         # take into account that intel/2016.x is always < intel/2016a according to LooseVersion;
         # intel/2016.01 & co are not deprecated yet...
-        if LooseVersion(version) < LooseVersion('2016.01'):
+        # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
+        if re.match('^[0-9]', version) and LooseVersion(version) < LooseVersion('2016.01'):
             deprecated = True
         else:
             deprecated = False

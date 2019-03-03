@@ -29,6 +29,7 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 :author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
+import re
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.gcccore import GCCcore
@@ -52,7 +53,8 @@ class IccIfort(IntelIccIfort):
         version = self.version.replace('a', '.01').replace('b', '.07')
 
         # iccifort toolchains older than iccifort/2016.1.150-* are deprecated
-        if LooseVersion(version) < LooseVersion('2016.1'):
+        # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
+        if re.match('^[0-9]', version) and LooseVersion(version) < LooseVersion('2016.1'):
             deprecated = True
         else:
             deprecated = False
