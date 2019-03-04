@@ -101,6 +101,7 @@ DEFAULT_CONFIG = {
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
+    'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
@@ -113,6 +114,7 @@ DEFAULT_CONFIG = {
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
+    'testopts': ['', 'Extra options for test.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
     'unpack_options': ['', "Extra options for unpacking source", BUILD],

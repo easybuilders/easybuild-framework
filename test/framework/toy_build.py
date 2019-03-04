@@ -1421,7 +1421,7 @@ class ToyBuildTest(EnhancedTestCase):
         # check that backup module is hidden (required for Tcl syntax)
         self.assertTrue(os.path.basename(first_toy_mod_backup).startswith('.'))
 
-        toy_mod_bak = ".*/toy/\.0\.0-deps\.bak_[0-9]*"
+        toy_mod_bak = r".*/toy/\.0\.0-deps\.bak_[0-9]+_[0-9]+"
         regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
@@ -1484,7 +1484,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue('.bak_' in os.path.basename(first_toy_lua_mod_backup))
             self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
 
-            toy_mod_bak = ".*/toy/0\.0-deps\.bak_[0-9]*"
+            toy_mod_bak = r".*/toy/0\.0-deps\.bak_[0-9]+_[0-9]+"
             regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
             regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
