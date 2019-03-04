@@ -1303,7 +1303,7 @@ def find_backup_name_candidate(src_file):
     timestamp = datetime.datetime.now()
     dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
     while os.path.exists(dst_file):
-        _log.debug("Backup of %s at %s_%s already found at %s, trying again in a second...", src_file, timestamp, os.getpid())
+        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, dst_file, timestamp)
         time.sleep(1)
         timestamp = datetime.datetime.now()
         dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
