@@ -1607,7 +1607,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(test_file, 'foo')
 
         # timestamp should be exactly 14 digits (year, month, day, hours, minutes, seconds)
-        regex = re.compile('^test\.txt_[0-9]{14}$')
+        regex = re.compile('^test\.txt_[0-9]{14}_[0-9]+$')
 
         res = ft.find_backup_name_candidate(test_file)
         self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
