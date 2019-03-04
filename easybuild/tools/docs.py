@@ -749,15 +749,25 @@ def list_reverse_dependencies(mod_names, output_format=FORMAT_TXT):
     :return: multi-line string presenting requested info
     """
 
-    reverse_dependencies = gather_reverse_dependencies()
+    all_reverse_deps = gather_reverse_dependencies()
 
     # TODO: format output
 
     if mod_names == ['all']:
-        return reverse_dependencies
+        output_mod_names = all_reverse_deps.keys()
     else:
-        return dict((mod_name, reverse_dependencies[mod_name]) for mod_name in mod_names
-                    if mod_name in reverse_dependencies)
+        output_mod_names = []
+        for mod_name in mod_names:
+            for full_mod_name in all_reverse_deps:
+                if full_mod_name.startswith(mod_name):
+                    output_mod_names.append(full_mod_name)
+
+    if not output_mod_names:
+        return "No reverse dependencies found for %s" % ', '.join(mod_names)
+    else:
+        return '\n'.join(["%s: %s" % (mod_name, reverse_deps)
+                          for mod_name, reverse_deps in all_reverse_deps.items()
+                          if mod_name in output_mod_names])
 
 
 def list_toolchains(output_format=FORMAT_TXT):
