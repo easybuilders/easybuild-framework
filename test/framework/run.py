@@ -72,14 +72,16 @@ class RunTest(EnhancedTestCase):
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
         # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
-        test_file = os.path.join(self.test_prefix, 'foo.txt')
-        write_file(test_file, b"foo \xe2 bar")
-        cmd = "cat %s" % test_file
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018'
+        for text in [b"foo \xe2 bar", b"foo \u2018 bar"]:
+            test_file = os.path.join(self.test_prefix, 'foo.txt')
+            write_file(test_file, text)
+            cmd = "cat %s" % test_file
 
-        (out, ec) = run_cmd(cmd)
-        self.assertEqual(ec, 0)
-        self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
-        self.assertEqual(type(out), str)
+            (out, ec) = run_cmd(cmd)
+            self.assertEqual(ec, 0)
+            self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+            self.assertEqual(type(out), str)
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
@@ -166,14 +168,16 @@ class RunTest(EnhancedTestCase):
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
         # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
-        test_file = os.path.join(self.test_prefix, 'foo.txt')
-        write_file(test_file, b"foo \xe2 bar")
-        cmd = "cat %s" % test_file
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018' (‘)
+        for text in [b"foo \xe2 bar", "foo ‘ bar"]:
+            test_file = os.path.join(self.test_prefix, 'foo.txt')
+            write_file(test_file, text)
+            cmd = "cat %s" % test_file
 
-        (out, ec) = run_cmd(cmd, log_output=True)
-        self.assertEqual(ec, 0)
-        self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
-        self.assertEqual(type(out), str)
+            (out, ec) = run_cmd(cmd, log_output=True)
+            self.assertEqual(ec, 0)
+            self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+            self.assertEqual(type(out), str)
 
     def test_run_cmd_trace(self):
         """Test run_cmd under --trace"""
