@@ -67,6 +67,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+        self.assertEqual(type(out), str)
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -78,6 +79,7 @@ class RunTest(EnhancedTestCase):
         (out, ec) = run_cmd(cmd)
         self.assertEqual(ec, 0)
         self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+        self.assertEqual(type(out), str)
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
@@ -149,6 +151,7 @@ class RunTest(EnhancedTestCase):
         """Test run_cmd with log_output enabled"""
         (out, ec) = run_cmd("seq 1 100", log_output=True)
         self.assertEqual(ec, 0)
+        self.assertEqual(type(out), str)
         self.assertTrue(out.startswith("1\n2\n"))
         self.assertTrue(out.endswith("99\n100\n"))
 
@@ -159,6 +162,18 @@ class RunTest(EnhancedTestCase):
         run_cmd_log_lines = run_cmd_log_txt.split('\n')
         self.assertEqual(run_cmd_log_lines[2:5], ['1', '2', '3'])
         self.assertEqual(run_cmd_log_lines[-4:-1], ['98', '99', '100'])
+
+        # test running command that emits non-UTF-8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        write_file(test_file, b"foo \xe2 bar")
+        cmd = "cat %s" % test_file
+
+        (out, ec) = run_cmd(cmd, log_output=True)
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+        self.assertEqual(type(out), str)
 
     def test_run_cmd_trace(self):
         """Test run_cmd under --trace"""
