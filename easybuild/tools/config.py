@@ -413,7 +413,7 @@ def init_build_options(build_options=None, cmdline_options=None):
                                       cmdline_options.dep_graph, cmdline_options.dry_run,
                                       cmdline_options.dry_run_short, cmdline_options.extended_dry_run,
                                       cmdline_options.dump_env_script, cmdline_options.new_pr,
-                                      cmdline_options.update_pr]
+                                      cmdline_options.preview_pr, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
