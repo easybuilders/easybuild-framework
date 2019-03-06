@@ -63,7 +63,6 @@ from easybuild.tools.filetools import read_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
@@ -729,9 +728,7 @@ def gather_reverse_dependencies():
         mod_deps = dependencies_for(mod_name, modtool, alldeps=dependencies, full_module_names=True)
 
         for dep_mod_name in mod_deps:
-            if dep_mod_name not in reverse_dependencies:
-                reverse_dependencies[dep_mod_name] = []
-            reverse_dependencies[dep_mod_name].append(mod_name)
+            reverse_dependencies.setdefault(dep_mod_name, []).append(mod_name)
 
         sys.stdout.write('\r%s of %s modules checked' % (idx+1, len(available_modules)))
         sys.stdout.flush()
@@ -751,8 +748,6 @@ def list_reverse_dependencies(mod_names, output_format=FORMAT_TXT):
 
     all_reverse_deps = gather_reverse_dependencies()
 
-    # TODO: format output
-
     if mod_names == ['all']:
         output_mod_names = all_reverse_deps.keys()
     else:
@@ -765,9 +760,7 @@ def list_reverse_dependencies(mod_names, output_format=FORMAT_TXT):
     if not output_mod_names:
         return "No reverse dependencies found for %s" % ', '.join(mod_names)
     else:
-        return '\n'.join(["%s: %s" % (mod_name, reverse_deps)
-                          for mod_name, reverse_deps in all_reverse_deps.items()
-                          if mod_name in output_mod_names])
+        return '\n'.join(["%s: %s" % (m, all_reverse_deps[m]) for m in sorted(output_mod_names)])
 
 
 def list_toolchains(output_format=FORMAT_TXT):

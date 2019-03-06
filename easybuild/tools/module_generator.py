@@ -88,7 +88,7 @@ def module_load_regex(modfilepath):
 def dependencies_for(mod_name, modtool, depth=None, alldeps=None, full_module_names=False):
     """
     Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
-    :param alldeps: recursion depth (default is None, which corresponds to infinite recursion depth)
+    :param alldeps: optional dictionary with already determined dependencies
     :param depth: recursion depth (default is None, which corresponds to infinite recursion depth)
     :param full_module_names: use $MODULEPATH to build filepath instead of get_value_from_modulefile
     """
@@ -96,12 +96,10 @@ def dependencies_for(mod_name, modtool, depth=None, alldeps=None, full_module_na
     if alldeps is None:
         alldeps = {}
 
-    if mod_name not in alldeps:
-        alldeps[mod_name] = []
-
     mod_filepath = modtool.modulefile_path(mod_name, full_module_names=full_module_names)
     modtxt = read_file(mod_filepath)
     loadregex = module_load_regex(mod_filepath)
+    alldeps.setdefault(mod_name, [])
     newdeps = [dep for dep in loadregex.findall(modtxt) if dep not in alldeps[mod_name]]
     alldeps[mod_name].extend(newdeps)
 
