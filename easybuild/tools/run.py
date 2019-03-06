@@ -118,7 +118,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
     # * in Python 2, .decode() returns a value of type 'unicode',
     #   but we really want a regular 'str' value (which is also why we use 'ignore' for encoding errors)
     # * in Python 3, .decode() returns a 'str' value when called on the 'bytes' value obtained from .read()
-    output = str(output.decode('utf-8', 'ignore'))
+    output = str(output.decode('ascii', 'ignore'))
 
     return output
 
