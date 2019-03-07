@@ -66,8 +66,8 @@ class RunTest(EnhancedTestCase):
     def test_get_output_from_process(self):
         """Test for get_output_from_process utility function."""
 
-        def get_proc(cmd, async=False):
-            if async:
+        def get_proc(cmd, asynchronous=False):
+            if asynchronous:
                 proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
                                           stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
             else:
@@ -106,14 +106,14 @@ class RunTest(EnhancedTestCase):
         # can also get output asynchronously (read_size is *ignored* in that case)
         async_cmd = "echo hello; read reply; echo $reply"
 
-        proc = get_proc(async_cmd, async=True)
+        proc = get_proc(async_cmd, asynchronous=True)
         out = get_output_from_process(proc, asynchronous=True)
         self.assertEqual(out, 'hello\n')
         asyncprocess.send_all(proc, 'test123\n')
         out = get_output_from_process(proc)
         self.assertEqual(out, 'test123\n')
 
-        proc = get_proc(async_cmd, async=True)
+        proc = get_proc(async_cmd, asynchronous=True)
         out = get_output_from_process(proc, asynchronous=True, read_size=1)
         # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
         self.assertEqual(out, 'hello\n')
