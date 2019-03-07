@@ -33,6 +33,7 @@ from distutils.util import strtobool
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import string_type
 
@@ -490,11 +491,11 @@ TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
 STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
-        'files': [STRING_OR_TUPLE_LIST],
-        'dirs': [STRING_OR_TUPLE_LIST],
+        SANITY_CHECK_PATHS_FILES: [STRING_OR_TUPLE_LIST],
+        SANITY_CHECK_PATHS_DIRS: [STRING_OR_TUPLE_LIST],
     },
     'opt_keys': [],
-    'req_keys': ['files', 'dirs'],
+    'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }))
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 

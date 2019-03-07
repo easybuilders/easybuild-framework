@@ -56,6 +56,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -2147,9 +2148,9 @@ class EasyBlock(object):
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
             # files must exist and not be a directory
-            'files': ('file', lambda fp: os.path.exists(fp) and not os.path.isdir(fp)),
+            SANITY_CHECK_PATHS_FILES: ('file', lambda fp: os.path.exists(fp) and not os.path.isdir(fp)),
             # directories must exist and be non-empty
-            'dirs': ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
+            SANITY_CHECK_PATHS_DIRS: ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
         }
 
         # prepare sanity check paths
@@ -2162,7 +2163,7 @@ class EasyBlock(object):
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
-                paths.update({'dirs': ['bin', ('lib', 'lib64')]})
+                paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
                 self.log.info("Using default sanity check paths: %s" % paths)
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
@@ -2285,7 +2286,9 @@ class EasyBlock(object):
             return ' or '.join("'%s'" % x for x in xs)
 
         # check sanity check paths
-        for key, (typ, check_fn) in path_keys_and_check.items():
+        for key in [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS]:
+
+            (typ, check_fn) = path_keys_and_check[key]
 
             for xs in paths[key]:
                 if isinstance(xs, string_type):

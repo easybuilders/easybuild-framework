@@ -71,6 +71,8 @@ GROUPED_PARAMS = [
 ]
 LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
 
+SANITY_CHECK_PATHS_DIRS = 'dirs'
+SANITY_CHECK_PATHS_FILES = 'files'
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
 
