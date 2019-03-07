@@ -849,7 +849,7 @@ def det_patch_specs(patch_paths, file_info, extra_robot_paths=None):
             patch_specs.append((patch_path, soft_name))
         else:
             # fall back on scanning all eb files for patches
-            print("Matching easyconfig for %s not found on the first try:" % patch_path,)
+            print("Matching easyconfig for %s not found on the first try:" % patch_path)
             print("scanning all easyconfigs to determine where patch file belongs (this may take a while)...")
             soft_name = find_software_name_for_patch(patch_file, extra_robot_paths=extra_robot_paths)
             if soft_name:
