@@ -153,7 +153,7 @@ class TestCase(OrigTestCase):
         try:
             call(*args, **kwargs)
             str_kwargs = ['='.join([k, str(v)]) for (k, v) in kwargs.items()]
-            str_args = ', '.join(map(str, args) + str_kwargs)
+            str_args = ', '.join(list(map(str, args)) + str_kwargs)
             self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error as err:
             msg = self.convert_exception_to_str(err)
