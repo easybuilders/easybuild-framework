@@ -709,7 +709,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
-        patch_specs = det_patch_specs(paths['patch_files'], file_info)
+        patch_specs = det_patch_specs(paths['patch_files'], file_info, extra_robot_paths=[target_dir])
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
@@ -831,7 +831,7 @@ def is_patch_for(patch_name, ec):
     return res
 
 
-def det_patch_specs(patch_paths, file_info):
+def det_patch_specs(patch_paths, file_info, extra_robot_paths=None):
     """ Determine software names for patch files """
     print_msg("determining software names for patch files...")
     patch_specs = []
@@ -851,7 +851,7 @@ def det_patch_specs(patch_paths, file_info):
             # fall back on scanning all eb files for patches
             print("Matching easyconfig for %s not found on the first try:" % patch_path,)
             print("scanning all easyconfigs to determine where patch file belongs (this may take a while)...")
-            soft_name = find_software_name_for_patch(patch_file)
+            soft_name = find_software_name_for_patch(patch_file, extra_robot_paths=extra_robot_paths)
             if soft_name:
                 patch_specs.append((patch_path, soft_name))
             else:
@@ -861,7 +861,7 @@ def det_patch_specs(patch_paths, file_info):
     return patch_specs
 
 
-def find_software_name_for_patch(patch_name):
+def find_software_name_for_patch(patch_name, extra_robot_paths=None):
     """
     Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
@@ -869,7 +869,7 @@ def find_software_name_for_patch(patch_name):
     :return: name of the software that this patch file belongs to (if found)
     """
 
-    robot_paths = build_option('robot_path')
+    robot_paths = (extra_robot_paths or []) + build_option('robot_path')
     soft_name = None
 
     all_ecs = []
