@@ -43,8 +43,8 @@ import tempfile
 import time
 from datetime import datetime
 
+import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
-from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.py2vs3 import string_type
@@ -107,7 +107,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
     """
 
     if asynchronous:
-        output = recv_some(proc)
+        output = asyncprocess.recv_some(proc)
     elif read_size:
         output = proc.stdout.read(read_size)
     else:
@@ -392,7 +392,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
 
     try:
-        proc = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
+        proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
+                                  stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
     except OSError as err:
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
@@ -409,7 +410,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out
-        # recv_some may throw Exception
+        # recv_some used by get_output_from_process for getting asynchronous output may throw exception
         except (IOError, Exception) as err:
             _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
             out = None
@@ -425,7 +426,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
                 _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
-                send_all(proc, fa)
+                asyncprocess.send_all(proc, fa)
                 hit = True
                 break
         if not hit:
@@ -439,7 +440,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
                     _log.debug("run_cmd_qa answer %s std question %s out %s", fa, question.pattern, stdout_err[-50:])
-                    send_all(proc, fa)
+                    asyncprocess.send_all(proc, fa)
                     hit = True
                     break
             if not hit:
