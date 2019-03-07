@@ -35,11 +35,8 @@ based on https://github.com/jpaugh/agithub/commit/1e2575825b165c1cb7cbd85c22e256
 :author: Jens Timmerman
 """
 import base64
+import json
 from functools import partial
-try:
-    import json
-except ImportError:
-    import simplejson as json
 
 from easybuild.base import fancylogger
 from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, urlencode
