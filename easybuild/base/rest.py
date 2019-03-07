@@ -39,7 +39,7 @@ import json
 from functools import partial
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, urlencode
+from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, json_loads, urlencode
 
 
 class Client(object):
@@ -171,7 +171,7 @@ class Client(object):
         else:
             body = conn.read()
             try:
-                pybody = json.loads(body)
+                pybody = json_loads(body)
             except ValueError:
                 pybody = body
         fancylogger.getLogger().debug('reponse len: %s ', len(pybody))

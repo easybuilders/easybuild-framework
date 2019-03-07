@@ -31,7 +31,9 @@ Implementations for Python 3.
 """
 # these are not used here, but imported from here in other places
 import configparser  # noqa
+import json
 import subprocess
+import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from io import StringIO  # noqa
@@ -45,6 +47,18 @@ from importlib import reload  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = str
+
+
+def json_loads(body):
+    """Wrapper for json.loads that takes into account that Python versions older than 3.6 require a string value."""
+
+    if isinstance(body, bytes) and sys.version_info[0] == 3 and sys.version_info[1] < 6:
+        # decode bytes string as regular string with UTF-8 encoding for Python 3.5.x and older
+        # only Python 3.6 and newer have support for passing bytes string to json.loads
+        # cfr. https://docs.python.org/2/library/json.html#json.loads
+        body = body.decode('utf-8', 'ignore')
+
+    return json.loads(body)
 
 
 def subprocess_popen_text(cmd, **kwargs):
