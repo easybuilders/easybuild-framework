@@ -34,16 +34,18 @@ import os
 import re
 import signal
 import stat
+import subprocess
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from easybuild.base.fancylogger import setLogLevelDebug
 
+import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
+from easybuild.tools.run import get_output_from_process, run_cmd, run_cmd_qa, parse_log_for_error
 
 
 class RunTest(EnhancedTestCase):
@@ -60,6 +62,68 @@ class RunTest(EnhancedTestCase):
 
         # restore log.experimental
         easybuild.tools.utilities._log.experimental = self.orig_experimental
+
+    def test_get_output_from_process(self):
+        """Test for get_output_from_process utility function."""
+
+        def get_proc(cmd, async=False):
+            if async:
+                proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
+                                          stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
+            else:
+                proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        stdin=subprocess.PIPE, close_fds=True, executable='/bin/bash')
+
+            return proc
+
+        # get all output at once
+        proc = get_proc("echo hello")
+        out = get_output_from_process(proc)
+        self.assertEqual(out, 'hello\n')
+
+        # first get 100 bytes, then get the rest all at once
+        proc = get_proc("echo hello")
+        out = get_output_from_process(proc, read_size=100)
+        self.assertEqual(out, 'hello\n')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, '')
+
+        # get output in small bits, keep trying to get output (which shouldn't fail)
+        proc = get_proc("echo hello")
+        out = get_output_from_process(proc, read_size=1)
+        self.assertEqual(out, 'h')
+        out = get_output_from_process(proc, read_size=3)
+        self.assertEqual(out, 'ell')
+        out = get_output_from_process(proc, read_size=2)
+        self.assertEqual(out, 'o\n')
+        out = get_output_from_process(proc, read_size=1)
+        self.assertEqual(out, '')
+        out = get_output_from_process(proc, read_size=10)
+        self.assertEqual(out, '')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, '')
+
+        # can also get output asynchronously (read_size is *ignored* in that case)
+        async_cmd = "echo hello; read reply; echo $reply"
+
+        proc = get_proc(async_cmd, async=True)
+        out = get_output_from_process(proc, asynchronous=True)
+        self.assertEqual(out, 'hello\n')
+        asyncprocess.send_all(proc, 'test123\n')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, 'test123\n')
+
+        proc = get_proc(async_cmd, async=True)
+        out = get_output_from_process(proc, asynchronous=True, read_size=1)
+        # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
+        self.assertEqual(out, 'hello\n')
+        asyncprocess.send_all(proc, 'test123\n')
+        out = get_output_from_process(proc, read_size=3)
+        self.assertEqual(out, 'tes')
+        out = get_output_from_process(proc, read_size=2)
+        self.assertEqual(out, 't1')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, '23\n')
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
