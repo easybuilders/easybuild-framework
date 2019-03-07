@@ -876,7 +876,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     for ec_dir in ec_dirs:
         for (dirpath, _, filenames) in os.walk(ec_dir):
             for fn in filenames:
-                if fn != 'TEMPLATE.eb':
+                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
