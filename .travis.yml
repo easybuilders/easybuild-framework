@@ -34,6 +34,10 @@ matrix:
       env: ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - python: 3.6
       env: ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
+    # also test most common configuration with Python 3.7
+    - python: 3.7
+      dist: xenial
+      env: LMOD_VERSION=7.8.5
 addons:
   apt:
     packages:
@@ -71,7 +75,7 @@ before_install:
     # autopep8 1.3.4 is last one to support Python 2.6
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'autopep8<1.3.5'; else pip install autopep8; fi
     # optional Python packages for EasyBuild (GC3Pie is not compatible with Python 3 yet)
-    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then pip install GC3Pie; fi
+    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then pip install GC3Pie; fi
     - pip install pycodestyle python-graph-dot python-hglib PyYAML requests
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
@@ -127,9 +131,9 @@ script:
     - EB_BOOTSTRAP_EXPECTED="20190112.01 51b89475ffd0f7dd2bf713e7984e7b35a627196af06d03c2cf75f6bcda8c54c0"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script (skip when testing with Python 3 for now, since latest EasyBuild release is not compatible with Python 3 yet)
-    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap; fi
+    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap; fi
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module (skip when testing with Python 3, for now)
-    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; fi
-    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x3.6' ]; then module load EasyBuild; eb --version; fi
+    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; fi
+    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then module load EasyBuild; eb --version; fi

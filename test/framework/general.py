@@ -139,6 +139,11 @@ class GeneralTest(EnhancedTestCase):
         write_file(os.path.join(test123, 'two.py'), '')
         write_file(os.path.join(test123, 'three.py'), '')
 
+        # this test relies on having an empty entry in sys.path (which represents the current working directory)
+        # may not be there (e.g. when testing with Python 3.7)
+        if '' not in sys.path:
+            sys.path.insert(0, '')
+
         change_dir(self.test_prefix)
         res = import_available_modules('test123')
 
