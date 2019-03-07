@@ -43,8 +43,8 @@ import tempfile
 import time
 from datetime import datetime
 
+import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
-from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.py2vs3 import string_type
@@ -95,6 +95,32 @@ def run_cmd_cache(func):
     cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
+
+
+def get_output_from_process(proc, read_size=None, asynchronous=False):
+    """
+    Get output from running process (that was opened with subprocess.Popen).
+
+    :param proc: process to get output from
+    :param read_size: number of bytes of output to read (if None: read all output)
+    :param asynchronous: get output asynchronously
+    """
+
+    if asynchronous:
+        output = asyncprocess.recv_some(proc)
+    elif read_size:
+        output = proc.stdout.read(read_size)
+    else:
+        output = proc.stdout.read()
+
+    # need to be careful w.r.t. encoding since we want to obtain a string value,
+    # and the output may include non UTF-8 characters
+    # * in Python 2, .decode() returns a value of type 'unicode',
+    #   but we really want a regular 'str' value (which is also why we use 'ignore' for encoding errors)
+    # * in Python 3, .decode() returns a 'str' value when called on the 'bytes' value obtained from .read()
+    output = str(output.decode('ascii', 'ignore'))
+
+    return output
 
 
 @run_cmd_cache
@@ -212,7 +238,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = proc.stdout.read(read_size).decode('utf-8', 'replace')
+        output = get_output_from_process(proc, read_size=read_size)
         if cmd_log:
             cmd_log.write(output)
         if stream_output:
@@ -221,7 +247,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         ec = proc.poll()
 
     # read remaining data (all of it)
-    output = proc.stdout.read().decode('utf-8', 'replace')
+    output = get_output_from_process(proc)
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -366,11 +392,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
 
     try:
-        p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
+        proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
+                                  stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
     except OSError as err:
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
-    ec = p.poll()
+    ec = proc.poll()
     stdout_err = ''
     old_len_out = -1
     hit_count = 0
@@ -379,11 +406,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
-            out = recv_some(p).decode('utf-8', 'replace')
+            out = get_output_from_process(proc, asynchronous=True)
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out
-        # recv_some may throw Exception
+        # recv_some used by get_output_from_process for getting asynchronous output may throw exception
         except (IOError, Exception) as err:
             _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
             out = None
@@ -399,7 +426,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
                 _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
-                send_all(p, fa)
+                asyncprocess.send_all(proc, fa)
                 hit = True
                 break
         if not hit:
@@ -413,7 +440,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
                     _log.debug("run_cmd_qa answer %s std question %s out %s", fa, question.pattern, stdout_err[-50:])
-                    send_all(p, fa)
+                    asyncprocess.send_all(proc, fa)
                     hit = True
                     break
             if not hit:
@@ -435,8 +462,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if hit_count > maxhits:
             # explicitly kill the child process before exiting
             try:
-                os.killpg(p.pid, signal.SIGKILL)
-                os.kill(p.pid, signal.SIGKILL)
+                os.killpg(proc.pid, signal.SIGKILL)
+                os.kill(proc.pid, signal.SIGKILL)
             except OSError as err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
             _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
@@ -445,12 +472,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
-        ec = p.poll()
+        ec = proc.poll()
 
     # Process stopped. Read all remaining data
     try:
-        if p.stdout:
-            out = p.stdout.read().decode('utf-8', 'replace')
+        if proc.stdout:
+            out = get_output_from_process(proc)
             stdout_err += out
             if cmd_log:
                 cmd_log.write(out)
