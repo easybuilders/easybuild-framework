@@ -31,6 +31,7 @@ Implementations for Python 2.
 """
 # these are not used here, but imported from here in other places
 import ConfigParser as configparser  # noqa
+import json
 import subprocess
 import urllib2 as std_urllib  # noqa
 from string import letters as ascii_letters  # noqa
@@ -51,6 +52,9 @@ reload = reload
 
 # string type that can be used in 'isinstance' calls
 string_type = basestring
+
+# trivial wrapper for json.loads (Python 3 version is less trivial)
+json_loads = json.loads
 
 
 def subprocess_popen_text(cmd, **kwargs):

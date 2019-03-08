@@ -30,15 +30,15 @@ This is the original pure python code, to be exec'ed rather then parsed
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import copy
 import os
 import re
 import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS
-from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.framework.easyconfig.format.format import get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
@@ -55,7 +55,7 @@ REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
-    'sanity_check_paths': ['files', 'dirs'],
+    'sanity_check_paths': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }
 
 

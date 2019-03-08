@@ -773,7 +773,7 @@ class ExtOptionParser(OptionParser):
                 logmethod = self.error_env_option_method
             else:
                 logmethod = self.log.debug
-            logmethod(msg, len(candidates), self.envvar_prefix, ','.join(candidates))
+            logmethod(msg, len(candidates), self.envvar_prefix, ','.join(sorted(candidates)))
 
         self.log.debug("Environment variable options with prefix %s: %s",
                        self.envvar_prefix, self.environment_arguments)
