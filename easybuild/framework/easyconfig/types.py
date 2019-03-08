@@ -380,7 +380,7 @@ def to_dependency(dep):
                 raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
 
         else:
-            dep_keys = dep.keys()
+            dep_keys = list(dep.keys())
 
             # need to handle name/version keys first, to avoid relying on order in which keys are processed...
             for key in ['name', 'version']:
