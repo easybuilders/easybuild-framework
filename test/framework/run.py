@@ -1,4 +1,5 @@
 # #
+# -*- coding: utf-8 -*-
 # Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
