@@ -378,21 +378,25 @@ def to_dependency(dep):
                 raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
 
         else:
-            found_name_version = False
-            for key, value in dep.items():
-                if key in ['name', 'version', 'versionsuffix']:
-                    depspec[key] = str(value)
+            dep_keys = dep.keys()
+
+            # need to handle name/version keys first, to avoid relying on order in which keys are processed...
+            for key in ['name', 'version']:
+                if key in dep:
+                    depspec[key] = str(dep[key])
+                    dep_keys.remove(key)
+
+            for key in dep_keys:
+                if key == 'versionsuffix':
+                    depspec[key] = str(dep[key])
                 elif key == 'toolchain':
-                    depspec['toolchain'] = to_toolchain_dict(value)
-                elif not found_name_version:
-                    depspec.update({'name': key, 'version': str(value)})
+                    depspec['toolchain'] = to_toolchain_dict(dep[key])
+                elif not ('name' in depspec and 'version' in depspec):
+                    depspec.update({'name': key, 'version': str(dep[key])})
                 else:
-                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
+                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, dep[key])
 
-                if 'name' in depspec and 'version' in depspec:
-                    found_name_version = True
-
-            if not found_name_version:
+            if not ('name' in depspec and 'version' in depspec):
                 raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:
@@ -433,6 +437,7 @@ def to_checksums(checksums):
 
     return res
 
+
 def ensure_iterable_license_specs(specs):
     """
     Ensures that the provided license file/server specifications are of correct type and converts
@@ -452,6 +457,7 @@ def ensure_iterable_license_specs(specs):
         raise EasyBuildError(msg)
 
     return license_specs
+
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 # specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
@@ -492,7 +498,7 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 
 CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
-                  STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
+                   STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
