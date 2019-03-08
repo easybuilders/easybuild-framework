@@ -379,21 +379,25 @@ def to_dependency(dep):
                 raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
 
         else:
-            found_name_version = False
-            for key, value in dep.items():
-                if key in ['name', 'version', 'versionsuffix']:
-                    depspec[key] = str(value)
+            dep_keys = dep.keys()
+
+            # need to handle name/version keys first, to avoid relying on order in which keys are processed...
+            for key in ['name', 'version']:
+                if key in dep:
+                    depspec[key] = str(dep[key])
+                    dep_keys.remove(key)
+
+            for key in dep_keys:
+                if key == 'versionsuffix':
+                    depspec[key] = str(dep[key])
                 elif key == 'toolchain':
-                    depspec['toolchain'] = to_toolchain_dict(value)
-                elif not found_name_version:
-                    depspec.update({'name': key, 'version': str(value)})
+                    depspec['toolchain'] = to_toolchain_dict(dep[key])
+                elif not ('name' in depspec and 'version' in depspec):
+                    depspec.update({'name': key, 'version': str(dep[key])})
                 else:
-                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
+                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, dep[key])
 
-                if 'name' in depspec and 'version' in depspec:
-                    found_name_version = True
-
-            if not found_name_version:
+            if not ('name' in depspec and 'version' in depspec):
                 raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:

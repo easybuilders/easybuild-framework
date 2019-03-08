@@ -1303,7 +1303,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
-        'silent': testing,
+        'silent': testing or options.new_pr or options.update_pr,
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
