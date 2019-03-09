@@ -39,7 +39,7 @@ import json
 from functools import partial
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, json_loads, urlencode
+from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, json_loads, string_type, urlencode
 
 
 class Client(object):
@@ -193,6 +193,13 @@ class Client(object):
             sep = '/'
         else:
             sep = ''
+
+        # value passed to 'data' must be a 'bytes' value (not 'str') in Python 3.x, but a string value in Python 2
+        # hence, we encode the value obtained (if needed)
+        # this doesn't affect the value type in Python 2, and makes it a 'bytes' value in Python 3
+        if isinstance(body, string_type):
+            body = body.encode('utf-8')
+
         request = Request(self.url + sep + url, data=body)
         for header, value in headers.items():
             request.add_header(header, value)

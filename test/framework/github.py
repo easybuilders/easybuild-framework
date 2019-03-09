@@ -35,11 +35,12 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
+from easybuild.base.rest import RestClient
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.py2vs3 import URLError, ascii_letters
+from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
 try:
@@ -550,6 +551,40 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(res[1][1], 'C')
         self.assertEqual(os.path.basename(res[2][0]), '3.patch')
         self.assertEqual(res[2][1], 'C')
+
+    def test_restclient(self):
+        """Test use of RestClient."""
+        if self.skip_github_tests:
+            print("Skipping test_restclient, no GitHub token available?")
+            return
+
+        client = RestClient('https://api.github.com', username=GITHUB_TEST_ACCOUNT, token=self.github_token)
+
+        status, body = client.repos['hpcugent']['testrepository'].contents.a_directory['a_file.txt'].get()
+        self.assertEqual(status, 200)
+        # dGhpcyBpcyBhIGxpbmUgb2YgdGV4dAo= == 'this is a line of text' in base64 encoding
+        self.assertEqual(body['content'].strip(), u"dGhpcyBpcyBhIGxpbmUgb2YgdGV4dAo=")
+
+        status, headers = client.head()
+        self.assertEqual(status, 200)
+        self.assertTrue(headers)
+        self.assertTrue('X-GitHub-Media-Type' in headers)
+
+        httperror_hit = False
+        try:
+            status, body = client.user.emails.post(body='test@example.com')
+            self.assertTrue(False, 'posting to unauthorized endpoint did not throw a http error')
+        except HTTPError:
+            httperror_hit = True
+        self.assertTrue(httperror_hit, "expected HTTPError not encountered")
+
+        httperror_hit = False
+        try:
+            status, body = client.user.emails.delete(body='test@example.com')
+            self.assertTrue(False, 'deleting to unauthorized endpoint did not throw a http error')
+        except HTTPError:
+            httperror_hit = True
+        self.assertTrue(httperror_hit, "expected HTTPError not encountered")
 
 
 def suite():
