@@ -28,6 +28,7 @@ Unit tests for talking to GitHub.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import base64
 import os
 import random
 import re
@@ -562,8 +563,9 @@ class GithubTest(EnhancedTestCase):
 
         status, body = client.repos['hpcugent']['testrepository'].contents.a_directory['a_file.txt'].get()
         self.assertEqual(status, 200)
-        # dGhpcyBpcyBhIGxpbmUgb2YgdGV4dAo= == 'this is a line of text' in base64 encoding
-        self.assertEqual(body['content'].strip(), u"dGhpcyBpcyBhIGxpbmUgb2YgdGV4dAo=")
+        # base64.b64encode requires & produces a 'bytes' value in Python 3,
+        # but we need a string value hence the .decode() (also works in Python 2)
+        self.assertEqual(body['content'].strip(), base64.b64encode(b'this is a line of text\n').decode())
 
         status, headers = client.head()
         self.assertEqual(status, 200)
