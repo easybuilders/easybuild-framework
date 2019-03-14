@@ -1481,6 +1481,9 @@ class EasyBlock(object):
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
+        # tell easyconfig we are iterating (used by dependencies() and builddependencies())
+        self.cfg.iterating = True
+
         # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
         # only needs to be done during first iteration, since after that the options won't be lists anymore
@@ -1516,6 +1519,9 @@ class EasyBlock(object):
         for opt in self.iter_opts:
             self.cfg[opt] = self.iter_opts[opt]
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
+
+        # tell easyconfig we are no longer iterating (used by dependencies() and builddependencies())
+        self.cfg.iterating = False
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating

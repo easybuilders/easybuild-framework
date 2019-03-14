@@ -544,6 +544,7 @@ class EasyConfig(object):
         # builddependencies are always a list, need to look deeper down below
         self.iterate_options = [opt for opt in ITERATE_OPTIONS
                                 if opt != 'builddependencies' and isinstance(self[opt], (list, tuple))]
+        self.iterating = False
 
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
@@ -831,6 +832,7 @@ class EasyConfig(object):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+        Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
         """
@@ -850,11 +852,12 @@ class EasyConfig(object):
 
     def builddependencies(self):
         """
-        return the parsed build dependencies
+        Return a flat list of the parsed build dependencies
+        When builddependencies are iterable they are flattened outside
+        of the iterating process, because the callers want a simple list.
         """
         builddeps = self['builddependencies']
-        if 'builddependencies' in self.iterate_options and builddeps and not isinstance(builddeps[0], dict):
-            # flatten if not iterating yet
+        if 'builddependencies' in self.iterate_options and self.iterating:
             builddeps = flatten(builddeps)
         return builddeps
 
