@@ -29,7 +29,11 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+
 import os
+import platform
+
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
@@ -63,7 +67,10 @@ def yaml_join(loader, node):
 try:
     import yaml
     # register the tag handlers
-    yaml.add_constructor(u'!join', yaml_join, Loader=yaml.FullLoader)
+    if LooseVersion(platform.python_version()) <= LooseVersion(u'2.6'):
+        yaml.add_constructor('!join', yaml_join)
+    else:
+        yaml.add_constructor(u'!join', yaml_join, Loader=yaml.FullLoader)
 except ImportError:
     pass
 
@@ -94,7 +101,10 @@ class FormatYeb(EasyConfigFormat):
         Process YAML file
         """
         txt = self._inject_constants_dict(txt)
-        self.parsed_yeb = yaml.load(txt, Loader=yaml.FullLoader)
+        if LooseVersion(platform.python_version()) <= LooseVersion(u'2.6'):
+            self.parsed_yeb = yaml.load(txt)
+        else:
+            self.parsed_yeb = yaml.load(txt, Loader=yaml.FullLoader)
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
