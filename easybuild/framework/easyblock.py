@@ -1853,6 +1853,10 @@ class EasyBlock(object):
             '$ORIGIN/../lib64',
         ]
 
+        if self.iter_idx > 0:
+            # reset toolchain for iterative runs before preparing it again
+            self.toolchain.reset()
+
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
                                rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
