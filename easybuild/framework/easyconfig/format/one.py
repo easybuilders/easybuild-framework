@@ -53,6 +53,7 @@ EB_FORMAT_EXTENSION = '.eb'
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
+REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
     'sanity_check_paths': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
@@ -141,6 +142,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # note: this does not take into account the parameter name + '=', only the value
         line_too_long = len(param_strval) + addlen > REFORMAT_THRESHOLD_LENGTH
         forced = param_name in REFORMAT_FORCED_PARAMS
+        list_of_lists_of_tuples_param = param_name in REFORMAT_LIST_OF_LISTS_OF_TUPLES
 
         if param_name in REFORMAT_SKIPPED_PARAMS:
             self.log.info("Skipping reformatting value for parameter '%s'", param_name)
@@ -171,9 +173,17 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item in param_val:
                         comment = self._get_item_comments(param_name, item).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
+                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, tuple) for x in item)
+                        if list_of_lists_of_tuples_param and is_list_of_lists_of_tuples:
+                            itemstr = '[' + (',\n ' + INDENT_4SPACES).join([
+                                self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
+                                for subitem in item]) + ']'
+                        else:
+                            itemstr = self._reformat_line(param_name, item, addlen=addlen)
+
                         res += item_tmpl % {
                             'comment': comment,
-                            'item': self._reformat_line(param_name, item, addlen=addlen)
+                            'item': itemstr
                         }
 
                 # end with closing character: ], ), }
@@ -228,9 +238,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             for key in group:
                 val = ecfg[key]
                 if val != default_values[key]:
-                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
+                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them;
+                    # take into account that these parameters may be iterative (i.e. a list of lists of parsed deps)
                     if key in DEPENDENCY_PARAMETERS:
-                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                        if key in ecfg.iterate_options:
+                            valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                        else:
+                            valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
