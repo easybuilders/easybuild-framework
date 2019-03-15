@@ -1138,7 +1138,7 @@ class EasyConfig(object):
             # to update the original dep dict, we need to get a reference with templating disabled...
             deps_ref = self.get_ref(key)
 
-            # take into account that this *dependencies parameters may be iterated over
+            # take into account that this *dependencies parameter may be iterated over
             if key in self.iterate_options:
                 deps = flatten(deps)
                 deps_ref = flatten(deps_ref)
