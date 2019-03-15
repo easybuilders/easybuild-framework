@@ -857,7 +857,7 @@ class EasyConfig(object):
         of the iterating process, because the callers want a simple list.
         """
         builddeps = self['builddependencies']
-        if 'builddependencies' in self.iterate_options and self.iterating:
+        if 'builddependencies' in self.iterate_options and not self.iterating:
             builddeps = flatten(builddeps)
         return builddeps
 
