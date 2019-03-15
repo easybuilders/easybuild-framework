@@ -868,7 +868,10 @@ class EasyBlock(object):
 
     def reset_changes(self):
         """
-        Reset environment
+        Reset environment.
+        When iterating over builddependencies, every time we start a new iteration
+        we need to restore the environment to where it was before the relevant modules
+        were loaded.
         """
         env.reset_changes()
         if self.reset_environ is None:
