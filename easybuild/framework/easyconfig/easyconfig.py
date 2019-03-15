@@ -861,8 +861,9 @@ class EasyConfig(object):
 
         if 'builddependencies' in self.iterate_options and not self.iterating:
             # flatten and remove duplicates (can't use 'nub', since dict values are not hashable)
+            all_builddeps = flatten(builddeps)
             builddeps = []
-            for dep in flatten(builddeps):
+            for dep in all_builddeps:
                 if dep not in builddeps:
                     builddeps.append(dep)
 
