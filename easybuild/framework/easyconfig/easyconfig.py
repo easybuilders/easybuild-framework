@@ -858,13 +858,11 @@ class EasyConfig(object):
         want simple lists.
         """
         builddeps = self['builddependencies']
+
         if 'builddependencies' in self.iterate_options and not self.iterating:
-            tmp = flatten(builddeps)
-            # remove duplicates
-            builddeps = []
-            for builddep in tmp:
-                if builddep not in builddeps:
-                    builddeps.append(builddep)
+            # flatten and remove duplicates
+            builddeps = nub(flatten(builddeps))
+
         return builddeps
 
     @property
