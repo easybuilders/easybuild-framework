@@ -853,12 +853,18 @@ class EasyConfig(object):
     def builddependencies(self):
         """
         Return a flat list of the parsed build dependencies
-        When builddependencies are iterable they are flattened outside
-        of the iterating process, because the callers want a simple list.
+        When builddependencies are iterable they are flattened lists with
+        duplicates removed outside of the iterating process, because the callers
+        want simple lists.
         """
         builddeps = self['builddependencies']
         if 'builddependencies' in self.iterate_options and not self.iterating:
-            builddeps = flatten(builddeps)
+            tmp = flatten(builddeps)
+            # remove duplicates
+            builddeps = []
+            for builddep in tmp:
+                if builddep not in builddeps:
+                    builddeps.append(builddep)
         return builddeps
 
     @property
