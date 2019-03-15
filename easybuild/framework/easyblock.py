@@ -219,6 +219,7 @@ class EasyBlock(object):
 
         # keep track of initial environment we start in, so we can restore it if needed
         self.initial_environ = copy.deepcopy(os.environ)
+        self.reset_environ = None
         self.tweaked_env_vars = {}
 
         # should we keep quiet?
@@ -457,9 +458,7 @@ class EasyBlock(object):
         Find source file for extensions.
         """
         exts_sources = []
-        self.cfg.enable_templating = False
-        exts_list = self.cfg['exts_list']
-        self.cfg.enable_templating = True
+        exts_list = self.cfg.get_ref('exts_list')
 
         if self.dry_run:
             self.dry_run_msg("\nList of sources/patches for extensions:")
@@ -477,9 +476,7 @@ class EasyBlock(object):
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
-                    self.cfg.enable_templating = False
-                    ext_options = copy.deepcopy(self.cfg['exts_default_options'])
-                    self.cfg.enable_templating = True
+                    ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
 
                     def_src_tmpl = "%(name)s-%(version)s.tar.gz"
 
@@ -863,9 +860,24 @@ class EasyBlock(object):
         # otherwise we wipe the already partially populated installation directory,
         # see https://github.com/easybuilders/easybuild-framework/issues/2556
         if not (self.build_in_installdir and self.iter_idx > 0):
+            # make sure we no longer sit in the build directory before cleaning it.
+            change_dir(self.orig_workdir)
             self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
 
         trace_msg("build dir: %s" % self.builddir)
+
+    def reset_env(self):
+        """
+        Reset environment.
+        When iterating over builddependencies, every time we start a new iteration
+        we need to restore the environment to where it was before the relevant modules
+        were loaded.
+        """
+        env.reset_changes()
+        if self.reset_environ is None:
+            self.reset_environ = copy.deepcopy(os.environ)
+        else:
+            restore_env(self.reset_environ)
 
     def gen_installdir(self):
         """
@@ -1371,10 +1383,8 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
-        # disabling templating is required here to support legacy string templates like name/version
-        self.cfg.enable_templating = False
-        exts_filter = self.cfg['exts_filter']
-        self.cfg.enable_templating = True
+        # obtaining untemplated reference value is required here to support legacy string templates like name/version
+        exts_filter = self.cfg.get_ref('exts_filter')
 
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
@@ -1471,21 +1481,25 @@ class EasyBlock(object):
         """Handle options relevant during iterated part of build/install procedure."""
 
         # disable templating in this function, since we're messing about with values in self.cfg
+        prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
-        # handle configure/build/install options that are specified as lists
+        # tell easyconfig we are iterating (used by dependencies() and builddependencies())
+        self.cfg.iterating = True
+
+        # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
-        # this will only be done during first iteration, since after that the options won't be lists anymore
-        for opt in ITERATE_OPTIONS:
+        # only needs to be done during first iteration, since after that the options won't be lists anymore
+        if self.iter_idx == 0:
             # keep track of list, supply first element as first option to handle
-            if isinstance(self.cfg[opt], (list, tuple)):
+            for opt in self.cfg.iterate_options:
                 self.iter_opts[opt] = self.cfg[opt]  # copy
                 self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
         if self.iter_opts:
             self.log.info("Current iteration index: %s", self.iter_idx)
 
-        # pop first element from all *_list options as next value to use
+        # pop first element from all iterative easyconfig parameters as next value to use
         for opt in self.iter_opts:
             if len(self.iter_opts[opt]) > self.iter_idx:
                 self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
@@ -1494,7 +1508,7 @@ class EasyBlock(object):
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
         # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = True
+        self.cfg.enable_templating = prev_enable_templating
 
         # prepare for next iteration (if any)
         self.iter_idx += 1
@@ -1502,14 +1516,18 @@ class EasyBlock(object):
     def restore_iterate_opts(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
+        prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
         for opt in self.iter_opts:
             self.cfg[opt] = self.iter_opts[opt]
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
+        # tell easyconfig we are no longer iterating (used by dependencies() and builddependencies())
+        self.cfg.iterating = False
+
         # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = True
+        self.cfg.enable_templating = prev_enable_templating
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
@@ -1822,18 +1840,20 @@ class EasyBlock(object):
 
         # list of paths to include in RPATH filter;
         # only include builddir if we're not building in installation directory
-        self.rpath_filter_dirs.append(tempfile.gettempdir())
+        self.rpath_filter_dirs = [tempfile.gettempdir()]
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
         # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
-        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib'))
-        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib64'))
-        self.rpath_include_dirs.append('$ORIGIN')
-        self.rpath_include_dirs.append('$ORIGIN/../lib')
-        self.rpath_include_dirs.append('$ORIGIN/../lib64')
+        self.rpath_include_dirs = [
+            os.path.join(self.installdir, 'lib'),
+            os.path.join(self.installdir, 'lib64'),
+            '$ORIGIN',
+            '$ORIGIN/../lib',
+            '$ORIGIN/../lib64',
+        ]
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
@@ -1841,6 +1861,7 @@ class EasyBlock(object):
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
+        self.tweaked_env_vars = {}
         for var in ['TMPDIR']:
             if os.environ.get(var) != self.initial_environ.get(var):
                 self.tweaked_env_vars[var] = os.environ.get(var)
@@ -2660,7 +2681,7 @@ class EasyBlock(object):
         ready_substeps = [
             (False, lambda x: x.check_readiness_step),
             (True, lambda x: x.make_builddir),
-            (True, lambda x: env.reset_changes),
+            (True, lambda x: x.reset_env),
             (True, lambda x: x.handle_iterate_opts),
         ]
 
@@ -2678,14 +2699,6 @@ class EasyBlock(object):
             """Return source step specified."""
             return get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
 
-        def prepare_step_spec(initial):
-            """Return prepare step specification."""
-            if initial:
-                substeps = [lambda x: x.prepare_step]
-            else:
-                substeps = [lambda x: x.guess_start_dir]
-            return (PREPARE_STEP, 'preparing', substeps, False)
-
         install_substeps = [
             (False, lambda x: x.stage_install_step),
             (False, lambda x: x.make_installdir),
@@ -2696,10 +2709,11 @@ class EasyBlock(object):
             """Return install step specification."""
             return get_step(INSTALL_STEP, "installing", install_substeps, True, initial=initial)
 
-        # format for step specifications: (stop_name: (description, list of functions, skippable))
+        # format for step specifications: (step_name, description, list of functions, skippable)
 
         # core steps that are part of the iterated loop
         patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step], True)
+        prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
         test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
@@ -2710,7 +2724,7 @@ class EasyBlock(object):
             ready_step_spec(True),
             source_step_spec(True),
             patch_step_spec,
-            prepare_step_spec(True),
+            prepare_step_spec,
             configure_step_spec,
             build_step_spec,
             test_step_spec,
@@ -2723,7 +2737,7 @@ class EasyBlock(object):
             ready_step_spec(False),
             source_step_spec(False),
             patch_step_spec,
-            prepare_step_spec(False),
+            prepare_step_spec,
             configure_step_spec,
             build_step_spec,
             test_step_spec,
@@ -3270,9 +3284,7 @@ def inject_checksums(ecs, checksum_type):
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
-                    app.cfg.enable_templating = False
-                    exts_default_options = app.cfg['exts_default_options']
-                    app.cfg.enable_templating = True
+                    exts_default_options = app.cfg.get_ref('exts_default_options')
 
                     for key, val in sorted(ext_options.items()):
                         if key != 'checksums' and val != exts_default_options.get(key):
