@@ -70,7 +70,7 @@ try:
     if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
         yaml.add_constructor('!join', yaml_join)
     else:
-        yaml.add_constructor(u'!join', yaml_join, Loader=yaml.FullLoader)
+        yaml.add_constructor(u'!join', yaml_join, Loader=yaml.SafeLoader)
 except ImportError:
     pass
 
@@ -104,7 +104,7 @@ class FormatYeb(EasyConfigFormat):
         if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
             self.parsed_yeb = yaml.load(txt)
         else:
-            self.parsed_yeb = yaml.load(txt, Loader=yaml.FullLoader)
+            self.parsed_yeb = yaml.load(txt, Loader=yaml.SafeLoader)
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""

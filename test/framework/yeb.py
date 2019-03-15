@@ -147,7 +147,7 @@ class YebTest(EnhancedTestCase):
         if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
             loaded = yaml.load('\n'.join(stream))
         else:
-            loaded = yaml.load(u'\n'.join(stream), Loader=yaml.FullLoader)
+            loaded = yaml.load(u'\n'.join(stream), Loader=yaml.SafeLoader)
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 
