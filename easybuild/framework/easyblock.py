@@ -866,7 +866,7 @@ class EasyBlock(object):
 
         trace_msg("build dir: %s" % self.builddir)
 
-    def reset_changes(self):
+    def reset_env(self):
         """
         Reset environment.
         When iterating over builddependencies, every time we start a new iteration
@@ -2681,7 +2681,7 @@ class EasyBlock(object):
         ready_substeps = [
             (False, lambda x: x.check_readiness_step),
             (True, lambda x: x.make_builddir),
-            (True, lambda x: x.reset_changes),
+            (True, lambda x: x.reset_env),
             (True, lambda x: x.handle_iterate_opts),
         ]
 
