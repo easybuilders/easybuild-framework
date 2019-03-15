@@ -30,7 +30,9 @@ Unit tests for .yeb easyconfig format
 """
 import glob
 import os
+import platform
 import sys
+from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -142,7 +144,10 @@ class YebTest(EnhancedTestCase):
 
         # import here for testing yaml_join separately
         from easybuild.framework.easyconfig.format.yeb import yaml_join  # noqa
-        loaded = yaml.load('\n'.join(stream))
+        if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
+            loaded = yaml.load('\n'.join(stream))
+        else:
+            loaded = yaml.load(u'\n'.join(stream), Loader=yaml.SafeLoader)
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 
