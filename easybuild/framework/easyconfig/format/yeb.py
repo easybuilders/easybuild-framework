@@ -67,7 +67,7 @@ def yaml_join(loader, node):
 try:
     import yaml
     # register the tag handlers
-    if LooseVersion(platform.python_version()) <= LooseVersion(u'2.6'):
+    if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
         yaml.add_constructor('!join', yaml_join)
     else:
         yaml.add_constructor(u'!join', yaml_join, Loader=yaml.FullLoader)
@@ -101,7 +101,7 @@ class FormatYeb(EasyConfigFormat):
         Process YAML file
         """
         txt = self._inject_constants_dict(txt)
-        if LooseVersion(platform.python_version()) <= LooseVersion(u'2.6'):
+        if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
             self.parsed_yeb = yaml.load(txt)
         else:
             self.parsed_yeb = yaml.load(txt, Loader=yaml.FullLoader)

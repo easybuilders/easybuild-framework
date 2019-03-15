@@ -144,7 +144,7 @@ class YebTest(EnhancedTestCase):
 
         # import here for testing yaml_join separately
         from easybuild.framework.easyconfig.format.yeb import yaml_join  # noqa
-        if LooseVersion(platform.python_version()) <= LooseVersion(u'2.6'):
+        if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
             loaded = yaml.load('\n'.join(stream))
         else:
             loaded = yaml.load(u'\n'.join(stream), Loader=yaml.FullLoader)
