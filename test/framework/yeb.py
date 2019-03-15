@@ -142,7 +142,7 @@ class YebTest(EnhancedTestCase):
 
         # import here for testing yaml_join separately
         from easybuild.framework.easyconfig.format.yeb import yaml_join  # noqa
-        loaded = yaml.load('\n'.join(stream))
+        loaded = yaml.load(u'\n'.join(stream), Loader=yaml.FullLoader)
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 

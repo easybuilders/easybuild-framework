@@ -48,6 +48,7 @@ YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
 YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 
+
 def yaml_join(loader, node):
     """
     defines custom YAML join function.
@@ -62,7 +63,7 @@ def yaml_join(loader, node):
 try:
     import yaml
     # register the tag handlers
-    yaml.add_constructor('!join', yaml_join)
+    yaml.add_constructor(u'!join', yaml_join, Loader=yaml.FullLoader)
 except ImportError:
     pass
 
@@ -93,7 +94,7 @@ class FormatYeb(EasyConfigFormat):
         Process YAML file
         """
         txt = self._inject_constants_dict(txt)
-        self.parsed_yeb = yaml.load(txt)
+        self.parsed_yeb = yaml.load(txt, Loader=yaml.FullLoader)
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
