@@ -134,11 +134,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('OMPI_F77'), 'gfortran')
         self.assertEqual(tc.get_variable('OMPI_FC'), 'gfortran')
 
-    def test_get_variable_mpi_compilers(self):
-        """Test get_variable function to obtain compiler variables."""
-        tc = self.get_toolchain('foss', version='2018a')
-        tc.set_options({'usempi': True})
-        tc.prepare()
+    def check_vars_foss_usempi(self, tc):
+        """Utility function to check compiler variables for foss toolchain with usempi enabled."""
 
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
@@ -156,6 +153,30 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
         self.assertEqual(tc.get_variable('OMPI_F77'), 'gfortran')
         self.assertEqual(tc.get_variable('OMPI_FC'), 'gfortran')
+
+    def test_get_variable_mpi_compilers(self):
+        """Test get_variable function to obtain compiler variables."""
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        self.check_vars_foss_usempi(tc)
+
+    def test_prepare_iterate(self):
+        """Test preparing of toolchain in iterative context."""
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({'usempi': True})
+
+        tc.prepare()
+        self.check_vars_foss_usempi(tc)
+
+        # without a reset, the value is wrong...
+        tc.prepare()
+        self.assertFalse(tc.get_variable('MPICC') == 'mpicc')
+
+        tc.reset()
+        tc.prepare()
+        self.check_vars_foss_usempi(tc)
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
