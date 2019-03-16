@@ -1484,8 +1484,7 @@ class EasyBlock(object):
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
-        # tell easyconfig we are iterating (used by dependencies() and builddependencies())
-        self.cfg.iterating = True
+        self.cfg.start_iterating()
 
         # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
@@ -1523,8 +1522,7 @@ class EasyBlock(object):
             self.cfg[opt] = self.iter_opts[opt]
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
-        # tell easyconfig we are no longer iterating (used by dependencies() and builddependencies())
-        self.cfg.iterating = False
+        self.cfg.stop_iterating()
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
@@ -1854,6 +1852,10 @@ class EasyBlock(object):
             '$ORIGIN/../lib',
             '$ORIGIN/../lib64',
         ]
+
+        if self.iter_idx > 0:
+            # reset toolchain for iterative runs before preparing it again
+            self.toolchain.reset()
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
