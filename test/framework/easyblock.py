@@ -628,6 +628,43 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
+    def test_det_iter_cnt(self):
+        """Test det_iter_cnt method."""
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
+
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        # default value should be 1
+        self.assertEqual(eb.det_iter_cnt(), 1)
+
+        # adding a list of build deps shouldn't affect the default
+        self.contents += "\nbuilddependencies = [('one', '1.0'), ('two', '2.0'), ('three', '3.0')]"
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertEqual(eb.det_iter_cnt(), 1)
+
+        # list of configure options to iterate over affects iteration count
+        self.contents += "\nconfigopts = ['--one', '--two', '--three', '--four']"
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertEqual(eb.det_iter_cnt(), 4)
+
+        # different lengths for iterative easyconfig parameters mean trouble during validation of iterative parameters
+        self.contents += "\nbuildopts = ['FOO=one', 'FOO=two']"
+        self.writeEC()
+
+        error_pattern = "lists for iterated build should have same length"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         init_config(build_options={'silent': True})
