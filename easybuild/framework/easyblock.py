@@ -1529,8 +1529,18 @@ class EasyBlock(object):
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
-        iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
-                              if isinstance(self.cfg[opt], (list, tuple))])
+        iter_opt_lens = [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
+                         if opt not in ['builddependencies'] and isinstance(self.cfg[opt], (list, tuple))]
+
+        # we need to take into account that builddependencies is always a list
+        # we're only iteraing over it if it's a list of lists
+        builddeps = self.cfg['builddependencies']
+        if all(isinstance(x, list) for x in builddeps):
+            iter_opt_lens.append(len(builddeps))
+
+        iter_cnt = max([1] + iter_opt_lens)
+        self.log.info("Number of iterations to perform for central part of installation procedure: %s", iter_cnt)
+
         return iter_cnt
 
     def set_parallel(self):
