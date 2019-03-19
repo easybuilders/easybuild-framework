@@ -385,6 +385,10 @@ class EasyConfig(object):
 
         self.external_modules_metadata = build_option('external_modules_metadata')
 
+        # list of all options to iterate over
+        self.iterate_options = []
+        self.iterating = False
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -546,10 +550,6 @@ class EasyConfig(object):
 
         # create a list of all options that are actually going to be iterated over
         # builddependencies are always a list, need to look deeper down below
-
-        # list of all options to iterate over
-        self.iterate_options = []
-        self.iterating = False
 
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!

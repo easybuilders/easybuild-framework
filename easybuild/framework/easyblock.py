@@ -1484,7 +1484,9 @@ class EasyBlock(object):
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
-        self.cfg.start_iterating()
+        # start iterative mode (only need to do this once)
+        if self.iter_idx == 0:
+            self.cfg.start_iterating()
 
         # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
