@@ -639,6 +639,11 @@ class EasyBuildConfigTest(EnhancedTestCase):
         res = log_file_format(return_directory=True, ec=ec, date='20190322', timestamp='094356')
         self.assertEqual(res, 'eb-foo-20190322')
 
+        # test handling of incorrect setting for --logfile-format
+        init_config(args=['--logfile-format=easybuild,log.txt,thisiswrong'])
+        error_pattern = "Incorrect log file format specification, should be 2-tuple"
+        self.assertErrorRegex(EasyBuildError, error_pattern, log_file_format)
+
     def test_log_path(self):
         """Test for log_path()."""
         # default
@@ -650,10 +655,11 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(res, 'easybuild')
 
         # reconfigure with value for log directory that includes templates
-        init_config(args=['--logfile-format=easybuild-%(name)s-%(version)s-%(date)s-%(time)s,log,txt'])
+        init_config(args=['--logfile-format=easybuild-%(name)s-%(version)s-%(date)s-%(time)s,log.txt'])
         regex = re.compile(r'^easybuild-foo-1\.2\.3-[0-9-]{8}-[0-9]{6}$')
         res = log_path(ec=ec)
         self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertEqual(log_file_format(), 'log.txt')
 
 
 def suite():

@@ -591,6 +591,11 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
     if timestamp is None:
         timestamp = '%(time)s'
 
+    logfile_format = ConfigurationVariables()['logfile_format']
+    if not isinstance(logfile_format, tuple) or len(logfile_format) != 2:
+        raise EasyBuildError("Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s",
+                             logfile_format)
+
     idx = int(not return_directory)
     res = ConfigurationVariables()['logfile_format'][idx] % {
         'date': date,
