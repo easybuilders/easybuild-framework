@@ -629,7 +629,7 @@ class EasyConfigTest(EnhancedTestCase):
         specs.update({
             'foo': 'bar123'
         })
-        self.assertErrorRegex(EasyBuildError, "Unkown easyconfig parameter: foo",
+        self.assertErrorRegex(EasyBuildError, "Unknown easyconfig parameter: foo",
                               obtain_ec_for, specs, [self.test_prefix], None)
         del specs['foo']
 
