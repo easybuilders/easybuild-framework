@@ -540,8 +540,9 @@ class EasyConfig(object):
 
         # create a list of all options that are actually going to be iterated over
         # builddependencies are always a list, need to look deeper down below
-        self.iterate_options = [opt for opt in ITERATE_OPTIONS
-                                if opt != 'builddependencies' and isinstance(self[opt], (list, tuple))]
+
+        # list of all options to iterate over
+        self.iterate_options = []
         self.iterating = False
 
         # parse dependency specifications
@@ -677,14 +678,19 @@ class EasyConfig(object):
         # when lists are used, they should be all of same length
         # list of length 1 are treated as if it were strings in EasyBlock
         opt_counts = []
-        for opt in self.iterate_options:
+        for opt in ITERATE_OPTIONS:
+
+            # only when builddependencies is a list of lists are we iterating over them
+            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self[opt]):
+                continue
 
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
             if self.get(opt, None) is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            opt_counts.append((opt, len(self[opt])))
+            if isinstance(self[opt], (list, tuple)):
+                opt_counts.append((opt, len(self[opt])))
 
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
@@ -692,6 +698,26 @@ class EasyConfig(object):
             raise EasyBuildError("Build option lists for iterated build should have same length: %s", opt_counts)
 
         return True
+
+    def start_iterating(self):
+        """Start iterative mode."""
+
+        for opt in ITERATE_OPTIONS:
+            # builddpendencies is already handled, see __init__
+            if opt == 'builddependencies':
+                continue
+
+            # list of values indicates that this is a value to iterate over
+            if isinstance(self[opt], (list, tuple)):
+                self.iterate_options.append(opt)
+
+        # keep track of when we're iterating (used by builddependencies())
+        self.iterating = True
+
+    def stop_iterating(self):
+        """Stop iterative mode."""
+
+        self.iterating = False
 
     def filter_hidden_deps(self):
         """

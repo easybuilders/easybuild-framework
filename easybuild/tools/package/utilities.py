@@ -130,8 +130,8 @@ def package_with_fpm(easyblock):
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_globs = [
-        os.path.join(log_path(), "*.log"),
-        os.path.join(log_path(), "*.md"),
+        os.path.join(log_path(ec=easyblock.cfg), "*.log"),
+        os.path.join(log_path(ec=easyblock.cfg), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
     for exclude_files_glob in exclude_files_globs:

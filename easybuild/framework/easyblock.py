@@ -995,7 +995,7 @@ class EasyBlock(object):
         if create_in_builddir:
             output_dir = self.builddir
         else:
-            output_dir = os.path.join(self.installdir, log_path())
+            output_dir = os.path.join(self.installdir, log_path(ec=self.cfg))
             mkdir(output_dir, parents=True)
 
         filename = os.path.join(output_dir, ActiveMNS().det_devel_module_filename(self.cfg))
@@ -1126,7 +1126,7 @@ class EasyBlock(object):
         lines.append(self.module_generator.set_environment(version_envvar, altversion or self.version))
 
         # $EBDEVEL<NAME>
-        devel_path = os.path.join(log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        devel_path = os.path.join(log_path(ec=self.cfg), ActiveMNS().det_devel_module_filename(self.cfg))
         devel_path_envvar = DEVEL_ENV_VAR_NAME_PREFIX + env_name
         lines.append(self.module_generator.set_environment(devel_path_envvar, devel_path, relpath=True))
 
@@ -1484,8 +1484,7 @@ class EasyBlock(object):
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
-        # tell easyconfig we are iterating (used by dependencies() and builddependencies())
-        self.cfg.iterating = True
+        self.cfg.start_iterating()
 
         # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
@@ -1523,16 +1522,25 @@ class EasyBlock(object):
             self.cfg[opt] = self.iter_opts[opt]
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
-        # tell easyconfig we are no longer iterating (used by dependencies() and builddependencies())
-        self.cfg.iterating = False
+        self.cfg.stop_iterating()
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
-        iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
-                              if isinstance(self.cfg[opt], (list, tuple))])
+        iter_opt_counts = [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
+                           if opt not in ['builddependencies'] and isinstance(self.cfg[opt], (list, tuple))]
+
+        # we need to take into account that builddependencies is always a list
+        # we're only iterating over it if it's a list of lists
+        builddeps = self.cfg['builddependencies']
+        if all(isinstance(x, list) for x in builddeps):
+            iter_opt_counts.append(len(builddeps))
+
+        iter_cnt = max([1] + iter_opt_counts)
+        self.log.info("Number of iterations to perform for central part of installation procedure: %s", iter_cnt)
+
         return iter_cnt
 
     def set_parallel(self):
@@ -1854,6 +1862,10 @@ class EasyBlock(object):
             '$ORIGIN/../lib',
             '$ORIGIN/../lib64',
         ]
+
+        if self.iter_idx > 0:
+            # reset toolchain for iterative runs before preparing it again
+            self.toolchain.reset()
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
@@ -2895,11 +2907,11 @@ def build_and_install_one(ecdict, init_env):
         if app.cfg['stop']:
             ended = 'STOPPED'
             if app.builddir is not None:
-                new_log_dir = os.path.join(app.builddir, config.log_path())
+                new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
         else:
-            new_log_dir = os.path.join(app.installdir, config.log_path())
+            new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             if build_option('read_only_installdir'):
                 # temporarily re-enable write permissions for copying log/easyconfig to install dir
                 adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)

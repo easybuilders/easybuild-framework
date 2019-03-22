@@ -29,6 +29,7 @@ Unit tests for EasyBuild configuration.
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -38,7 +39,8 @@ from unittest import TextTestRunner
 import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, build_path, source_paths, install_path, get_repositorypath
+from easybuild.tools.config import build_option, build_path, get_log_filename, get_repositorypath
+from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
@@ -570,6 +572,95 @@ class EasyBuildConfigTest(EnhancedTestCase):
             options = init_config(args=['--strict=%s' % strict_str])
             init_config(build_options={'strict': options.strict})
             self.assertEqual(build_option('strict'), strict_val)
+
+    def test_get_log_filename(self):
+        """Test for get_log_filename()."""
+
+        tmpdir = tempfile.gettempdir()
+
+        res = get_log_filename('foo', '1.2.3')
+        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$'))
+        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+
+        res = get_log_filename('foo', '1.2.3', date='19700101')
+        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$'))
+        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+
+        res = get_log_filename('foo', '1.2.3', timestamp='094651')
+        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$'))
+        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+
+        res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
+        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$'))
+        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+
+        # if log file already exists, numbers are added to the filename to obtain a new file path
+        write_file(res, '')
+        res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
+        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$'))
+        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+
+        # adding salt ensures a unique filename (pretty much)
+        prev_log_filenames = []
+        for i in range(10):
+            res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
+            regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
+            self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+            self.assertTrue(res not in prev_log_filenames)
+            prev_log_filenames.append(res)
+
+    def test_log_file_format(self):
+        """Test for log_file_format()."""
+
+        # first test defaults -> no templating when no values are provided
+        self.assertEqual(log_file_format(), 'easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log')
+        self.assertEqual(log_file_format(return_directory=True), 'easybuild')
+
+        # test whether provided values are used to complete template
+        ec = {'name': 'foo', 'version': '1.2.3'}
+        res = log_file_format(ec=ec, date='20190322', timestamp='094356')
+        self.assertEqual(res, 'easybuild-foo-1.2.3-20190322.094356.log')
+
+        res = log_file_format(return_directory=True, ec=ec, date='20190322', timestamp='094356')
+        self.assertEqual(res, 'easybuild')
+
+        # partial templating is done when only some values are provided...
+        self.assertEqual(log_file_format(ec=ec), 'easybuild-foo-1.2.3-%(date)s.%(time)s.log')
+        res = log_file_format(date='20190322', timestamp='094356')
+        self.assertEqual(res, 'easybuild-%(name)s-%(version)s-20190322.094356.log')
+
+        # also try with a custom setting
+        init_config(args=['--logfile-format=eb-%(name)s-%(date)s,log-%(version)s-%(date)s-%(time)s.out'])
+        self.assertEqual(log_file_format(), 'log-%(version)s-%(date)s-%(time)s.out')
+        self.assertEqual(log_file_format(return_directory=True), 'eb-%(name)s-%(date)s')
+
+        res = log_file_format(ec=ec, date='20190322', timestamp='094356')
+        self.assertEqual(res, 'log-1.2.3-20190322-094356.out')
+
+        res = log_file_format(return_directory=True, ec=ec, date='20190322', timestamp='094356')
+        self.assertEqual(res, 'eb-foo-20190322')
+
+        # test handling of incorrect setting for --logfile-format
+        init_config(args=['--logfile-format=easybuild,log.txt,thisiswrong'])
+        error_pattern = "Incorrect log file format specification, should be 2-tuple"
+        self.assertErrorRegex(EasyBuildError, error_pattern, log_file_format)
+
+    def test_log_path(self):
+        """Test for log_path()."""
+        # default
+        self.assertEqual(log_path(), 'easybuild')
+
+        # providing template values doesn't affect the default
+        ec = {'name': 'foo', 'version': '1.2.3'}
+        res = log_path(ec=ec)
+        self.assertEqual(res, 'easybuild')
+
+        # reconfigure with value for log directory that includes templates
+        init_config(args=['--logfile-format=easybuild-%(name)s-%(version)s-%(date)s-%(time)s,log.txt'])
+        regex = re.compile(r'^easybuild-foo-1\.2\.3-[0-9-]{8}-[0-9]{6}$')
+        res = log_path(ec=ec)
+        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertEqual(log_file_format(), 'log.txt')
 
 
 def suite():

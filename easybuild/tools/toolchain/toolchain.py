@@ -171,11 +171,15 @@ class Toolchain(object):
             self.options = self.OPTIONS_CLASS()
 
         if not hasattr(self, 'variables'):
-            self.variables = self.VARIABLES_CLASS()
-            if hasattr(self, 'LINKER_TOGGLE_START_STOP_GROUP'):
-                self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
-            if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
-                self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+            self.variables_init()
+
+    def variables_init(self):
+        """Initialise toolchain variables."""
+        self.variables = self.VARIABLES_CLASS()
+        if hasattr(self, 'LINKER_TOGGLE_START_STOP_GROUP'):
+            self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
+        if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
+            self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
 
     def _init_class_constants(self, class_constants):
         """Initialise class 'constants'."""
@@ -685,6 +689,10 @@ class Toolchain(object):
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
         return False
+
+    def reset(self):
+        """Reset this toolchain instance."""
+        self.variables_init()
 
     def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
                 rpath_filter_dirs=None, rpath_include_dirs=None):

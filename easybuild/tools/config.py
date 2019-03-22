@@ -591,25 +591,55 @@ def get_module_syntax():
     return ConfigurationVariables()['module_syntax']
 
 
-def log_file_format(return_directory=False):
-    """Return the format for the logfile or the directory"""
+def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
+    """
+    Return the format for the logfile or the directory
+
+    :param ec: dict-like value that provides values for %(name)s and %(version)s template values
+    :param date: string representation of date to use ('%(date)s')
+    :param timestamp: timestamp to use ('%(time)s')
+    """
+    if ec is None:
+        ec = {}
+
+    name, version = ec.get('name', '%(name)s'), ec.get('version', '%(version)s')
+
+    if date is None:
+        date = '%(date)s'
+    if timestamp is None:
+        timestamp = '%(time)s'
+
+    logfile_format = ConfigurationVariables()['logfile_format']
+    if not isinstance(logfile_format, tuple) or len(logfile_format) != 2:
+        raise EasyBuildError("Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s",
+                             logfile_format)
+
     idx = int(not return_directory)
-    return ConfigurationVariables()['logfile_format'][idx]
+    res = ConfigurationVariables()['logfile_format'][idx] % {
+        'date': date,
+        'name': name,
+        'time': timestamp,
+        'version': version,
+    }
+
+    return res
 
 
-def log_format():
+def log_format(ec=None):
     """
     Return the logfilename format
     """
     # TODO needs renaming, is actually a formatter for the logfilename
-    return log_file_format(return_directory=False)
+    return log_file_format(return_directory=False, ec=ec)
 
 
-def log_path():
+def log_path(ec=None):
     """
     Return the log path
     """
-    return log_file_format(return_directory=True)
+    date = time.strftime("%Y%m%d")
+    timestamp = time.strftime("%H%M%S")
+    return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
 
 
 def get_build_log_path():
@@ -634,17 +664,13 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     :param date: string representation of date to use ('%(date)s')
     :param timestamp: timestamp to use ('%(time)s')
     """
+
     if date is None:
         date = time.strftime("%Y%m%d")
     if timestamp is None:
         timestamp = time.strftime("%H%M%S")
 
-    filename = log_file_format() % {
-        'name': name,
-        'version': version,
-        'date': date,
-        'time': timestamp,
-    }
+    filename = log_file_format(ec={'name': name, 'version': version}, date=date, timestamp=timestamp)
 
     if add_salt:
         salt = ''.join(random.choice(ascii_letters) for i in range(5))
@@ -654,8 +680,8 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     filepath = os.path.join(get_build_log_path(), filename)
 
     # Append numbers if the log file already exist
-    counter = 1
-    while os.path.isfile(filepath):
+    counter = 0
+    while os.path.exists(filepath):
         counter += 1
         filepath = "%s.%d" % (filepath, counter)
 
