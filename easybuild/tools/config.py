@@ -581,10 +581,6 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
     :param date: string representation of date to use ('%(date)s')
     :param timestamp: timestamp to use ('%(time)s')
     """
-    idx = int(not return_directory)
-
-    res = ConfigurationVariables()['logfile_format'][idx]
-
     if ec is None:
         ec = {}
 
@@ -595,7 +591,8 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
     if timestamp is None:
         timestamp = '%(time)s'
 
-    res = res % {
+    idx = int(not return_directory)
+    res = ConfigurationVariables()['logfile_format'][idx] % {
         'date': date,
         'name': name,
         'time': timestamp,
