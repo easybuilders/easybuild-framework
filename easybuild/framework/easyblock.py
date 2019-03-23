@@ -2731,6 +2731,7 @@ class EasyBlock(object):
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
         test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
+        extensions_step_spec = (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False)
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
@@ -2756,10 +2757,10 @@ class EasyBlock(object):
             build_step_spec,
             test_step_spec,
             install_step_spec(False),
+            extensions_step_spec,
         ] * (iteration_count - 1)
         # part 3: post-iteration part
         steps_part3 = [
-            (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False),
             (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], True),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),
