@@ -1522,6 +1522,11 @@ class EasyBlock(object):
 
         for opt in self.iter_opts:
             self.cfg[opt] = self.iter_opts[opt]
+
+            # also need to take into account extensions, since those were iterated over as well
+            for ext in self.ext_instances:
+                ext.cfg[opt] = self.iter_opts[opt]
+
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
         self.cfg.stop_iterating()
