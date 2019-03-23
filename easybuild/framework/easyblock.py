@@ -96,7 +96,7 @@ from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_ms
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
-MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
+MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
