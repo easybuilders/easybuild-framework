@@ -114,7 +114,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 if not apply_patch(patchfile, self.ext_dir):
                     raise EasyBuildError("Applying patch %s failed", patchfile)
 
-    def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None):
+    def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None, extra_modules=None):
         """
         Custom sanity check for extensions, whether installed as stand-alone module or not
         """
@@ -127,6 +127,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # load fake module
             fake_mod_data = self.load_fake_module(purge=True)
 
+            if extra_modules:
+                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+                self.modules_tool.load(extra_modules)
+
         # perform extension sanity check
         (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
 
@@ -137,7 +141,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if custom_paths or custom_commands or not self.is_extension:
             super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,
                                                               custom_commands=custom_commands,
-                                                              extension=self.is_extension)
+                                                              extension=self.is_extension,
+                                                              extra_modules=extra_modules)
 
         # pass or fail sanity check
         if sanity_check_ok:

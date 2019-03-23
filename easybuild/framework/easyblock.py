@@ -2183,7 +2183,12 @@ class EasyBlock(object):
         return fails
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
-        """Determine sanity check paths and commands to use."""
+        """
+        Determine sanity check paths and commands to use.
+
+        :param custom_paths: custom sanity check paths to check existence for
+        :param custom_commands: custom sanity check commands to run
+        """
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
@@ -2251,7 +2256,12 @@ class EasyBlock(object):
         return paths, path_keys_and_check, commands
 
     def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, **_):
-        """Dry run version of sanity_check_step method."""
+        """
+        Dry run version of sanity_check_step method.
+
+        :param custom_paths: custom sanity check paths to check existence for
+        :param custom_commands: custom sanity check commands to run
+        """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         for key, (typ, _) in path_keys_and_check.items():
@@ -2302,8 +2312,15 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
             self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
-    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
-        """Real version of sanity_check_step method."""
+    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
+        """
+        Real version of sanity_check_step method.
+
+        :param custom_paths: custom sanity check paths to check existence for
+        :param custom_commands: custom sanity check commands to run
+        :param extension: indicates whether or not sanity check is run for an extension
+        :param extra_modules: extra modules to load before running sanity check commands
+        """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         # helper function to sanity check (alternatives for) one particular path
@@ -2358,6 +2375,7 @@ class EasyBlock(object):
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         fake_mod_data = None
+
         # only load fake module for non-extensions, and not during dry run
         if not (extension or self.dry_run):
             try:
@@ -2367,6 +2385,11 @@ class EasyBlock(object):
             except EasyBuildError as err:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+
+            # also load specificed additional modules, if any
+            if extra_modules:
+                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+                self.modules_tool.load(extra_modules)
 
         # chdir to installdir (better environment for running tests)
         if os.path.isdir(self.installdir):
