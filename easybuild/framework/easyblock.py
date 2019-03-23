@@ -78,8 +78,8 @@ from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_u
 from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
 from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
-from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
-from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
+from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
+from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
 from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -1514,7 +1514,7 @@ class EasyBlock(object):
         # prepare for next iteration (if any)
         self.iter_idx += 1
 
-    def restore_iterate_opts(self):
+    def post_iter_step(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
         prev_enable_templating = self.cfg.enable_templating
@@ -2090,6 +2090,7 @@ class EasyBlock(object):
         Do some postprocessing
         - run post install commands if any were specified
         """
+
         if self.cfg['postinstallcmds'] is not None:
             # make sure we have a list of commands
             if not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
@@ -2451,8 +2452,6 @@ class EasyBlock(object):
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
-        self.restore_iterate_opts()
-
     def invalidate_module_caches(self, modpath):
         """Helper method to invalidate module caches for specified module path."""
         # invalidate relevant 'module avail'/'module show' cache entries
@@ -2761,6 +2760,7 @@ class EasyBlock(object):
         ] * (iteration_count - 1)
         # part 3: post-iteration part
         steps_part3 = [
+            (POSTITER_STEP, 'restore after iterating', [lambda x: x.post_iter_step], False),
             (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], True),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),
