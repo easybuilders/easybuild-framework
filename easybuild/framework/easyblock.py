@@ -2766,6 +2766,7 @@ class EasyBlock(object):
             build_step_spec,
             test_step_spec,
             install_step_spec(True),
+            extensions_step_spec,
         ]
         # part 2: iterated part, from 2nd iteration onwards
         # repeat core procedure again depending on specified iteration count
