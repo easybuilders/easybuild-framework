@@ -122,17 +122,21 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['exts_filter'] = exts_filter
         self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
 
-        if self.cfg['multi_deps']:
+        # for stand-alone installations that were done for multiple dependency versions (via multi_deps),
+        # we need to perform the extension sanity check for each of them, by loading the corresponding modules first
+        if self.cfg['multi_deps'] and not self.is_extension:
             multi_deps = self.get_multi_deps()
-
             lists_of_extra_modules = [[d['short_mod_name'] for d in deps] for deps in multi_deps]
-
         else:
             # make sure Extension sanity check step is run once, by using a single empty list of extra modules
             lists_of_extra_modules = [[]]
 
         for extra_modules in lists_of_extra_modules:
+
             fake_mod_data = None
+
+            # only load fake module + extra modules for stand-alone installations (not for extensions),
+            # since for extension the necessary modules should already be loaded at this point
             if not (self.is_extension or self.dry_run):
                 # load fake module
                 fake_mod_data = self.load_fake_module(purge=True)
