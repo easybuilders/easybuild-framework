@@ -114,7 +114,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 if not apply_patch(patchfile, self.ext_dir):
                     raise EasyBuildError("Applying patch %s failed", patchfile)
 
-    def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None, extra_modules=None):
+    def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None):
         """
         Custom sanity check for extensions, whether installed as stand-alone module or not
         """
@@ -122,27 +122,34 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['exts_filter'] = exts_filter
         self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
 
-        fake_mod_data = None
-        if not (self.is_extension or self.dry_run):
-            # load fake module
-            fake_mod_data = self.load_fake_module(purge=True)
+        if self.cfg['multi_deps']:
+            multi_deps = self.get_multi_deps()
 
-            if extra_modules:
-                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+            lists_of_extra_modules = [[d['short_mod_name'] for d in deps] for deps in multi_deps]
+
+        else:
+            # make sure Extension sanity check step is run once, by using a single empty list of extra modules
+            lists_of_extra_modules = [[]]
+
+        for extra_modules in lists_of_extra_modules:
+            fake_mod_data = None
+            if not (self.is_extension or self.dry_run):
+                # load fake module
+                fake_mod_data = self.load_fake_module(purge=True)
+
                 self.modules_tool.load(extra_modules)
 
-        # perform extension sanity check
-        (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
+            # perform extension sanity check
+            (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
 
-        if fake_mod_data:
-            # unload fake module and clean up
-            self.clean_up_fake_module(fake_mod_data)
+            if fake_mod_data:
+                # unload fake module and clean up
+                self.clean_up_fake_module(fake_mod_data)
 
         if custom_paths or custom_commands or not self.is_extension:
             super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,
                                                               custom_commands=custom_commands,
-                                                              extension=self.is_extension,
-                                                              extra_modules=extra_modules)
+                                                              extension=self.is_extension)
 
         # pass or fail sanity check
         if sanity_check_ok:
