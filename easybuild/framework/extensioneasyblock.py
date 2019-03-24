@@ -33,7 +33,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import apply_patch, change_dir, extract_file
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
 
 _log = fancylogger.getLogger('extensioneasyblock', fname=False)
@@ -138,6 +138,11 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 fake_mod_data = self.load_fake_module(purge=True)
 
                 self.modules_tool.load(extra_modules)
+
+                if extra_modules:
+                    info_msg = "Running extension sanity check with extra modules: %s" % ', '.join(extra_modules)
+                    self.log.info(info_msg)
+                    trace_msg(info_msg)
 
             # perform extension sanity check
             (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
