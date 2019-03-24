@@ -2111,65 +2111,64 @@ class EasyBlock(object):
         - if *any* of the files/subdirectories in the installation directory listed
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
+        if self.dry_run:
+            self._sanity_check_step_dry_run(*args, **kwargs)
+        elif self.cfg['multi_deps']:
+            self._sanity_check_step_multi_deps(*args, **kwargs)
+        else:
+            self._sanity_check_step(*args, **kwargs)
+
+    def _sanity_check_step_multi_deps(self, *args, **kwargs):
+        """Perform sanity check for installations that iterate over a list a versions for particular dependencies."""
+
         # take into account provided list of extra modules (if any)
         common_extra_modules = kwargs.get('extra_modules') or []
 
         # if multi_deps was used to do an iterative installation over multiple sets of dependencies,
         # we need to perform the sanity check for each one of these;
         # this implies iterating of the builddependencies list of lists again...
-        if self.cfg['multi_deps']:
 
-            # get list of (lists of) builddependencies, without templating values
-            builddeps = self.cfg.get_ref('builddependencies')
+        # get list of (lists of) builddependencies, without templating values
+        builddeps = self.cfg.get_ref('builddependencies')
 
-            # different Python dependencies should be listed in builddependencies (if not, something is very wrong)
-            if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
+        # different Python dependencies should be listed in builddependencies (if not, something is very wrong)
+        if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
 
-                # start iterating again;
-                # required to ensure build dependencies are taken into account to resolve templates like %(pyver)s
-                self.cfg.iterating = True
+            # start iterating again;
+            # required to ensure build dependencies are taken into account to resolve templates like %(pyver)s
+            self.cfg.iterating = True
 
-                for iter_id in range(len(builddeps)):
+            for iter_id in range(len(builddeps)):
 
-                    # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
-                    # (other build dependencies should not be required to make sanity check pass for this iteration)
-                    iter_deps = []
-                    for key in self.cfg['multi_deps']:
-                        hits = [d for d in builddeps[iter_id] if d['name'] == key]
-                        if len(hits) == 1:
-                            iter_deps.append(hits[0])
-                        else:
-                            raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
-
-                    # need to re-generate template values to get correct values for %(pyver)s and %(pyshortver)s
-                    self.cfg['builddependencies'] = iter_deps
-                    self.cfg.generate_template_values()
-
-                    extra_modules = common_extra_modules + [d['short_mod_name'] for d in iter_deps]
-
-                    info_msg = "Running sanity check with extra modules: %s" % ', '.join(extra_modules)
-                    trace_msg(info_msg)
-                    self.log.info(info_msg)
-
-                    kwargs['extra_modules'] = extra_modules
-
-                    if self.dry_run:
-                        self._sanity_check_step_dry_run(*args, **kwargs)
+                # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
+                # (other build dependencies should not be required to make sanity check pass for this iteration)
+                iter_deps = []
+                for key in self.cfg['multi_deps']:
+                    hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                    if len(hits) == 1:
+                        iter_deps.append(hits[0])
                     else:
-                        self._sanity_check_step(*args, **kwargs)
+                        raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
 
-                # restore list of lists of build dependencies & stop iterating again
-                self.cfg['builddependencies'] = builddeps
-                self.cfg.iterating = False
-            else:
-                error_msg = "builddependencies should be a list of lists during sanity check, but it's not: %s"
-                raise EasyBuildError(error_msg, builddeps)
+                # need to re-generate template values to get correct values for %(pyver)s and %(pyshortver)s
+                self.cfg['builddependencies'] = iter_deps
+                self.cfg.generate_template_values()
 
-        else:
-            if self.dry_run:
-                self._sanity_check_step_dry_run(*args, **kwargs)
-            else:
+                extra_modules = common_extra_modules + [d['short_mod_name'] for d in iter_deps]
+
+                info_msg = "Running sanity check with extra modules: %s" % ', '.join(extra_modules)
+                trace_msg(info_msg)
+                self.log.info(info_msg)
+
+                kwargs['extra_modules'] = extra_modules
                 self._sanity_check_step(*args, **kwargs)
+
+            # restore list of lists of build dependencies & stop iterating again
+            self.cfg['builddependencies'] = builddeps
+            self.cfg.iterating = False
+        else:
+            error_msg = "builddependencies should be a list of lists during sanity check, but it's not: %s"
+            raise EasyBuildError(error_msg, builddeps)
 
     def sanity_check_rpath(self, rpath_dirs=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
