@@ -2519,6 +2519,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in builddeps))
         self.assertEqual(sorted(bd[0]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
 
+        # get_parsed_multi_deps() method basically returns same list
+        multi_deps = ec.get_parsed_multi_deps()
+        self.assertTrue(isinstance(multi_deps, list))
+        self.assertEqual(len(multi_deps), 3)
+        self.assertTrue(all(isinstance(bd, list) for bd in multi_deps))
+        self.assertTrue(all(len(bd) == 1 for bd in multi_deps))
+        self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in multi_deps))
+        self.assertEqual(sorted(bd[0]['version'] for bd in multi_deps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+
         # if builddependencies is also specified, then these build deps are added to each sublist
         write_file(test_ec, test_ec_txt + "\nbuilddependencies = [('CMake', '3.12.1'), ('foo', '1.2.3')]")
         ec = EasyConfig(test_ec)
@@ -2534,6 +2543,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(all(bd[1]['version'] == '1.2.3' for bd in builddeps))
         self.assertTrue(all(bd[2]['name'] == 'GCC' for bd in builddeps))
         self.assertEqual(sorted(bd[2]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+
+        # get_parsed_multi_deps() method returns same list, but CMake & foo are not included
+        multi_deps = ec.get_parsed_multi_deps()
+        self.assertTrue(isinstance(multi_deps, list))
+        self.assertEqual(len(multi_deps), 3)
+        self.assertTrue(all(isinstance(bd, list) for bd in multi_deps))
+        self.assertTrue(all(len(bd) == 1 for bd in multi_deps))
+        self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in multi_deps))
+        self.assertEqual(sorted(bd[0]['version'] for bd in multi_deps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
 
         # trying to combine multi_deps with a list of lists in builddependencies is not allowed
         write_file(test_ec, test_ec_txt + "\nbuilddependencies = [[('CMake', '3.12.1')], [('CMake', '3.9.1')]]")

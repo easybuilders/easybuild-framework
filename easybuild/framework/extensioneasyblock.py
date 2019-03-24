@@ -125,7 +125,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         # for stand-alone installations that were done for multiple dependency versions (via multi_deps),
         # we need to perform the extension sanity check for each of them, by loading the corresponding modules first
         if self.cfg['multi_deps'] and not self.is_extension:
-            multi_deps = self.get_multi_deps()
+            multi_deps = self.cfg.get_parsed_multi_deps()
             lists_of_extra_modules = [[d['short_mod_name'] for d in deps] for deps in multi_deps]
         else:
             # make sure Extension sanity check step is run once, by using a single empty list of extra modules

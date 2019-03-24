@@ -2119,35 +2119,6 @@ class EasyBlock(object):
         else:
             self._sanity_check_step(*args, **kwargs)
 
-    def get_multi_deps(self):
-        """Get list of lists of parsed dependencies that correspond with entries in multi_deps easyconfig parameter."""
-
-        multi_deps = []
-
-        builddeps = self.cfg['builddependencies']
-
-        # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
-        if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
-
-            for iter_id in range(len(builddeps)):
-
-                # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
-                # (other build dependencies should not be required to make sanity check pass for this iteration)
-                iter_deps = []
-                for key in self.cfg['multi_deps']:
-                    hits = [d for d in builddeps[iter_id] if d['name'] == key]
-                    if len(hits) == 1:
-                        iter_deps.append(hits[0])
-                    else:
-                        raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
-
-                multi_deps.append(iter_deps)
-        else:
-            error_msg = "builddependencies should be a list of lists during sanity check, but it's not: %s"
-            raise EasyBuildError(error_msg, builddeps)
-
-        return multi_deps
-
     def _sanity_check_step_multi_deps(self, *args, **kwargs):
         """Perform sanity check for installations that iterate over a list a versions for particular dependencies."""
 
@@ -2156,7 +2127,7 @@ class EasyBlock(object):
 
         # if multi_deps was used to do an iterative installation over multiple sets of dependencies,
         # we need to perform the sanity check for each one of these;
-        # this implies iterating of the builddependencies list of lists again...
+        # this implies iterating over the list of lists of build dependencies again...
 
         # get list of (lists of) builddependencies, without templating values
         builddeps = self.cfg.get_ref('builddependencies')
@@ -2165,7 +2136,7 @@ class EasyBlock(object):
         # required to ensure build dependencies are taken into account to resolve templates like %(pyver)s
         self.cfg.iterating = True
 
-        for iter_deps in self.get_multi_deps():
+        for iter_deps in self.cfg.get_parsed_multi_deps():
 
             # need to re-generate template values to get correct values for %(pyver)s and %(pyshortver)s
             self.cfg['builddependencies'] = iter_deps
