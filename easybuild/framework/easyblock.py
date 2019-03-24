@@ -1498,6 +1498,7 @@ class EasyBlock(object):
                 self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
         if self.iter_opts:
+            print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
             self.log.info("Current iteration index: %s", self.iter_idx)
 
         # pop first element from all iterative easyconfig parameters as next value to use
