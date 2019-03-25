@@ -158,6 +158,10 @@ class EasyBlock(object):
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
+        # indicates whether or not this instance represents an extension or not;
+        # may be set to True by ExtensionEasyBlock
+        self.is_extension = False
+
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
             self.cfg = ec
@@ -2114,8 +2118,11 @@ class EasyBlock(object):
         """
         if self.dry_run:
             self._sanity_check_step_dry_run(*args, **kwargs)
-        elif self.cfg['multi_deps']:
+
+        # handling of extensions that were installed for multiple dependency versions is done in ExtensionEasyBlock
+        elif self.cfg['multi_deps'] and not self.is_extension:
             self._sanity_check_step_multi_deps(*args, **kwargs)
+
         else:
             self._sanity_check_step(*args, **kwargs)
 
