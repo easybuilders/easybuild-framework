@@ -2558,6 +2558,13 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = "Can't combine multi_deps with builddependencies specified as list of lists"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
+        # test with different number of dependency versions in multi_deps, should result in a clean error
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'one': ['1.0'], 'two': ['2.0', '2.1']}"
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = "Not all the dependencies listed in multi_deps have the same number of versions!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
     def test_iter_builddeps_templates(self):
         """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')

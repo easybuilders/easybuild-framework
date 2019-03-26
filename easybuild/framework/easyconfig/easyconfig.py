@@ -1047,11 +1047,11 @@ class EasyConfig(object):
         if multi_deps:
 
             # first, make sure all lists have same length, otherwise we're dealing with invalid input...
-            multi_dep_cnts = nub([len(vs) for vs in multi_deps.values()])
+            multi_dep_cnts = nub([len(dep_vers) for dep_vers in multi_deps.values()])
             if len(multi_dep_cnts) == 1:
                 multi_dep_cnt = multi_dep_cnts[0]
             else:
-                raise EasyBuildError("Lists of dependency versions specified in multi_deps must be of same length!")
+                raise EasyBuildError("Not all the dependencies listed in multi_deps have the same number of versions!")
 
             self.log.info("Found %d lists of %d dependency versions to iterate over", len(multi_deps), multi_dep_cnt)
 
