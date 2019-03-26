@@ -1988,6 +1988,7 @@ class EasyBlock(object):
             raise EasyBuildError("Improper default extension class specification, should be list/tuple or string.")
 
         # get class instances for all extensions
+        self.ext_instances = []
         exts_cnt = len(self.exts)
         for idx, ext in enumerate(self.exts):
             self.log.debug("Starting extension %s" % ext['name'])
