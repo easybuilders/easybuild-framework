@@ -194,6 +194,7 @@ FFTW_MAP_CLASS = {
     ],
     CommaStaticLibs: [
         ('FFTW_STATIC_LIBS', 'Comma-separated list of static FFTW libraries'),
+        ('FFTW_STATIC_LIBS_MT', 'Comma-separated list of static multithreaded FFTW libraries'),
     ],
 }
 
