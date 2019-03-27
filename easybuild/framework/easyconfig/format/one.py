@@ -171,7 +171,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item in param_val:
                         comment = self._get_item_comments(param_name, item).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
-                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, tuple) for x in item)
+                        # the tuples are really strings here that are constructed from the dependency dicts
+                        # so for a plain list of builddependencies param_val is a list of strings here;
+                        # and for iterated builddependencies it is a list of lists of strings
+                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, str) for x in item)
                         if list_of_lists_of_tuples_param and is_list_of_lists_of_tuples:
                             itemstr = '[' + (',\n ' + INDENT_4SPACES).join([
                                 self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
