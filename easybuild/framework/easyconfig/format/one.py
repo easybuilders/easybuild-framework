@@ -243,7 +243,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # take into account that these parameters may be iterative (i.e. a list of lists of parsed deps)
                     if key in DEPENDENCY_PARAMETERS:
                         if key in ecfg.iterate_options:
-                            valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                            if 'multi_deps' in ecfg:
+                                # the way that builddependencies are constructed with multi_deps
+                                # we just need to dump the first entry without the dependencies
+                                # that are listed in multi_deps
+                                valstr = [dump_dependency(d, ecfg['toolchain']) for d in val[0]
+                                          if d['name'] not in ecfg['multi_deps']]
+                            else:
+                                valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
                         else:
                             valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     elif key == 'toolchain':
