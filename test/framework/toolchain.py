@@ -990,6 +990,7 @@ class ToolchainTest(EnhancedTestCase):
         write_file(os.path.join(self.test_prefix, 'PGI', '14.9'), '#%Module\nsetenv EBVERSIONPGI 14.9')
         write_file(os.path.join(self.test_prefix, 'PGI', '14.10'), '#%Module\nsetenv EBVERSIONPGI 14.10')
         write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), '#%Module\nsetenv EBVERSIONPGI 16.3')
+        write_file(os.path.join(self.test_prefix, 'PGI', '19.1'), '#%Module\nsetenv EBVERSIONPGI 19.1')
         self.modtool.prepend_module_path(self.test_prefix)
 
         tc = self.get_toolchain('PGI', version='14.9')
