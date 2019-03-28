@@ -548,9 +548,6 @@ class EasyConfig(object):
         hooks = load_hooks(build_option('hooks'))
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
-        # create a list of all options that are actually going to be iterated over
-        # builddependencies are always a list, need to look deeper down below
-
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")

@@ -171,7 +171,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item in param_val:
                         comment = self._get_item_comments(param_name, item).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
-                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, tuple) for x in item)
+                        # the tuples are really strings here that are constructed from the dependency dicts
+                        # so for a plain list of builddependencies param_val is a list of strings here;
+                        # and for iterated builddependencies it is a list of lists of strings
+                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, str) for x in item)
                         if list_of_lists_of_tuples_param and is_list_of_lists_of_tuples:
                             itemstr = '[' + (',\n ' + INDENT_4SPACES).join([
                                 self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
@@ -240,7 +243,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # take into account that these parameters may be iterative (i.e. a list of lists of parsed deps)
                     if key in DEPENDENCY_PARAMETERS:
                         if key in ecfg.iterate_options:
-                            valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                            if 'multi_deps' in ecfg:
+                                # the way that builddependencies are constructed with multi_deps
+                                # we just need to dump the first entry without the dependencies
+                                # that are listed in multi_deps
+                                valstr = [dump_dependency(d, ecfg['toolchain']) for d in val[0]
+                                          if d['name'] not in ecfg['multi_deps']]
+                            else:
+                                valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
                         else:
                             valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     elif key == 'toolchain':
