@@ -1002,13 +1002,16 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('FC'), 'pgfortran')
         self.modtool.purge()
 
-        for pgi_ver in ['14.10', '16.3']:
+        for pgi_ver in ['14.10', '16.3', '19.1']:
             tc = self.get_toolchain('PGI', version=pgi_ver)
             tc.prepare()
 
             self.assertEqual(tc.get_variable('CC'), 'pgcc')
             self.assertEqual(tc.get_variable('CXX'), 'pgc++')
-            self.assertEqual(tc.get_variable('F77'), 'pgf77')
+            if pgi_ver == '19.1':
+                self.assertEqual(tc.get_variable('F77'), 'pgfortran')
+            else:
+                self.assertEqual(tc.get_variable('F77'), 'pgf77')
             self.assertEqual(tc.get_variable('F90'), 'pgf90')
             self.assertEqual(tc.get_variable('FC'), 'pgfortran')
 
