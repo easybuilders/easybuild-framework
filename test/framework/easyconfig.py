@@ -2497,6 +2497,113 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(descr_ref, "Toy C program, 100% %(name)s.")
         self.assertTrue(descr_ref is ec._config['description'][0])
 
+    def test_multi_deps(self):
+        """Test handling of multi_deps easyconfig parameter."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
+        write_file(test_ec, test_ec_txt)
+
+        ec = EasyConfig(test_ec)
+
+        # builddependencies should now be a non-empty list of lists, each with one entry corresponding to a GCC version
+        builddeps = ec['builddependencies']
+        self.assertTrue(builddeps)
+        self.assertTrue(isinstance(builddeps, list))
+        self.assertEqual(len(builddeps), 3)
+        self.assertTrue(all(isinstance(bd, list) for bd in builddeps))
+        self.assertTrue(all(len(bd) == 1 for bd in builddeps))
+        self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in builddeps))
+        self.assertEqual(sorted(bd[0]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+
+        # get_parsed_multi_deps() method basically returns same list
+        multi_deps = ec.get_parsed_multi_deps()
+        self.assertTrue(isinstance(multi_deps, list))
+        self.assertEqual(len(multi_deps), 3)
+        self.assertTrue(all(isinstance(bd, list) for bd in multi_deps))
+        self.assertTrue(all(len(bd) == 1 for bd in multi_deps))
+        self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in multi_deps))
+        self.assertEqual(sorted(bd[0]['version'] for bd in multi_deps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+
+        # if builddependencies is also specified, then these build deps are added to each sublist
+        write_file(test_ec, test_ec_txt + "\nbuilddependencies = [('CMake', '3.12.1'), ('foo', '1.2.3')]")
+        ec = EasyConfig(test_ec)
+        builddeps = ec['builddependencies']
+        self.assertTrue(builddeps)
+        self.assertTrue(isinstance(builddeps, list))
+        self.assertEqual(len(builddeps), 3)
+        self.assertTrue(all(isinstance(bd, list) for bd in builddeps))
+        self.assertTrue(all(len(bd) == 3 for bd in builddeps))
+        self.assertTrue(all(bd[0]['name'] == 'CMake' for bd in builddeps))
+        self.assertTrue(all(bd[0]['version'] == '3.12.1' for bd in builddeps))
+        self.assertTrue(all(bd[1]['name'] == 'foo' for bd in builddeps))
+        self.assertTrue(all(bd[1]['version'] == '1.2.3' for bd in builddeps))
+        self.assertTrue(all(bd[2]['name'] == 'GCC' for bd in builddeps))
+        self.assertEqual(sorted(bd[2]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+
+        # get_parsed_multi_deps() method returns same list, but CMake & foo are not included
+        multi_deps = ec.get_parsed_multi_deps()
+        self.assertTrue(isinstance(multi_deps, list))
+        self.assertEqual(len(multi_deps), 3)
+        self.assertTrue(all(isinstance(bd, list) for bd in multi_deps))
+        self.assertTrue(all(len(bd) == 1 for bd in multi_deps))
+        self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in multi_deps))
+        self.assertEqual(sorted(bd[0]['version'] for bd in multi_deps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+
+        # trying to combine multi_deps with a list of lists in builddependencies is not allowed
+        write_file(test_ec, test_ec_txt + "\nbuilddependencies = [[('CMake', '3.12.1')], [('CMake', '3.9.1')]]")
+        error_pattern = "Can't combine multi_deps with builddependencies specified as list of lists"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+        # test with different number of dependency versions in multi_deps, should result in a clean error
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'one': ['1.0'], 'two': ['2.0', '2.1']}"
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = "Not all the dependencies listed in multi_deps have the same number of versions!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_iter_builddeps_templates(self):
+        """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['2.7.15', '3.6.6']}"
+        write_file(test_ec, test_ec_txt)
+
+        ec = EasyConfig(test_ec)
+
+        # %(pyver)s and %(pyshortver)s template are not defined when not in iterative mode
+        self.assertFalse('pyver' in ec.template_values)
+        self.assertFalse('pyshortver' in ec.template_values)
+
+        # save reference to original list of lists of build dependencies
+        builddeps = ec['builddependencies']
+
+        ec.start_iterating()
+
+        # start with first list of build dependencies (i.e. Python 2.7.15)
+        ec['builddependencies'] = builddeps[0]
+
+        ec.generate_template_values()
+        self.assertTrue('pyver' in ec.template_values)
+        self.assertEqual(ec.template_values['pyver'], '2.7.15')
+        self.assertTrue('pyshortver' in ec.template_values)
+        self.assertEqual(ec.template_values['pyshortver'], '2.7')
+
+        # put next list of build dependencies in place (i.e. Python 3.7.2)
+        ec['builddependencies'] = builddeps[1]
+
+        ec.generate_template_values()
+        self.assertTrue('pyver' in ec.template_values)
+        self.assertEqual(ec.template_values['pyver'], '3.6.6')
+        self.assertTrue('pyshortver' in ec.template_values)
+        self.assertEqual(ec.template_values['pyshortver'], '3.6')
+
 
 def suite():
     """ returns all the testcases in this module """

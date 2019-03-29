@@ -385,6 +385,10 @@ class EasyConfig(object):
 
         self.external_modules_metadata = build_option('external_modules_metadata')
 
+        # list of all options to iterate over
+        self.iterate_options = []
+        self.iterating = False
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -527,25 +531,22 @@ class EasyConfig(object):
             else:
                 self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
 
-        # trigger parse hook
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
-        hooks = load_hooks(build_option('hooks'))
         prev_enable_templating = self.enable_templating
         self.enable_templating = False
+
+        # if any lists of dependency versions are specified over which we should iterate,
+        # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters...
+        self.handle_multi_deps()
 
         parse_hook_msg = None
         if self.path:
             parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
 
+        # trigger parse hook
+        hooks = load_hooks(build_option('hooks'))
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
-
-        # create a list of all options that are actually going to be iterated over
-        # builddependencies are always a list, need to look deeper down below
-
-        # list of all options to iterate over
-        self.iterate_options = []
-        self.iterating = False
 
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
@@ -731,7 +732,7 @@ class EasyConfig(object):
         deps = dict([(key, self.get_ref(key)) for key in ['dependencies', 'builddependencies', 'hiddendependencies']])
 
         if 'builddependencies' in self.iterate_options:
-            deplists = deps['builddependencies']
+            deplists = copy.deepcopy(deps['builddependencies'])
         else:
             deplists = [deps['builddependencies']]
 
@@ -1031,6 +1032,69 @@ class EasyConfig(object):
             self.log.info("No metadata available for external module %s", dep_name)
 
         return dependency
+
+    def handle_multi_deps(self):
+        """
+        Handle lists of dependency versions of which we should iterate specified in 'multi_deps' easyconfig parameter.
+
+        This is basically just syntactic sugar to prevent having to specify a list of lists in 'builddependencies'.
+        """
+
+        multi_deps = self['multi_deps']
+        if multi_deps:
+
+            # first, make sure all lists have same length, otherwise we're dealing with invalid input...
+            multi_dep_cnts = nub([len(dep_vers) for dep_vers in multi_deps.values()])
+            if len(multi_dep_cnts) == 1:
+                multi_dep_cnt = multi_dep_cnts[0]
+            else:
+                raise EasyBuildError("Not all the dependencies listed in multi_deps have the same number of versions!")
+
+            self.log.info("Found %d lists of %d dependency versions to iterate over", len(multi_deps), multi_dep_cnt)
+
+            # make sure that build dependencies is not a list of lists to iterate over already...
+            if self['builddependencies'] and all(isinstance(bd, list) for bd in self['builddependencies']):
+                raise EasyBuildError("Can't combine multi_deps with builddependencies specified as list of lists")
+
+            # now make builddependencies a list of lists to iterate over
+            builddeps = self['builddependencies']
+            self['builddependencies'] = []
+
+            keys = sorted(multi_deps.keys())
+            for idx in range(multi_dep_cnt):
+                self['builddependencies'].append(builddeps + [(key, multi_deps[key][idx]) for key in keys])
+
+            self.log.info("Original list of build dependencies: %s", builddeps)
+            self.log.info("List of lists of build dependencies to iterate over: %s", self['builddependencies'])
+
+    def get_parsed_multi_deps(self):
+        """Get list of lists of parsed dependencies that correspond with entries in multi_deps easyconfig parameter."""
+
+        multi_deps = []
+
+        builddeps = self['builddependencies']
+
+        # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
+        if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
+
+            for iter_id in range(len(builddeps)):
+
+                # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
+                # (other build dependencies should not be required to make sanity check pass for this iteration)
+                iter_deps = []
+                for key in self['multi_deps']:
+                    hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                    if len(hits) == 1:
+                        iter_deps.append(hits[0])
+                    else:
+                        raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
+
+                multi_deps.append(iter_deps)
+        else:
+            error_msg = "builddependencies should be a list of lists when calling get_multi_deps(), but it's not: %s"
+            raise EasyBuildError(error_msg, builddeps)
+
+        return multi_deps
 
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
