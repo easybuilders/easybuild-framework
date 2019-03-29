@@ -990,6 +990,7 @@ class ToolchainTest(EnhancedTestCase):
         write_file(os.path.join(self.test_prefix, 'PGI', '14.9'), '#%Module\nsetenv EBVERSIONPGI 14.9')
         write_file(os.path.join(self.test_prefix, 'PGI', '14.10'), '#%Module\nsetenv EBVERSIONPGI 14.10')
         write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), '#%Module\nsetenv EBVERSIONPGI 16.3')
+        write_file(os.path.join(self.test_prefix, 'PGI', '19.1'), '#%Module\nsetenv EBVERSIONPGI 19.1')
         self.modtool.prepend_module_path(self.test_prefix)
 
         tc = self.get_toolchain('PGI', version='14.9')
@@ -1002,13 +1003,16 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('FC'), 'pgfortran')
         self.modtool.purge()
 
-        for pgi_ver in ['14.10', '16.3']:
+        for pgi_ver in ['14.10', '16.3', '19.1']:
             tc = self.get_toolchain('PGI', version=pgi_ver)
             tc.prepare()
 
             self.assertEqual(tc.get_variable('CC'), 'pgcc')
             self.assertEqual(tc.get_variable('CXX'), 'pgc++')
-            self.assertEqual(tc.get_variable('F77'), 'pgf77')
+            if pgi_ver == '19.1':
+                self.assertEqual(tc.get_variable('F77'), 'pgfortran')
+            else:
+                self.assertEqual(tc.get_variable('F77'), 'pgf77')
             self.assertEqual(tc.get_variable('F90'), 'pgf90')
             self.assertEqual(tc.get_variable('FC'), 'pgfortran')
 
