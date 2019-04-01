@@ -36,7 +36,7 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.hierarchical_mns import HierarchicalMNS
-from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi, det_toolchain_cuda
+from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 
 CORE = 'Core'
 COMPILER = 'Compiler'
@@ -55,6 +55,28 @@ COMP_NAME_VERSION_TEMPLATES = {
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
+
+TOOLCHAIN_COMPILER_CUDA = 'COMPILER_CUDA'
+
+def det_toolchain_cuda(ec):
+    """
+    Determine CUDA library of toolchain for given EasyConfig instance.
+
+    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    """
+    tc_elems = ec.toolchain.definition()
+    if TOOLCHAIN_COMPILER_CUDA in tc_elems:
+        if not tc_elems[TOOLCHAIN_COMPILER_CUDA]:
+            raise EasyBuildError("Empty list of CUDA libs for %s toolchain definition: %s",
+                                 ec.toolchain.as_dict(), tc_elems)
+        # assumption: only one CUDA toolchain element
+        tc_cuda = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_COMPILER_CUDA][0])
+    else:
+        # no CUDA in this toolchain
+        tc_cuda = None
+
+    return tc_cuda
+
 
 class SoftCCHierarchicalMNS(HierarchicalMNS):
     """Class implementing an example hierarchical module naming scheme."""

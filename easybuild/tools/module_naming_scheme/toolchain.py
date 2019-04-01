@@ -42,7 +42,6 @@ _toolchain_details_cache = {}
 
 # different types of toolchain elements
 TOOLCHAIN_COMPILER = 'COMPILER'
-TOOLCHAIN_COMPILER_CUDA = 'COMPILER_CUDA'
 TOOLCHAIN_MPI = 'MPI'
 TOOLCHAIN_BLAS = 'BLAS'
 TOOLCHAIN_LAPACK = 'LAPACK'
@@ -109,38 +108,21 @@ def det_toolchain_compilers(ec):
     return tc_comps
 
 
-def det_toolchain_component(ec, component):
-    """
-    Determine component of toolchain for given EasyConfig instance.
-
-    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
-    :param component: TOOLCHAIN_MPI or TOOLCHAIN_COMPILER_CUDA
-    """
-    tc_elems = ec.toolchain.definition()
-    if component in tc_elems:
-        if not tc_elems[component]:
-            raise EasyBuildError("Empty list for %s component for %s toolchain definition: %s",
-                                 component, ec.toolchain.as_dict(), tc_elems)
-        # assumption: only one toolchain element
-        tc_elem = det_toolchain_element_details(ec.toolchain, tc_elems[component][0])
-    else:
-        # component not in this toolchain
-        tc_elem = None
-
-    return tc_elem
-
 def det_toolchain_mpi(ec):
     """
     Determine MPI library of toolchain for given EasyConfig instance.
 
     :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
-    return det_toolchain_component(ec, TOOLCHAIN_MPI)
+    tc_elems = ec.toolchain.definition()
+    if TOOLCHAIN_MPI in tc_elems:
+        if not tc_elems[TOOLCHAIN_MPI]:
+            raise EasyBuildError("Empty list of MPI libs for %s toolchain definition: %s",
+                                 ec.toolchain.as_dict(), tc_elems)
+        # assumption: only one MPI toolchain element
+        tc_mpi = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_MPI][0])
+    else:
+        # no MPI in this toolchain
+        tc_mpi = None
 
-def det_toolchain_cuda(ec):
-    """
-    Determine CUDA library of toolchain for given EasyConfig instance.
-
-    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
-    """
-    return det_toolchain_component(ec, TOOLCHAIN_COMPILER_CUDA)
+    return tc_mpi
