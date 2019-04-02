@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -88,7 +88,7 @@ def rename_module(path):
                 return path
         else:
             error("Specified easyblock %s not found!")
-    except OSError, err:
+    except OSError as err:
         error("Failed to check module name: %s" % err)
 
 # refactor function and argument names that have changed during cleanup
@@ -334,7 +334,7 @@ try:
     f = open(easyblock, "r")
     easyblock_txt = f.read()
     f.close()
-except IOError, err:
+except IOError as err:
     error("Failed to read easyblock %s: %s" % (easyblock, err))
 
 # refactor
@@ -350,13 +350,13 @@ try:
     f = open(easyblock, "w")
     f.write(easyblock_txt)
     f.close()
-except IOError, err:
+except IOError as err:
     error("Failed to write refactored easyblock %s: %s" % (easyblock, err))
 
 # check for PyLint warnings/errors
 try:
     all_checks.append(run_pylint(easyblock))
-except NameError, err:
+except NameError as err:
     error("It seems like PyLint is not available: %s" % err)
 
 

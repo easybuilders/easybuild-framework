@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -169,7 +169,7 @@ def init_repository(repository, repository_path):
             else:
                 raise EasyBuildError("repository_path should be a string or list/tuple of maximum 2 elements "
                                      "(current: %s, type %s)", repository_path, type(repository_path))
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("Failed to create a repository instance for %s (class %s) with args %s (msg: %s)",
                                  repository, repo.__name__, repository_path, err)
     else:

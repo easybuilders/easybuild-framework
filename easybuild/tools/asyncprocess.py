@@ -1,6 +1,6 @@
 ##
 # Copyright 2005 Josiah Carlson
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
@@ -107,7 +107,7 @@ class Popen(subprocess.Popen):
 
         try:
             written = os.write(self.stdin.fileno(), inp)
-        except OSError, why:
+        except OSError as why:
             if why[0] == errno.EPIPE: #broken pipe
                 return self._close('stdin')
             raise
