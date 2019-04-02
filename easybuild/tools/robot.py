@@ -120,7 +120,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         node_key = mk_key(node)
 
         # exclude external modules, since we can't check conflicts on them (we don't even know the software name)
-        build_deps = mk_dep_keys(node['builddependencies'])
+        build_deps = mk_dep_keys(node['ec'].builddependencies())
         deps = mk_dep_keys(node['ec'].all_dependencies)
 
         # separate runtime deps from build deps
