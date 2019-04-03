@@ -1833,21 +1833,12 @@ class EasyConfigTest(EnhancedTestCase):
 
             self.assertTrue(dottxt.startswith('digraph graphname {'))
 
-            # compare sorted output, since order of lines can change
-            ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
-            ordered_expected = '\n'.join([
-                '',
-                '"GCC/4.6.3";',
-                '"GCC/4.8.3";',
-                '"GCC/7.3.0-2.30";',
-                '"toy/0.0" -> "GCC/4.6.3"  [color=blue, style=dotted, arrowhead=diamond];',
-                '"toy/0.0" -> "GCC/4.8.3"  [color=blue, style=dotted, arrowhead=diamond];',
-                '"toy/0.0" -> "GCC/7.3.0-2.30"  [color=blue, style=dotted, arrowhead=diamond];',
-                '"toy/0.0";',
-                'digraph graphname {',
-                '}',
-            ])
-            self.assertEqual(ordered_dottxt, ordered_expected)
+            # just check for toy -> GCC deps
+            # don't bother doing full output check
+            # (different order for fields depending on Python version makes that tricky)
+            for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
+                self.assertTrue('"GCC/%s";' % gccver in dottxt)
+                self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
 
         except ImportError:
             print "Skipping test_dep_graph, since pygraph is not available"
