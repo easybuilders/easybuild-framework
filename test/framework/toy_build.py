@@ -2144,8 +2144,9 @@ class ToyBuildTest(EnhancedTestCase):
 
             # check whether (guarded) load statement for first version listed in multi_deps is there
             if get_module_syntax() == 'Lua':
+                cond = 'mode() == "unload" or ( not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) )'
                 expected = '\n'.join([
-                    'if mode() == "unload" or ( not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) ) then',
+                    'if %s then' % cond,
                     '    depends_on("GCC/4.6.3")',
                     'end',
                 ])
