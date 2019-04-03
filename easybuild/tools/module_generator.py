@@ -346,6 +346,12 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def is_loaded(self, mod_name):
+        """
+        Generate expression to check whether specified module is loaded or not.
+        """
+        raise NotImplementedError
+
     def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
         """
         Generate load statement for specified module.
@@ -620,8 +626,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         ]
 
         if self.app.cfg['moduleloadnoconflict']:
-            cond_unload = self.conditional_statement("is-loaded %(name)s", "module unload %(name)s")
-            lines.extend(['', self.conditional_statement("is-loaded %(name)s/%(version)s", cond_unload, negative=True)])
+            cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
+            lines.extend([
+                '',
+                self.conditional_statement(self.is_loaded('%(name)s/%(version)s'), cond_unload, negative=True),
+            ])
 
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
@@ -646,6 +655,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Return module-syntax specific code to get value of specific environment variable.
         """
         return '$::env(%s)' % envvar
+
+    def is_loaded(self, mod_name):
+        """
+        Generate expression to check whether specified module is loaded or not.
+        """
+        return 'is-loaded %s' % mod_name
 
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
@@ -672,7 +687,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # it will get translated to "module unload"
             load_statement = body + ['']
         else:
-            load_statement = [self.conditional_statement("is-loaded %(mod_name)s", '\n'.join(body), negative=True)]
+            body = '\n'.join(body)
+            load_statement = [self.conditional_statement(self.is_loaded('%(mod_name)s'), body, negative=True)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
@@ -781,7 +797,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         body = "module swap %s %s" % (mod_name_out, mod_name_in)
         if guarded:
             alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
-            swap_statement = [self.conditional_statement("is-loaded %s" % mod_name_out, body, else_body=alt_body)]
+            swap_statement = [self.conditional_statement(self.is_loaded(mod_name_out), body, else_body=alt_body)]
         else:
             swap_statement = [body, '']
 
@@ -971,6 +987,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return 'os.getenv("%s")' % envvar
 
+    def is_loaded(self, mod_name):
+        """
+        Generate expression to check whether specified module is loaded or not.
+        """
+        return 'isloaded("%s")' % mod_name
+
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
@@ -994,6 +1016,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         if load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
             load_statement = body + ['']
         else:
+            load_guard = self.is_loaded('%(mod_name)s')
+
             if build_option('recursive_mod_unload') or recursive_unload:
                 # wrapping the 'module load' with an 'is-loaded or mode == unload'
                 # guard ensures recursive unloading while avoiding load storms,
@@ -1001,9 +1025,8 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # depedency "module load" is present, it will get translated
                 # to "module unload"
                 # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
-                load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
-            else:
-                load_guard = 'isloaded("%(mod_name)s")'
+                load_guard += ' or mode() == "unload"'
+
             load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
@@ -1149,7 +1172,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
         if guarded:
             alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
-            swap_statement = [self.conditional_statement('isloaded("%s")' % mod_name_out, body, else_body=alt_body)]
+            swap_statement = [self.conditional_statement(self.is_loaded(mod_name_out), body, else_body=alt_body)]
         else:
             swap_statement = [body, '']
 

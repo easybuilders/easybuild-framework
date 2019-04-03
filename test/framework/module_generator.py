@@ -231,6 +231,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(full_module_name in self.modtool.loaded_modules())
         self.modtool.purge()
 
+    def test_is_loaded(self):
+        """Test is_loaded method."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            test_cases = [
+                ('foo', "is-loaded foo"),
+                ('Python/2.7.15-GCCcore-8.2.0', "is-loaded Python/2.7.15-GCCcore-8.2.0"),
+                ('%(mod_name)s', "is-loaded %(mod_name)s"),
+            ]
+        else:
+            test_cases = [
+                ('foo', 'isloaded("foo")'),
+                ('Python/2.7.15-GCCcore-8.2.0', 'isloaded("Python/2.7.15-GCCcore-8.2.0")'),
+                ('%(mod_name)s', 'isloaded("%(mod_name)s")'),
+            ]
+
+        for mod_name, expected in test_cases:
+            self.assertEqual(self.modgen.is_loaded(mod_name), expected)
+
     def test_load(self):
         """Test load part in generated module file."""
 
