@@ -37,6 +37,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.hierarchical_mns import HierarchicalMNS
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
+from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_element_details
 
 CORE = 'Core'
 COMPILER = 'Compiler'
