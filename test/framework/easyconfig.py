@@ -2503,6 +2503,11 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
 
+        ec = EasyConfig(toy_ec)
+        self.assertEqual(ec['builddependencies'], [])
+        self.assertEqual(ec['multi_deps'], {})
+        self.assertEqual(ec.multi_deps, [])
+
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
         write_file(test_ec, test_ec_txt)
