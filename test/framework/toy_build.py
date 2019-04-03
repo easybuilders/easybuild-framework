@@ -2045,6 +2045,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.modtool.use(test_mod_path)
 
+        # instruct Lmod to disallow auto-swapping of already loaded module with same name as module being loaded
+        # to make situation where GCC/7.3.0-2.30 is loaded when GCC/4.6.3 is already loaded (by default) fail
+        os.environ['LMOD_DISABLE_SAME_NAME_AUTOSWAP'] = 'yes'
+
         self.test_toy_build(ec_file=test_ec)
 
         toy_mod_file = os.path.join(test_mod_path, 'toy', '0.0')

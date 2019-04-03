@@ -1325,9 +1325,13 @@ class EasyBlock(object):
             'CLASSPATH': ['*.jar'],
         }
 
-    def load_module(self, mod_paths=None, purge=True):
+    def load_module(self, mod_paths=None, purge=True, extra_modules=None):
         """
         Load module for this software package/version, after purging all currently loaded modules.
+
+        :param mod_paths: list of (additional) module paths to take into account
+        :param purge: boolean indicating whether or not to purge currently loaded modules first
+        :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
         # self.full_mod_name might not be set (e.g. during unit tests)
         if self.full_mod_name is not None:
@@ -1335,10 +1339,17 @@ class EasyBlock(object):
                 mod_paths = []
             all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
 
+            mods = [self.short_mod_name]
+
+            # if extra modules are specified, these are loaded first;
+            # this is important in the context of sanity check for easyconfigs that use multi_deps,
+            # especially if multi_deps_load_default is set...
+            if extra_modules:
+                mods = extra_modules + mods
+
             # for flat module naming schemes, we can load the module directly;
             # for non-flat (hierarchical) module naming schemes, we may need to load the toolchain module first
             # to update $MODULEPATH such that the module can be loaded using the short module name
-            mods = [self.short_mod_name]
             if self.mod_subdir and self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
                 mods.insert(0, self.toolchain.det_short_module_name())
 
@@ -1353,9 +1364,12 @@ class EasyBlock(object):
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
-    def load_fake_module(self, purge=False):
+    def load_fake_module(self, purge=False, extra_modules=None):
         """
         Create and load fake module.
+
+        :param purge: boolean indicating whether or not to purge currently loaded modules first
+        :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
         # take a copy of the current environment before loading the fake module, so we can restore it
         env = copy.deepcopy(os.environ)
@@ -1365,7 +1379,7 @@ class EasyBlock(object):
 
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge)
+        self.load_module(purge=purge, extra_modules=extra_modules)
 
         return (fake_mod_path, env)
 
@@ -2455,15 +2469,13 @@ class EasyBlock(object):
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True)
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
             except EasyBuildError as err:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
-            # also load specificed additional modules, if any
             if extra_modules:
                 self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
-                self.modules_tool.load(extra_modules)
 
         # chdir to installdir (better environment for running tests)
         if os.path.isdir(self.installdir):
