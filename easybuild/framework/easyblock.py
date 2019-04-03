@@ -58,7 +58,6 @@ from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
-from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, process_easyconfig
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
@@ -1065,18 +1064,6 @@ class EasyBlock(object):
             deps = [d for d in deps if d not in excluded_dep_deps]
 
         self.log.debug("List of retained deps to load in generated module: %s", deps)
-
-        # eliminate all dependencies that are hidden toolchain modules (not very thorough)
-        for dep in deps:
-            depsplit = dep.split('/')
-            if len(depsplit) == 2 and depsplit[1][0] == '.':
-                depsplit[1] = depsplit[1][1:]
-                ecfile = robot_find_easyconfig(depsplit[0], depsplit[1])
-                if ecfile is not None:
-                    easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
-                    if easyconfig['moduleclass'] == 'toolchain':
-                        excluded_deps.append(dep)
-        deps = [d for d in deps if d not in excluded_deps]
 
         # include load statements for retained dependencies
         recursive_unload = self.cfg['recursive_module_unload']
