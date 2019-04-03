@@ -1093,12 +1093,34 @@ class EasyBlock(object):
                                                            depends_on=depends_on,
                                                            unload_modules=unload_modules))
 
-        # Force unloading any other modules
+        # force unloading any other modules
         if self.cfg['moduleforceunload']:
             unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
-            return ''.join(unloads) + ''.join(loads)
+            dep_stmts = unloads + loads
         else:
-            return ''.join(loads)
+            dep_stmts = loads
+
+        # load first version listed in multi_deps as a default, if desired
+        if self.cfg['multi_deps_load_default']:
+
+            # build map of dep name to list of module names corresponding to each version
+            # first entry in multi_deps is list of first versions for each multi-dep
+            multi_dep_mod_names = {}
+            for deplist in self.cfg.multi_deps:
+                for dep in deplist:
+                    multi_dep_mod_names.setdefault(dep['name'], [])
+                    multi_dep_mod_names[dep['name']].append(dep['short_mod_name'])
+
+            multi_dep_load_defaults = []
+            for depname, depmods in sorted(multi_dep_mod_names.items()):
+                stmt = self.module_generator.load_module(depmods[0], cond_mod_names=depmods,
+                                                         recursive_unload=recursive_unload,
+                                                         depends_on=depends_on)
+                multi_dep_load_defaults.append(stmt)
+
+            dep_stmts.extend(multi_dep_load_defaults)
+
+        return ''.join(dep_stmts)
 
     def make_module_description(self):
         """
@@ -2144,7 +2166,7 @@ class EasyBlock(object):
         # required to ensure build dependencies are taken into account to resolve templates like %(pyver)s
         self.cfg.iterating = True
 
-        for iter_deps in self.cfg.get_parsed_multi_deps():
+        for iter_deps in self.cfg.multi_deps:
 
             # need to re-generate template values to get correct values for %(pyver)s and %(pyshortver)s
             self.cfg['builddependencies'] = iter_deps
