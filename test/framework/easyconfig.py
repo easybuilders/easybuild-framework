@@ -1796,6 +1796,53 @@ class EasyConfigTest(EnhancedTestCase):
         except ImportError:
             print "Skipping test_dep_graph, since pygraph is not available"
 
+    def test_dep_graph_multi_deps(self):
+        """
+        Test for dep_graph using easyconfig that uses multi_deps.
+        """
+        try:
+            import pygraph  # noqa
+
+            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+            build_options = {
+                'external_modules_metadata': ConfigObj(),
+                'valid_module_classes': module_classes(),
+                'robot_path': [test_easyconfigs],
+                'silent': True,
+            }
+            init_config(build_options=build_options)
+
+            toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+            toy_ec_txt = read_file(toy_ec)
+
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+            test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
+            write_file(test_ec, test_ec_txt)
+
+            ec_files = [(test_ec, False)]
+            ecs, _ = parse_easyconfigs(ec_files)
+
+            dot_file = os.path.join(self.test_prefix, 'test.dot')
+            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+            dep_graph(dot_file, ordered_ecs)
+
+            # hard check for expect .dot file contents
+            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+            dottxt = read_file(dot_file)
+
+            self.assertTrue(dottxt.startswith('digraph graphname {'))
+
+            # just check for toy -> GCC deps
+            # don't bother doing full output check
+            # (different order for fields depending on Python version makes that tricky)
+            for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
+                self.assertTrue('"GCC/%s";' % gccver in dottxt)
+                self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
+
+        except ImportError:
+            print "Skipping test_dep_graph, since pygraph is not available"
+
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
         build_options = {
