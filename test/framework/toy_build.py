@@ -47,6 +47,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
@@ -2057,7 +2058,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         toy_mod_txt = read_file(toy_mod_file)
 
-        # check whether default loading for first version listed in multi_deps is there
+        # check whether (guarded) load statement for first version listed in multi_deps is there
         if get_module_syntax() == 'Lua':
             expected = '\n'.join([
                 'if not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) then',
@@ -2073,45 +2074,47 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
 
-        # by default, toy/0.0 should load GCC/4.6.3 (first listed GCC version in multi_deps)
-        self.modtool.load(['toy/0.0'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-        self.assertTrue('toy/0.0' in loaded_mod_names)
-        self.assertTrue('GCC/4.6.3' in loaded_mod_names)
-        self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+        def check_toy_load():
+            # by default, toy/0.0 should load GCC/4.6.3 (first listed GCC version in multi_deps)
+            self.modtool.load(['toy/0.0'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+            self.assertTrue('toy/0.0' in loaded_mod_names)
+            self.assertTrue('GCC/4.6.3' in loaded_mod_names)
+            self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
 
-        # undo (don't use 'purge', make cause problems in test environment
-        self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
+            # undo (don't use 'purge', make cause problems in test environment
+            self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
 
-        # if GCC/7.3.0-2.30 is loaded first, then GCC/4.6.3 is not loaded by loading toy/0.0
-        self.modtool.load(['GCC/7.3.0-2.30'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-        self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
+            # if GCC/7.3.0-2.30 is loaded first, then GCC/4.6.3 is not loaded by loading toy/0.0
+            self.modtool.load(['GCC/7.3.0-2.30'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+            self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
 
-        self.modtool.load(['toy/0.0'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-        self.assertTrue('toy/0.0' in loaded_mod_names)
-        self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
-        self.assertFalse('GCC/4.6.3' in loaded_mod_names)
+            self.modtool.load(['toy/0.0'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+            self.assertTrue('toy/0.0' in loaded_mod_names)
+            self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
+            self.assertFalse('GCC/4.6.3' in loaded_mod_names)
 
-        self.modtool.unload(['toy/0.0', 'GCC/7.3.0-2.30'])
+            self.modtool.unload(['toy/0.0', 'GCC/7.3.0-2.30'])
 
-        # of course having GCC/4.6.3 loaded already is also fine
-        self.modtool.load(['GCC/4.6.3'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-        self.assertTrue('GCC/4.6.3' in loaded_mod_names)
+            # of course having GCC/4.6.3 loaded already is also fine
+            self.modtool.load(['GCC/4.6.3'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+            self.assertTrue('GCC/4.6.3' in loaded_mod_names)
 
-        self.modtool.load(['toy/0.0'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-        self.assertTrue('toy/0.0' in loaded_mod_names)
-        self.assertTrue('GCC/4.6.3' in loaded_mod_names)
-        self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+            self.modtool.load(['toy/0.0'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+            self.assertTrue('toy/0.0' in loaded_mod_names)
+            self.assertTrue('GCC/4.6.3' in loaded_mod_names)
+            self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
 
-        self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
+            self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
+
+        check_toy_load()
 
         # this behaviour can be disabled via "multi_dep_load_defaults = False"
-        test_ec_txt += "\nmulti_deps_load_default = False"
-        write_file(test_ec, test_ec_txt)
+        write_file(test_ec, test_ec_txt + "\nmulti_deps_load_default = False")
 
         remove_file(toy_mod_file)
         self.test_toy_build(ec_file=test_ec)
@@ -2124,6 +2127,38 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue('toy/0.0' in loaded_mod_names)
         self.assertFalse('GCC/4.6.3' in loaded_mod_names)
         self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+
+        # restore original environment to continue testing with a clean slate
+        modify_env(os.environ, self.orig_environ, verbose=False)
+        self.modtool.use(test_mod_path)
+
+        write_file(test_ec, test_ec_txt)
+
+        # also check behaviour when using 'depends_on' rather than 'load' statements (requires Lmod 7.6.1 or newer)
+        if self.modtool.supports_depends_on:
+
+            remove_file(toy_mod_file)
+            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'])
+
+            toy_mod_txt = read_file(toy_mod_file)
+
+            # check whether (guarded) load statement for first version listed in multi_deps is there
+            if get_module_syntax() == 'Lua':
+                expected = '\n'.join([
+                    'if mode() == "unload" or ( not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) ) then',
+                    '    depends_on("GCC/4.6.3")',
+                    'end',
+                ])
+            else:
+                expected = '\n'.join([
+                    'if { [ module-info mode remove ] || ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
+                    '    depends-on GCC/4.6.3',
+                    '}',
+                ])
+
+            self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+
+            check_toy_load()
 
 
 def suite():

@@ -276,7 +276,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # with recursive unloading: no if is-loaded guard
             expected = '\n'.join([
                 '',
-                "module load mod_name",
+                "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
+                "    module load mod_name",
+                "}",
                 '',
             ])
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
@@ -314,7 +316,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # check
             expected = '\n'.join([
                 '',
-                'if not ( isloaded("mod_name") ) or mode() == "unload" then',
+                'if mode() == "unload" or ( not ( isloaded("mod_name") ) ) then',
                 '    load("mod_name")',
                 'end',
                 '',
