@@ -654,9 +654,9 @@ class ToyBuildTest(EnhancedTestCase):
                         error_msg_pattern = "You are not part of '%s' group of users" % group_name
 
                     pattern = '\n'.join([
-                        '^if not userInGroup\("%s"\) then' % group_name,
-                        '    LmodError\("%s[^"]*"\)' % error_msg_pattern,
-                        'end$',
+                        r'^if not \( userInGroup\("%s"\) \) then' % group_name,
+                        r'    LmodError\("%s[^"]*"\)' % error_msg_pattern,
+                        r'end$',
                     ])
                     regex = re.compile(pattern, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
