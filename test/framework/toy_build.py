@@ -2031,10 +2031,14 @@ class ToyBuildTest(EnhancedTestCase):
         """Test installation of toy easyconfig that uses multi_deps."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
+        test_ec_txt = read_file(toy_ec)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"
+
+        # also inject (minimal) list of extensions to test iterative installation of extensions
+        test_ec_txt += "\nexts_list = [('barbar', '0.0')]"
+
+        test_ec_txt += "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"
         write_file(test_ec, test_ec_txt)
 
         test_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
