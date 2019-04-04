@@ -1113,7 +1113,7 @@ class EasyBlock(object):
 
             multi_dep_load_defaults = []
             for depname, depmods in sorted(multi_dep_mod_names.items()):
-                stmt = self.module_generator.load_module(depmods[0], cond_mod_names=depmods,
+                stmt = self.module_generator.load_module(depmods[0], multi_dep_mods=depmods,
                                                          recursive_unload=recursive_unload,
                                                          depends_on=depends_on)
                 multi_dep_load_defaults.append(stmt)

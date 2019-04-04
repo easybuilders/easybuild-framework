@@ -2045,7 +2045,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # create empty modules for both GCC versions
         # (in Tcl syntax, because we're lazy since that works for all supported module tools)
-        write_file(os.path.join(test_mod_path, 'GCC', '4.6.3'), ModuleGeneratorTcl.MODULE_SHEBANG)
+        gcc463_modfile = os.path.join(test_mod_path, 'GCC', '4.6.3')
+        write_file(gcc463_modfile, ModuleGeneratorTcl.MODULE_SHEBANG)
         write_file(os.path.join(test_mod_path, 'GCC', '7.3.0-2.30'), ModuleGeneratorTcl.MODULE_SHEBANG)
 
         self.modtool.use(test_mod_path)
@@ -2078,7 +2079,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
 
-        def check_toy_load():
+        def check_toy_load(depends_on=False):
             # by default, toy/0.0 should load GCC/4.6.3 (first listed GCC version in multi_deps)
             self.modtool.load(['toy/0.0'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
@@ -2086,8 +2087,15 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue('GCC/4.6.3' in loaded_mod_names)
             self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
 
-            # undo (don't use 'purge', make cause problems in test environment
-            self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
+            if depends_on:
+                # check behaviour when unloading toy (should also unload GCC/4.6.3)
+                self.modtool.unload(['toy/0.0'])
+                loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+                self.assertFalse('toy/0.0' in loaded_mod_names)
+                self.assertFalse('GCC/4.6.3' in loaded_mod_names)
+            else:
+                # just undo (don't use 'purge', make cause problems in test environment), to prepare for next test
+                self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
 
             # if GCC/7.3.0-2.30 is loaded first, then GCC/4.6.3 is not loaded by loading toy/0.0
             self.modtool.load(['GCC/7.3.0-2.30'])
@@ -2100,9 +2108,17 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
             self.assertFalse('GCC/4.6.3' in loaded_mod_names)
 
-            self.modtool.unload(['toy/0.0', 'GCC/7.3.0-2.30'])
+            if depends_on:
+                # check behaviour when unloading toy (should *not* unload GCC/7.3.0-2.30)
+                self.modtool.unload(['toy/0.0'])
+                loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+                self.assertFalse('toy/0.0' in loaded_mod_names)
+                self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
+            else:
+                # just undo
+                self.modtool.unload(['toy/0.0', 'GCC/7.3.0-2.30'])
 
-            # of course having GCC/4.6.3 loaded already is also fine
+            # having GCC/4.6.3 loaded already is also fine
             self.modtool.load(['GCC/4.6.3'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
             self.assertTrue('GCC/4.6.3' in loaded_mod_names)
@@ -2113,7 +2129,15 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue('GCC/4.6.3' in loaded_mod_names)
             self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
 
-            self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
+            if depends_on:
+                # check behaviour when unloading toy (should *not* unload GCC/4.6.3)
+                self.modtool.unload(['toy/0.0'])
+                loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+                self.assertFalse('toy/0.0' in loaded_mod_names)
+                self.assertTrue('GCC/4.6.3' in loaded_mod_names)
+            else:
+                # just undo
+                self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
 
         check_toy_load()
 
@@ -2148,22 +2172,25 @@ class ToyBuildTest(EnhancedTestCase):
 
             # check whether (guarded) load statement for first version listed in multi_deps is there
             if get_module_syntax() == 'Lua':
-                cond = 'mode() == "unload" or ( not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) )'
                 expected = '\n'.join([
-                    'if %s then' % cond,
+                    'if isloaded("GCC") then',
+                    '    depends_on("GCC")',
+                    'else',
                     '    depends_on("GCC/4.6.3")',
                     'end',
                 ])
             else:
                 expected = '\n'.join([
-                    'if { [ module-info mode remove ] || ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
+                    'if { [ is-loaded GCC ] } {',
+                    '    depends-on GCC',
+                    '} else {',
                     '    depends-on GCC/4.6.3',
                     '}',
                 ])
 
             self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
 
-            check_toy_load()
+            check_toy_load(depends_on=True)
 
 
 def suite():
