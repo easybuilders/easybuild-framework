@@ -36,7 +36,7 @@ from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Iomkl(Iompi, Iimkl, IntelMKL, IntelFFTW):
+class Iomkl(Iompi, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), OpenMPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
