@@ -316,7 +316,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # check
             expected = '\n'.join([
                 '',
-                'if mode() == "unload" or ( not ( isloaded("mod_name") ) ) then',
+                'if mode() == "unload" or not ( isloaded("mod_name") ) then',
                 '    load("mod_name")',
                 'end',
                 '',

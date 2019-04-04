@@ -710,7 +710,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         depends_on = load_template == self.LOAD_TEMPLATE_DEPENDS_ON
 
         cond_tmpl = None
-        if build_option('recursive_mod_unload') or recursive_unload:
+        if build_option('recursive_mod_unload') or recursive_unload or depends_on:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
             # guard ensures recursive unloading while avoiding load storms;
             # when "module unload" is called on the module in which the
@@ -722,10 +722,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         if depends_on:
             if multi_dep_mods:
                 parent_mod_name = os.path.dirname(mod_name)
-                load_guard = self.is_loaded(parent_mod_name)
+                guard = self.is_loaded(multi_dep_mods[1:])
                 if_body = load_template % {'mod_name': parent_mod_name}
                 else_body = '\n'.join(body)
-                load_statement = [self.conditional_statement(load_guard, if_body, else_body=else_body)]
+                load_statement = [
+                    self.conditional_statement(guard, if_body, else_body=else_body, cond_tmpl=cond_tmpl, cond_or=True),
+                ]
             else:
                 load_statement = body + ['']
         else:
@@ -1081,22 +1083,24 @@ class ModuleGeneratorLua(ModuleGenerator):
         depends_on = load_template == self.LOAD_TEMPLATE_DEPENDS_ON
 
         cond_tmpl = None
-        if build_option('recursive_mod_unload') or recursive_unload:
+        if build_option('recursive_mod_unload') or recursive_unload or depends_on:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
             # guard ensures recursive unloading while avoiding load storms;
             # when "module unload" is called on the module in which the
             # dependency "module load" is present, it will get translated
             # to "module unload" (while the condition is left untouched)
             # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
-            cond_tmpl = 'mode() == "unload" or ( %s )'
+            cond_tmpl = 'mode() == "unload" or %s'
 
         if depends_on:
             if multi_dep_mods:
                 parent_mod_name = os.path.dirname(mod_name)
-                load_guard = self.is_loaded(parent_mod_name)
+                guard = self.is_loaded(multi_dep_mods[1:])
                 if_body = load_template % {'mod_name': parent_mod_name}
                 else_body = '\n'.join(body)
-                load_statement = [self.conditional_statement(load_guard, if_body, else_body=else_body)]
+                load_statement = [
+                    self.conditional_statement(guard, if_body, else_body=else_body, cond_tmpl=cond_tmpl, cond_or=True),
+                ]
             else:
                 load_statement = body + ['']
         else:
