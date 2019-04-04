@@ -231,6 +231,34 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(full_module_name in self.modtool.loaded_modules())
         self.modtool.purge()
 
+    def test_is_loaded(self):
+        """Test is_loaded method."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            test_cases = [
+                # single module name as argument
+                ('foo', "is-loaded foo"),
+                ('Python/2.7.15-GCCcore-8.2.0', "is-loaded Python/2.7.15-GCCcore-8.2.0"),
+                ('%(mod_name)s', "is-loaded %(mod_name)s"),
+                # list of multiple module names as argument should result in list of is-loaded statements
+                (['foo'], ['is-loaded foo']),
+                (['foo/1.2.3', 'bar/4.5.6'], ['is-loaded foo/1.2.3', 'is-loaded bar/4.5.6']),
+                (['foo', 'bar', 'baz'], ['is-loaded foo', 'is-loaded bar', 'is-loaded baz']),
+            ]
+        else:
+            test_cases = [
+                # single module name as argument
+                ('foo', 'isloaded("foo")'),
+                ('Python/2.7.15-GCCcore-8.2.0', 'isloaded("Python/2.7.15-GCCcore-8.2.0")'),
+                ('%(mod_name)s', 'isloaded("%(mod_name)s")'),
+                # list of multiple module names as argument
+                (['foo'], ['isloaded("foo")']),
+                (['foo/1.2.3', 'bar/4.5.6'], ['isloaded("foo/1.2.3")', 'isloaded("bar/4.5.6")']),
+                (['foo', 'bar', 'baz'], ['isloaded("foo")', 'isloaded("bar")', 'isloaded("baz")']),
+            ]
+
+        for mod_names, expected in test_cases:
+            self.assertEqual(self.modgen.is_loaded(mod_names), expected)
+
     def test_load(self):
         """Test load part in generated module file."""
 
@@ -248,7 +276,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # with recursive unloading: no if is-loaded guard
             expected = '\n'.join([
                 '',
-                "module load mod_name",
+                "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
+                "    module load mod_name",
+                "}",
                 '',
             ])
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
@@ -275,7 +305,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
                 '',
-                'if not isloaded("mod_name") then',
+                'if not ( isloaded("mod_name") ) then',
                 '    load("mod_name")',
                 'end',
                 '',
@@ -286,7 +316,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # check
             expected = '\n'.join([
                 '',
-                'if not isloaded("mod_name") or mode() == "unload" then',
+                'if mode() == "unload" or not ( isloaded("mod_name") ) then',
                 '    load("mod_name")',
                 'end',
                 '',
@@ -683,7 +713,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
-                'if not isloaded("foo") then',
+                'if not ( isloaded("foo") ) then',
                 '    load("bar")',
                 'end',
                 '',

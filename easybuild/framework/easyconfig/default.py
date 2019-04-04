@@ -147,6 +147,7 @@ DEFAULT_CONFIG = {
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
+    'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters

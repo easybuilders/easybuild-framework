@@ -498,17 +498,17 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
-                'if not isloaded("gompi/2018a") then',
+                'if not ( isloaded("gompi/2018a") ) then',
                 '    load("gompi/2018a")',
                 'end',
             ])
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
+                'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
                 '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
             ])
             lapack_load = '\n'.join([
-                'if not isloaded("OpenBLAS/0.2.20-GCC-6.4.0-2.28") then',
+                'if not ( isloaded("OpenBLAS/0.2.20-GCC-6.4.0-2.28") ) then',
                 '    load("OpenBLAS/0.2.20-GCC-6.4.0-2.28")',
                 'end',
             ])
@@ -532,7 +532,7 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
+                'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
                 '    unload("FFTW")',
                 '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',

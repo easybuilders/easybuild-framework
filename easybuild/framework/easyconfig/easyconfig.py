@@ -564,6 +564,9 @@ class EasyConfig(object):
             builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
         self['builddependencies'] = builddeps
 
+        # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
+        self.multi_deps = self.get_parsed_multi_deps()
+
         # restore templating
         self.enable_templating = prev_enable_templating
 
@@ -1072,27 +1075,29 @@ class EasyConfig(object):
 
         multi_deps = []
 
-        builddeps = self['builddependencies']
+        if self['multi_deps']:
 
-        # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
-        if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
+            builddeps = self['builddependencies']
 
-            for iter_id in range(len(builddeps)):
+            # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
+            if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
 
-                # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
-                # (other build dependencies should not be required to make sanity check pass for this iteration)
-                iter_deps = []
-                for key in self['multi_deps']:
-                    hits = [d for d in builddeps[iter_id] if d['name'] == key]
-                    if len(hits) == 1:
-                        iter_deps.append(hits[0])
-                    else:
-                        raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
+                for iter_id in range(len(builddeps)):
 
-                multi_deps.append(iter_deps)
-        else:
-            error_msg = "builddependencies should be a list of lists when calling get_multi_deps(), but it's not: %s"
-            raise EasyBuildError(error_msg, builddeps)
+                    # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
+                    # (other build dependencies should not be required to make sanity check pass for this iteration)
+                    iter_deps = []
+                    for key in self['multi_deps']:
+                        hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                        if len(hits) == 1:
+                            iter_deps.append(hits[0])
+                        else:
+                            raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
+
+                    multi_deps.append(iter_deps)
+            else:
+                error_msg = "builddependencies should be a list of lists when calling get_parsed_multi_deps(): %s"
+                raise EasyBuildError(error_msg, builddeps)
 
         return multi_deps
 

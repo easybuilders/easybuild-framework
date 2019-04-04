@@ -139,9 +139,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # since for extension the necessary modules should already be loaded at this point
             if not (self.is_extension or self.dry_run):
                 # load fake module
-                fake_mod_data = self.load_fake_module(purge=True)
-
-                self.modules_tool.load(extra_modules)
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
 
                 if extra_modules:
                     info_msg = "Running extension sanity check with extra modules: %s" % ', '.join(extra_modules)
