@@ -390,12 +390,12 @@ def pick_version(req_ver, avail_vers):
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if v <= LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if LooseVersion(v) <= LooseVersion(ver)]
             if retained_vers:
-                selected_ver = retained_vers[-1]
+                selected_ver = sorted(retained_vers, key=LooseVersion)[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
-                selected_ver = sorted([LooseVersion(v) for v in avail_vers])[0]
+                selected_ver = sorted(avail_vers, key=LooseVersion)[0]
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
@@ -484,9 +484,12 @@ def select_or_generate_ec(fp, paths, specs):
     # TOOLCHAIN NAME
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
-    def unique(lst):
+    def unique(lst, sortkey=None):
         """Retain unique elements in a sorted list."""
-        lst = sorted(lst)
+        if sortkey:
+            lst = sorted(lst, key=sortkey)
+        else:
+            lst = sorted(lst)
         if len(lst) > 1:
             res = [lst[0]]
             for x in lst:
@@ -536,8 +539,8 @@ def select_or_generate_ec(fp, paths, specs):
     _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # TOOLCHAIN VERSION
-
-    tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files])
+    tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files if x[0]['toolchain']['version']],
+                    sortkey=LooseVersion)
     _log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))
 
     tcver = specs.pop('toolchain_version', None)
@@ -560,7 +563,8 @@ def select_or_generate_ec(fp, paths, specs):
 
     # SOFTWARE VERSION
 
-    vers = unique([x[0]['version'] for x in ecs_and_files])
+    vers = unique([x[0]['version'] for x in ecs_and_files if x[0]['version']], sortkey=LooseVersion)
+
     _log.debug("Found %d unique software versions: %s" % (len(vers), vers))
 
     ver = specs.pop('version', None)

@@ -45,13 +45,29 @@ from easybuild.tools.filetools import write_file
 
 class TweakTest(EnhancedTestCase):
     """Tests for tweak functionality."""
+
     def test_pick_version(self):
         """Test pick_version function."""
         # if required version is not available, the most recent version less than or equal should be returned
         self.assertEqual(('1.4', '1.0'), pick_version('1.4', ['0.5', '1.0', '1.5']))
 
         # if required version is available, that should be what's returned
+        self.assertEqual(('0.5', '0.5'), pick_version('0.5', ['0.5', '1.0', '1.5']))
         self.assertEqual(('1.0', '1.0'), pick_version('1.0', ['0.5', '1.0', '1.5']))
+        self.assertEqual(('1.5', '1.5'), pick_version('1.5', ['0.5', '1.0', '1.5']))
+
+        # if no required version is specified, most recent version is picked
+        self.assertEqual(('1.5', '1.5'), pick_version(None, ['0.5', '1.0', '1.5']))
+
+        # if only a single version is available, there's nothing much to choose from
+        self.assertEqual(('1.4', '0.5'), pick_version('1.4', ['0.5']))
+        self.assertEqual(('0.5', '0.5'), pick_version(None, ['0.5']))
+
+        # check correct ordering of versions (not alphabetical ordering!)
+        self.assertEqual(('1.12', '1.10'), pick_version('1.12', ['1.5', '1.20', '1.1', '1.50', '1.10', '1.9', '1.8']))
+
+        # if no older versions are available, oldest available version is returned
+        self.assertEqual(('0.8', '1.1'), pick_version('0.8', ['1.5', '1.1', '1.10', '1.8']))
 
     def test_find_matching_easyconfigs(self):
         """Test find_matching_easyconfigs function."""
