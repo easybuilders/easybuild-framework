@@ -1534,6 +1534,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
+    def test_software_version_ordering(self):
+        """Test whether software versions are correctly ordered when using --software."""
+        ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        gcc_ec = os.path.join(ecs_path, 'g', 'GCC', 'GCC-4.9.2.eb')
+
+        test_gcc_ec = os.path.join(self.test_prefix, 'GCC-4.10.1.eb')
+        test_gcc_txt = read_file(gcc_ec).replace("version = '4.9.2'", "version = '4.10.1'")
+
+        write_file(test_gcc_ec, test_gcc_txt)
+
+        args = [
+            '--software=GCC,4.10.1',
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--dry-run',
+            '--robot=%s:%s' % (ecs_path, self.test_prefix),
+        ]
+        out = self.eb_main(['--software=GCC,4.10.1'] + args[1:], raise_error=True)
+
+        regex = re.compile("GCC-4.10.1.eb \(module: GCC/4.10.1\)$", re.M)
+        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
     def test_recursive_try(self):
         """Test whether recursive --try-X works."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
