@@ -1555,7 +1555,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         out = self.eb_main(['--software=GCC,4.10.1'] + args[1:], raise_error=True)
 
-        regex = re.compile("GCC-4.10.1.eb \(module: GCC/4.10.1\)$", re.M)
+        regex = re.compile(r"GCC-4.10.1.eb \(module: GCC/4.10.1\)$", re.M)
         self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
     def test_recursive_try(self):
