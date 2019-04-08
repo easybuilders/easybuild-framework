@@ -622,6 +622,111 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.blas_family(), 'IntelMKL')
         self.assertEqual(tc.lapack_family(), 'IntelMKL')
 
+    def test_fft_env_vars_foss(self):
+        """Test setting of $FFT* environment variables using foss toolchain."""
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        fft_static_libs_mt = 'libfftw3.a,libpthread.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3')
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3 -lpthread')
+
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({'openmp': True})
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), 'libfftw3_omp.a,' + fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), 'libfftw3_omp.a,' + fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3')
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3_omp -lfftw3 -lpthread')
+
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3_mpi.a,libfftw3.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3_mpi -lfftw3')
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3 -lpthread')
+
+    def test_fft_env_vars_intel(self):
+        """Test setting of $FFT* environment variables using intel toolchain."""
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('intel', version='2018a')
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3xc_intel.a,libmkl_intel_lp64.a,libmkl_sequential.a,libmkl_core.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        fft_static_libs_mt = 'libfftw3xc_intel.a,libmkl_intel_lp64.a,libmkl_intel_thread.a,libmkl_core.a,'
+        fft_static_libs_mt += 'libiomp5.a,libpthread.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        libfft = "-Wl,-Bstatic -Wl,--start-group -lfftw3xc_intel -lmkl_intel_lp64 -lmkl_sequential -lmkl_core "
+        libfft += "-Wl,--end-group -Wl,-Bdynamic"
+        self.assertEqual(tc.get_variable('LIBFFT'), libfft)
+
+        libfft_mt = "-Wl,-Bstatic -Wl,--start-group -lfftw3xc_intel -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core "
+        libfft_mt += "-Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
+        tc = self.get_toolchain('intel', version='2018a')
+        tc.set_options({'openmp': True})
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), libfft)
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
+        tc = self.get_toolchain('intel', version='2018a')
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3xc_intel.a,libfftw3x_cdft_lp64.a,libmkl_cdft_core.a,libmkl_blacs_intelmpi_lp64.a,'
+        fft_static_libs += 'libmkl_intel_lp64.a,libmkl_sequential.a,libmkl_core.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        fft_static_libs_mt = 'libfftw3xc_intel.a,libfftw3x_cdft_lp64.a,libmkl_cdft_core.a,libmkl_blacs_intelmpi_lp64.a,'
+        fft_static_libs_mt += 'libmkl_intel_lp64.a,libmkl_intel_thread.a,libmkl_core.a,libiomp5.a,libpthread.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        libfft = '-Wl,-Bstatic -Wl,--start-group -lfftw3xc_intel -lfftw3x_cdft_lp64 -lmkl_cdft_core '
+        libfft += '-lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -Wl,-Bdynamic'
+        self.assertEqual(tc.get_variable('LIBFFT'), libfft)
+
+        libfft_mt = '-Wl,-Bstatic -Wl,--start-group -lfftw3xc_intel -lfftw3x_cdft_lp64 -lmkl_cdft_core '
+        libfft_mt += '-lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group '
+        libfft_mt += '-Wl,-Bdynamic -liomp5 -lpthread'
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
     def test_fosscuda(self):
         """Test whether fosscuda is handled properly."""
         tc = self.get_toolchain("fosscuda", version="2018a")
