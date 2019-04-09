@@ -3,6 +3,52 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.9.0 (April 12th 2019)
+------------------------
+
+feature release
+- various minor enhancements, including:
+  - make builddependencies iterable (#2741)
+  - silence printed deprecation warnings for easyconfigs/toolchains based on 'silent' build option (#2781)
+  - add parameters for pretestopts and testopts (#2793)
+  - automatically enable --ignore-osdeps when using --preview-pr (#2799)
+  - add support for multi_deps easyconfig parameter (syntactic sugar for iterative list of builddependencies) (#2813)
+  - add support for loading first version listed in multi_deps by default in generated module file (#2828)
+- various bug fixes, including:
+  - fix argument name in close_pr (#2752)
+  - fix undefined variable 'prefix' in Compiler._set_compiler_vars (#2757)
+  - fix test account for GitHub-related tests (#2760)
+  - make sure read permissions are always set (#2770)
+  - make test for dep_graph function robust against changing order of lines in resulting dot file (#2772)
+  - avoid printing of messages/warnings in framework test suite (#2782)
+  - fix problem with import_available_modules when running from easybuild-framework directory (#2786)
+  - prepend location of test easyblocks to $PYTHONPATH to test_generate_software_list, rather than append (#2788)
+  - use pid in backup name candidate to reduce risk of two processes colliding (#2796)
+  - enable silent mode for --new-pr and --update-pr (#2802)
+  - use temporary checkout of repository as robot path for --new-pr and --update-pr to determine locations for patch files (#2803)
+  - avoid relying on order in which keys are processed in to_dependency (#2804)
+  - update Travis config to reflect that PyYAML 5.x is no longer compatible with Python 2.6 (#2807)
+  - fix yeb format to work with PyYaml 5 (#2809)
+  - fix problem with list of iterative easyconfig parameters being determined too early + reset toolchain variables on iterations (#2810)
+  - add tests for bugs fixed in #2810 (#2811)
+  - take into account that builddependencies is always a list in EasyBlock.det_iter_cnt (#2812)
+  - fix typo in error message for use of unknown easyconfig parameter (#2817)
+  - enhance log_file_format to fix problem when %(name)s template value is used for log directory (#2818)
+  - iterate over subdirectories in order in find_egg_dir_for of bootstrap script, to ensure oldest vsc-install is picked (#2819)
+  - replace -Wl,--enable-new-dtags compiler option with -Wl,--disable-new-dtags in RPATH wrapper script (#2821)
+  - updated COMPILER_F77 for PGI >= 19.1 (#2823)
+  - ensure check_conflicts uses flattened list of build dependencies for easyconfigs that use multi_deps (#2825)
+  - make check_conflicts aware of multi_deps (#2826)
+  - fix crash in dep_graph when easyconfig that uses multi_deps is used (#2827)
+  - added FFTW_STATIC_LIBS_MT to FFTW_MAP_CLASS, otherwise FFTW_STATIC_LIBS_MT are incorrectly defined (#2822)
+  - sort available version list when selecting/generating easyconfig (#2732)
+- other changes:
+  - use assertEqual rather than assertEquals (which is deprecated) (#2746)
+  - test with Tmod 4.1.4 (packaged in RHEL8) in Travis CI (#2747)
+  - replace deps by hidden deps instead of removing them from the lists (#2748)
+  - ensure non-zero exit code for all test subsuites (+ fix trivial style issues) (#2773)
+
+
 v3.8.1 (January 29th 2019)
 --------------------------
 
