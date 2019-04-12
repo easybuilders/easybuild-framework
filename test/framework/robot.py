@@ -1414,12 +1414,34 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         self.assertFalse(res)
 
+    def test_check_conflicts_multi_deps(self):
+        """Test check_conflicts when multi_deps is used."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        # we need to use empty dummy toolchain version to ensure dependencies are picked up...
+        tc_regex = re.compile(r'^toolchain = .*', re.M)
+        test_ec_txt = tc_regex.sub("toolchain = {'name': 'dummy', 'version': ''}", test_ec_txt)
+        test_ec_txt += "\nmulti_deps = {'GCC': ['4.9.2', '7.3.0-2.30']}\n"
+        test_ec_txt += "dependencies = [('gzip', '1.4')]\n"
+
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+
+        init_config(build_options={'robot_path': [test_ecs]})
+
+        # use of multi_deps should not result in false positives in check_conflicts
+        self.assertFalse(check_conflicts(ecs, self.modtool))
+
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""
 
         # we must allow use of deprecated toolchain in this case
         self.allow_deprecated_behaviour()
-        init_config()
+        init_config(build_options={'silent': True})
 
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
@@ -1439,6 +1461,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'consider_archived_easyconfigs': True,
             'robot_path': [test_ecs],
+            'silent': True,
         })
         res = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
         self.assertEqual([ec['full_mod_name'] for ec in res], ['intel/2012a', 'gzip/1.5-intel-2012a'])
@@ -1452,4 +1475,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

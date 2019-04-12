@@ -74,7 +74,7 @@ class RepositoryTest(EnhancedTestCase):
         """Test using GitRepository."""
         # only run this test if git Python module is available
         try:
-            from git import GitCommandError
+            from git import GitCommandError  # noqa
         except ImportError:
             print "(skipping GitRepository test)"
             return
@@ -116,7 +116,7 @@ class RepositoryTest(EnhancedTestCase):
         """Test using SvnRepository."""
         # only run this test if pysvn Python module is available
         try:
-            from pysvn import ClientError
+            from pysvn import ClientError  # noqa
         except ImportError:
             print "(skipping SvnRepository test)"
             return
@@ -137,7 +137,7 @@ class RepositoryTest(EnhancedTestCase):
         """Test using HgRepository."""
         # only run this test if pysvn Python module is available
         try:
-            import hglib
+            import hglib  # noqa
         except ImportError:
             print "(skipping HgRepository test)"
             return
@@ -193,8 +193,10 @@ class RepositoryTest(EnhancedTestCase):
             path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
             check_ec(path, [{'time': 1.23}])
 
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
-            check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+            stats1 = {'time': 1.23, 'size': 123}
+            stats2 = [{'time': 0.9, 'size': 2}]
+            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', stats1, stats2)
+            check_ec(path, stats2 + [stats1])
 
             easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
         else:
@@ -206,10 +208,12 @@ class RepositoryTest(EnhancedTestCase):
 
         shutil.rmtree(self.path, True)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

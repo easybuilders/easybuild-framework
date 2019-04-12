@@ -306,6 +306,19 @@ class ModuleGenerator(object):
 
         return modulerc_txt
 
+    def is_loaded(self, mod_names):
+        """
+        Generate (list of) expression(s) to check whether specified module(s) is (are) loaded.
+
+        :param mod_names: (list of) module name(s) to check load status for
+        """
+        if isinstance(mod_names, basestring):
+            res = self.IS_LOADED_TEMPLATE % mod_names
+        else:
+            res = [self.IS_LOADED_TEMPLATE % m for m in mod_names]
+
+        return res
+
     # From this point on just not implemented methods
 
     def check_group(self, group, error_msg=None):
@@ -322,15 +335,18 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
+    def conditional_statement(self, conditions, body, negative=False, else_body=None, indent=True,
+                              cond_or=False, cond_tmpl=None):
         """
         Return formatted conditional statement, with given condition and body.
 
-        :param condition: string containing the statement for the if condition (in correct syntax)
+        :param conditions: (list of) string(s) containing the statement(s) for the if condition (in correct syntax)
         :param body: (multiline) string with if body (in correct syntax, without indentation)
-        :param negative: boolean indicating whether the condition should be negated
+        :param negative: boolean indicating whether the (individual) condition(s) should be negated
         :param else_body: optional body for 'else' part
         :param indent: indent if/else body
+        :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
+        :param cond_tmpl: template for condition expression (default: '%s')
         """
         raise NotImplementedError
 
@@ -346,13 +362,15 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        :param depends_on: use depends_on statements rather than (guarded) load statements
         :param unload_modules: name(s) of module to unload first
+        :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
         raise NotImplementedError
 
@@ -553,6 +571,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
+    IS_LOADED_TEMPLATE = 'is-loaded %s'
 
     def check_group(self, group, error_msg=None):
         """
@@ -569,20 +588,36 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
+    def conditional_statement(self, conditions, body, negative=False, else_body=None, indent=True,
+                              cond_or=False, cond_tmpl=None):
         """
         Return formatted conditional statement, with given condition and body.
 
-        :param condition: string containing the statement for the if condition (in correct syntax)
+        :param conditions: (list of) string(s) containing the statement(s) for the if condition (in correct syntax)
         :param body: (multiline) string with if body (in correct syntax, without indentation)
-        :param negative: boolean indicating whether the condition should be negated
+        :param negative: boolean indicating whether the (individual) condition(s) should be negated
         :param else_body: optional body for 'else' part
         :param indent: indent if/else body
+        :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
+        :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if negative:
-            lines = ["if { ![ %s ] } {" % condition]
+        if isinstance(conditions, basestring):
+            conditions = [conditions]
+
+        if cond_or:
+            join_op = ' || '
         else:
-            lines = ["if { [ %s ] } {" % condition]
+            join_op = ' && '
+
+        if negative:
+            condition = join_op.join('![ %s ]' % c for c in conditions)
+        else:
+            condition = join_op.join('[ %s ]' % c for c in conditions)
+
+        if cond_tmpl:
+            condition = cond_tmpl % condition
+
+        lines = ["if { %s } {" % condition]
 
         for line in body.split('\n'):
             if indent:
@@ -620,8 +655,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         ]
 
         if self.app.cfg['moduleloadnoconflict']:
-            cond_unload = self.conditional_statement("is-loaded %(name)s", "module unload %(name)s")
-            lines.extend(['', self.conditional_statement("is-loaded %(name)s/%(version)s", cond_unload, negative=True)])
+            cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
+            lines.extend([
+                '',
+                self.conditional_statement(self.is_loaded('%(name)s/%(version)s'), cond_unload, negative=True),
+            ])
 
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
@@ -647,13 +685,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '$::env(%s)' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        :param unload_module: name(s) of module to unload first
+        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param unload_modules: name(s) of module to unload first
+        :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
         body = []
         if unload_modules:
@@ -664,15 +704,44 @@ class ModuleGeneratorTcl(ModuleGenerator):
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+
         body.append(load_template)
 
-        if build_option('recursive_mod_unload') or recursive_unload or load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
-            # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
-            # when "module unload" is called on the module in which the dependency "module load" is present,
-            # it will get translated to "module unload"
-            load_statement = body + ['']
+        depends_on = load_template == self.LOAD_TEMPLATE_DEPENDS_ON
+
+        cond_tmpl = None
+        if build_option('recursive_mod_unload') or recursive_unload or depends_on:
+            # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
+            # guard ensures recursive unloading while avoiding load storms;
+            # when "module unload" is called on the module in which the
+            # dependency "module load" is present, it will get translated
+            # to "module unload" (while the condition is left untouched)
+            # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
+            cond_tmpl = "[ module-info mode remove ] || %s"
+
+        if depends_on:
+            if multi_dep_mods:
+                parent_mod_name = os.path.dirname(mod_name)
+                guard = self.is_loaded(multi_dep_mods[1:])
+                if_body = load_template % {'mod_name': parent_mod_name}
+                else_body = '\n'.join(body)
+                load_statement = [
+                    self.conditional_statement(guard, if_body, else_body=else_body, cond_tmpl=cond_tmpl, cond_or=True),
+                ]
+            else:
+                load_statement = body + ['']
         else:
-            load_statement = [self.conditional_statement("is-loaded %(mod_name)s", '\n'.join(body), negative=True)]
+            if multi_dep_mods is None:
+                # guard load statement with check to see whether module being loaded is already loaded
+                # (this avoids load storms)
+                cond_mod_names = '%(mod_name)s'
+            else:
+                cond_mod_names = multi_dep_mods
+
+            # conditional load if one or more conditions are specified
+            load_guards = self.is_loaded(cond_mod_names)
+            body = '\n'.join(body)
+            load_statement = [self.conditional_statement(load_guards, body, negative=True, cond_tmpl=cond_tmpl)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
@@ -781,7 +850,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         body = "module swap %s %s" % (mod_name_out, mod_name_in)
         if guarded:
             alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
-            swap_statement = [self.conditional_statement("is-loaded %s" % mod_name_out, body, else_body=alt_body)]
+            swap_statement = [self.conditional_statement(self.is_loaded(mod_name_out), body, else_body=alt_body)]
         else:
             swap_statement = [body, '']
 
@@ -844,6 +913,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
+    IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
@@ -896,20 +966,36 @@ class ModuleGeneratorLua(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "-- %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False, else_body=None, indent=True):
+    def conditional_statement(self, conditions, body, negative=False, else_body=None, indent=True,
+                              cond_or=False, cond_tmpl=None):
         """
         Return formatted conditional statement, with given condition and body.
 
-        :param condition: string containing the statement for the if condition (in correct syntax)
+        :param conditions: (list of) string(s) containing the statement(s) for the if condition (in correct syntax)
         :param body: (multiline) string with if body (in correct syntax, without indentation)
-        :param negative: boolean indicating whether the condition should be negated
+        :param negative: boolean indicating whether the (individual) condition(s) should be negated
         :param else_body: optional body for 'else' part
         :param indent: indent if/else body
+        :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
+        :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if negative:
-            lines = ["if not %s then" % condition]
+        if isinstance(conditions, basestring):
+            conditions = [conditions]
+
+        if cond_or:
+            join_op = ' or '
         else:
-            lines = ["if %s then" % condition]
+            join_op = ' and '
+
+        if negative:
+            condition = join_op.join('not ( %s )' % c for c in conditions)
+        else:
+            condition = join_op.join(conditions)
+
+        if cond_tmpl:
+            condition = cond_tmpl % condition
+
+        lines = ["if %s then" % condition]
 
         for line in body.split('\n'):
             if indent:
@@ -971,13 +1057,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return 'os.getenv("%s")' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        :param depends_on: use depends_on statements rather than (guarded) load statements
         :param unload_modules: name(s) of module to unload first
+        :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
         body = []
         if unload_modules:
@@ -991,20 +1079,42 @@ class ModuleGeneratorLua(ModuleGenerator):
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
         body.append(load_template)
-        if load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
-            load_statement = body + ['']
-        else:
-            if build_option('recursive_mod_unload') or recursive_unload:
-                # wrapping the 'module load' with an 'is-loaded or mode == unload'
-                # guard ensures recursive unloading while avoiding load storms,
-                # when "module unload" is called on the module in which the
-                # depedency "module load" is present, it will get translated
-                # to "module unload"
-                # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
-                load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
+
+        depends_on = load_template == self.LOAD_TEMPLATE_DEPENDS_ON
+
+        cond_tmpl = None
+        if build_option('recursive_mod_unload') or recursive_unload or depends_on:
+            # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
+            # guard ensures recursive unloading while avoiding load storms;
+            # when "module unload" is called on the module in which the
+            # dependency "module load" is present, it will get translated
+            # to "module unload" (while the condition is left untouched)
+            # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
+            cond_tmpl = 'mode() == "unload" or %s'
+
+        if depends_on:
+            if multi_dep_mods:
+                parent_mod_name = os.path.dirname(mod_name)
+                guard = self.is_loaded(multi_dep_mods[1:])
+                if_body = load_template % {'mod_name': parent_mod_name}
+                else_body = '\n'.join(body)
+                load_statement = [
+                    self.conditional_statement(guard, if_body, else_body=else_body, cond_tmpl=cond_tmpl, cond_or=True),
+                ]
             else:
-                load_guard = 'isloaded("%(mod_name)s")'
-            load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
+                load_statement = body + ['']
+        else:
+            if multi_dep_mods is None:
+                # guard load statement with check to see whether module being loaded is already loaded
+                # (this avoids load storms)
+                cond_mod_names = '%(mod_name)s'
+            else:
+                cond_mod_names = multi_dep_mods
+
+            # conditional load if one or more conditions are specified
+            load_guards = self.is_loaded(cond_mod_names)
+            body = '\n'.join(body)
+            load_statement = [self.conditional_statement(load_guards, body, negative=True, cond_tmpl=cond_tmpl)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
@@ -1149,7 +1259,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
         if guarded:
             alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
-            swap_statement = [self.conditional_statement('isloaded("%s")' % mod_name_out, body, else_body=alt_body)]
+            swap_statement = [self.conditional_statement(self.is_loaded(mod_name_out), body, else_body=alt_body)]
         else:
             swap_statement = [body, '']
 

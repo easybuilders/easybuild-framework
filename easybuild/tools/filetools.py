@@ -222,7 +222,7 @@ def write_file(path, txt, append=False, forced=False, backup=False, always_overw
             backed_up_fp = back_up_file(path)
             _log.info("Existing file %s backed up to %s", path, backed_up_fp)
             if verbose:
-                print_msg("Backup of %s created at %s" % (path, backed_up_fp))
+                print_msg("Backup of %s created at %s" % (path, backed_up_fp), silent=build_option('silent'))
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
@@ -447,7 +447,6 @@ def pypi_source_urls(pkg_name):
     tmpdir = tempfile.mkdtemp()
     urls_html = os.path.join(tmpdir, '%s_urls.html' % pkg_name)
     if download_file(os.path.basename(urls_html), simple_url, urls_html) is None:
-        print("Failed to download %s to determine available PyPI URLs for %s" % (simple_url, pkg_name))
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
@@ -1302,12 +1301,12 @@ def find_backup_name_candidate(src_file):
 
     # e.g. 20170817234510 on Aug 17th 2017 at 23:45:10
     timestamp = datetime.datetime.now()
-    dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+    dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
     while os.path.exists(dst_file):
-        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, timestamp)
+        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, dst_file, timestamp)
         time.sleep(1)
         timestamp = datetime.datetime.now()
-        dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+        dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
 
     return dst_file
 
