@@ -1843,7 +1843,7 @@ class EasyConfigTest(EnhancedTestCase):
                 self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
 
         except ImportError:
-            print "Skipping test_dep_graph, since pygraph is not available"
+            print("Skipping test_dep_graph, since pygraph is not available")
 
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
