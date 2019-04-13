@@ -312,7 +312,7 @@ class ModuleGenerator(object):
 
         :param mod_names: (list of) module name(s) to check load status for
         """
-        if isinstance(mod_names, basestring):
+        if isinstance(mod_names, string_type):
             res = self.IS_LOADED_TEMPLATE % mod_names
         else:
             res = [self.IS_LOADED_TEMPLATE % m for m in mod_names]
@@ -601,7 +601,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, basestring):
+        if isinstance(conditions, string_type):
             conditions = [conditions]
 
         if cond_or:
@@ -979,7 +979,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, basestring):
+        if isinstance(conditions, string_type):
             conditions = [conditions]
 
         if cond_or:
