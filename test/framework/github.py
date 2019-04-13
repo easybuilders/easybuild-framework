@@ -402,13 +402,12 @@ class GithubTest(EnhancedTestCase):
             'minimal_toolchains': True,
             'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
-            'robot_path': [ec_path],
             'silent': True,
             'valid_module_classes': module_classes(),
             'validate': False,
         })
         self.mock_stdout(True)
-        ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch')
+        ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch', [ec_path])
         txt = self.get_stdout()
         self.mock_stdout(False)
 
@@ -526,9 +525,6 @@ class GithubTest(EnhancedTestCase):
     def test_det_patch_specs(self):
         """Test for det_patch_specs function."""
 
-        # robot_path build option is used by find_software_name_for_patch, which is called by det_patch_specs
-        init_config(build_options={'robot_path': []})
-
         patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
         file_info = {'ecs': [
                 {'name': 'A', 'patches': ['1.patch']},
@@ -537,12 +533,12 @@ class GithubTest(EnhancedTestCase):
         }
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info)
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
         self.mock_stdout(False)
 
         file_info['ecs'].append({'name': 'C', 'patches': [('3.patch', 'subdir'), '2.patch']})
         self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info)
+        res = gh.det_patch_specs(patch_paths, file_info, [])
         self.mock_stdout(False)
 
         self.assertEqual(len(res), 3)

@@ -31,6 +31,7 @@ be used within an Easyconfig file.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Kenneth Hoste (Ghent University)
 """
+import copy
 import re
 import platform
 
@@ -206,7 +207,15 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     # step 2: define *ver and *shortver templates
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        for dep in config.get('dependencies', []):
+
+        # copy to avoid changing original list below
+        deps = copy.copy(config.get('dependencies', []))
+
+        # only consider build dependencies for defining *ver and *shortver templates if we're in iterative mode
+        if hasattr(config, 'iterating') and config.iterating:
+            deps += config.get('builddependencies', [])
+
+        for dep in deps:
             if isinstance(dep, dict):
                 dep_name, dep_version = dep['name'], dep['version']
             elif isinstance(dep, (list, tuple)):

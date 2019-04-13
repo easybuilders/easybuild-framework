@@ -77,8 +77,8 @@ from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_u
 from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
 from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
-from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
-from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
+from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
+from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
 from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -96,7 +96,7 @@ from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str, 
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
-MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
+MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
@@ -157,6 +157,10 @@ class EasyBlock(object):
         self.ext_instances = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
+
+        # indicates whether or not this instance represents an extension or not;
+        # may be set to True by ExtensionEasyBlock
+        self.is_extension = False
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -1089,12 +1093,34 @@ class EasyBlock(object):
                                                            depends_on=depends_on,
                                                            unload_modules=unload_modules))
 
-        # Force unloading any other modules
+        # force unloading any other modules
         if self.cfg['moduleforceunload']:
             unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
-            return ''.join(unloads) + ''.join(loads)
+            dep_stmts = unloads + loads
         else:
-            return ''.join(loads)
+            dep_stmts = loads
+
+        # load first version listed in multi_deps as a default, if desired
+        if self.cfg['multi_deps_load_default']:
+
+            # build map of dep name to list of module names corresponding to each version
+            # first entry in multi_deps is list of first versions for each multi-dep
+            multi_dep_mod_names = {}
+            for deplist in self.cfg.multi_deps:
+                for dep in deplist:
+                    multi_dep_mod_names.setdefault(dep['name'], [])
+                    multi_dep_mod_names[dep['name']].append(dep['short_mod_name'])
+
+            multi_dep_load_defaults = []
+            for depname, depmods in sorted(multi_dep_mod_names.items()):
+                stmt = self.module_generator.load_module(depmods[0], multi_dep_mods=depmods,
+                                                         recursive_unload=recursive_unload,
+                                                         depends_on=depends_on)
+                multi_dep_load_defaults.append(stmt)
+
+            dep_stmts.extend(multi_dep_load_defaults)
+
+        return ''.join(dep_stmts)
 
     def make_module_description(self):
         """
@@ -1299,9 +1325,13 @@ class EasyBlock(object):
             'CLASSPATH': ['*.jar'],
         }
 
-    def load_module(self, mod_paths=None, purge=True):
+    def load_module(self, mod_paths=None, purge=True, extra_modules=None):
         """
         Load module for this software package/version, after purging all currently loaded modules.
+
+        :param mod_paths: list of (additional) module paths to take into account
+        :param purge: boolean indicating whether or not to purge currently loaded modules first
+        :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
         # self.full_mod_name might not be set (e.g. during unit tests)
         if self.full_mod_name is not None:
@@ -1309,10 +1339,17 @@ class EasyBlock(object):
                 mod_paths = []
             all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
 
+            mods = [self.short_mod_name]
+
+            # if extra modules are specified, these are loaded first;
+            # this is important in the context of sanity check for easyconfigs that use multi_deps,
+            # especially if multi_deps_load_default is set...
+            if extra_modules:
+                mods = extra_modules + mods
+
             # for flat module naming schemes, we can load the module directly;
             # for non-flat (hierarchical) module naming schemes, we may need to load the toolchain module first
             # to update $MODULEPATH such that the module can be loaded using the short module name
-            mods = [self.short_mod_name]
             if self.mod_subdir and self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
                 mods.insert(0, self.toolchain.det_short_module_name())
 
@@ -1327,9 +1364,12 @@ class EasyBlock(object):
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
-    def load_fake_module(self, purge=False):
+    def load_fake_module(self, purge=False, extra_modules=None):
         """
         Create and load fake module.
+
+        :param purge: boolean indicating whether or not to purge currently loaded modules first
+        :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
         # take a copy of the current environment before loading the fake module, so we can restore it
         env = copy.deepcopy(os.environ)
@@ -1339,7 +1379,7 @@ class EasyBlock(object):
 
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge)
+        self.load_module(purge=purge, extra_modules=extra_modules)
 
         return (fake_mod_path, env)
 
@@ -1484,7 +1524,9 @@ class EasyBlock(object):
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
 
-        self.cfg.start_iterating()
+        # start iterative mode (only need to do this once)
+        if self.iter_idx == 0:
+            self.cfg.start_iterating()
 
         # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
         # set first element to be used, keep track of list in self.iter_opts
@@ -1496,6 +1538,7 @@ class EasyBlock(object):
                 self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
         if self.iter_opts:
+            print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
             self.log.info("Current iteration index: %s", self.iter_idx)
 
         # pop first element from all iterative easyconfig parameters as next value to use
@@ -1512,7 +1555,7 @@ class EasyBlock(object):
         # prepare for next iteration (if any)
         self.iter_idx += 1
 
-    def restore_iterate_opts(self):
+    def post_iter_step(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
         prev_enable_templating = self.cfg.enable_templating
@@ -1520,6 +1563,11 @@ class EasyBlock(object):
 
         for opt in self.iter_opts:
             self.cfg[opt] = self.iter_opts[opt]
+
+            # also need to take into account extensions, since those were iterated over as well
+            for ext in self.ext_instances:
+                ext.cfg[opt] = self.iter_opts[opt]
+
             self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
         self.cfg.stop_iterating()
@@ -1938,10 +1986,11 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = None
         if not self.dry_run:
-            fake_mod_data = self.load_fake_module(purge=True)
 
-            # also load modules for build dependencies again, since those are not loaded by the fake module
-            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True))
+            # load modules for build dependencies as extra modules
+            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+
+            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
 
         self.prepare_for_extensions()
 
@@ -1972,6 +2021,7 @@ class EasyBlock(object):
             raise EasyBuildError("Improper default extension class specification, should be string.")
 
         # get class instances for all extensions
+        self.ext_instances = []
         exts_cnt = len(self.exts)
         for idx, ext in enumerate(self.exts):
             self.log.debug("Starting extension %s" % ext['name'])
@@ -2084,6 +2134,7 @@ class EasyBlock(object):
         Do some postprocessing
         - run post install commands if any were specified
         """
+
         if self.cfg['postinstallcmds'] is not None:
             # make sure we have a list of commands
             if not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
@@ -2101,8 +2152,49 @@ class EasyBlock(object):
         """
         if self.dry_run:
             self._sanity_check_step_dry_run(*args, **kwargs)
+
+        # handling of extensions that were installed for multiple dependency versions is done in ExtensionEasyBlock
+        elif self.cfg['multi_deps'] and not self.is_extension:
+            self._sanity_check_step_multi_deps(*args, **kwargs)
+
         else:
             self._sanity_check_step(*args, **kwargs)
+
+    def _sanity_check_step_multi_deps(self, *args, **kwargs):
+        """Perform sanity check for installations that iterate over a list a versions for particular dependencies."""
+
+        # take into account provided list of extra modules (if any)
+        common_extra_modules = kwargs.get('extra_modules') or []
+
+        # if multi_deps was used to do an iterative installation over multiple sets of dependencies,
+        # we need to perform the sanity check for each one of these;
+        # this implies iterating over the list of lists of build dependencies again...
+
+        # get list of (lists of) builddependencies, without templating values
+        builddeps = self.cfg.get_ref('builddependencies')
+
+        # start iterating again;
+        # required to ensure build dependencies are taken into account to resolve templates like %(pyver)s
+        self.cfg.iterating = True
+
+        for iter_deps in self.cfg.multi_deps:
+
+            # need to re-generate template values to get correct values for %(pyver)s and %(pyshortver)s
+            self.cfg['builddependencies'] = iter_deps
+            self.cfg.generate_template_values()
+
+            extra_modules = common_extra_modules + [d['short_mod_name'] for d in iter_deps]
+
+            info_msg = "Running sanity check with extra modules: %s" % ', '.join(extra_modules)
+            trace_msg(info_msg)
+            self.log.info(info_msg)
+
+            kwargs['extra_modules'] = extra_modules
+            self._sanity_check_step(*args, **kwargs)
+
+        # restore list of lists of build dependencies & stop iterating again
+        self.cfg['builddependencies'] = builddeps
+        self.cfg.iterating = False
 
     def sanity_check_rpath(self, rpath_dirs=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
@@ -2176,7 +2268,12 @@ class EasyBlock(object):
         return fails
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
-        """Determine sanity check paths and commands to use."""
+        """
+        Determine sanity check paths and commands to use.
+
+        :param custom_paths: custom sanity check paths to check existence for
+        :param custom_commands: custom sanity check commands to run
+        """
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
@@ -2244,7 +2341,12 @@ class EasyBlock(object):
         return paths, path_keys_and_check, commands
 
     def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, **_):
-        """Dry run version of sanity_check_step method."""
+        """
+        Dry run version of sanity_check_step method.
+
+        :param custom_paths: custom sanity check paths to check existence for
+        :param custom_commands: custom sanity check commands to run
+        """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         for key, (typ, _) in path_keys_and_check.items():
@@ -2295,8 +2397,15 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
             self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
-    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
-        """Real version of sanity_check_step method."""
+    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
+        """
+        Real version of sanity_check_step method.
+
+        :param custom_paths: custom sanity check paths to check existence for
+        :param custom_commands: custom sanity check commands to run
+        :param extension: indicates whether or not sanity check is run for an extension
+        :param extra_modules: extra modules to load before running sanity check commands
+        """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         # helper function to sanity check (alternatives for) one particular path
@@ -2353,15 +2462,19 @@ class EasyBlock(object):
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         fake_mod_data = None
+
         # only load fake module for non-extensions, and not during dry run
         if not (extension or self.dry_run):
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True)
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
             except EasyBuildError as err:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+
+            if extra_modules:
+                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
 
         # chdir to installdir (better environment for running tests)
         if os.path.isdir(self.installdir):
@@ -2446,8 +2559,6 @@ class EasyBlock(object):
         self.toolchain.cleanup()
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
-
-        self.restore_iterate_opts()
 
     def invalidate_module_caches(self, modpath):
         """Helper method to invalidate module caches for specified module path."""
@@ -2727,6 +2838,7 @@ class EasyBlock(object):
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
         test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
+        extensions_step_spec = (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False)
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
@@ -2739,6 +2851,7 @@ class EasyBlock(object):
             build_step_spec,
             test_step_spec,
             install_step_spec(True),
+            extensions_step_spec,
         ]
         # part 2: iterated part, from 2nd iteration onwards
         # repeat core procedure again depending on specified iteration count
@@ -2752,10 +2865,11 @@ class EasyBlock(object):
             build_step_spec,
             test_step_spec,
             install_step_spec(False),
+            extensions_step_spec,
         ] * (iteration_count - 1)
         # part 3: post-iteration part
         steps_part3 = [
-            (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False),
+            (POSTITER_STEP, 'restore after iterating', [lambda x: x.post_iter_step], False),
             (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], True),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),

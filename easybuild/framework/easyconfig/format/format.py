@@ -53,7 +53,7 @@ DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencie
 
 # values for these keys will not be templated in dump()
 EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_list', 'homepage', 'name', 'toolchain',
-                                   'version'] + DEPENDENCY_PARAMETERS
+                                   'version', 'multi_deps'] + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
 GROUPED_PARAMS = [
@@ -62,7 +62,7 @@ GROUPED_PARAMS = [
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
     ['source_urls', 'sources', 'patches', 'checksums'],
-    DEPENDENCY_PARAMETERS,
+    DEPENDENCY_PARAMETERS + ['multi_deps'],
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],

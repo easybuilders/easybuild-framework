@@ -1414,6 +1414,28 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         self.assertFalse(res)
 
+    def test_check_conflicts_multi_deps(self):
+        """Test check_conflicts when multi_deps is used."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        # we need to use empty dummy toolchain version to ensure dependencies are picked up...
+        tc_regex = re.compile(r'^toolchain = .*', re.M)
+        test_ec_txt = tc_regex.sub("toolchain = {'name': 'dummy', 'version': ''}", test_ec_txt)
+        test_ec_txt += "\nmulti_deps = {'GCC': ['4.9.2', '7.3.0-2.30']}\n"
+        test_ec_txt += "dependencies = [('gzip', '1.4')]\n"
+
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+
+        init_config(build_options={'robot_path': [test_ecs]})
+
+        # use of multi_deps should not result in false positives in check_conflicts
+        self.assertFalse(check_conflicts(ecs, self.modtool))
+
     def test_robot_archived_easyconfigs(self):
         """Test whether robot can pick up archived easyconfigs when asked."""
 
