@@ -71,6 +71,14 @@ from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
+try:
+    import pycodestyle  # noqa
+except ImportError:
+    try:
+        import pep8  # noqa
+    except ImportError:
+        pass
+
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
 toy;
@@ -1570,6 +1578,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_dump_extra (no pycodestyle or pep8 available)"
+            return
+
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
             '',
@@ -1608,6 +1621,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_dump_template (no pycodestyle or pep8 available)"
+            return
+
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
             '',
@@ -1677,6 +1695,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_dump_comments (no pycodestyle or pep8 available)"
+            return
+
         rawtxt = '\n'.join([
             "# #",
             "# some header comment",

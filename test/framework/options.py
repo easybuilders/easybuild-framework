@@ -60,6 +60,14 @@ from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from vsc.utils import fancylogger
 
+try:
+    import pycodestyle  # noqa
+except ImportError:
+    try:
+        import pep8  # noqa
+    except ImportError:
+        pass
+
 
 EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
 name = foo, bar
@@ -3530,6 +3538,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_check_contrib_non_style(self):
         """Test non-style checks performed by --check-contrib."""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)"
+            return
+
         args = [
             '--check-contrib',
             'toy-0.0.eb',
