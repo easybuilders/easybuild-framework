@@ -49,7 +49,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -2244,6 +2245,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            testdir = os.path.dirname(os.path.abspath(__file__))
+            path = '%s:%s' % (os.path.dirname(os.path.dirname(testdir)), self.env_path)
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2256,7 +2263,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--avail-module-naming-schemes',
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _ = run_cmd("export PATH='%s'; cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
         self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
@@ -2274,7 +2281,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--avail-module-naming-schemes',
             '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _ = run_cmd("export PATH='%s'; cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
 
     def test_use_included_module_naming_scheme(self):
@@ -2319,6 +2326,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            testdir = os.path.dirname(os.path.abspath(__file__))
+            path = '%s:%s' % (os.path.dirname(os.path.dirname(testdir)), self.env_path)
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2334,7 +2347,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--list-toolchains',
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _ = run_cmd("export PATH='%s', cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
         self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
@@ -2357,7 +2370,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
             '--list-toolchains',
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _ = run_cmd("export PATH='%s'; cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
 
     def test_cleanup_tmpdir(self):
