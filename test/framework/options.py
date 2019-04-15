@@ -2245,11 +2245,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
         # try and make sure 'eb' is available via $PATH if it isn't yet
         path = self.env_path
         if which('eb') is None:
-            testdir = os.path.dirname(os.path.abspath(__file__))
-            path = '%s:%s' % (os.path.dirname(os.path.dirname(testdir)), self.env_path)
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
+        if ec > 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -2263,7 +2270,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--avail-module-naming-schemes',
         ]
-        logtxt, _ = run_cmd("export PATH='%s'; cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
+
+        env_cmd = "export PATH='%s'; export PYTHONPATH='%s'; " % (path, pythonpath)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
@@ -2281,7 +2292,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--avail-module-naming-schemes',
             '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
         ]
-        logtxt, _ = run_cmd("export PATH='%s'; cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
 
     def test_use_included_module_naming_scheme(self):
@@ -2326,11 +2338,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
         # try and make sure 'eb' is available via $PATH if it isn't yet
         path = self.env_path
         if which('eb') is None:
-            testdir = os.path.dirname(os.path.abspath(__file__))
-            path = '%s:%s' % (os.path.dirname(os.path.dirname(testdir)), self.env_path)
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
+        if ec > 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -2347,7 +2366,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--list-toolchains',
         ]
-        logtxt, _ = run_cmd("export PATH='%s', cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
+        env_cmd = "export PATH='%s'; export PYTHONPATH='%s'; " % (path, pythonpath)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
@@ -2370,7 +2392,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
             '--list-toolchains',
         ]
-        logtxt, _ = run_cmd("export PATH='%s'; cd %s; eb %s" % (path, self.test_prefix, ' '.join(args)), simple=False)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
 
     def test_cleanup_tmpdir(self):
