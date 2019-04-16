@@ -46,7 +46,8 @@ class Slurm(JobBackend):
     Manage SLURM server communication and create `SlurmJob` objects.
     """
 
-    REQ_VERSION = '17'
+    # Oldest version tested, may also work with earlier releases
+    REQ_VERSION = '16.05'
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
@@ -161,8 +162,9 @@ class SlurmJob(object):
         self.job_specs = {
             'job-name': self.name,
             # pattern for output file for submitted job;
-            # SLURM replaces %x with job name, %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAF)
-            'output': '%x-%j.out',
+            # SLURM replaces %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAH)
+            # %x (job name) replacement needs SLURM >= 17.02.1, thus we add name ourselves
+            'output': '%s-%%j.out' % self.name,
             'wrap': self.script,
         }
 
