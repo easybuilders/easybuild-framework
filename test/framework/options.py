@@ -2271,7 +2271,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--avail-module-naming-schemes',
         ]
 
-        env_cmd = "export PATH='%s'; export PYTHONPATH='%s'; " % (path, pythonpath)
+        env_cmd = "export PATH='%s' PYTHONPATH='%s'; " % (path, pythonpath)
         cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
 
         logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
@@ -2366,7 +2366,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--list-toolchains',
         ]
-        env_cmd = "export PATH='%s'; export PYTHONPATH='%s'; " % (path, pythonpath)
+        env_cmd = "export PATH='%s' PYTHONPATH='%s'; " % (path, pythonpath)
         cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
 
         logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
