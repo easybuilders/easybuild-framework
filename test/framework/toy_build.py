@@ -1837,6 +1837,13 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
+
+        # find_eb_script function used to find rpath_args.py requires that location where easybuild/scripts
+        # resides is listed in sys.path via absolute path;
+        # this is only needed to make this test pass when it's being called from that same location...
+        top_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sys.path.insert(0, top_path)
+
         def grab_gcc_rpath_wrapper_filter_arg():
             """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
             rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
