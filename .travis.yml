@@ -45,8 +45,6 @@ addons:
     packages:
       # for environment modules/Lmod
       - tcl8.5
-      # for EasyBuild
-      - python-setuptools
       # for GitPython, python-hglib
       - git
       - mercurial
