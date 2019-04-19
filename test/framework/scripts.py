@@ -35,8 +35,6 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-import setuptools
-
 import easybuild.framework
 from easybuild.tools.run import run_cmd
 
@@ -48,11 +46,10 @@ class ScriptsTest(EnhancedTestCase):
         """Test setup."""
         super(ScriptsTest, self).setUp()
 
-        # make sure setuptools and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
-        setuptools_loc = os.path.dirname(os.path.dirname(setuptools.__file__))
+        # make sure easybuild-framework is included in $PYTHONPATH (so scripts can pick it up)
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
         pythonpath = os.environ.get('PYTHONPATH', '')
-        os.environ['PYTHONPATH'] = os.pathsep.join([setuptools_loc, framework_loc, pythonpath])
+        os.environ['PYTHONPATH'] = os.pathsep.join([framework_loc, pythonpath])
 
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""
