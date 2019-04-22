@@ -105,7 +105,7 @@ class GC3Pie(JobBackend):
                 raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
                                      pkg.version, self.REQ_VERSION)
 
-        except ImportError as err:
+        except ImportError:
             print_warning("Failed to check required GC3Pie version (>= %s)", self.REQ_VERSION)
 
         except DistributionNotFound as err:
