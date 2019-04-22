@@ -36,7 +36,6 @@ import shutil
 import sys
 import tempfile
 import unittest
-from pkg_resources import fixup_namespace_packages
 
 from easybuild.base import fancylogger
 from easybuild.base.testing import TestCase
@@ -144,20 +143,13 @@ class EnhancedTestCase(TestCase):
         # add sandbox to Python search path, update namespace packages
         sys.path.append(os.path.join(testdir, 'sandbox'))
 
-        # workaround for bug in recent setuptools version (19.4 and newer, atleast until 20.3.1)
-        # injecting <prefix>/easybuild is required to avoid a ValueError being thrown by fixup_namespace_packages
-        # cfr. https://bitbucket.org/pypa/setuptools/issues/520/fixup_namespace_packages-may-trigger
-        for path in sys.path[:]:
-            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                # keep track of 'easybuild' paths to inject into sys.path later
-                sys.path.append(os.path.join(path, 'easybuild'))
-
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
         # this relates to the other 'reload' statements below
         reload(easybuild)
 
-        # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
-        fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
+        # required to 'reset' easybuild.tools.module_naming_scheme namespace
+        reload(easybuild.tools)
+        reload(easybuild.tools.module_naming_scheme)
 
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
         for path in sys.path[:]:
@@ -166,15 +158,17 @@ class EnhancedTestCase(TestCase):
                     sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
-        # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
+        # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
+        easybuild.__path__.insert(0, os.path.join(testdir, 'sandbox', 'easybuild'))
         import easybuild.easyblocks
-        reload(easybuild.easyblocks)
         test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
         easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
+        reload(easybuild.easyblocks)
+
         import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
+        reload(easybuild.easyblocks.generic)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,

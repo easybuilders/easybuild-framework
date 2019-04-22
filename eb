@@ -25,13 +25,7 @@
 ##
 
 # EasyBuild main script
-# find location of main EasyBuild script by looking in Python search path, and run it
-
-#  this is an alternative for "python -m easybuild.main $@" which has issues, i.e.
-#  * it doesn't work with Python 2.4 (which we hang on to because of it being the default version in RedHat v5)
-#  * an ugly warning is printed whenever the pkg_resources module is loaded (e.g. by 3rd party modules like pygraph),
-#    see http://bugs.python.org/setuptools/issue36
-#    the cause of this is probably that we spread out the easybuild namespace across different locations
+# check Python version and run easybuild.main script
 
 # @author: Stijn De Weirdt (Ghent University)
 # @author: Dries Verdegem (Ghent University)

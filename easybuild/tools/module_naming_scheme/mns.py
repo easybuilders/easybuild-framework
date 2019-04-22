@@ -35,6 +35,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import Singleton
 
 
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
+
+
 class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""
 
@@ -172,4 +175,3 @@ class ModuleNamingScheme(object):
         Software is already installed beforehand with one naming scheme, including development module.
         """
         return True
-

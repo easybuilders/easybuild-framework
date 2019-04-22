@@ -470,7 +470,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 '--list-toolchains',
                 '--unittest-file=%s' % self.logfile,
                ]
-        self.eb_main(args, logfile=dummylogfn)
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         logtxt = read_file(self.logfile)
@@ -2266,7 +2266,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # include extra test MNS
         mns_txt = '\n'.join([
-            'from easybuild.tools.module_naming_scheme import ModuleNamingScheme',
+            'from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme',
             'class TestIncludedMNS(ModuleNamingScheme):',
             '   pass',
         ])
@@ -2289,7 +2289,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # include extra test MNS
         mns_txt = '\n'.join([
             'import os',
-            'from easybuild.tools.module_naming_scheme import ModuleNamingScheme',
+            'from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme',
             'class AnotherTestIncludedMNS(ModuleNamingScheme):',
             '   def det_full_module_name(self, ec):',
             "       return os.path.join(ec['name'], ec['version'])",

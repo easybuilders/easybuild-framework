@@ -1,4 +1,3 @@
-import pkg_resources
 import pkgutil
 
 subdirs = [chr(l) for l in range(ord('a'), ord('z') + 1)] + ['0']
@@ -9,4 +8,4 @@ del subdir, subdirs
 if 'l' in dir():
     del l
 
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
