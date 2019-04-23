@@ -113,10 +113,10 @@ script:
     - export PYTHONPATH=/tmp/$TRAVIS_JOB_ID/lib/python$TRAVIS_PYTHON_VERSION/site-packages
     # install easybuild-framework to unique temporary location using prepared sdist tarball
     - mkdir -p $PYTHONPATH; easy_install --prefix /tmp/$TRAVIS_JOB_ID $TRAVIS_BUILD_DIR/dist/easybuild-framework*tar.gz
-    # make sure there are no "import setuptools" or "import pkg_resources" statements,
+    # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
     # since EasyBuild should not have a runtime requirement on setuptools
-    - SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import) pkg_resources|^(from|import) setuptools' easybuild/ || true)
-    - test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
+    - SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import)[ \t]*pkg_resources|^(from|import)[ \t]*setuptools' easybuild/ || true)
+    - test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools and/or pkg_resources imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
     # move outside of checkout of easybuild-framework repository,
     # to run tests on an *installed* version of the EasyBuild framework;
     # this is done to catch possible packaging issues
