@@ -46,8 +46,8 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, letter_dir_for
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, resolve_template
+from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
+from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
 from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
@@ -2426,6 +2426,15 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+    def test_is_generic_easyblock(self):
+        """Test for is_generic_easyblock function."""
+
+        for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
+            self.assertTrue(is_generic_easyblock(name))
+
+        for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
+            self.assertFalse(is_generic_easyblock(name))
 
     def test_get_module_path(self):
         """Test get_module_path function."""
