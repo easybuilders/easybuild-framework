@@ -871,10 +871,11 @@ class EasyConfig(object):
 
         :param build_only: only return build dependencies, discard others
         """
-        if build_only:
-            deps = self.builddependencies()
-        else:
-            deps = self['dependencies'] + self.builddependencies()
+        deps = self.builddependencies()
+
+        if not build_only:
+            # use += rather than .extend to get a new list rather than updating list of build deps in place...
+            deps += self['dependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
