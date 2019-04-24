@@ -678,6 +678,20 @@ class EasyConfigTest(EnhancedTestCase):
         })
         parsed_deps = [
             {
+                'name': 'testbuildonly',
+                'version': '4.9.3-2.25',
+                'versionsuffix': '',
+                'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
+                'dummy': False,
+                'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
+                'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
+                'build_only': True,
+                'hidden': True,
+                'external_module': False,
+                'external_module_metadata': {},
+            },
+            {
                 'name': 'foo',
                 'version': '1.2.3',
                 'versionsuffix': '',
@@ -715,20 +729,6 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'full_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'build_only': False,
-                'hidden': True,
-                'external_module': False,
-                'external_module_metadata': {},
-            },
-            {
-                'name': 'testbuildonly',
-                'version': '4.9.3-2.25',
-                'versionsuffix': '',
-                'toolchain': ec['toolchain'],
-                'toolchain_inherited': True,
-                'dummy': False,
-                'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
-                'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
-                'build_only': True,
                 'hidden': True,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -1310,12 +1310,12 @@ class EasyConfigTest(EnhancedTestCase):
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 7)
-        correct_deps = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
-                        'somebuilddep/0.1']
+        correct_deps = ['somebuilddep/0.1', 'intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14',
+                        'hidden/.1.2.3']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
-        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True, True, True, True])
-        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, True, False])
+        self.assertEqual([d['external_module'] for d in deps], [True, False, True, True, True, True, True])
+        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, False, True])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
         metadatatxt = '\n'.join([
@@ -1339,32 +1339,32 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
-        self.assertEqual(ec.dependencies()[2]['short_mod_name'], 'foobar/1.2.3')
-        self.assertEqual(ec.dependencies()[2]['external_module'], True)
+        self.assertEqual(ec.dependencies()[3]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(ec.dependencies()[3]['external_module'], True)
         metadata = {
             'name': ['foo', 'bar'],
             'version': ['1.2.3', '3.2.1'],
             'prefix': '/foo/bar',
         }
-        self.assertEqual(ec.dependencies()[2]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[3]['external_module_metadata'], metadata)
 
-        self.assertEqual(ec.dependencies()[3]['short_mod_name'], 'test/9.7.5')
-        self.assertEqual(ec.dependencies()[3]['external_module'], True)
+        self.assertEqual(ec.dependencies()[4]['short_mod_name'], 'test/9.7.5')
+        self.assertEqual(ec.dependencies()[4]['external_module'], True)
         metadata = {
             'name': ['test'],
             'version': ['9.7.5'],
             'prefix': 'TEST_INC/..',
         }
-        self.assertEqual(ec.dependencies()[3]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[4]['external_module_metadata'], metadata)
 
-        self.assertEqual(ec.dependencies()[4]['short_mod_name'], 'pi/3.14')
-        self.assertEqual(ec.dependencies()[4]['external_module'], True)
+        self.assertEqual(ec.dependencies()[5]['short_mod_name'], 'pi/3.14')
+        self.assertEqual(ec.dependencies()[5]['external_module'], True)
         metadata = {
             'name': ['PI'],
             'version': ['3.14'],
             'prefix': 'PI_PREFIX',
         }
-        self.assertEqual(ec.dependencies()[4]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[5]['external_module_metadata'], metadata)
 
         # check whether $EBROOT*/$EBVERSION* environment variables are defined correctly for external modules
         os.environ['PI_PREFIX'] = '/test/prefix/PI'
