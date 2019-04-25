@@ -429,25 +429,21 @@ def to_dependencies(dep_list):
     my_arch = get_cpu_architecture()
 
     for dep in dep_list:
-        try:
-            parsed_dep = to_dependency(dep)
-            if isinstance(parsed_dep, dict):
-                if 'arch' in parsed_dep:
-                    # This is an architecture-specific dep, so check we get the right one
-                    if parsed_dep['arch'] == my_arch:
-                        # This is our arch, so take it
-                        deps['name'] = parsed_dep
-                    elif parsed_dep['arch'] is True and parsed_dep['name'] not in deps:
-                        # Take the catch-all arch one as we've not got this dep yet
-                        deps['name'] = parsed_dep
-                else:
-                    deps[parsed_dep['name']] = parsed_dep
+        parsed_dep = to_dependency(dep)
+        if isinstance(parsed_dep, dict):
+            name = parsed_dep['name']
+            if 'arch' in parsed_dep:
+                # This is an architecture-specific dep, so check we get the right one
+                if parsed_dep['arch'] == my_arch:
+                    # This is our arch, so take it
+                    deps[name] = parsed_dep
+                elif parsed_dep['arch'] is True and parsed_dep['name'] not in deps:
+                    # Take the catch-all arch one as we've not got this dep yet
+                    deps[name] = parsed_dep
             else:
-                deps[parsed_dep[0]] = parsed_dep
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            raise
+                deps[name] = parsed_dep
+        else:
+            deps[parsed_dep[0]] = parsed_dep
 
     return deps.values()
 
