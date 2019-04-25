@@ -29,10 +29,12 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+from collections import OrderedDict
 from vsc.utils import fancylogger
 from distutils.util import strtobool
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.systemtools import CPU_ARCHITECTURES, get_cpu_architecture
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
@@ -391,6 +393,12 @@ def to_dependency(dep):
                     depspec[key] = str(dep[key])
                 elif key == 'toolchain':
                     depspec['toolchain'] = to_toolchain_dict(dep[key])
+                elif key == 'arch':
+                    if dep[key] in CPU_ARCHITECTURES or dep[key] is True:
+                        depspec[key] = dep[key]
+                    else:
+                        raise EasyBuildError("Unsupported architecture specified: %s. Must be one of: %s",
+                                             dep[key], ', '.join(CPU_ARCHITECTURES))
                 elif not ('name' in depspec and 'version' in depspec):
                     depspec.update({'name': key, 'version': str(dep[key])})
                 else:
@@ -415,8 +423,33 @@ def to_dependencies(dep_list):
     Convert a list of dependencies obtained from parsing a .yeb easyconfig
     to a list of dependencies in the correct format
     """
-    return [to_dependency(dep) for dep in dep_list]
+    # We want to preserve the order of the deps passed in
+    deps = OrderedDict()
 
+    my_arch = get_cpu_architecture()
+
+    for dep in dep_list:
+        try:
+            parsed_dep = to_dependency(dep)
+            if isinstance(parsed_dep, dict):
+                if 'arch' in parsed_dep:
+                    # This is an architecture-specific dep, so check we get the right one
+                    if parsed_dep['arch'] == my_arch:
+                        # This is our arch, so take it
+                        deps['name'] = parsed_dep
+                    elif parsed_dep['arch'] is True and parsed_dep['name'] not in deps:
+                        # Take the catch-all arch one as we've not got this dep yet
+                        deps['name'] = parsed_dep
+                else:
+                    deps[parsed_dep['name']] = parsed_dep
+            else:
+                deps[parsed_dep[0]] = parsed_dep
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            raise
+
+    return deps.values()
 
 def to_checksums(checksums):
     """Ensure correct element types for list of checksums: convert list elements to tuples."""
