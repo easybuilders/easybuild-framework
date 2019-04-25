@@ -48,6 +48,7 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
+from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -95,6 +96,11 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc, None)
         self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
 
+    def test_system_toolchain(self):
+        """Test for system toolchain."""
+        tc = self.get_toolchain('system', version='')
+        self.assertTrue(isinstance(tc, Toolchain))
+
     def test_foss_toolchain(self):
         """Test for foss toolchain."""
         self.get_toolchain("foss", version="2018a")
@@ -112,6 +118,25 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CC'), '')
         self.assertEqual(tc.get_variable('CXX', typ=str), '')
         self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
+    def test_is_system_toolchain(self):
+        """Test is_system_toolchain method."""
+        tc = self.get_toolchain('dummy', version='dummy')
+        self.assertTrue(tc.is_system_toolchain())
+
+        tc = self.get_toolchain('dummy', version='')
+        self.assertTrue(tc.is_system_toolchain())
+
+        tc = self.get_toolchain('system', version='')
+        self.assertTrue(tc.is_system_toolchain())
+
+        tc = self.get_toolchain('foss', version='2018a')
+        self.assertFalse(tc.is_system_toolchain())
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2018a')
+        self.assertFalse(tc.is_system_toolchain())
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""

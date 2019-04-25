@@ -77,6 +77,8 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 DUMMY_TOOLCHAIN_NAME = 'dummy'
 DUMMY_TOOLCHAIN_VERSION = 'dummy'
 
+SYSTEM_TOOLCHAIN = 'system'
+
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
 
@@ -178,13 +180,17 @@ class Toolchain(object):
         self.mod_full_name = None
         self.mod_short_name = None
         self.init_modpaths = None
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if not self.is_system_toolchain():
             # sometimes no module naming scheme class instance can/will be provided, e.g. with --list-toolchains
             if self.mns is not None:
                 tc_dict = self.as_dict()
                 self.mod_full_name = self.mns.det_full_module_name(tc_dict)
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
+
+    def is_system_toolchain(self):
+        """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
+        return self.name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN]
 
     def base_init(self):
         """Initialise missing class attributes (log, options, variables)."""
@@ -360,8 +366,8 @@ class Toolchain(object):
         Verify if there exists a toolchain by this name and version
         """
         # short-circuit to returning module name for this (non-dummy) toolchain
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.devel("_toolchain_exists: %s toolchain always exists, returning True", DUMMY_TOOLCHAIN_NAME)
+        if self.is_system_toolchain():
+            self.log.devel("_toolchain_exists: system toolchain always exists, returning True")
             return True
         else:
             if self.mod_short_name is None:
@@ -384,10 +390,10 @@ class Toolchain(object):
         """ Generate a version string for a dependency on a module using this toolchain """
         # Add toolchain to version string
         toolchain = ''
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if not self.is_system_toolchain():
             toolchain = '-%s-%s' % (self.name, self.version)
         elif self.version != DUMMY_TOOLCHAIN_VERSION:
-            toolchain = '%s' % (self.version)
+            toolchain = '%s' % self.version
 
         # Check if dependency is independent of toolchain
         # TODO: assuming dummy here, what about version?
@@ -621,7 +627,7 @@ class Toolchain(object):
         if not self._toolchain_exists() and not self.dry_run:
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
+        if self.is_system_toolchain():
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
                 if self.dry_run:
@@ -701,7 +707,7 @@ class Toolchain(object):
     def compilers(self):
         """Return list of relevant compilers for this toolchain"""
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
+        if self.is_system_toolchain():
             c_comps = ['gcc', 'g++']
             fortran_comps = ['gfortran']
         else:
@@ -747,7 +753,7 @@ class Toolchain(object):
         if loadmod:
             self._load_modules(silent=silent)
 
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if not self.is_system_toolchain():
 
             trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
 
