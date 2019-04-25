@@ -49,7 +49,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -59,6 +60,14 @@ from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+
+try:
+    import pycodestyle  # noqa
+except ImportError:
+    try:
+        import pep8  # noqa
+    except ImportError:
+        pass
 
 
 EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
@@ -2250,6 +2259,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
+        if ec > 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2321,6 +2343,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --include-toolchains."""
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
+
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
+        if ec > 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -3538,6 +3573,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_check_contrib_non_style(self):
         """Test non-style checks performed by --check-contrib."""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)"
+            return
+
         args = [
             '--check-contrib',
             'toy-0.0.eb',

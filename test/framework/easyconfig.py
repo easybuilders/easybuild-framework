@@ -47,8 +47,8 @@ from easybuild.base.fancylogger import setLogLevelDebug, logToScreen
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, letter_dir_for
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, resolve_template
+from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
+from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
 from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
@@ -72,6 +72,14 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
+
+try:
+    import pycodestyle  # noqa
+except ImportError:
+    try:
+        import pep8  # noqa
+    except ImportError:
+        pass
 
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
@@ -672,6 +680,20 @@ class EasyConfigTest(EnhancedTestCase):
         })
         parsed_deps = [
             {
+                'name': 'testbuildonly',
+                'version': '4.9.3-2.25',
+                'versionsuffix': '',
+                'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
+                'dummy': False,
+                'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
+                'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
+                'build_only': True,
+                'hidden': True,
+                'external_module': False,
+                'external_module_metadata': {},
+            },
+            {
                 'name': 'foo',
                 'version': '1.2.3',
                 'versionsuffix': '',
@@ -709,20 +731,6 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'full_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'build_only': False,
-                'hidden': True,
-                'external_module': False,
-                'external_module_metadata': {},
-            },
-            {
-                'name': 'testbuildonly',
-                'version': '4.9.3-2.25',
-                'versionsuffix': '',
-                'toolchain': ec['toolchain'],
-                'toolchain_inherited': True,
-                'dummy': False,
-                'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
-                'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
-                'build_only': True,
                 'hidden': True,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -1304,12 +1312,12 @@ class EasyConfigTest(EnhancedTestCase):
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 7)
-        correct_deps = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
-                        'somebuilddep/0.1']
+        correct_deps = ['somebuilddep/0.1', 'intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14',
+                        'hidden/.1.2.3']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
-        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True, True, True, True])
-        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, True, False])
+        self.assertEqual([d['external_module'] for d in deps], [True, False, True, True, True, True, True])
+        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, False, True])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
         metadatatxt = '\n'.join([
@@ -1333,32 +1341,32 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
-        self.assertEqual(ec.dependencies()[2]['short_mod_name'], 'foobar/1.2.3')
-        self.assertEqual(ec.dependencies()[2]['external_module'], True)
+        self.assertEqual(ec.dependencies()[3]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(ec.dependencies()[3]['external_module'], True)
         metadata = {
             'name': ['foo', 'bar'],
             'version': ['1.2.3', '3.2.1'],
             'prefix': '/foo/bar',
         }
-        self.assertEqual(ec.dependencies()[2]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[3]['external_module_metadata'], metadata)
 
-        self.assertEqual(ec.dependencies()[3]['short_mod_name'], 'test/9.7.5')
-        self.assertEqual(ec.dependencies()[3]['external_module'], True)
+        self.assertEqual(ec.dependencies()[4]['short_mod_name'], 'test/9.7.5')
+        self.assertEqual(ec.dependencies()[4]['external_module'], True)
         metadata = {
             'name': ['test'],
             'version': ['9.7.5'],
             'prefix': 'TEST_INC/..',
         }
-        self.assertEqual(ec.dependencies()[3]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[4]['external_module_metadata'], metadata)
 
-        self.assertEqual(ec.dependencies()[4]['short_mod_name'], 'pi/3.14')
-        self.assertEqual(ec.dependencies()[4]['external_module'], True)
+        self.assertEqual(ec.dependencies()[5]['short_mod_name'], 'pi/3.14')
+        self.assertEqual(ec.dependencies()[5]['external_module'], True)
         metadata = {
             'name': ['PI'],
             'version': ['3.14'],
             'prefix': 'PI_PREFIX',
         }
-        self.assertEqual(ec.dependencies()[4]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[5]['external_module_metadata'], metadata)
 
         # check whether $EBROOT*/$EBVERSION* environment variables are defined correctly for external modules
         os.environ['PI_PREFIX'] = '/test/prefix/PI'
@@ -1572,6 +1580,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_dump_extra (no pycodestyle or pep8 available)"
+            return
+
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
             '',
@@ -1610,6 +1623,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_dump_template (no pycodestyle or pep8 available)"
+            return
+
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
             '',
@@ -1679,6 +1697,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_dump_comments (no pycodestyle or pep8 available)"
+            return
+
         rawtxt = '\n'.join([
             "# #",
             "# some header comment",
@@ -2405,6 +2428,15 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+    def test_is_generic_easyblock(self):
+        """Test for is_generic_easyblock function."""
+
+        for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
+            self.assertTrue(is_generic_easyblock(name))
+
+        for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
+            self.assertFalse(is_generic_easyblock(name))
 
     def test_get_module_path(self):
         """Test get_module_path function."""
