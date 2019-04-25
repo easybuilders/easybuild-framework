@@ -430,19 +430,24 @@ def to_dependencies(dep_list):
     my_arch = get_cpu_architecture()
     for dep in dep_list:
         parsed_dep = to_dependency(dep)
-        all_deps.append(parsed_dep)
         if isinstance(parsed_dep, dict):
             name = parsed_dep['name']
             if 'arch' in parsed_dep:
                 # This is an architecture-specific dep, so check we get the right one
                 if parsed_dep['arch'] == my_arch:
                     # This is our arch, so take it
-                    arch_eps[name] = parsed_dep
-                elif parsed_dep['arch'] is True and parsed_dep['name'] not in deps:
+                    arch_deps[name] = parsed_dep
+                elif parsed_dep['arch'] is True and name not in arch_deps:
                     # Take the catch-all arch one as we've not got this dep yet
                     arch_deps[name] = parsed_dep
+                else:
+                    # Don't want this one
+                    continue
 
-    # Now create the final list of dependencies
+        # If we've got here then the arch either isn't specified or is correct
+        all_deps.append(parsed_dep)
+
+    # Now create the final list of dependencies - preserving the original order
     keep_deps = []
     for parsed_dep in all_deps:
         if isinstance(parsed_dep, dict):
