@@ -66,7 +66,7 @@ from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compile
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.systemtools import POWER, X86_64, get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
@@ -280,7 +280,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
 
     def test_architecture_specific_dependency(self):
-        """ test specifying deps for specific architectures """
+        """
+        Test specifying deps for specific architectures. Mocking the architecture is hard, so we'll check we get the
+        right number of responses, and that it returns the correct responses on the current architecture.
+        """
+        my_arch = get_cpu_architecture()
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -289,24 +294,24 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = ['
-            '   ("first", "1.1"),'
+            'dependencies = [',
+            '   ("first", "1.1"),',
             '   {"name": "second", "version": "2.2"},',
-            '   {"name": "third", "arch": "ppc64le", "version": "3.3"},',
+            '   {"name": "third", "arch": "POWER", "version": "3.3"},',
             '   {"name": "third", "arch": "x86_64", "version": "3.4"},',
             '   {"name": "third", "arch": True, "version": "3.5"},',
             ']',
             'builddependencies = [',
             '   ("first", "1.1"),',
             '   {"name": "second", "version": "2.2"},',
-            '   {"name": "third", "version": "3.3", "arch": "ppc64le"},'
+            '   {"name": "third", "version": "3.3", "arch": "POWER"},  # only needed on POWER',
             ']',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
         # should include builddependencies
-        self.assertEqual(len(eb.dependencies()), 3)
-        self.assertEqual(len(eb.builddependencies()), 3)
+        self.assertEqual(len(eb.dependencies()), 6 if my_arch == POWER else 5)
+        self.assertEqual(len(eb.builddependencies()), 3 if my_arch == POWER else 2)
 
         first = eb.dependencies()[0]
         second = eb.dependencies()[1]
@@ -332,7 +337,26 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(second['version'], "2.2")
 
-        #self.assertErrorRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
+        if my_arch == POWER:
+            third = eb.builddependencies()[2]
+            self.assertEqual(third['name'], "third")
+
+        # Check an unknown arch is flagged
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = [',
+            '   {"name": "third", "arch": "QuantumMagic", "version": "3.3"},',
+            ']',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+        print eb.dependencies()
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
