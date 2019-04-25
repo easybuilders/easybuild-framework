@@ -1582,7 +1582,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test EasyConfig's dump() method for files containing extra values"""
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_dump_extra (no pycodestyle or pep8 available)"
+            print("Skipping test_dump_extra (no pycodestyle or pep8 available)")
             return
 
         rawtxt = '\n'.join([
@@ -1625,7 +1625,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ Test EasyConfig's dump() method for files containing templates"""
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_dump_template (no pycodestyle or pep8 available)"
+            print("Skipping test_dump_template (no pycodestyle or pep8 available)")
             return
 
         rawtxt = '\n'.join([
@@ -1699,7 +1699,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ Test dump() method for files containing comments """
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_dump_comments (no pycodestyle or pep8 available)"
+            print("Skipping test_dump_comments (no pycodestyle or pep8 available)")
             return
 
         rawtxt = '\n'.join([

@@ -3575,7 +3575,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test non-style checks performed by --check-contrib."""
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)"
+            print("Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)")
             return
 
         args = [
