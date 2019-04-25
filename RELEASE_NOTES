@@ -3,6 +3,65 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.9.0 (April 12th 2019)
+------------------------
+
+feature release
+- various enhancements, including:
+  - add (pre)testopts easyconfig parameters (#2793)
+  - add support for multi_deps easyconfig parameter (#2741, #2810, #2811, #2812, #2813, #2825, #2826, #2827, #2828)
+- various bug fixes, including:
+  - fix argument name in close_pr (#2752)
+  - fix undefined variable 'prefix' in Compiler._set_compiler_vars (#2757)
+  - fix test account for GitHub-related tests (#2760)
+  - make sure read permissions are always set in permissions_step (#2770)
+  - make test for dep_graph function robust against changing order of lines in resulting dot file (#2772)
+  - fix problem with import_available_modules when running from easybuild-framework directory (#2786)
+  - prepend location of test easyblocks to $PYTHONPATH to test_generate_software_list, rather than append (#2788)
+  - use pid in backup name candidate to reduce risk of two processes colliding (#2796)
+  - automatically enable --ignore-osdeps when using --preview-pr (#2799)
+  - use temporary checkout of repository as robot path for --new-pr and --update-pr to determine locations for patch files (#2803)
+  - avoid relying on order in which keys are processed in to_dependency (#2804)
+  - fix yeb format to work with PyYAML 5 (#2809)
+  - fix typo in error message for use of unknown easyconfig parameter (#2817)
+  - enhance log_file_format to fix problem when %(name)s template value is used for log directory (#2818)
+  - iterate over subdirectories in order in find_egg_dir_for of bootstrap script, to ensure oldest vsc-install is picked (#2819)
+  - replace -Wl,--enable-new-dtags compiler option with -Wl,--disable-new-dtags in RPATH wrapper script (#2821)
+  - updated COMPILER_F77 for PGI >= 19.1 (#2823)
+  - added FFTW_STATIC_LIBS_MT to FFTW_MAP_CLASS, otherwise FFTW_STATIC_LIBS_MT are incorrectly defined (#2822)
+  - sort available version list when selecting/generating easyconfig (#2732)
+- other changes:
+  - use assertEqual rather than assertEquals (which is deprecated) (#2746)
+  - test with Tmod 4.1.4 (packaged in RHEL8) in Travis CI (#2747)
+  - replace deps by hidden deps instead of removing them from the lists (#2748)
+  - ensure non-zero exit code for all test subsuites (+ fix trivial style issues) (#2773)
+  - silence printed deprecation warnings for easyconfigs/toolchains while running (easyconfigs) test suite (#2781)
+  - avoid printing of messages/warnings in framework test suite (#2782)
+  - enable silent mode for --new-pr and --update-pr (#2802)
+  - update Travis config to reflect that PyYAML 5.x is no longer compatible with Python 2.6 (#2807)
+
+
+v3.8.1 (January 29th 2019)
+--------------------------
+
+bugfix release
+- various minor enhancements, including:
+  - speed up checking of OS dependencies (#2703)
+  - add support for 'eb --show-system-info' (#2722)
+  - add support for '%(arch)s' template value in easyconfig files (x86-64, aarch64, ppc64le, ...) (#2728)
+- various bug fixes, including:
+  - add timestamp to reprod dir while in tmp space (#2705)
+  - avoid '+' in directory name for g++ rpath wrapper (#2710)
+  - pre-install vsc-install < 0.11.4 in bootstrap script to avoid requiring 'mock' Python package (#2717)
+  - fix check in --merge-pr whether PR is eligible for merging in to only consider the status of the last test report (#2720)
+  - don't recreate build directory when 'buildininstalldir' is enabled for iterative installations (#2724)
+  - filter (CUDA) lib*/stubs paths in RPATH wrapper script (#2725)
+- other changes:
+  - replace 'except IOError, err:' pattern with 'except IOError as err:' for compatibility with Python 3.x (#2711)
+  - make all print statements compatible with Python 3 (#2715)
+  - avoid use of sys.maxint in dependencies_for (#2716)
+
+
 v3.8.0 (December 18th 2018)
 ---------------------------
 

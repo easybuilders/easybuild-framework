@@ -241,7 +241,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         """
         if self.env_path is not None:
             os.environ['PATH'] = self.env_path
-        if self.env_path is not None:
+        if self.env_pythonpath is not None:
             os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):

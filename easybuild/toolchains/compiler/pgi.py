@@ -29,6 +29,7 @@
 Support for PGI compilers (pgcc, pgc++, pgf90/pgfortran) as toolchain compilers.
 
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 
 from distutils.version import LooseVersion
@@ -107,5 +108,10 @@ class Pgi(Compiler):
             self.COMPILER_CXX = 'pgc++'
         else:
             self.COMPILER_CXX = 'pgCC'
+
+        if LooseVersion(pgi_version) >= LooseVersion('19.1'):
+            self.COMPILER_F77 = 'pgfortran'
+        else:
+            self.COMPILER_F77 = 'pgf77'
 
         super(Pgi, self)._set_compiler_vars()

@@ -367,6 +367,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_extra(self):
         """Test for make_module_extra."""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -456,6 +458,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_dep(self):
         """Test for make_module_dep"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -494,17 +498,17 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
-                'if not isloaded("gompi/2018a") then',
+                'if not ( isloaded("gompi/2018a") ) then',
                 '    load("gompi/2018a")',
                 'end',
             ])
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
+                'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
                 '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
             ])
             lapack_load = '\n'.join([
-                'if not isloaded("OpenBLAS/0.2.20-GCC-6.4.0-2.28") then',
+                'if not ( isloaded("OpenBLAS/0.2.20-GCC-6.4.0-2.28") ) then',
                 '    load("OpenBLAS/0.2.20-GCC-6.4.0-2.28")',
                 'end',
             ])
@@ -528,7 +532,7 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
-                'if not isloaded("FFTW/3.3.7-gompi-2018a") then',
+                'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
                 '    unload("FFTW")',
                 '    load("FFTW/3.3.7-gompi-2018a")',
                 'end',
@@ -545,6 +549,7 @@ class EasyBlockTest(EnhancedTestCase):
         build_options = {
             'check_osdeps': False,
             'robot_path': [test_ecs_path],
+            'silent': True,
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -623,8 +628,47 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
+    def test_det_iter_cnt(self):
+        """Test det_iter_cnt method."""
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
+
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        # default value should be 1
+        self.assertEqual(eb.det_iter_cnt(), 1)
+
+        # adding a list of build deps shouldn't affect the default
+        self.contents += "\nbuilddependencies = [('one', '1.0'), ('two', '2.0'), ('three', '3.0')]"
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertEqual(eb.det_iter_cnt(), 1)
+
+        # list of configure options to iterate over affects iteration count
+        self.contents += "\nconfigopts = ['--one', '--two', '--three', '--four']"
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertEqual(eb.det_iter_cnt(), 4)
+
+        # different lengths for iterative easyconfig parameters mean trouble during validation of iterative parameters
+        self.contents += "\nbuildopts = ['FOO=one', 'FOO=two']"
+        self.writeEC()
+
+        error_pattern = "lists for iterated build should have same length"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+
     def test_extensions_step(self):
         """Test the extensions_step"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -660,6 +704,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
+        init_config(build_options={'silent': True})
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -1134,7 +1180,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_check_readiness(self):
         """Test check_readiness method."""
-        init_config(build_options={'validate': False})
+        init_config(build_options={'validate': False, 'silent': True})
 
         # check that check_readiness step works (adding dependencies, etc.)
         ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
@@ -1257,6 +1303,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
+        init_config(build_options={'silent': True})
+
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
@@ -1570,4 +1618,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

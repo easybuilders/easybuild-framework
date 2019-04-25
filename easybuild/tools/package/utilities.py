@@ -50,7 +50,6 @@ from easybuild.tools.utilities import import_available_modules
 _log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
 
 
-
 def avail_package_naming_schemes():
     """
     Returns the list of valed naming schemes
@@ -131,8 +130,8 @@ def package_with_fpm(easyblock):
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_globs = [
-        os.path.join(log_path(), "*.log"),
-        os.path.join(log_path(), "*.md"),
+        os.path.join(log_path(ec=easyblock.cfg), "*.log"),
+        os.path.join(log_path(ec=easyblock.cfg), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
     for exclude_files_glob in exclude_files_globs:

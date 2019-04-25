@@ -34,13 +34,9 @@ import sys
 import tempfile
 from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
-from vsc.utils.missing import nub
-
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import curr_module_paths
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
@@ -49,6 +45,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import EnvironmentModulesC, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
+
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -234,6 +231,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(full_module_name in self.modtool.loaded_modules())
         self.modtool.purge()
 
+    def test_is_loaded(self):
+        """Test is_loaded method."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            test_cases = [
+                # single module name as argument
+                ('foo', "is-loaded foo"),
+                ('Python/2.7.15-GCCcore-8.2.0', "is-loaded Python/2.7.15-GCCcore-8.2.0"),
+                ('%(mod_name)s', "is-loaded %(mod_name)s"),
+                # list of multiple module names as argument should result in list of is-loaded statements
+                (['foo'], ['is-loaded foo']),
+                (['foo/1.2.3', 'bar/4.5.6'], ['is-loaded foo/1.2.3', 'is-loaded bar/4.5.6']),
+                (['foo', 'bar', 'baz'], ['is-loaded foo', 'is-loaded bar', 'is-loaded baz']),
+            ]
+        else:
+            test_cases = [
+                # single module name as argument
+                ('foo', 'isloaded("foo")'),
+                ('Python/2.7.15-GCCcore-8.2.0', 'isloaded("Python/2.7.15-GCCcore-8.2.0")'),
+                ('%(mod_name)s', 'isloaded("%(mod_name)s")'),
+                # list of multiple module names as argument
+                (['foo'], ['isloaded("foo")']),
+                (['foo/1.2.3', 'bar/4.5.6'], ['isloaded("foo/1.2.3")', 'isloaded("bar/4.5.6")']),
+                (['foo', 'bar', 'baz'], ['isloaded("foo")', 'isloaded("bar")', 'isloaded("baz")']),
+            ]
+
+        for mod_names, expected in test_cases:
+            self.assertEqual(self.modgen.is_loaded(mod_names), expected)
 
     def test_load(self):
         """Test load part in generated module file."""
@@ -252,7 +276,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # with recursive unloading: no if is-loaded guard
             expected = '\n'.join([
                 '',
-                "module load mod_name",
+                "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
+                "    module load mod_name",
+                "}",
                 '',
             ])
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
@@ -279,7 +305,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
                 '',
-                'if not isloaded("mod_name") then',
+                'if not ( isloaded("mod_name") ) then',
                 '    load("mod_name")',
                 'end',
                 '',
@@ -290,7 +316,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # check
             expected = '\n'.join([
                 '',
-                'if not isloaded("mod_name") or mode() == "unload" then',
+                'if mode() == "unload" or not ( isloaded("mod_name") ) then',
                 '    load("mod_name")',
                 'end',
                 '',
@@ -491,7 +517,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
@@ -539,7 +565,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
@@ -687,7 +713,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             neg_cond = self.modgen.conditional_statement(cond, load, negative=True)
             expected = '\n'.join([
-                'if not isloaded("foo") then',
+                'if not ( isloaded("foo") ) then',
                 '    load("bar")',
                 'end',
                 '',
@@ -949,7 +975,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
-            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*','*', ecfile))[0])
+            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', ecfile))[0])
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
@@ -1103,6 +1129,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
