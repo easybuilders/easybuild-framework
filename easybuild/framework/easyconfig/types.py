@@ -29,7 +29,7 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from collections import OrderedDict
+from easybuild.tools.ordereddict import OrderedDict
 from vsc.utils import fancylogger
 from distutils.util import strtobool
 
@@ -446,6 +446,7 @@ def to_dependencies(dep_list):
             deps[parsed_dep[0]] = parsed_dep
 
     return deps.values()
+
 
 def to_checksums(checksums):
     """Ensure correct element types for list of checksums: convert list elements to tuples."""
