@@ -320,12 +320,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(first['name'], "first")
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(first['versionsuffix'], '')
-        self.assertEqual(first['arch'], True)
+        self.assertFalse('arch' in first)
 
         self.assertEqual(second['name'], "second")
         self.assertEqual(second['version'], "2.2")
         self.assertEqual(second['versionsuffix'], '')
-        self.assertEqual(second['arch'], True)
+        self.assertFalse('arch' in second)
+
+        self.assertEqual(third['name'], "third")
+        if my_arch == X86_64:
+            self.assertEqual(third['version'], "3.4")
+            self.assertEqual(third['arch'], my_arch)
+        else:
+            self.assertEqual(third['version'], "3.3")
+            self.assertEqual(third['arch'], my_arch)
 
         # same tests for builddependencies
         first = eb.builddependencies()[0]
