@@ -29,7 +29,6 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from easybuild.tools.ordereddict import OrderedDict
 from vsc.utils import fancylogger
 from distutils.util import strtobool
 
@@ -423,29 +422,40 @@ def to_dependencies(dep_list):
     Convert a list of dependencies obtained from parsing a .yeb easyconfig
     to a list of dependencies in the correct format
     """
-    # We want to preserve the order of the deps passed in
-    deps = OrderedDict()
-
+    # We want to preserve the order of the deps passed in. It is possible to have multiple deps with the same name,
+    # yet if 'arch' is specified then we will restrict it to just one. So we will first find all the arch-specific
+    # deps and decide which ones to keep.
+    arch_deps = {}
+    all_deps = []
     my_arch = get_cpu_architecture()
-
     for dep in dep_list:
         parsed_dep = to_dependency(dep)
+        all_deps.append(parsed_dep)
         if isinstance(parsed_dep, dict):
             name = parsed_dep['name']
             if 'arch' in parsed_dep:
                 # This is an architecture-specific dep, so check we get the right one
                 if parsed_dep['arch'] == my_arch:
                     # This is our arch, so take it
-                    deps[name] = parsed_dep
+                    arch_eps[name] = parsed_dep
                 elif parsed_dep['arch'] is True and parsed_dep['name'] not in deps:
                     # Take the catch-all arch one as we've not got this dep yet
-                    deps[name] = parsed_dep
-            else:
-                deps[name] = parsed_dep
-        else:
-            deps[parsed_dep[0]] = parsed_dep
+                    arch_deps[name] = parsed_dep
 
-    return deps.values()
+    # Now create the final list of dependencies
+    keep_deps = []
+    for parsed_dep in all_deps:
+        if isinstance(parsed_dep, dict):
+            name = parsed_dep['name']
+            if name in arch_deps:
+                if parsed_dep != arch_deps[name]:
+                    # We don't want this one
+                    continue
+
+        # If we've got to here then we want to keep this dep
+        keep_deps.append(parsed_dep)
+
+    return keep_deps
 
 
 def to_checksums(checksums):
