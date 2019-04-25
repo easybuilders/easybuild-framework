@@ -121,12 +121,6 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_is_system_toolchain(self):
         """Test is_system_toolchain method."""
-        tc = self.get_toolchain('dummy', version='dummy')
-        self.assertTrue(tc.is_system_toolchain())
-
-        tc = self.get_toolchain('dummy', version='')
-        self.assertTrue(tc.is_system_toolchain())
-
         tc = self.get_toolchain('system', version='')
         self.assertTrue(tc.is_system_toolchain())
 
@@ -137,6 +131,23 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.prepend_module_path(self.test_prefix)
         tc = self.get_toolchain('intel', version='2018a')
         self.assertFalse(tc.is_system_toolchain())
+
+        # using dummy toolchain is deprecated, so to test for that we need to explicitely allow using deprecated stuff
+        error_pattern = "Use of 'dummy' toolchain is deprecated"
+        for ver in ['dummy', '']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.get_toolchain, 'dummy', version=ver)
+
+        dummy_depr_warning = "WARNING: Deprecated functionality, will no longer work in v5.0: Use of 'dummy' toolchain"
+
+        self.allow_deprecated_behaviour()
+
+        for ver in ['dummy', '']:
+            self.mock_stderr(True)
+            tc = self.get_toolchain('dummy', version=ver)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue(tc.is_system_toolchain())
+            self.assertTrue(dummy_depr_warning in stderr)
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""

@@ -33,7 +33,7 @@ import re
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN
 
 
 class IccIfort(IntelIccIfort):
@@ -41,7 +41,7 @@ class IccIfort(IntelIccIfort):
     NAME = 'iccifort'
     # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
     # in particular in a hierarchical module naming scheme
-    SUBTOOLCHAIN = [GCCcore.NAME, DUMMY_TOOLCHAIN_NAME]
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN]
     OPTIONAL = False
 
     def is_deprecated(self):

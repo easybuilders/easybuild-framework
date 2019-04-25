@@ -53,7 +53,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
 from easybuild.tools.utilities import flatten, nub, quote_str
 
@@ -455,7 +455,7 @@ def select_or_generate_ec(fp, paths, specs):
     # find ALL available easyconfig files for specified software
     cfg = {
         'version': '*',
-        'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
+        'toolchain': {'name': SYSTEM_TOOLCHAIN, 'version': '*'},
         'versionprefix': '*',
         'versionsuffix': '*',
     }

@@ -193,7 +193,7 @@ BUILD_OPTIONS_CMDLINE = {
         'zip_logs',
     ],
     False: [
-        'add_dummy_to_minimal_toolchains',
+        'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'consider_archived_easyconfigs',
         'container_build_image',

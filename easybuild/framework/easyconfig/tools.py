@@ -57,7 +57,7 @@ from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -441,7 +441,7 @@ def find_related_easyconfigs(path, ec):
     toolchain_name = ec['toolchain']['name']
     toolchain_name_pattern = r'-%s-\S+' % toolchain_name
     toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
-    if toolchain_name == DUMMY_TOOLCHAIN_NAME:
+    if is_system_toolchain(toolchain_name):
         toolchain_name_pattern = ''
         toolchain_pattern = ''
 

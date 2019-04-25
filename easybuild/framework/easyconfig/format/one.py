@@ -72,7 +72,7 @@ def dump_dependency(dep, toolchain):
         # mininal spec: (name, version)
         tup = (dep['name'], dep['version'])
         if dep['toolchain'] != toolchain:
-            if dep['dummy']:
+            if dep['system']:
                 tup += (dep['versionsuffix'], True)
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
