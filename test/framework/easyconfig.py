@@ -302,9 +302,9 @@ class EasyConfigTest(EnhancedTestCase):
             '   {"name": "third", "arch": True, "version": "3.5"},',
             ']',
             'builddependencies = [',
-            '   ("first", "1.1"),',
-            '   {"name": "second", "version": "2.2"},',
-            '   {"name": "third", "version": "3.3", "arch": "POWER"},  # only needed on POWER',
+            '   ("firstbd", "1.1"),',
+            '   {"name": "secondbd", "version": "2.2"},',
+            '   {"name": "thirdbd", "version": "3.3", "arch": "POWER"},  # only needed on POWER',
             ']',
         ])
         self.prep()
@@ -313,9 +313,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(eb.dependencies()), 6 if my_arch == POWER else 5)
         self.assertEqual(len(eb.builddependencies()), 3 if my_arch == POWER else 2)
 
-        first = eb.dependencies()[0]
-        second = eb.dependencies()[1]
-        third = eb.dependencies()[2]
+        # dependencies includes build deps at the _start_
+        first = eb.dependencies()[-3]
+        second = eb.dependencies()[-2]
+        third = eb.dependencies()[-1]
 
         self.assertEqual(first['name'], "first")
         self.assertEqual(first['version'], "1.1")
@@ -339,15 +340,15 @@ class EasyConfigTest(EnhancedTestCase):
         first = eb.builddependencies()[0]
         second = eb.builddependencies()[1]
 
-        self.assertEqual(first['name'], "first")
-        self.assertEqual(second['name'], "second")
+        self.assertEqual(first['name'], "firstbd")
+        self.assertEqual(second['name'], "secondbd")
 
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(second['version'], "2.2")
 
         if my_arch == POWER:
             third = eb.builddependencies()[2]
-            self.assertEqual(third['name'], "third")
+            self.assertEqual(third['name'], "thirdbd")
 
         # Check an unknown arch is flagged
         self.contents = '\n'.join([
@@ -363,8 +364,8 @@ class EasyConfigTest(EnhancedTestCase):
             ']',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file)
-        print eb.dependencies()
+        with self.assertRaisesRegexp(EasyBuildError, r'Unsupported architecture specified: QuantumMagic.*'):
+            EasyConfig(self.eb_file)
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
