@@ -1429,7 +1429,8 @@ class EasyBlock(object):
         do_skip = self.skip or any(ext.get('options', {}).get('only_if_missing', False) for ext in self.exts)
 
         if do_skip:
-            # obtaining untemplated reference value is required here to support legacy string templates like name/version
+            # obtaining untemplated reference value is required here
+            # to support legacy string templates like name/version
             exts_filter = self.cfg.get_ref('exts_filter')
 
             if not exts_filter or len(exts_filter) == 0:
@@ -1469,16 +1470,16 @@ class EasyBlock(object):
 
                 if cmdinputtmpl:
                     stdin = cmdinputtmpl % tmpldict
-                    (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
+                    (outerr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
                 else:
-                    (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
-                self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
+                    (outerr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+                self.log.info("exts_filter result %s %s", outerr, ec)
                 if ec:
-                    self.log.info("Not skipping %s" % name)
-                    self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
+                    self.log.info("Not skipping %s", name)
+                    self.log.debug("exit code: %s, stdout/err: %s", ec, outerr)
                     res.append(ext)
                 else:
-                    self.log.info("Skipping %s" % name)
+                    self.log.info("Skipping %s", name)
 
             self.exts = res
 
