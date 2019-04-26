@@ -1426,7 +1426,7 @@ class EasyBlock(object):
 
         # only consider actually skipping extensions when --skip is used,
         # or when one or more individual extensions are marked 'only_if_missing'
-        do_skip = self.skip or any(ext['options'].get('only_if_missing', False) for ext in self.exts)
+        do_skip = self.skip or any(ext.get('options', {}).get('only_if_missing', False) for ext in self.exts)
 
         if do_skip:
             # obtaining untemplated reference value is required here to support legacy string templates like name/version
@@ -1444,17 +1444,16 @@ class EasyBlock(object):
             res = []
             for ext in self.exts:
                 name = ext['name']
+                options = ext.get('options', {})
 
                 # at this point either --skip is being used, *or* one or more extensions are marked 'only_if_missing'
-                if not (self.skip or ext['options'].get('only_if_missing', False)):
+                if not (self.skip or options.get('only_if_missing', False)):
                     self.log.debug("Not considering extension %s for skipping...", name)
                     res.append(ext)
                     continue
 
-                if 'options' in ext and 'modulename' in ext['options']:
-                    modname = ext['options']['modulename']
-                else:
-                    modname = name
+                modname = options.get('modulename', name)
+
                 tmpldict = {
                     'ext_name': modname,
                     'ext_version': ext.get('version'),
