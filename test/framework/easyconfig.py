@@ -369,7 +369,7 @@ class EasyConfigTest(EnhancedTestCase):
             EasyConfig(self.eb_file)
         except EasyBuildError, e:
             expected_message = 'Unsupported architecture specified: QuantumMagic'
-            self.assertEqual(str(e)[:len(expected_message)], expected_message)
+            self.assertTrue(expected_message in str(e), str(e))
         else:
             self.assertFalse("Should have raised EasyBuildError")
 
