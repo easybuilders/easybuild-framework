@@ -364,8 +364,14 @@ class EasyConfigTest(EnhancedTestCase):
             ']',
         ])
         self.prep()
-        with self.assertRaisesRegexp(EasyBuildError, r'Unsupported architecture specified: QuantumMagic.*'):
+        # Since assertRaisesRegexp isn't available in Python 2.6...
+        try:
             EasyConfig(self.eb_file)
+        except EasyBuildError, e:
+            expected_message = 'Unsupported architecture specified: QuantumMagic'
+            self.assertEqual(str(e)[:len(expected_message)], expected_message)
+        else:
+            self.assertFalse("Should have raised EasyBuildError")
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
