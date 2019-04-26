@@ -1595,7 +1595,7 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        if self.cfg['parallel']:
+        if self.cfg['parallel'] is not None:
             if par is None:
                 par = self.cfg['parallel']
                 self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
