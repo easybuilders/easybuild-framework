@@ -695,6 +695,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.extensions_step(fetch=True)
 
         # test for proper error message when skip is set, but no exts_filter is set
+        eb.skip = True
         self.assertRaises(EasyBuildError, eb.skip_extensions)
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
 
