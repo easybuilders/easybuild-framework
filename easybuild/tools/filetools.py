@@ -1014,12 +1014,13 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return ec == 0
 
 
-def apply_regex_substitutions(path, regex_subs):
+def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
     """
     Apply specified list of regex substitutions.
 
     :param path: path to file to patch
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
+    :param backup: create backup of original file with specified suffix (no backup is value evaluates to False)
     """
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
@@ -1033,8 +1034,14 @@ def apply_regex_substitutions(path, regex_subs):
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
+        if backup:
+            backup_ext = backup
+        else:
+            # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
+            backup_ext = ''
+
         try:
-            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+            for line in fileinput.input(path, inplace=1, backup=backup_ext):
                 for regex, subtxt in regex_subs:
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
