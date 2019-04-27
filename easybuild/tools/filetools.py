@@ -1020,7 +1020,7 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
 
     :param path: path to file to patch
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
-    :param backup: create backup of original file with specified suffix (no backup is value evaluates to False)
+    :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     """
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
