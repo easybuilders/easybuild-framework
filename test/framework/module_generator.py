@@ -626,7 +626,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # test set_environment
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
-            self.assertEqual('setenv\tkey\t\t{va\\"lue}\n', self.modgen.set_environment("key", 'va"lue'))
+            self.assertEqual('setenv\tkey\t\t"va\\"lue"\n', self.modgen.set_environment("key", 'va"lue'))
             self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
             self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
         else:
