@@ -1349,6 +1349,10 @@ class EasyBlockTest(EnhancedTestCase):
         os.close(handle)
         write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
 
+        handle, toy_ec3 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec3, toytxt + "\nparallel = False")
+
         # default: parallellism is derived from # available cores + ulimit
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
@@ -1379,6 +1383,11 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
+
+        # make sure 'parallel = False' is not overriden
+        test_eb = EasyBlock(EasyConfig(toy_ec3))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], False)
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
