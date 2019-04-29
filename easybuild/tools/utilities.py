@@ -79,7 +79,6 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, syntax=None
         # escape double quote(s) used in strings
         elif '"' in val:
             if syntax == 'Tcl':
-                # Escape brackets for tcl
                 return '"%s"' % val.replace('"', '\\"')
             else:
                 return "'%s'" % val
