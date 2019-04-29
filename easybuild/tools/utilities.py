@@ -59,7 +59,7 @@ def flatten(lst):
     return res
 
 
-def quote_str(val, escape_newline=False, prefer_single_quotes=False, syntax=None):
+def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
     """
     Obtain a new value to be used in string replacement context.
 
@@ -70,6 +70,8 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, syntax=None
     foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
 
     :param escape_newline: wrap strings that include a newline in triple quotes
+    :param prefer_single_quotes: if possible use single quotes
+    :param tcl: Boolean for whether we are quoting for Tcl syntax
     """
 
     if isinstance(val, basestring):
@@ -78,7 +80,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, syntax=None
             return '"""%s"""' % val
         # escape double quote(s) used in strings
         elif '"' in val:
-            if syntax == 'Tcl':
+            if tcl:
                 return '"%s"' % val.replace('"', '\\"')
             else:
                 return "'%s'" % val
