@@ -686,12 +686,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # using base_path to possible module load
         self.modtool.use(base_path)
 
-        # setting foo version as default
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_one
 
         self.assertTrue(full_module_name in self.modtool.loaded_modules())
         self.assertEqual(os.getenv(test_envvar), test_flags)
+        self.modtool.purge()
 
     def test_conditional_statement(self):
         """Test formatting of conditional statements."""
