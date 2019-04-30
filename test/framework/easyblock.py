@@ -1368,6 +1368,11 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
 
+        # make sure 'parallel = False' is not overriden (no 'parallel' build option)
+        test_eb = EasyBlock(EasyConfig(toy_ec3))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], False)
+
         # only 'parallel' build option specified
         init_config(build_options={'parallel': '97', 'validate': False})
         test_eb = EasyBlock(EasyConfig(toy_ec))
@@ -1384,10 +1389,10 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
 
-        # make sure 'parallel = False' is not overriden
+        # make sure 'parallel = False' is not overriden (with 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec3))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], False)
+        self.assertEqual(test_eb.cfg['parallel'], 0)
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
