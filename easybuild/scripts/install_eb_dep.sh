@@ -15,6 +15,8 @@ PKG_VERSION=`echo $PKG | sed 's/.*-//g'`
 CONFIG_OPTIONS=
 PRECONFIG_CMD=
 
+function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+
 if [ x$PKG_NAME == 'xmodules' ] && [ x$PKG_VERSION == 'x3.2.10' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
     BACKUP_PKG_URL="https://easybuilders.github.io/easybuild/files/${PKG}.tar.gz"
@@ -35,6 +37,9 @@ elif [ x$PKG_NAME == 'xlua' ]; then
 
 elif [ x$PKG_NAME == 'xLmod' ]; then
     PKG_URL="https://github.com/TACC/Lmod/archive/${PKG_VERSION}.tar.gz"
+    if [ $(version $PKG_VERSION) -ge $(version "8.0.6") ]; then
+        CONFIG_OPTIONS='--with-extendedDefault=no'
+    fi
     export PATH=$PREFIX/lmod/$PKG_VERSION/libexec:$PATH
     export MOD_INIT=$HOME/lmod/$PKG_VERSION/init/bash
 
