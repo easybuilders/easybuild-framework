@@ -662,7 +662,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # test set_environment
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
-            self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
+            self.assertEqual('setenv\tkey\t\t"va\\"lue"\n', self.modgen.set_environment("key", 'va"lue'))
             self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
             self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
         else:
@@ -682,11 +682,52 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             # test set_alias
             self.assertEqual('set-alias\tkey\t\t"value"\n', self.modgen.set_alias("key", "value"))
-            self.assertEqual("set-alias\tkey\t\t'va\"lue'\n", self.modgen.set_alias("key", 'va"lue'))
+            self.assertEqual('set-alias\tkey\t\t"va\\"lue"\n', self.modgen.set_alias("key", 'va"lue'))
             self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
             self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
         else:
             self.assertEqual('set_alias("key", "value")\n', self.modgen.set_alias("key", "value"))
+
+    def test_tcl_quoting(self):
+        """
+        Test escaping of double quotes when using Tcl modules
+        """
+
+        # note: this is for Tcl syntax only, skipping when it is not the case
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            return
+
+        # creating base path
+        base_path = os.path.join(self.test_prefix, 'all')
+        mkdir(base_path)
+
+        # creating package module
+        module_name = 'tcl_quoting_mod'
+        modules_base_path = os.path.join(base_path, module_name)
+        mkdir(modules_base_path)
+
+        # creating module that sets envvar with quotation marks
+        txt = self.modgen.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+        txt += self.modgen.get_description()
+        test_envvar = 'TEST_FLAGS'
+        test_flags = '-Xflags1="foo bar" -Xflags2="more flags" '
+        txt += self.modgen.set_environment(test_envvar, test_flags)
+
+        version_one = '1.0'
+        version_one_path = os.path.join(modules_base_path, version_one + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(version_one_path, txt)
+
+        # using base_path to possible module load
+        self.modtool.use(base_path)
+
+        self.modtool.load([module_name])
+        full_module_name = module_name + '/' + version_one
+
+        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertEqual(os.getenv(test_envvar), test_flags)
+        self.modtool.purge()
 
     def test_conditional_statement(self):
         """Test formatting of conditional statements."""

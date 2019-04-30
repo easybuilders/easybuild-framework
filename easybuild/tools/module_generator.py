@@ -766,7 +766,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
         msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
-        print_cmd = "puts stderr %s" % quote_str(msg)
+        print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd, indent=False)])
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
@@ -817,7 +817,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
+        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value, tcl=True))
 
     def set_as_default(self, module_folder_path, module_version):
         """
@@ -847,11 +847,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         if relpath:
             if value:
-                val = quote_str(os.path.join('$root', value))
+                val = quote_str(os.path.join('$root', value), tcl=True)
             else:
                 val = '"$root"'
         else:
-            val = quote_str(value)
+            val = quote_str(value, tcl=True)
         return 'setenv\t%s\t\t%s\n' % (key, val)
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
@@ -900,7 +900,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         user_modpath = self.det_user_modpath(user_modpath)
         use_statements = []
         for path in paths:
-            quoted_path = quote_str(path)
+            quoted_path = quote_str(path, tcl=True)
             if user_modpath:
                 quoted_path = '[ file join %s %s ]' % (user_modpath, quoted_path)
             if prefix:
