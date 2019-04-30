@@ -230,10 +230,6 @@ class ModuleGenerator(object):
         :param modulerc_txt: contents of .modulerc file
         :param wrapped_mod_name: name of module file for which a wrapper is defined in the .modulerc file (if any)
         """
-        if os.path.exists(modulerc_path) and not (build_option('force') or build_option('rebuild')):
-            raise EasyBuildError("Found existing .modulerc at %s, not overwriting without --force or --rebuild",
-                                 modulerc_path)
-
         # Lmod 6.x requires that module being wrapped is in same location as .modulerc file...
         if wrapped_mod_name is not None:
             if isinstance(self.modules_tool, Lmod) and LooseVersion(self.modules_tool.version) < LooseVersion('7.0'):
@@ -250,7 +246,26 @@ class ModuleGenerator(object):
                     error_msg += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory!"
                     raise EasyBuildError(error_msg)
 
-        write_file(modulerc_path, modulerc_txt, backup=True)
+        if os.path.exists(modulerc_path):
+            curr_modulerc = read_file(modulerc_path)
+
+            # get rid of Tcl shebang line if modulerc file already exists and already contains Tcl shebang line
+            tcl_shebang = ModuleGeneratorTcl.MODULE_SHEBANG
+            if modulerc_txt.startswith(tcl_shebang) and curr_modulerc.startswith(tcl_shebang):
+                modulerc_txt = '\n'.join(modulerc_txt.split('\n')[1:])
+
+            # check whether specified contents is already contained in current modulerc file;
+            # if so, we don't need to update the existing modulerc at all...
+            # if it's not, we need to append to existing modulerc file
+            if modulerc_txt.strip() not in curr_modulerc:
+
+                # if current contents doesn't end with a newline, prefix text being appended with a newline
+                if not curr_modulerc.endswith('\n'):
+                    modulerc_txt = '\n' + modulerc_txt
+
+                write_file(modulerc_path, modulerc_txt, append=True, backup=True)
+        else:
+            write_file(modulerc_path, modulerc_txt)
 
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """
