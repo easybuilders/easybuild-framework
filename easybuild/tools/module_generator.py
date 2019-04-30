@@ -230,10 +230,6 @@ class ModuleGenerator(object):
         :param modulerc_txt: contents of .modulerc file
         :param wrapped_mod_name: name of module file for which a wrapper is defined in the .modulerc file (if any)
         """
-        if os.path.exists(modulerc_path) and not (build_option('force') or build_option('rebuild')):
-            raise EasyBuildError("Found existing .modulerc at %s, not overwriting without --force or --rebuild",
-                                 modulerc_path)
-
         # Lmod 6.x requires that module being wrapped is in same location as .modulerc file...
         if wrapped_mod_name is not None:
             if isinstance(self.modules_tool, Lmod) and LooseVersion(self.modules_tool.version) < LooseVersion('7.0'):
@@ -250,7 +246,26 @@ class ModuleGenerator(object):
                     error_msg += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory!"
                     raise EasyBuildError(error_msg)
 
-        write_file(modulerc_path, modulerc_txt, backup=True)
+        if os.path.exists(modulerc_path):
+            curr_modulerc = read_file(modulerc_path)
+
+            # get rid of Tcl shebang line if modulerc file already exists and already contains Tcl shebang line
+            tcl_shebang = ModuleGeneratorTcl.MODULE_SHEBANG
+            if modulerc_txt.startswith(tcl_shebang) and curr_modulerc.startswith(tcl_shebang):
+                modulerc_txt = '\n'.join(modulerc_txt.split('\n')[1:])
+
+            # check whether specified contents is already contained in current modulerc file;
+            # if so, we don't need to update the existing modulerc at all...
+            # if it's not, we need to append to existing modulerc file
+            if modulerc_txt.strip() not in curr_modulerc:
+
+                # if current contents doesn't end with a newline, prefix text being appended with a newline
+                if not curr_modulerc.endswith('\n'):
+                    modulerc_txt = '\n' + modulerc_txt
+
+                write_file(modulerc_path, modulerc_txt, append=True, backup=True)
+        else:
+            write_file(modulerc_path, modulerc_txt)
 
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """
@@ -751,7 +766,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
         msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
-        print_cmd = "puts stderr %s" % quote_str(msg)
+        print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd, indent=False)])
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
@@ -802,7 +817,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
+        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value, tcl=True))
 
     def set_as_default(self, module_folder_path, module_version):
         """
@@ -832,11 +847,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         if relpath:
             if value:
-                val = quote_str(os.path.join('$root', value))
+                val = quote_str(os.path.join('$root', value), tcl=True)
             else:
                 val = '"$root"'
         else:
-            val = quote_str(value)
+            val = quote_str(value, tcl=True)
         return 'setenv\t%s\t\t%s\n' % (key, val)
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
@@ -885,7 +900,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         user_modpath = self.det_user_modpath(user_modpath)
         use_statements = []
         for path in paths:
-            quoted_path = quote_str(path)
+            quoted_path = quote_str(path, tcl=True)
             if user_modpath:
                 quoted_path = '[ file join %s %s ]' % (user_modpath, quoted_path)
             if prefix:
