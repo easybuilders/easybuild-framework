@@ -847,10 +847,10 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("R", "3.2.3"),'
             ']',
             'modloadmsg = "%s"' % '; '.join([
-                'Java: %%(javaver)s, %%(javashortver)s',
-                'Python: %%(pyver)s, %%(pyshortver)s',
-                'Perl: %%(perlver)s, %%(perlshortver)s',
-                'R: %%(rver)s, %%(rshortver)s',
+                'Java: %%(javaver)s, %%(javamajver)s, %%(javashortver)s',
+                'Python: %%(pyver)s, %%(pymajver)s, %%(pyshortver)s',
+                'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlshortver)s',
+                'R: %%(rver)s, %%(rmajver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
@@ -880,7 +880,8 @@ class EasyConfigTest(EnhancedTestCase):
         dirs1 = eb['sanity_check_paths']['dirs'][1]
         self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
-        self.assertEqual(eb['modloadmsg'], "Java: 1.7.80, 1.7; Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
+        expected = "Java: 1.7.80, 1, 1.7; Python: 2.7.10, 2, 2.7; Perl: 5.22.0, 5, 5.22; R: 3.2.3, 3, 3.2"
+        self.assertEqual(eb['modloadmsg'], expected)
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
