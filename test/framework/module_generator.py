@@ -401,6 +401,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(read_file(modulerc_path), expected)
 
         # adding another module version results in appending to existing .modulerc file
+        write_file(os.path.join(self.test_prefix, 'test', '4.5.6'), '#%Module')
         mod_ver_spec = {'modname': 'test/4.5.6', 'sym_version': '4', 'version': '4.5.6'}
         self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
 
