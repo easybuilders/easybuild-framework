@@ -390,6 +390,73 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
+    def test_extensions_templates(self):
+        """Test whether templates used in exts_list are resolved properly."""
+
+        # put dummy source file in place to avoid download fail
+        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        copy_file(toy_tar_gz, os.path.join(self.test_prefix, 'toy-0.0-py3-test.tar.gz'))
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(self.test_sourcepath, 'toy', toy_patch_fn)
+        copy_file(toy_patch, self.test_prefix)
+
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config(build_options={'silent': True})
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": ""}',
+            'dependencies = [("Python", "3.6.6")]',
+            'exts_defaultclass = "EB_Toy"',
+            # bogus, but useful to check whether this get resolved
+            'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
+            'exts_list = [',
+            '   ("toy", "0.0", {',
+            # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
+            # %(pymajver)s should get resolved because Python is listed as a (runtime) dep
+            # %(versionsuffix)s should get resolved with value of parent
+            '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
+            '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
+            # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s && mv toy-%(version)s toy #",',
+            '   }),',
+            ']',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.fetch_step()
+
+        # run extensions step to install 'toy' extension
+        eb.extensions_step()
+
+        # check whether template values were resolved correctly in Extension instances that were created/used
+        toy_ext = eb.ext_instances[0]
+        self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
+        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        expected = {
+            'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
+            'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
+            'source_tmpl': 'toy-0.0-py3-test.tar.gz',
+            'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
+        }
+        self.assertEqual(toy_ext.options, expected)
+
+        # also .cfg of Extension instance was updated correctly
+        self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
+        self.assertEqual(toy_ext.cfg['patches'], [toy_patch_fn])
+        self.assertEqual(toy_ext.cfg['prebuildopts'], "gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #")
+
+        # check whether files expected to be installed for 'toy' extension are in place
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
+        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'bin', 'toy')))
+        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'lib', 'libtoy.a')))
+
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
         self.contents = '\n'.join([
@@ -2161,6 +2228,31 @@ class EasyConfigTest(EnhancedTestCase):
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
+        self.assertEqual(res, expected)
+
+        # also check result of template_constant_dict when dict representing extension is passed
+        ext_dict = {
+            'name': 'foo',
+            'version': '1.2.3',
+            'options': {
+                'source_urls': ['https://example.com'],
+                'source_tmpl': '%(name)s-%(version)s.tar.gz',
+            },
+        }
+        res = template_constant_dict(ext_dict)
+
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        expected = {
+            'name': 'foo',
+            'nameletter': 'f',
+            'version': '1.2.3',
+            'version_major': '1',
+            'version_major_minor': '1.2',
+            'version_minor': '2'
+        }
         self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
