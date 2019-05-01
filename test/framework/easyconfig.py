@@ -390,14 +390,18 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
-    def test_exts_list_templates(self):
+    def test_extensions_templates(self):
         """Test whether templates used in exts_list are resolved properly."""
 
         # put dummy source file in place to avoid download fail
-        write_file(os.path.join(self.test_prefix, 'toy-0.0-py3-test.whl'), '')
+        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        copy_file(toy_tar_gz, os.path.join(self.test_prefix, 'toy-0.0-py3-test.tar.gz'))
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(self.test_sourcepath, 'toy', toy_patch_fn)
+        copy_file(toy_patch, self.test_prefix)
 
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
-        init_config()
+        init_config(build_options={'silent': True})
 
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -408,23 +412,50 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": ""}',
             'dependencies = [("Python", "3.6.6")]',
+            'exts_defaultclass = "EB_Toy"',
+            # bogus, but useful to check whether this get resolved
+            'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
             '   ("toy", "0.0", {',
-            '       "source_urls": ["http://example.com"],',
             # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
             # %(pymajver)s should get resolved because Python is listed as a (runtime) dep
             # %(versionsuffix)s should get resolved with value of parent
-            '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.whl",',
+            '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
+            '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
+            # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s && mv toy-%(version)s toy #",',
             '   }),',
             ']',
         ])
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        exts_sources = eb.fetch_extension_sources()
+        eb.fetch_step()
 
-        # check whether path to source file has template values resolved
-        self.assertEqual(os.path.basename(exts_sources[0]['src']), 'toy-0.0-py3-test.whl')
+        # run extensions step to install 'toy' extension
+        eb.extensions_step()
+
+        # check whether template values were resolved correctly in Extension instances that were created/used
+        toy_ext = eb.ext_instances[0]
+        self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
+        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        expected = {
+            'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
+            'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
+            'source_tmpl': 'toy-0.0-py3-test.tar.gz',
+            'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
+        }
+        self.assertEqual(toy_ext.options, expected)
+
+        # also .cfg of Extension instance was updated correctly
+        self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
+        self.assertEqual(toy_ext.cfg['patches'], [toy_patch_fn])
+        self.assertEqual(toy_ext.cfg['prebuildopts'], "gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #")
+
+        # check whether files expected to be installed for 'toy' extension are in place
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
+        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'bin', 'toy')))
+        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'lib', 'libtoy.a')))
 
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
