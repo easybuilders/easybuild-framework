@@ -483,9 +483,6 @@ class EasyBlock(object):
                     # since it may use template values like %(name)s & %(version)s
                     ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
 
-                    # set default template for name of source file
-                    ext_options.setdefault('source_tmpl', '%(name)s-%(version)s.tar.gz')
-
                     if len(ext) == 3:
                         if isinstance(ext_options, dict):
                             ext_options.update(ext[2])
@@ -506,11 +503,13 @@ class EasyBlock(object):
                     template_values.update(template_constant_dict(ext_src))
 
                     # resolve templates in extension options
-                    ext_src['options'] = ext_options = resolve_template(ext_options, template_values)
+                    ext_options = resolve_template(ext_options, template_values)
 
                     checksums = ext_options.get('checksums', [])
 
-                    fn = ext_options['source_tmpl']
+                    # use default template for name of source file if none is specified
+                    default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
+                    fn = ext_options.get('source_tmpl', default_source_tmpl)
 
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
