@@ -1555,6 +1555,9 @@ class EasyBlock(object):
                 self.cfg[opt] = ''  # empty list => empty option as next value
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
+        # re-generate template values, which may be affected by changed parameters we're iterating over
+        self.cfg.generate_template_values()
+
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
 

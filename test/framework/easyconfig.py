@@ -2716,8 +2716,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(all(len(bd) == 3 for bd in builddeps))
         self.assertTrue(all(bd[0]['name'] == 'CMake' for bd in builddeps))
         self.assertTrue(all(bd[0]['version'] == '3.12.1' for bd in builddeps))
+        self.assertTrue(all(bd[0]['full_mod_name'] == 'CMake/3.12.1' for bd in builddeps))
         self.assertTrue(all(bd[1]['name'] == 'foo' for bd in builddeps))
         self.assertTrue(all(bd[1]['version'] == '1.2.3' for bd in builddeps))
+        self.assertTrue(all(bd[1]['full_mod_name'] == 'foo/1.2.3' for bd in builddeps))
         self.assertTrue(all(bd[2]['name'] == 'GCC' for bd in builddeps))
         self.assertEqual(sorted(bd[2]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
 
@@ -2741,6 +2743,54 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = "Not all the dependencies listed in multi_deps have the same number of versions!"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_multi_deps_templated_builddeps(self):
+        """Test effect of multi_deps on builddependencies w.r.t. resolving templates like %(pyver)s."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}"
+        write_file(test_ec, test_ec_txt + "\nbuilddependencies = [('SWIG', '3.0.12', '-Python-%(pyver)s')]")
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        eb.silent = True
+
+        # start iteration #0
+        eb.handle_iterate_opts()
+
+        builddeps = ec['builddependencies']
+
+        self.assertTrue(isinstance(builddeps, list))
+        self.assertEqual(len(builddeps), 2)
+        self.assertTrue(all(isinstance(bd, dict) for bd in builddeps))
+
+        # first listed build dep should be SWIG
+        self.assertEqual(builddeps[0]['name'], 'SWIG')
+        self.assertEqual(builddeps[0]['version'], '3.0.12')
+        # template %(pyver)s values should be resolved correctly based 1st item in multi_deps
+        self.assertEqual(builddeps[0]['versionsuffix'], '-Python-3.7.2')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-3.7.2')
+
+        # 2nd listed build dep should be Python
+        self.assertEqual(builddeps[1]['name'], 'Python')
+        self.assertEqual(builddeps[1]['version'], '3.7.2')
+        self.assertEqual(builddeps[1]['full_mod_name'], 'Python/3.7.2')
+
+        eb.handle_iterate_opts()
+        builddeps = ec['builddependencies']
+
+        self.assertEqual(builddeps[0]['name'], 'SWIG')
+        self.assertEqual(builddeps[0]['version'], '3.0.12')
+        # template %(pyver)s values should be resolved correctly based 1st item in multi_deps
+        self.assertEqual(builddeps[0]['versionsuffix'], '-Python-2.7.15')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-2.7.15')
+
+        # 2nd listed build dep should be Python
+        self.assertEqual(builddeps[1]['name'], 'Python')
+        self.assertEqual(builddeps[1]['version'], '2.7.15')
+        self.assertEqual(builddeps[1]['full_mod_name'], 'Python/2.7.15')
 
     def test_iter_builddeps_templates(self):
         """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""
