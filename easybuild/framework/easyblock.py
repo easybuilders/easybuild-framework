@@ -58,6 +58,7 @@ from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
+from easybuild.framework.easyconfig.templates import template_constant_dict
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
@@ -482,7 +483,8 @@ class EasyBlock(object):
                     # since it may use template values like %(name)s & %(version)s
                     ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
 
-                    def_src_tmpl = "%(name)s-%(version)s.tar.gz"
+                    # set default template for name of source file
+                    ext_options.setdefault('source_tmpl', '%(name)s-%(version)s.tar.gz')
 
                     if len(ext) == 3:
                         if isinstance(ext_options, dict):
@@ -498,17 +500,22 @@ class EasyBlock(object):
                         'options': ext_options,
                     }
 
+                    # construct dictionary with template values;
+                    # inherited from parent, except for name/version templates which are specific to this extension
+                    template_values = copy.deepcopy(self.cfg.template_values)
+                    template_values.update(template_constant_dict(ext_src))
+
+                    # resolve templates in extension options
+                    ext_src['options'] = ext_options = resolve_template(ext_options, template_values)
+
                     checksums = ext_options.get('checksums', [])
 
-                    if ext_options.get('source_tmpl', None):
-                        fn = resolve_template(ext_options['source_tmpl'], ext_src)
-                    else:
-                        fn = resolve_template(def_src_tmpl, ext_src)
+                    fn = ext_options['source_tmpl']
 
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
+                        source_urls = [url for url in ext_options.get('source_urls', [])]
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
                         src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
 

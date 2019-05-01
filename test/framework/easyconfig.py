@@ -342,6 +342,7 @@ class EasyConfigTest(EnhancedTestCase):
             'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
+            'versionsuffix = "-test"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
@@ -360,6 +361,8 @@ class EasyConfigTest(EnhancedTestCase):
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
             '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
             '       ],',
+            # parameter for extension that uses templates that should get resolved
+            '       "configopts": "--%(name)s=%(version)s --maj-min=%(version_major)s --label=%(versionsuffix)s",',
             '   }),',
             ']',
         ])
@@ -373,19 +376,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[0]['version'], '1.0')
         self.assertEqual(exts_sources[0]['options'], {
             'source_tmpl': 'gzip-1.4.eb',
-            'source_urls': ['http://example.com/%(name)s/%(version)s'],
+            'source_urls': ['http://example.com/ext1/1.0'],
         })
         self.assertEqual(exts_sources[1]['name'], 'ext2')
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
             'checksums': ['f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156',
                           'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
+            'configopts': "--ext2=2.0 --maj-min=2 --label=-test",
             'patches': ['toy-0.0.eb'],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
         })
 
-        modfile = os.path.join(eb.make_module_step(), 'pi', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
+        modfile = os.path.join(eb.make_module_step(), 'pi', '3.14-test' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
         regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
@@ -2161,6 +2165,31 @@ class EasyConfigTest(EnhancedTestCase):
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
+        self.assertEqual(res, expected)
+
+        # also check result of template_constant_dict when dict representing extension is passed
+        ext_dict = {
+            'name': 'foo',
+            'version': '1.2.3',
+            'options': {
+                'source_urls': ['https://example.com'],
+                'source_tmpl': '%(name)s-%(version)s.tar.gz',
+            },
+        }
+        res = template_constant_dict(ext_dict)
+
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        expected = {
+            'name': 'foo',
+            'nameletter': 'f',
+            'version': '1.2.3',
+            'version_major': '1',
+            'version_major_minor': '1.2',
+            'version_minor': '2'
+        }
         self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
