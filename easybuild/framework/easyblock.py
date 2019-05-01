@@ -514,7 +514,7 @@ class EasyBlock(object):
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        source_urls = [url for url in ext_options.get('source_urls', [])]
+                        source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
                         src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
 
