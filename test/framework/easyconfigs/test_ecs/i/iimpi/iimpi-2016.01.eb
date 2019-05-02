@@ -6,7 +6,7 @@ version = '2016.01'
 homepage = 'http://software.intel.com/en-us/intel-cluster-toolkit-compiler/'
 description = """Intel C/C++ and Fortran compilers, alongside Intel MPI."""
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = {'name': 'system', 'version': 'system'}
 
 compver = '2016.1.150-GCC-4.9.3-2.25'
 

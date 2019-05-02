@@ -6,7 +6,7 @@ version = '2018a'
 homepage = 'http://software.intel.com/en-us/intel-cluster-toolkit-compiler/'
 description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL."""
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = {'name': 'system', 'version': 'system'}
 
 compver = '2011.13.367'
 
