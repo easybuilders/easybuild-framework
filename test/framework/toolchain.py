@@ -105,19 +105,25 @@ class ToolchainTest(EnhancedTestCase):
         """Test for foss toolchain."""
         self.get_toolchain("foss", version="2018a")
 
-    def test_get_variable_dummy_toolchain(self):
-        """Test get_variable on dummy toolchain"""
-        tc = self.get_toolchain('dummy', version='dummy')
+    def test_get_variable_system_toolchain(self):
+        """Test get_variable on system/dummy toolchain"""
+
+        tc = self.get_toolchain('system', version='')
         tc.prepare()
         self.assertEqual(tc.get_variable('CC'), '')
         self.assertEqual(tc.get_variable('CXX', typ=str), '')
         self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
 
-        tc = self.get_toolchain('dummy', version='')
-        tc.prepare()
-        self.assertEqual(tc.get_variable('CC'), '')
-        self.assertEqual(tc.get_variable('CXX', typ=str), '')
-        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+        self.allow_deprecated_behaviour()
+
+        for ver in ['dummy', '']:
+            self.mock_stderr(True)
+            tc = self.get_toolchain('dummy', version='dummy')
+            self.mock_stderr(False)
+            tc.prepare()
+            self.assertEqual(tc.get_variable('CC'), '')
+            self.assertEqual(tc.get_variable('CXX', typ=str), '')
+            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
 
     def test_is_system_toolchain(self):
         """Test is_system_toolchain method."""
