@@ -58,7 +58,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN, is_system_toolchain
+from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
 from easybuild.tools.utilities import import_available_modules, mk_rst_table, nub, quote_str
@@ -710,6 +710,11 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     tcs = dict()
     for (tcname, tcc) in tclist:
+
+        # filter deprecated 'dummy' toolchain
+        if tcname == DUMMY_TOOLCHAIN_NAME:
+            continue
+
         tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
         tcs[tcname] = tc.definition()
 
