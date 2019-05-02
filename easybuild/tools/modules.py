@@ -1188,6 +1188,8 @@ class Lmod(ModulesTool):
         setvar('LMOD_IGNORE_CACHE', '1', verbose=False)
         # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
         setvar('LMOD_REDIRECT', 'no', verbose=False)
+        # disable extended defaults within Lmod (introduced and set as default in Lmod 8.0.7)
+        setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
         self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
