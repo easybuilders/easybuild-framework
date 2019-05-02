@@ -2769,7 +2769,7 @@ class EasyConfigTest(EnhancedTestCase):
         # first listed build dep should be SWIG
         self.assertEqual(builddeps[0]['name'], 'SWIG')
         self.assertEqual(builddeps[0]['version'], '3.0.12')
-        # template %(pyver)s values should be resolved correctly based 1st item in multi_deps
+        # template %(pyver)s values should be resolved correctly based on 1st item in multi_deps
         self.assertEqual(builddeps[0]['versionsuffix'], '-Python-3.7.2')
         self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-3.7.2')
 
@@ -2783,7 +2783,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(builddeps[0]['name'], 'SWIG')
         self.assertEqual(builddeps[0]['version'], '3.0.12')
-        # template %(pyver)s values should be resolved correctly based 1st item in multi_deps
+        # template %(pyver)s values should be resolved correctly based on 2nd item in multi_deps
         self.assertEqual(builddeps[0]['versionsuffix'], '-Python-2.7.15')
         self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-2.7.15')
 
