@@ -316,7 +316,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
             '--software-version=0.0',
-            '--toolchain=dummy,dummy',
+            '--toolchain=system,system',
             '--experimental',
         ]
         outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
@@ -387,7 +387,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '--force',
                 '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
                 '--software-version=%s' % version,
-                '--toolchain=dummy,dummy',
+                '--toolchain=system,system',
                 '--experimental',
             ]
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
@@ -795,9 +795,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
-        # test module path with dummy/dummy build
+        # test module path with system/system build
         extra_args = [
-            '--try-toolchain=dummy,dummy',
+            '--try-toolchain=system,system',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -812,9 +812,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(re.search("module load", modtxt))
         os.remove(toy_module_path)
 
-        # test module path with dummy/dummy build, pretend to be a compiler by setting moduleclass
+        # test module path with system/system build, pretend to be a compiler by setting moduleclass
         extra_args = [
-            '--try-toolchain=dummy,dummy',
+            '--try-toolchain=system,system',
             '--try-amend=moduleclass=compiler',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
@@ -970,7 +970,7 @@ class ToyBuildTest(EnhancedTestCase):
                                  "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
     def test_toy_advanced(self):
-        """Test toy build with extensions and non-dummy toolchain."""
+        """Test toy build with extensions and non-system toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
