@@ -97,7 +97,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -214,7 +214,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -249,7 +249,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'moduleclass = "compiler"',
         ])
         self.writeEC()
@@ -305,7 +305,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -637,7 +637,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
         ])
 
         self.writeEC()
@@ -675,7 +675,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -712,7 +712,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'exts_list = ["ext1", "ext2"]',
             'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
             'exts_defaultclass = "DummyExtension"',
@@ -747,7 +747,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
             "dependencies = [('GCC', '6.4.0-2.28'), ('toy', '0.0-deps')]",
             "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
@@ -861,7 +861,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
         ])
         self.writeEC()
         stdoutorig = sys.stdout
@@ -909,7 +909,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
         ])
         self.writeEC()
 
@@ -1415,7 +1415,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
 
-        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy'), parents=True)
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system'), parents=True)
         eb = EasyBlock(ec['ec'])
         eb.silent = True
         eb.prepare_step()
@@ -1538,7 +1538,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '1.0.2'",
             "homepage = 'https://example.com'",
             "description = '1st test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': ''}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
         ])
         write_file(ec1, ec1_txt)
 
@@ -1548,7 +1548,7 @@ class EasyBlockTest(EnhancedTestCase):
             "easyblock = 'Toolchain'",
             "name = 'two'",
             "version = '2.0'",
-            "toolchain = {'name': 'dummy', 'version': ''}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
             "homepage = 'https://example.com'",
             "description = '2nd test easyconfig'",
             "dependencies = [('one', '1.0')]",
