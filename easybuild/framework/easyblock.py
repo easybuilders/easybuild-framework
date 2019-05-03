@@ -554,8 +554,11 @@ class EasyBlock(object):
                                 else:
                                     raise EasyBuildError('Checksum verification for extension source %s failed', fn)
 
-                            extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []),
-                                                               extension=True)
+                            if components:
+                                extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []))
+                            else:
+                                extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []),
+                                                                   extension=True)
                             if extra_patches:
                                 self.log.debug('Found patches for %s %s: %s' % (option_string, extra_name,
                                                                                 extra_patches))
