@@ -55,7 +55,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         ec = ecp.get_config_dict()
 
-        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.3')
 
@@ -77,7 +77,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # this should be ok: ie the default values
         ec = ecp.get_config_dict()
-        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.2')
 
@@ -130,7 +130,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         ec = ecp.get_config_dict()
         self.assertEqual(ec['name'], 'foss')
         self.assertEqual(ec['version'], '2018a')
-        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
 
         # dependencies should be parsed correctly
         deps = [

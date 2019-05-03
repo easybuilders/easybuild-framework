@@ -819,7 +819,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[7].startswith(expected))
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added chars in toolchain name/version, in green)
         expected = "7 %(endcol)s+%(endcol)s toolchain = {"
-        expected += "'name': '%(endcol)s%(green)sdu%(endcol)sm\x1b[0m%(green)smy%(endcol)s', "
+        expected += "'name': '%(endcol)s%(green)ssyste%(endcol)sm', "
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
         self.assertTrue(lines[8].startswith(expected))
 
@@ -841,12 +841,12 @@ class FileToolsTest(EnhancedTestCase):
         # different toolchain in toy-0.0-gompi-2018a-test: '+' line with squigly line underneath to mark removed chars
         expected = "7 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
         self.assertTrue(lines[7].startswith(expected))
-        expected = "  ?                       ^^ ^^ "
+        expected = "  ?                       ^^ -- "
         self.assertTrue(lines[8].startswith(expected))
         # different toolchain in toy-0.0-gompi-2018a-test: '-' line with squigly line underneath to mark added chars
-        expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
+        expected = "7 + toolchain = {'name': 'system', 'version': 'system'} (1/2) toy"
         self.assertTrue(lines[9].startswith(expected))
-        expected = "  ?                       ^^ ^^ "
+        expected = "  ?                       ^^^^^ "
         self.assertTrue(lines[10].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
