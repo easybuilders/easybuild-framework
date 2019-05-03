@@ -158,7 +158,7 @@ class RobotTest(EnhancedTestCase):
                 'name': 'foo',
                 'version': '1.2.3',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'toolchain': {'name': 'system', 'version': 'system'},
             },
             'spec': '_',
             'short_mod_name': 'foo/1.2.3',
@@ -167,8 +167,8 @@ class RobotTest(EnhancedTestCase):
                 'name': 'gzip',
                 'version': '1.4',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
-                'dummy': True,
+                'toolchain': {'name': 'system', 'version': 'system'},
+                'system': True,
                 'hidden': False,
             }],
             'parsed': True,
@@ -186,8 +186,8 @@ class RobotTest(EnhancedTestCase):
             'name': 'toy',
             'version': '0.0',
             'versionsuffix': '-deps',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'dummy': True,
+            'toolchain': {'name': 'system', 'version': 'system'},
+            'system': True,
             'hidden': True,
         }
         easyconfig_moredeps = deepcopy(easyconfig_dep)
@@ -229,7 +229,7 @@ class RobotTest(EnhancedTestCase):
             'version': '1.4',
             'versionsuffix': '',
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
-            'dummy': True,
+            'system': True,
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
@@ -255,8 +255,8 @@ class RobotTest(EnhancedTestCase):
             'name': 'foss',
             'version': '2018a',
             'versionsuffix': '',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'dummy': True,
+            'toolchain': {'name': 'system', 'version': 'system'},
+            'system': True,
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
@@ -319,8 +319,8 @@ class RobotTest(EnhancedTestCase):
             'name': 'foss',
             'version': '2018a',
             'versionsuffix': '',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'dummy': True,
+            'toolchain': {'name': 'system', 'version': 'system'},
+            'system': True,
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
@@ -342,8 +342,8 @@ class RobotTest(EnhancedTestCase):
                 'name': name,
                 'version': version,
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
-                'dummy': True,
+                'toolchain': {'name': 'system', 'version': 'system'},
+                'system': True,
                 'hidden': False,
                 'short_mod_name': '%s/%s' % (name, version),
                 'full_mod_name': '%s/%s' % (name, version),
@@ -357,7 +357,7 @@ class RobotTest(EnhancedTestCase):
                     'name': name,
                     'version': version,
                     'versionsuffix': '',
-                    'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                    'toolchain': {'name': 'system', 'version': 'system'},
                 },
                 'spec': '_',
                 'short_mod_name': '%s/%s' % (name, version),
@@ -496,7 +496,7 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue('SQLite/3.8.10.2-foss-2018a' in mods)
         self.assertFalse('SQLite/3.8.10.2-GCC-6.4.0-2.28' in mods)
 
-        # Check whether having 2 version of dummy toolchain is ok
+        # Check whether having 2 version of system toolchain is ok
         # Clear easyconfig and toolchain caches
         ecec._easyconfigs_cache.clear()
         get_toolchain_hierarchy.clear()
@@ -504,7 +504,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
-            'add_dummy_to_minimal_toolchains': True,
+            'add_system_to_minimal_toolchains': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
@@ -512,9 +512,9 @@ class RobotTest(EnhancedTestCase):
         })
 
         impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': ''}", impi_txt, re.M))
+        self.assertTrue(re.search("^toolchain = {'name': 'system', 'version': 'system'}", impi_txt, re.M))
         gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
-        self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': 'dummy'}", gzip_txt, re.M))
+        self.assertTrue(re.search("^toolchain = {'name': 'system', 'version': 'system'}", gzip_txt, re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-foss-2018a.eb')
         barec_lines = [
@@ -527,8 +527,8 @@ class RobotTest(EnhancedTestCase):
             # to test resolving of dependencies with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
-            "   ('impi', '5.1.2.150'),",  # has toolchain ('dummy', '')
-            "   ('gzip', '1.4'),",  # has toolchain ('dummy', 'dummy')
+            "   ('impi', '5.1.2.150'),",  # has toolchain ('system', 'system')
+            "   ('gzip', '1.4'),",  # has toolchain ('system', 'system')
             "]",
             # toolchain as list line, for easy modification later
             "toolchain = {'name': 'foss', 'version': '2018a'}",
@@ -556,7 +556,7 @@ class RobotTest(EnhancedTestCase):
                 'name': 'test',
                 'version': '123',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'toolchain': {'name': 'system', 'version': 'system'},
             },
             'spec': '_',
             'short_mod_name': 'test/123',
@@ -566,8 +566,8 @@ class RobotTest(EnhancedTestCase):
                 'name': 'somedep',
                 'version': '4.5.6',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
-                'dummy': True,
+                'toolchain': {'name': 'system', 'version': 'system'},
+                'system': True,
                 'hidden': False,
                 'short_mod_name': 'somedep/4.5.6',
                 'full_mod_name': 'somedep/4.5.6',
@@ -598,7 +598,7 @@ class RobotTest(EnhancedTestCase):
             "version = '4.5.6'",
             "homepage = 'https://example.com'",
             "description = 'some dep'",
-            "toolchain = {'name': 'dummy', 'version': ''}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
         ])
         write_file(os.path.join(self.test_prefix, 'somedep-4.5.6.eb'), somedep_ectxt)
 
@@ -706,7 +706,7 @@ class RobotTest(EnhancedTestCase):
             "versionsuffix = '-test'",
             "homepage = 'foo'",
             "description = 'bar'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
 
@@ -888,9 +888,9 @@ class RobotTest(EnhancedTestCase):
         ]
         self.assertEqual(iccifortcuda_hierarchy, expected)
 
-        # test also including dummy
+        # test also including system
         init_config(build_options={
-            'add_dummy_to_minimal_toolchains': True,
+            'add_system_to_minimal_toolchains': True,
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
@@ -898,7 +898,7 @@ class RobotTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
         gompi_hierarchy = get_toolchain_hierarchy({'name': 'gompi', 'version': '2018a'})
         self.assertEqual(gompi_hierarchy, [
-            {'name': 'dummy', 'version': ''},
+            {'name': 'system', 'version': ''},
             {'name': 'GCC', 'version': '6.4.0-2.28'},
             {'name': 'gompi', 'version': '2018a'},
         ])
@@ -907,7 +907,7 @@ class RobotTest(EnhancedTestCase):
         # check whether GCCcore is considered as subtoolchain, even if it's only listed as a dep
         gcc_hierarchy = get_toolchain_hierarchy({'name': 'GCC', 'version': '4.9.3-2.25'})
         self.assertEqual(gcc_hierarchy, [
-            {'name': 'dummy', 'version': ''},
+            {'name': 'system', 'version': ''},
             {'name': 'GCCcore', 'version': '4.9.3'},
             {'name': 'GCC', 'version': '4.9.3-2.25'},
         ])
@@ -915,14 +915,14 @@ class RobotTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
         iccifort_hierarchy = get_toolchain_hierarchy({'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'})
         self.assertEqual(iccifort_hierarchy, [
-            {'name': 'dummy', 'version': ''},
+            {'name': 'system', 'version': ''},
             {'name': 'GCCcore', 'version': '4.9.3'},
             {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
         ])
 
         get_toolchain_hierarchy.clear()
         build_options = {
-            'add_dummy_to_minimal_toolchains': True,
+            'add_system_to_minimal_toolchains': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
@@ -930,7 +930,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options=build_options)
         craycce_hierarchy = get_toolchain_hierarchy({'name': 'CrayCCE', 'version': '5.1.29'})
         self.assertEqual(craycce_hierarchy, [
-            {'name': 'dummy', 'version': ''},
+            {'name': 'system', 'version': ''},
             {'name': 'CrayCCE', 'version': '5.1.29'},
         ])
 
@@ -938,7 +938,7 @@ class RobotTest(EnhancedTestCase):
         # test case from https://github.com/eth-cscs/production/blob/master/easybuild/easyconfigs
         gmvapich2_hierarchy = get_toolchain_hierarchy({'name': 'gmvapich2', 'version': '15.11'})
         self.assertEqual(gmvapich2_hierarchy, [
-            {'name': 'dummy', 'version': ''},
+            {'name': 'system', 'version': ''},
             {'name': 'GCCcore', 'version': '4.9.3'},
             {'name': 'GCC', 'version': '4.9.3-2.25'},
             {'name': 'gmvapich2', 'version': '15.11'},
@@ -964,7 +964,7 @@ class RobotTest(EnhancedTestCase):
             'name': 'nodeps',
             'version': '1.2.3',
             'versionsuffix': '',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'toolchain': {'name': 'system', 'version': 'system'},
             'dependencies': [],
             'full_mod_name': 'nodeps/1.2.3',
             'spec': 'nodeps-1.2.3.eb',
@@ -1097,7 +1097,7 @@ class RobotTest(EnhancedTestCase):
         new_gzip15_toolchain = robot_find_subtoolchain_for_dep(gzip15, self.modtool)
         self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
-        # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
+        # no easyconfig for gzip 1.4 with matching non-system (sub)toolchain
         gzip14 = {
             'name': 'gzip',
             'version': '1.4',
@@ -1110,10 +1110,10 @@ class RobotTest(EnhancedTestCase):
         gzip14['toolchain'] = {'name': 'gompi', 'version': '2018a'}
 
         #
-        # Second test also including dummy toolchain
+        # Second test also including system toolchain
         #
         init_config(build_options={
-            'add_dummy_to_minimal_toolchains': True,
+            'add_system_to_minimal_toolchains': True,
             'robot_path': test_easyconfigs,
         })
         # specify alternative parent toolchain
@@ -1121,14 +1121,14 @@ class RobotTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
         new_gzip14_toolchain = robot_find_subtoolchain_for_dep(gzip14, self.modtool, parent_tc=gompi_1410)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
-        self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
+        self.assertEqual(new_gzip14_toolchain, {'name': 'system', 'version': ''})
 
         # default: use toolchain from dependency
         gzip14['toolchain'] = gompi_1410
         get_toolchain_hierarchy.clear()
         new_gzip14_toolchain = robot_find_subtoolchain_for_dep(gzip14, self.modtool)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
-        self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
+        self.assertEqual(new_gzip14_toolchain, {'name': 'system', 'version': ''})
 
         # check reversed order (parent tc first) and skipping of parent tc itself
         dep = {
@@ -1400,7 +1400,7 @@ class RobotTest(EnhancedTestCase):
             "version = '0'",
             "homepage = 'https://example.com'",
             "description = 'Just A Wrapper'",
-            "toolchain = {'name': 'dummy', 'version': ''}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
             "dependencies = [('toy', '0.0')]",
         ])
         wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
@@ -1424,7 +1424,7 @@ class RobotTest(EnhancedTestCase):
         test_ec_txt = read_file(toy_ec)
         # we need to use empty dummy toolchain version to ensure dependencies are picked up...
         tc_regex = re.compile(r'^toolchain = .*', re.M)
-        test_ec_txt = tc_regex.sub("toolchain = {'name': 'dummy', 'version': ''}", test_ec_txt)
+        test_ec_txt = tc_regex.sub("toolchain = {'name': 'system', 'version': 'system'}", test_ec_txt)
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.9.2', '7.3.0-2.30']}\n"
         test_ec_txt += "dependencies = [('gzip', '1.4')]\n"
 
