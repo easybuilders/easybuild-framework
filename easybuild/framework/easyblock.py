@@ -458,68 +458,85 @@ class EasyBlock(object):
         else:
             self.log.info("Added patches: %s" % self.patches)
 
-    def fetch_extension_sources(self, skip_checksums=False):
+    def fetch_extension_sources(self, skip_checksums=False, components=False):
         """
-        Find source file for extensions.
+        Find source file for extensions/components.
         """
-        exts_sources = []
-        exts_list = self.cfg.get_ref('exts_list')
+        extras_sources = []
+        if components:
+            cfg_option = 'components'
+            option_string = 'components'
+            default_options_string = 'default_component_specs'
+        else:
+            cfg_option = 'exts_list'
+            option_string = 'extensions'
+            default_options_string = 'exts_default_options'
+
+        extras_list = self.cfg.get_ref(cfg_option)
 
         if self.dry_run:
-            self.dry_run_msg("\nList of sources/patches for extensions:")
+            self.dry_run_msg("\nList of sources/patches for %s:", option_string)
 
-        for ext in exts_list:
-            if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
+        for extra in extras_list:
+            if (isinstance(extra, list) or isinstance(extra, tuple)) and extra:
 
                 # expected format: (name, version, options (dict))
 
-                ext_name = ext[0]
-                if len(ext) == 1:
-                    exts_sources.append({'name': ext_name})
+                extra_name = extra[0]
+                if len(extra) == 1:
+                    extras_sources.append({'name': extra_name})
                 else:
-                    ext_version = ext[1]
+                    extra_version = extra[1]
 
-                    # make sure we grab *raw* dict of default options for extension,
+                    # make sure we grab *raw* dict of default options for extension/component,
                     # since it may use template values like %(name)s & %(version)s
-                    ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
+                    extra_options = copy.deepcopy(self.cfg.get_ref(default_options_string))
 
-                    if len(ext) == 3:
-                        if isinstance(ext_options, dict):
-                            ext_options.update(ext[2])
+                    if len(extra) == 3:
+                        if isinstance(extra_options, dict):
+                            extra_options.update(extra[2])
                         else:
-                            raise EasyBuildError("Unexpected type (non-dict) for 3rd element of %s", ext)
-                    elif len(ext) > 3:
-                        raise EasyBuildError('Extension specified in unknown format (list/tuple too long)')
+                            raise EasyBuildError("Unexpected type (non-dict) for 3rd element of %s", extra)
+                    elif len(extra) > 3:
+                        raise EasyBuildError('The %s specified in unknown format (list/tuple too long)', option_string)
 
-                    ext_src = {
-                        'name': ext_name,
-                        'version': ext_version,
-                        'options': ext_options,
+                    extra_src = {
+                        'name': extra_name,
+                        'version': extra_version,
+                        'options': extra_options,
                     }
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
                     template_values = copy.deepcopy(self.cfg.template_values)
-                    template_values.update(template_constant_dict(ext_src))
+                    template_values.update(template_constant_dict(extra_src, skip_lower=False))
 
                     # resolve templates in extension options
-                    ext_options = resolve_template(ext_options, template_values)
+                    extra_options = resolve_template(extra_options, template_values)
 
-                    checksums = ext_options.get('checksums', [])
+                    checksums = extra_options.get('checksums', [])
 
                     # use default template for name of source file if none is specified
                     default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
-                    fn = ext_options.get('source_tmpl', default_source_tmpl)
-
-                    if ext_options.get('nosource', None):
-                        exts_sources.append(ext_src)
+                    if components:
+                        fn = resolve_template(extra_src['options'].get('sources', default_source_tmpl)[0],
+                                              template_values)
                     else:
-                        source_urls = ext_options.get('source_urls', [])
+                        fn = extra_options.get('source_tmpl', default_source_tmpl)
+
+                    if extra_options.get('nosource', None):
+                        extras_sources.append(extra_src)
+                    else:
+                        source_urls = extra_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
+                        if components:
+                            src_fn = self.obtain_file(fn, urls=source_urls, force_download=force_download)
+                        else:
+                            src_fn = self.obtain_file(fn, extension=True, urls=source_urls,
+                                                      force_download=force_download)
 
                         if src_fn:
-                            ext_src.update({'src': src_fn})
+                            extra_src.update({'src': src_fn})
 
                             if not skip_checksums:
                                 # report both MD5 and SHA256 checksums, since both are valid default checksum types
@@ -537,13 +554,15 @@ class EasyBlock(object):
                                 else:
                                     raise EasyBuildError('Checksum verification for extension source %s failed', fn)
 
-                            ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
-                            if ext_patches:
-                                self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
-                                ext_src.update({'patches': ext_patches})
+                            extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []),
+                                                               extension=True)
+                            if extra_patches:
+                                self.log.debug('Found patches for %s %s: %s' % (option_string, extra_name,
+                                                                                extra_patches))
+                                extra_src.update({'patches': extra_patches})
 
                                 if not skip_checksums:
-                                    for patch in ext_patches:
+                                    for patch in extra_patches:
                                         # report both MD5 and SHA256 checksums,
                                         # since both are valid default checksum types
                                         for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
@@ -552,29 +571,30 @@ class EasyBlock(object):
 
                                     # verify checksum (if provided)
                                     self.log.debug('Verifying checksums for extension patches...')
-                                    for idx, patch in enumerate(ext_patches):
+                                    for idx, patch in enumerate(extra_patches):
                                         checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
                                         if verify_checksum(patch, checksum):
-                                            self.log.info('Checksum for extension patch %s verified', patch)
+                                            self.log.info('Checksum for %s patch %s verified', option_string, patch)
                                         elif build_option('ignore_checksums'):
                                             print_warning("Ignoring failing checksum verification for %s" % patch)
                                         else:
-                                            raise EasyBuildError('Checksum for extension patch %s failed', patch)
+                                            raise EasyBuildError('Checksum for %s patch %s failed', option_string,
+                                                                 patch)
                             else:
-                                self.log.debug('No patches found for extension %s.' % ext_name)
+                                self.log.debug('No patches found for %s %s.', option_string, extra_name)
 
-                            exts_sources.append(ext_src)
+                            extras_sources.append(extra_src)
 
                         else:
-                            raise EasyBuildError("Source for extension %s not found.", ext)
+                            raise EasyBuildError("Source for %s %s not found.", option_string, extra)
 
-            elif isinstance(ext, basestring):
-                exts_sources.append({'name': ext})
+            elif isinstance(extra, basestring):
+                extras_sources.append({'name': extra})
 
             else:
-                raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
+                raise EasyBuildError("The %s is specified in unknown format (not a string/list/tuple)", option_string)
 
-        return exts_sources
+        return extras_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
                     git_config=None):
@@ -1749,6 +1769,8 @@ class EasyBlock(object):
         # fetch extensions
         if self.cfg['exts_list']:
             self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
+        elif self.cfg['components']:
+            self.components = self.fetch_extension_sources(skip_checksums=skip_checksums, components=True)
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
