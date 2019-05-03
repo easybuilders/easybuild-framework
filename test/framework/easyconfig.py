@@ -43,7 +43,6 @@ from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
-from easybuild.base.fancylogger import setLogLevelDebug, logToScreen
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
@@ -134,7 +133,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += '\n' + '\n'.join([
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
         ])
         self.prep()
 
@@ -143,7 +142,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['name'], "pi")
         self.assertEqual(eb['version'], "3.14")
         self.assertEqual(eb['homepage'], "http://example.com")
-        self.assertEqual(eb['toolchain'], {"name": "dummy", "version": "dummy"})
+        self.assertEqual(eb['toolchain'], {"name": "system", "version": "system"})
         self.assertEqual(eb['description'], "test easyconfig")
 
     def test_validation(self):
@@ -154,7 +153,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'stop = "notvalid"',
         ])
         self.prep()
@@ -168,7 +167,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['osdependencies'] = ['non-existent-dep']
         self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
 
-        # dummy toolchain, installversion == version
+        # system toolchain, installversion == version
         self.assertEqual(det_full_ec_version(ec), "3.14")
 
         os.chmod(self.eb_file, 0o000)
@@ -194,7 +193,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'sanity_check_paths = { "files": ["lib/lib.%s" % SHLIB_EXT] }',
         ])
         self.prep()
@@ -338,7 +337,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'exts_default_options = {',
             '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
             '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
@@ -350,9 +349,9 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
-            '           "f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156",',
+            '           "154dcd5294c48bf91c009e7b55b87efcf7ed86e385493dd1264496d14c4cea17",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
-            '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
+            '           "20e4beaa48b9db6b60217fcb3e6f28bea0c660b07d8c558e17dbe12f132cc703",',
             '       ],',
             '   }),',
             ']',
@@ -372,8 +371,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['name'], 'ext2')
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
-            'checksums': ['f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156',
-                          'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
+            'checksums': ['154dcd5294c48bf91c009e7b55b87efcf7ed86e385493dd1264496d14c4cea17',
+                          '20e4beaa48b9db6b60217fcb3e6f28bea0c660b07d8c558e17dbe12f132cc703'],
             'patches': ['toy-0.0.eb'],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
@@ -488,7 +487,7 @@ class EasyConfigTest(EnhancedTestCase):
         versuff = "|mysuffix"
         tcname = "GCC"
         tcver = "4.6.3"
-        dummy = "dummy"
+        system = "system"
 
         correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
         cfg = {
@@ -503,7 +502,7 @@ class EasyConfigTest(EnhancedTestCase):
         correct_installver = "%s%s%s" % (verpref, ver, versuff)
         cfg = {
             'version': ver,
-            'toolchain': {'name': dummy, 'version': tcver},
+            'toolchain': {'name': system, 'version': tcver},
             'versionprefix': verpref,
             'versionsuffix': versuff,
         }
@@ -536,7 +535,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version = "3.12"',
                 'homepage = "http://example.com"',
                 'description = "test easyconfig"',
-                'toolchain = {"name": "dummy", "version": "dummy"}',
+                'toolchain = {"name": "system", "version": "system"}',
                 'patches = %s' % patches
             ])),
             (fns[1], "\n".join([
@@ -677,7 +676,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.8.3',
                 'full_mod_name': 'foo/1.2.3-GCC-4.8.3',
                 'build_only': False,
@@ -691,7 +690,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '2018a'},
                 'toolchain_inherited': False,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'bar/666-gompi-2018a-bleh',
                 'full_mod_name': 'bar/666-gompi-2018a-bleh',
                 'build_only': False,
@@ -705,7 +704,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'full_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'build_only': False,
@@ -719,7 +718,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
                 'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
                 'build_only': True,
@@ -827,7 +826,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix = "-Python-%%(pyver)s"',
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
-            'toolchain = {"name":"dummy", "version": "dummy2"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
@@ -913,7 +912,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
         ])
         self.contents = orig_contents
         self.prep()
@@ -983,7 +982,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
             'buildininstalldir = True',
         ])
         self.prep()
@@ -1010,7 +1009,7 @@ class EasyConfigTest(EnhancedTestCase):
         for eb_file1, eb_file2, specs in [
             ('gzip-1.4.eb', 'gzip.eb', {}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
-            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
+            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'system', 'version': 'system'}}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
             ('gzip-1.5-foss-2018a.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'foss', 'version': '2018a'}}),
@@ -1263,7 +1262,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = {"name": "system", "version": "system"}',
         ])
         self.prep()
         ec = EasyConfig(self.eb_file)
@@ -1521,7 +1520,7 @@ class EasyConfigTest(EnhancedTestCase):
             'patches = ["one.patch"]',
             "easyblock = 'EB_foo'",
             '',
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
             '',
             'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
             "dependencies = [",
@@ -1582,7 +1581,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",
@@ -1621,8 +1620,8 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "foo description"',
             '',
             "toolchain = {",
-            "    'version': 'dummy',",
-            "    'name': 'dummy',",
+            "    'version': 'system',",
+            "    'name': 'system',",
             '}',
             '',
             "sources = [",
@@ -1696,8 +1695,8 @@ class EasyConfigTest(EnhancedTestCase):
             "# toolchain comment",
             '',
             "toolchain = {",
-            "    'version': 'dummy',",
-            "    'name': 'dummy'",
+            "    'version': 'system',",
+            "    'name': 'system'",
             '}',
             '',
             "sanity_check_paths = {",
@@ -2124,8 +2123,8 @@ class EasyConfigTest(EnhancedTestCase):
             'github_account': 'toy',
             'name': 'toy',
             'nameletter': 't',
-            'toolchain_name': 'dummy',
-            'toolchain_version': 'dummy',
+            'toolchain_name': 'system',
+            'toolchain_version': 'system',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
@@ -2298,15 +2297,14 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, ['2018a', None])
 
-        # 'dummy', 'dummy' should be ok: return None for GCCcore, and None or '' for 'dummy'.
+        # 'system', 'system' should be ok: return None for GCCcore, and None or '' for 'system'.
         current_tc = {'name': 'GCC', 'version': '6.4.0-2.28'}
-        cands = [{'name': 'dummy', 'version': 'dummy'}]
+        cands = [{'name': 'system', 'version': 'system'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, [None, None])
 
-        init_config(build_options={
-            'add_dummy_to_minimal_toolchains': True})
+        init_config(build_options={'add_system_to_minimal_toolchains': True})
 
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
