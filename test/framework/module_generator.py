@@ -867,13 +867,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
-            'GCC-4.6.3.eb': 'GCC/5e4c8db5c005867c2aa9c1019500ed2cb1b4cf29',
-            'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
+            'GCC-4.6.3.eb': 'GCC/355ab0c0b66cedfd6e87695ef152a0ebe45b8b28',
+            'gzip-1.4.eb': 'gzip/c2e522ded75b05c2b2074042fc39b5562b9929c3',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
             'gzip-1.5-foss-2018a.eb': 'gzip/65dc39f92bf634667c478c50e43f0cda96b093a9',
             'gzip-1.5-intel-2018a.eb': 'gzip/0a4725f4720103eff8ffdadf8ffb187b988fb805',
-            'toy-0.0.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
-            'toy-0.0-multiple.eb': 'toy/cb0859b7b15723c826cd8504e5fde2573ab7b687',
+            'toy-0.0.eb': 'toy/d3cd467f89ab0bce1f2bcd553315524a3a5c8b34',
+            'toy-0.0-multiple.eb': 'toy/d3cd467f89ab0bce1f2bcd553315524a3a5c8b34',
         }
         test_mns()
 
@@ -885,7 +885,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'name': 'GCC',
                 'version': '4.6.3',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'toolchain': {'name': 'system', 'version': 'system'},
                 'hidden': False,
             }),
             ('gzip-1.5-foss-2018a.eb', {
@@ -899,7 +899,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'name': 'toy',
                 'version': '0.0',
                 'versionsuffix': '-multiple',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'toolchain': {'name': 'system', 'version': 'system'},
                 'hidden': False,
             }),
         ]:
@@ -908,7 +908,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'), hidden=True)
         self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-foss-2018a.eb'])
-        self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/0c5d3fad1328e36c93258863f21234f4ff3f7a3f')
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/e69469ac250145c9e814e5dde93f5fde6d80375d')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
