@@ -1772,7 +1772,7 @@ class EasyBlock(object):
         # fetch extensions
         if self.cfg['exts_list']:
             self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
-        elif self.cfg['components']:
+        elif self.cfg.get('components', False):
             self.components = self.fetch_extension_sources(skip_checksums=skip_checksums, components=True)
 
         # create parent dirs in install and modules path already
