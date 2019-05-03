@@ -516,80 +516,83 @@ class EasyBlock(object):
 
                     checksums = extra_options.get('checksums', [])
 
-                    # use default template for name of source file if none is specified
+                    # use default template for name of source file(s) if none is specified
                     default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
+                    fn_list = []
                     if components:
-                        fn = resolve_template(extra_src['options'].get('sources', default_source_tmpl)[0],
-                                              template_values)
+                        component_sources = extra_src['options'].get('sources', [default_source_tmpl])
+                        for source in component_sources:
+                            fn_list.append(resolve_template(source, template_values))
                     else:
-                        fn = extra_options.get('source_tmpl', default_source_tmpl)
+                        fn_list.append(extra_options.get('source_tmpl', default_source_tmpl))
 
                     if extra_options.get('nosource', None):
                         extras_sources.append(extra_src)
                     else:
                         source_urls = extra_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-                        if components:
-                            src_fn = self.obtain_file(fn, urls=source_urls, force_download=force_download)
-                        else:
-                            src_fn = self.obtain_file(fn, extension=True, urls=source_urls,
-                                                      force_download=force_download)
-
-                        if src_fn:
-                            extra_src.update({'src': src_fn})
-
-                            if not skip_checksums:
-                                # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                                for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                    src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
-                                    self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
-
-                                # verify checksum (if provided)
-                                self.log.debug('Verifying checksums for extension source...')
-                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
-                                if verify_checksum(src_fn, fn_checksum):
-                                    self.log.info('Checksum for extension source %s verified', fn)
-                                elif build_option('ignore_checksums'):
-                                    print_warning("Ignoring failing checksum verification for %s" % fn)
-                                else:
-                                    raise EasyBuildError('Checksum verification for extension source %s failed', fn)
-
+                        for idx, fn in enumerate(fn_list):
                             if components:
-                                extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []))
+                                src_fn = self.obtain_file(fn, urls=source_urls, force_download=force_download)
                             else:
-                                extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []),
-                                                                   extension=True)
-                            if extra_patches:
-                                self.log.debug('Found patches for %s %s: %s' % (option_string, extra_name,
-                                                                                extra_patches))
-                                extra_src.update({'patches': extra_patches})
+                                src_fn = self.obtain_file(fn, extension=True, urls=source_urls,
+                                                          force_download=force_download)
+
+                            if src_fn:
+                                extra_src.update({'src': src_fn})
 
                                 if not skip_checksums:
-                                    for patch in extra_patches:
-                                        # report both MD5 and SHA256 checksums,
-                                        # since both are valid default checksum types
-                                        for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                            checksum = compute_checksum(patch, checksum_type=checksum_type)
-                                            self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
+                                    # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                                    for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                        src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
+                                        self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
 
                                     # verify checksum (if provided)
-                                    self.log.debug('Verifying checksums for extension patches...')
-                                    for idx, patch in enumerate(extra_patches):
-                                        checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
-                                        if verify_checksum(patch, checksum):
-                                            self.log.info('Checksum for %s patch %s verified', option_string, patch)
-                                        elif build_option('ignore_checksums'):
-                                            print_warning("Ignoring failing checksum verification for %s" % patch)
-                                        else:
-                                            raise EasyBuildError('Checksum for %s patch %s failed', option_string,
-                                                                 patch)
+                                    self.log.debug('Verifying checksums for extension source...')
+                                    fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=idx)
+                                    if verify_checksum(src_fn, fn_checksum):
+                                        self.log.info('Checksum for extension source %s verified', fn)
+                                    elif build_option('ignore_checksums'):
+                                        print_warning("Ignoring failing checksum verification for %s" % fn)
+                                    else:
+                                        raise EasyBuildError('Checksum verification for extension source %s failed', fn)
+
+                                if components:
+                                    extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []))
+                                else:
+                                    extra_patches = self.fetch_patches(patch_specs=extra_options.get('patches', []),
+                                                                       extension=True)
+                                if extra_patches:
+                                    self.log.debug('Found patches for %s %s: %s' % (option_string, extra_name,
+                                                                                    extra_patches))
+                                    extra_src.update({'patches': extra_patches})
+
+                                    if not skip_checksums:
+                                        for patch in extra_patches:
+                                            # report both MD5 and SHA256 checksums,
+                                            # since both are valid default checksum types
+                                            for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                                checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                                self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
+
+                                        # verify checksum (if provided)
+                                        self.log.debug('Verifying checksums for extension patches...')
+                                        for idy, patch in enumerate(extra_patches):
+                                            checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idy)
+                                            if verify_checksum(patch, checksum):
+                                                self.log.info('Checksum for %s patch %s verified', option_string, patch)
+                                            elif build_option('ignore_checksums'):
+                                                print_warning("Ignoring failing checksum verification for %s" % patch)
+                                            else:
+                                                raise EasyBuildError('Checksum for %s patch %s failed', option_string,
+                                                                     patch)
+                                else:
+                                    self.log.debug('No patches found for %s %s.', option_string, extra_name)
+
+                                extras_sources.append(extra_src)
+
                             else:
-                                self.log.debug('No patches found for %s %s.', option_string, extra_name)
-
-                            extras_sources.append(extra_src)
-
-                        else:
-                            raise EasyBuildError("Source for %s %s not found.", option_string, extra)
+                                raise EasyBuildError("Source for %s %s not found.", option_string, extra)
 
             elif isinstance(extra, basestring):
                 extras_sources.append({'name': extra})
