@@ -724,6 +724,10 @@ class RobotTest(EnhancedTestCase):
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % self.test_prefix,
         ]
+
+        # need to allow deprecated because of hitting 'dummy' toolchain
+        self.allow_deprecated_behaviour()
+
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         modules = [
