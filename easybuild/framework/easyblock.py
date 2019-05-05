@@ -87,8 +87,8 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name
+from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -1923,6 +1923,16 @@ class EasyBlock(object):
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
             self.toolchain.reset()
+
+        # if active module naming scheme involves any top-level directories in the hierarchy (e.g. Core/ in HMNS)
+        # make sure they are included in $MODULEPATH such that loading of dependencies (with short module names) works
+        # https://github.com/easybuilders/easybuild-framework/issues/2186
+        init_modpaths = ActiveMNS().det_init_modulepaths(self.cfg)
+        curr_modpaths = curr_module_paths()
+        for init_modpath in init_modpaths:
+            full_mod_path = os.path.join(self.installdir_mod, init_modpath)
+            if full_mod_path not in curr_modpaths:
+                self.modules_tool.prepend_module_path(full_mod_path)
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
