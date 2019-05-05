@@ -392,6 +392,73 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
+    def test_extensions_templates(self):
+        """Test whether templates used in exts_list are resolved properly."""
+
+        # put dummy source file in place to avoid download fail
+        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        copy_file(toy_tar_gz, os.path.join(self.test_prefix, 'toy-0.0-py3-test.tar.gz'))
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(self.test_sourcepath, 'toy', toy_patch_fn)
+        copy_file(toy_patch, self.test_prefix)
+
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config(build_options={'silent': True})
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": ""}',
+            'dependencies = [("Python", "3.6.6")]',
+            'exts_defaultclass = "EB_Toy"',
+            # bogus, but useful to check whether this get resolved
+            'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
+            'exts_list = [',
+            '   ("toy", "0.0", {',
+            # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
+            # %(pymajver)s should get resolved because Python is listed as a (runtime) dep
+            # %(versionsuffix)s should get resolved with value of parent
+            '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
+            '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
+            # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s && mv toy-%(version)s toy #",',
+            '   }),',
+            ']',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.fetch_step()
+
+        # run extensions step to install 'toy' extension
+        eb.extensions_step()
+
+        # check whether template values were resolved correctly in Extension instances that were created/used
+        toy_ext = eb.ext_instances[0]
+        self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
+        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        expected = {
+            'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
+            'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
+            'source_tmpl': 'toy-0.0-py3-test.tar.gz',
+            'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
+        }
+        self.assertEqual(toy_ext.options, expected)
+
+        # also .cfg of Extension instance was updated correctly
+        self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
+        self.assertEqual(toy_ext.cfg['patches'], [toy_patch_fn])
+        self.assertEqual(toy_ext.cfg['prebuildopts'], "gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #")
+
+        # check whether files expected to be installed for 'toy' extension are in place
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
+        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'bin', 'toy')))
+        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'lib', 'libtoy.a')))
+
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
         self.contents = '\n'.join([
@@ -849,10 +916,10 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("R", "3.2.3"),'
             ']',
             'modloadmsg = "%s"' % '; '.join([
-                'Java: %%(javaver)s, %%(javashortver)s',
-                'Python: %%(pyver)s, %%(pyshortver)s',
-                'Perl: %%(perlver)s, %%(perlshortver)s',
-                'R: %%(rver)s, %%(rshortver)s',
+                'Java: %%(javaver)s, %%(javamajver)s, %%(javashortver)s',
+                'Python: %%(pyver)s, %%(pymajver)s, %%(pyshortver)s',
+                'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlshortver)s',
+                'R: %%(rver)s, %%(rmajver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
@@ -882,7 +949,8 @@ class EasyConfigTest(EnhancedTestCase):
         dirs1 = eb['sanity_check_paths']['dirs'][1]
         self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
-        self.assertEqual(eb['modloadmsg'], "Java: 1.7.80, 1.7; Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
+        expected = "Java: 1.7.80, 1, 1.7; Python: 2.7.10, 2, 2.7; Perl: 5.22.0, 5, 5.22; R: 3.2.3, 3, 3.2"
+        self.assertEqual(eb['modloadmsg'], expected)
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -2164,6 +2232,31 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(res, expected)
 
+        # also check result of template_constant_dict when dict representing extension is passed
+        ext_dict = {
+            'name': 'foo',
+            'version': '1.2.3',
+            'options': {
+                'source_urls': ['https://example.com'],
+                'source_tmpl': '%(name)s-%(version)s.tar.gz',
+            },
+        }
+        res = template_constant_dict(ext_dict)
+
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        expected = {
+            'name': 'foo',
+            'nameletter': 'f',
+            'version': '1.2.3',
+            'version_major': '1',
+            'version_major_minor': '1.2',
+            'version_minor': '2'
+        }
+        self.assertEqual(res, expected)
+
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -2625,8 +2718,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(all(len(bd) == 3 for bd in builddeps))
         self.assertTrue(all(bd[0]['name'] == 'CMake' for bd in builddeps))
         self.assertTrue(all(bd[0]['version'] == '3.12.1' for bd in builddeps))
+        self.assertTrue(all(bd[0]['full_mod_name'] == 'CMake/3.12.1' for bd in builddeps))
         self.assertTrue(all(bd[1]['name'] == 'foo' for bd in builddeps))
         self.assertTrue(all(bd[1]['version'] == '1.2.3' for bd in builddeps))
+        self.assertTrue(all(bd[1]['full_mod_name'] == 'foo/1.2.3' for bd in builddeps))
         self.assertTrue(all(bd[2]['name'] == 'GCC' for bd in builddeps))
         self.assertEqual(sorted(bd[2]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
 
@@ -2650,6 +2745,54 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = "Not all the dependencies listed in multi_deps have the same number of versions!"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_multi_deps_templated_builddeps(self):
+        """Test effect of multi_deps on builddependencies w.r.t. resolving templates like %(pyver)s."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}"
+        write_file(test_ec, test_ec_txt + "\nbuilddependencies = [('SWIG', '3.0.12', '-Python-%(pyver)s')]")
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        eb.silent = True
+
+        # start iteration #0
+        eb.handle_iterate_opts()
+
+        builddeps = ec['builddependencies']
+
+        self.assertTrue(isinstance(builddeps, list))
+        self.assertEqual(len(builddeps), 2)
+        self.assertTrue(all(isinstance(bd, dict) for bd in builddeps))
+
+        # first listed build dep should be SWIG
+        self.assertEqual(builddeps[0]['name'], 'SWIG')
+        self.assertEqual(builddeps[0]['version'], '3.0.12')
+        # template %(pyver)s values should be resolved correctly based on 1st item in multi_deps
+        self.assertEqual(builddeps[0]['versionsuffix'], '-Python-3.7.2')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-3.7.2')
+
+        # 2nd listed build dep should be Python
+        self.assertEqual(builddeps[1]['name'], 'Python')
+        self.assertEqual(builddeps[1]['version'], '3.7.2')
+        self.assertEqual(builddeps[1]['full_mod_name'], 'Python/3.7.2')
+
+        eb.handle_iterate_opts()
+        builddeps = ec['builddependencies']
+
+        self.assertEqual(builddeps[0]['name'], 'SWIG')
+        self.assertEqual(builddeps[0]['version'], '3.0.12')
+        # template %(pyver)s values should be resolved correctly based on 2nd item in multi_deps
+        self.assertEqual(builddeps[0]['versionsuffix'], '-Python-2.7.15')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-2.7.15')
+
+        # 2nd listed build dep should be Python
+        self.assertEqual(builddeps[1]['name'], 'Python')
+        self.assertEqual(builddeps[1]['version'], '2.7.15')
+        self.assertEqual(builddeps[1]['full_mod_name'], 'Python/2.7.15')
 
     def test_iter_builddeps_templates(self):
         """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""

@@ -60,7 +60,7 @@ from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
-from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools import config, filetools
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -85,8 +85,8 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name
+from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
@@ -482,8 +482,6 @@ class EasyBlock(object):
                     # since it may use template values like %(name)s & %(version)s
                     ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
 
-                    def_src_tmpl = "%(name)s-%(version)s.tar.gz"
-
                     if len(ext) == 3:
                         if isinstance(ext_options, dict):
                             ext_options.update(ext[2])
@@ -498,17 +496,24 @@ class EasyBlock(object):
                         'options': ext_options,
                     }
 
+                    # construct dictionary with template values;
+                    # inherited from parent, except for name/version templates which are specific to this extension
+                    template_values = copy.deepcopy(self.cfg.template_values)
+                    template_values.update(template_constant_dict(ext_src))
+
+                    # resolve templates in extension options
+                    ext_options = resolve_template(ext_options, template_values)
+
                     checksums = ext_options.get('checksums', [])
 
-                    if ext_options.get('source_tmpl', None):
-                        fn = resolve_template(ext_options['source_tmpl'], ext_src)
-                    else:
-                        fn = resolve_template(def_src_tmpl, ext_src)
+                    # use default template for name of source file if none is specified
+                    default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
+                    fn = ext_options.get('source_tmpl', default_source_tmpl)
 
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
+                        source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
                         src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
 
@@ -1549,6 +1554,9 @@ class EasyBlock(object):
                 self.cfg[opt] = ''  # empty list => empty option as next value
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
+        # re-generate template values, which may be affected by changed parameters we're iterating over
+        self.cfg.generate_template_values()
+
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
 
@@ -1595,7 +1603,7 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        if self.cfg['parallel']:
+        if self.cfg['parallel'] is not None:
             if par is None:
                 par = self.cfg['parallel']
                 self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
@@ -1914,6 +1922,16 @@ class EasyBlock(object):
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
             self.toolchain.reset()
+
+        # if active module naming scheme involves any top-level directories in the hierarchy (e.g. Core/ in HMNS)
+        # make sure they are included in $MODULEPATH such that loading of dependencies (with short module names) works
+        # https://github.com/easybuilders/easybuild-framework/issues/2186
+        init_modpaths = ActiveMNS().det_init_modulepaths(self.cfg)
+        curr_modpaths = curr_module_paths()
+        for init_modpath in init_modpaths:
+            full_mod_path = os.path.join(self.installdir_mod, init_modpath)
+            if full_mod_path not in curr_modpaths:
+                self.modules_tool.prepend_module_path(full_mod_path)
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
