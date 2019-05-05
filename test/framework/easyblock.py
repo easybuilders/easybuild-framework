@@ -1450,6 +1450,43 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(len(self.modtool.list()), 1)
         self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/6.4.0-2.28')
 
+    def test_prepare_step_hmns(self):
+        """
+        Check whether loading of already existing dependencies during prepare step works when HierarchicalMNS is used.
+        """
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options={'robot_path': [test_ecs]})
+
+        # set up hierarchical modules, but reset $MODULEPATH to empty
+        # the expectation is that EasyBuild set's up the $MODULEPATH such that pre-installed dependencies can be loaded
+        # see also https://github.com/easybuilders/easybuild-framework/issues/2186
+        self.setup_hierarchical_modules()
+
+        self.assertTrue('GCC/6.4.0-2.28' in self.modtool.available())
+
+        self.reset_modulepath([])
+        self.assertEqual(os.environ.get('MODULEPATH'), None)
+
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        regex = re.compile('^toolchain = .*', re.M)
+        test_ectxt = regex.sub("toolchain = {'name': 'dummy', 'version': ''}", read_file(toy_ec))
+        test_ectxt += "\ndependencies = [('GCC', '6.4.0', '-2.28')]"
+        write_file(test_ec, test_ectxt)
+
+        test_ec = process_easyconfig(test_ec)[0]
+        eb = EasyBlock(test_ec['ec'])
+
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-'), parents=True)
+        eb.prepare_step()
+
+        loaded_modules = self.modtool.list()
+        self.assertEqual(len(loaded_modules), 1)
+        self.assertEqual(loaded_modules[0]['mod_name'], 'GCC/6.4.0-2.28')
+
     def test_checksum_step(self):
         """Test checksum step"""
         testdir = os.path.abspath(os.path.dirname(__file__))
