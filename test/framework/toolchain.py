@@ -108,17 +108,20 @@ class ToolchainTest(EnhancedTestCase):
     def test_get_variable_system_toolchain(self):
         """Test get_variable on system/dummy toolchain"""
 
-        tc = self.get_toolchain('system', version='')
-        tc.prepare()
-        self.assertEqual(tc.get_variable('CC'), '')
-        self.assertEqual(tc.get_variable('CXX', typ=str), '')
-        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+        # system toolchain version doesn't really matter, but fine...
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            tc.prepare()
+            self.assertEqual(tc.get_variable('CC'), '')
+            self.assertEqual(tc.get_variable('CXX', typ=str), '')
+            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
 
+        # dummy toolchain is deprecated, so we need to allow for it (and catch the warnings that get printed)
         self.allow_deprecated_behaviour()
 
         for ver in ['dummy', '']:
             self.mock_stderr(True)
-            tc = self.get_toolchain('dummy', version='dummy')
+            tc = self.get_toolchain('dummy', version=ver)
             self.mock_stderr(False)
             tc.prepare()
             self.assertEqual(tc.get_variable('CC'), '')

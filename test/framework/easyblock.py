@@ -1473,14 +1473,14 @@ class EasyBlockTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         regex = re.compile('^toolchain = .*', re.M)
-        test_ectxt = regex.sub("toolchain = {'name': 'dummy', 'version': ''}", read_file(toy_ec))
+        test_ectxt = regex.sub("toolchain = {'name': 'system', 'version': 'system'}", read_file(toy_ec))
         test_ectxt += "\ndependencies = [('GCC', '6.4.0', '-2.28')]"
         write_file(test_ec, test_ectxt)
 
         test_ec = process_easyconfig(test_ec)[0]
         eb = EasyBlock(test_ec['ec'])
 
-        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-'), parents=True)
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system'), parents=True)
         eb.prepare_step()
 
         loaded_modules = self.modtool.list()
