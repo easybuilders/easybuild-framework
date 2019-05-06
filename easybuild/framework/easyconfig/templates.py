@@ -225,7 +225,9 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
             if isinstance(dep_name, string_type) and dep_name.lower() == name.lower():
                 template_values['%sver' % pref] = dep_version
-                template_values['%sshortver' % pref] = '.'.join(dep_version.split('.')[:2])
+                dep_version_parts = dep_version.split('.')
+                template_values['%smajver' % pref] = dep_version_parts[0]
+                template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
                 break
 
     # step 3: add remaining from config
