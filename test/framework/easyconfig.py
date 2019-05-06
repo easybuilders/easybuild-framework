@@ -2720,14 +2720,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(builddeps), 3)
         self.assertTrue(all(isinstance(bd, list) for bd in builddeps))
         self.assertTrue(all(len(bd) == 3 for bd in builddeps))
-        self.assertTrue(all(bd[0]['name'] == 'CMake' for bd in builddeps))
-        self.assertTrue(all(bd[0]['version'] == '3.12.1' for bd in builddeps))
-        self.assertTrue(all(bd[0]['full_mod_name'] == 'CMake/3.12.1' for bd in builddeps))
-        self.assertTrue(all(bd[1]['name'] == 'foo' for bd in builddeps))
-        self.assertTrue(all(bd[1]['version'] == '1.2.3' for bd in builddeps))
-        self.assertTrue(all(bd[1]['full_mod_name'] == 'foo/1.2.3' for bd in builddeps))
-        self.assertTrue(all(bd[2]['name'] == 'GCC' for bd in builddeps))
-        self.assertEqual(sorted(bd[2]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+        self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in builddeps))
+        self.assertEqual(sorted(bd[0]['version'] for bd in builddeps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
+        self.assertTrue(all(bd[1]['name'] == 'CMake' for bd in builddeps))
+        self.assertTrue(all(bd[1]['version'] == '3.12.1' for bd in builddeps))
+        self.assertTrue(all(bd[1]['full_mod_name'] == 'CMake/3.12.1' for bd in builddeps))
+        self.assertTrue(all(bd[2]['name'] == 'foo' for bd in builddeps))
+        self.assertTrue(all(bd[2]['version'] == '1.2.3' for bd in builddeps))
+        self.assertTrue(all(bd[2]['full_mod_name'] == 'foo/1.2.3' for bd in builddeps))
 
         # get_parsed_multi_deps() method returns same list, but CMake & foo are not included
         multi_deps = ec.get_parsed_multi_deps()
@@ -2772,31 +2772,32 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(builddeps), 2)
         self.assertTrue(all(isinstance(bd, dict) for bd in builddeps))
 
-        # first listed build dep should be SWIG
-        self.assertEqual(builddeps[0]['name'], 'SWIG')
-        self.assertEqual(builddeps[0]['version'], '3.0.12')
-        # template %(pyver)s values should be resolved correctly based on 1st item in multi_deps
-        self.assertEqual(builddeps[0]['versionsuffix'], '-Python-3.7.2')
-        self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-3.7.2')
+        # 1st listed build dep should be first version of Python (via multi_deps)
+        self.assertEqual(builddeps[0]['name'], 'Python')
+        self.assertEqual(builddeps[0]['version'], '3.7.2')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'Python/3.7.2')
 
-        # 2nd listed build dep should be Python
-        self.assertEqual(builddeps[1]['name'], 'Python')
-        self.assertEqual(builddeps[1]['version'], '3.7.2')
-        self.assertEqual(builddeps[1]['full_mod_name'], 'Python/3.7.2')
+        # 2nd listed build dep should be SWIG
+        self.assertEqual(builddeps[1]['name'], 'SWIG')
+        self.assertEqual(builddeps[1]['version'], '3.0.12')
+        # template %(pyver)s values should be resolved correctly based on 1st item in multi_deps
+        self.assertEqual(builddeps[1]['versionsuffix'], '-Python-3.7.2')
+        self.assertEqual(builddeps[1]['full_mod_name'], 'SWIG/3.0.12-Python-3.7.2')
 
         eb.handle_iterate_opts()
         builddeps = ec['builddependencies']
 
-        self.assertEqual(builddeps[0]['name'], 'SWIG')
-        self.assertEqual(builddeps[0]['version'], '3.0.12')
-        # template %(pyver)s values should be resolved correctly based on 2nd item in multi_deps
-        self.assertEqual(builddeps[0]['versionsuffix'], '-Python-2.7.15')
-        self.assertEqual(builddeps[0]['full_mod_name'], 'SWIG/3.0.12-Python-2.7.15')
+        # 1st listed build dep should be second version of Python (via multi_deps)
+        self.assertEqual(builddeps[0]['name'], 'Python')
+        self.assertEqual(builddeps[0]['version'], '2.7.15')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'Python/2.7.15')
 
-        # 2nd listed build dep should be Python
-        self.assertEqual(builddeps[1]['name'], 'Python')
-        self.assertEqual(builddeps[1]['version'], '2.7.15')
-        self.assertEqual(builddeps[1]['full_mod_name'], 'Python/2.7.15')
+        # 2nd listed build dep should be SWIG
+        self.assertEqual(builddeps[1]['name'], 'SWIG')
+        self.assertEqual(builddeps[1]['version'], '3.0.12')
+        # template %(pyver)s values should be resolved correctly based on 2nd item in multi_deps
+        self.assertEqual(builddeps[1]['versionsuffix'], '-Python-2.7.15')
+        self.assertEqual(builddeps[1]['full_mod_name'], 'SWIG/3.0.12-Python-2.7.15')
 
     def test_iter_builddeps_templates(self):
         """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""
