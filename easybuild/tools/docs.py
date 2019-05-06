@@ -544,7 +544,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         # make sure values like homepage & versionsuffix get properly templated
         if isinstance(ec, dict):
-            template_values = template_constant_dict(ec, skip_lower=False)
+            template_values = template_constant_dict(ec)
             for key in keys:
                 if '%(' in info[key]:
                     try:
