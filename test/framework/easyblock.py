@@ -735,6 +735,12 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_step(self):
         """Test the make_module_step"""
+
+        # put dummy hidden modules in place for test123 dependency
+        test_mods = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(test_mods, 'test', '.1.2.3'), '#%Module')
+        self.modtool.use(test_mods)
+
         name = "pi"
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
@@ -748,16 +754,13 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
             "toolchain = {'name': 'system', 'version': 'system'}",
-            "dependencies = [('GCC', '6.4.0-2.28'), ('toy', '0.0-deps')]",
+            "dependencies = [('GCC', '6.4.0-2.28'), ('test', '1.2.3')]",
             "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
-            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
+            "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
-
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
 
         # test if module is generated correctly
         self.writeEC()
@@ -819,7 +822,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in [('toy', '0.0-deps')]:
+        for (name, ver) in [('test', '1.2.3')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
