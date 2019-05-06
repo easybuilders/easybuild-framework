@@ -1066,7 +1066,7 @@ class EasyConfig(object):
 
             keys = sorted(multi_deps.keys())
             for idx in range(multi_dep_cnt):
-                self['builddependencies'].append(builddeps + [(key, multi_deps[key][idx]) for key in keys])
+                self['builddependencies'].append([(key, multi_deps[key][idx]) for key in keys] + builddeps)
 
             self.log.info("Original list of build dependencies: %s", builddeps)
             self.log.info("List of lists of build dependencies to iterate over: %s", self['builddependencies'])
