@@ -42,13 +42,13 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -98,8 +98,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_system_toolchain(self):
         """Test for system toolchain."""
-        tc = self.get_toolchain('system', version='')
-        self.assertTrue(isinstance(tc, Toolchain))
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            self.assertTrue(isinstance(tc, SystemToolchain))
 
     def test_foss_toolchain(self):
         """Test for foss toolchain."""
@@ -130,8 +131,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_is_system_toolchain(self):
         """Test is_system_toolchain method."""
-        tc = self.get_toolchain('system', version='')
-        self.assertTrue(tc.is_system_toolchain())
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            self.assertTrue(tc.is_system_toolchain())
 
         tc = self.get_toolchain('foss', version='2018a')
         self.assertFalse(tc.is_system_toolchain())
