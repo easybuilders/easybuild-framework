@@ -252,7 +252,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
         try:
             template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = value.lower()
         except Exception:
-            _log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)", name, value, type(value))
+            _log.warning("Failed to get .lower() for name %s value %s (type %s)", name, value, type(value))
 
     return template_values
 
