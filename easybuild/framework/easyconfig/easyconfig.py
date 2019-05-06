@@ -869,10 +869,11 @@ class EasyConfig(object):
 
         :param build_only: only return build dependencies, discard others
         """
-        if build_only:
-            deps = self.builddependencies()
-        else:
-            deps = self['dependencies'] + self.builddependencies()
+        deps = self.builddependencies()
+
+        if not build_only:
+            # use += rather than .extend to get a new list rather than updating list of build deps in place...
+            deps += self['dependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -1529,6 +1530,12 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
+def is_generic_easyblock(easyblock):
+    """Return whether specified easyblock name is a generic easyblock or not."""
+
+    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+
+
 def get_module_path(name, generic=None, decode=True):
     """
     Determine the module path for a given easyblock or software name,
@@ -1541,7 +1548,7 @@ def get_module_path(name, generic=None, decode=True):
         return None
 
     if generic is None:
-        generic = not name.startswith(EASYBLOCK_CLASS_PREFIX)
+        generic = is_generic_easyblock(name)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:
