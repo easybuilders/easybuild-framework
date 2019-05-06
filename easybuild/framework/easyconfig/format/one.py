@@ -44,6 +44,7 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
@@ -72,7 +73,7 @@ def dump_dependency(dep, toolchain):
         # mininal spec: (name, version)
         tup = (dep['name'], dep['version'])
         if dep['toolchain'] != toolchain:
-            if dep['system']:
+            if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))

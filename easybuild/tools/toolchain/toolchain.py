@@ -78,7 +78,7 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 DUMMY_TOOLCHAIN_NAME = 'dummy'
 DUMMY_TOOLCHAIN_VERSION = 'dummy'
 
-SYSTEM_TOOLCHAIN = 'system'
+SYSTEM_TOOLCHAIN_NAME = 'system'
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
@@ -103,7 +103,7 @@ TOOLCHAIN_CAPABILITIES = [
 
 def is_system_toolchain(tc_name):
     """Return whether toolchain with specified name is a system toolchain or not."""
-    return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN]
+    return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]
 
 
 class Toolchain(object):
@@ -162,7 +162,7 @@ class Toolchain(object):
         self.name = name
         if self.name == DUMMY_TOOLCHAIN_NAME:
             self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0')
-            self.name = SYSTEM_TOOLCHAIN
+            self.name = SYSTEM_TOOLCHAIN_NAME
 
         if version is None:
             version = self.VERSION
@@ -356,13 +356,13 @@ class Toolchain(object):
         return {
             'name': name,
             'version': version,
-            'toolchain': {'name': SYSTEM_TOOLCHAIN, 'version': ''},
+            'toolchain': {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''},
             'versionsuffix': '',
-            'system': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
             'hidden': self.hidden,
             'full_mod_name': self.mod_full_name,
             'short_mod_name': self.mod_short_name,
+            SYSTEM_TOOLCHAIN_NAME: True,
         }
 
     def det_short_module_name(self):
@@ -405,7 +405,7 @@ class Toolchain(object):
             toolchain = '-%s-%s' % (self.name, self.version)
 
         # check if dependency is independent of toolchain (i.e. whether is was built with system compiler)
-        if SYSTEM_TOOLCHAIN in dependency and dependency[SYSTEM_TOOLCHAIN]:
+        if SYSTEM_TOOLCHAIN_NAME in dependency and dependency[SYSTEM_TOOLCHAIN_NAME]:
             toolchain = ''
 
         suffix = dependency.get('versionsuffix', '')

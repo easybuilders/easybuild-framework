@@ -68,7 +68,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, i
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.systemtools import check_os_dependency
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN, is_system_toolchain
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import flatten, get_class_for, nub, quote_py_str, remove_unwanted_chars
@@ -1132,7 +1132,7 @@ class EasyConfig(object):
             'toolchain': None,
             'toolchain_inherited': False,
             # boolean indicating whether we're dealing with a system toolchain for this dependency
-            'system': False,
+            SYSTEM_TOOLCHAIN_NAME: False,
             # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
             # boolean indicating whether this this a build-only dependency
@@ -1147,8 +1147,8 @@ class EasyConfig(object):
             dependency.update(dep)
 
             # make sure 'system' key is handled appropriately
-            if 'system' in dep and 'toolchain' not in dep:
-                dependency['toolchain'] = dep['system']
+            if SYSTEM_TOOLCHAIN_NAME in dep and 'toolchain' not in dep:
+                dependency['toolchain'] = dep[SYSTEM_TOOLCHAIN_NAME]
 
             if dep.get('external_module', False):
                 dependency.update(self.handle_external_module_metadata(dep['full_mod_name']))
@@ -1200,7 +1200,7 @@ class EasyConfig(object):
 
         # (true) boolean value simply indicates that a system toolchain is used
         elif isinstance(tc_spec, bool) and tc_spec:
-                tc = {'name': SYSTEM_TOOLCHAIN, 'version': ''}
+                tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
 
         # two-element list/tuple value indicates custom toolchain specification
         elif isinstance(tc_spec, (list, tuple,)):
@@ -1285,7 +1285,7 @@ class EasyConfig(object):
 
                 if not dep['external_module']:
                     # make sure 'system' is set correctly
-                    orig_dep['system'] = is_system_toolchain(dep['toolchain']['name'])
+                    orig_dep[SYSTEM_TOOLCHAIN_NAME] = is_system_toolchain(dep['toolchain']['name'])
 
                     # set module names
                     orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)

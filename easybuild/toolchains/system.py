@@ -28,10 +28,10 @@ EasyBuild support for system compiler toolchain.
 :author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.toolchains.compiler.systemcompiler import SystemCompiler
 
 
 class SystemToolchain(SystemCompiler):
     """System toolchain."""
-    NAME = SYSTEM_TOOLCHAIN
+    NAME = SYSTEM_TOOLCHAIN_NAME
