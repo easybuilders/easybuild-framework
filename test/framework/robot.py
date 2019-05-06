@@ -728,7 +728,9 @@ class RobotTest(EnhancedTestCase):
         # need to allow deprecated because of hitting 'dummy' toolchain
         self.allow_deprecated_behaviour()
 
+        self.mock_stderr(True)
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        self.mock_stderr(False)
 
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
@@ -1426,7 +1428,6 @@ class RobotTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         test_ec_txt = read_file(toy_ec)
-        # we need to use empty dummy toolchain version to ensure dependencies are picked up...
         tc_regex = re.compile(r'^toolchain = .*', re.M)
         test_ec_txt = tc_regex.sub("toolchain = {'name': 'system', 'version': 'system'}", test_ec_txt)
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.9.2', '7.3.0-2.30']}\n"
