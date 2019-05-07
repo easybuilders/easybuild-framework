@@ -1251,6 +1251,21 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 main_title = ', '.join(names_and_versions[:3] + ['...'])
 
             title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+            # if Python is listed as a dependency, then mention Python version(s) in PR title
+            pyver = []
+            for ec in file_info['ecs']:
+                # iterate over all dependencies (incl. build dependencies & multi-deps)
+                for dep in ec.dependencies():
+                    if dep['name'] == 'Python':
+                        # check whether Python is listed as a multi-dep if it's marked as a build dependency
+                        if dep['build_only'] and 'Python' not in ec['multi_deps']:
+                            continue
+                        else:
+                            pyver.append(dep['version'])
+            if pyver:
+                title += " w/ Python %s" % ' + '.join(pyver)
+
         else:
             raise EasyBuildError("Don't know how to make a PR title for this PR. "
                                  "Please include a title (use --pr-title)")
