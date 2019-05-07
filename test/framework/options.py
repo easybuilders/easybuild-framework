@@ -2898,7 +2898,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
         if self.github_token is None:
-            print "Skipping test_new_pr_python, no GitHub token available?"
+            print("Skipping test_new_pr_python, no GitHub token available?")
             return
 
         # copy toy test easyconfig
