@@ -2877,6 +2877,40 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
+    def test_new_pr_python(self):
+        """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
+        if self.github_token is None:
+            print("Skipping test_new_pr_python, no GitHub token available?")
+            return
+
+        # copy toy test easyconfig
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'), toy_ec)
+
+        # modify file to include Python dependency
+        toy_ec_txt = read_file(toy_ec)
+        write_file(toy_ec, toy_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
+
+        args = [
+            '--new-pr',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            toy_ec,
+            '-D',
+            '--disable-cleanup-tmpdir',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 3.7.2\"$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # also check with Python listed via multi_deps
+        write_file(toy_ec, toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}")
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 3.7.2 \+ 2.7.15\"$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""
 
