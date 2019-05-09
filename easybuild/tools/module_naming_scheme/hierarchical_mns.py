@@ -33,6 +33,7 @@ import os
 import re
 from vsc.utils import fancylogger
 
+from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
@@ -44,6 +45,8 @@ MPI = 'MPI'
 
 MODULECLASS_COMPILER = 'compiler'
 MODULECLASS_MPI = 'mpi'
+
+GCCCORE = GCCcore.NAME
 
 # note: names in keys are ordered alphabetically
 COMP_NAME_VERSION_TEMPLATES = {
@@ -186,12 +189,15 @@ class HierarchicalMNS(ModuleNamingScheme):
                         if ec['name'] == 'ifort':
                             # 'icc' key should be provided since it's the only one used in the template
                             comp_versions.update({'icc': self.det_full_version(ec)})
-
                         if non_dummy_tc:
                             tc_comp_name, tc_comp_ver = tc_comp_info
                             if tc_comp_name in comp_names:
                                 # also provide toolchain version for non-dummy toolchains
                                 comp_versions.update({tc_comp_name: tc_comp_ver})
+
+                        # Treat GCCcore as GCC
+                        if GCCCORE in comp_versions:
+                            comp_versions.update({'GCC': comp_versions[GCCCORE]})
 
                         comp_ver_keys = re.findall(r'%\((\w+)\)s', comp_ver_tmpl)
                         if all(comp_ver_key in comp_versions for comp_ver_key in comp_ver_keys):
