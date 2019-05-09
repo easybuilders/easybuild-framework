@@ -192,13 +192,12 @@ class HierarchicalMNS(ModuleNamingScheme):
 
                         if non_dummy_tc:
                             tc_comp_name, tc_comp_ver = tc_comp_info
+                            # Stick to name GCC for GCCcore
+                            if tc_comp_name == GCCCORE:
+                                tc_comp_name = 'GCC'
                             if tc_comp_name in comp_names:
                                 # also provide toolchain version for non-dummy toolchains
                                 comp_versions.update({tc_comp_name: tc_comp_ver})
-
-                        # Treat GCCcore as GCC
-                        if GCCCORE in comp_versions:
-                            comp_versions.update({'GCC': comp_versions[GCCCORE]})
 
                         comp_ver_keys = re.findall(r'%\((\w+)\)s', comp_ver_tmpl)
                         if all(comp_ver_key in comp_versions for comp_ver_key in comp_ver_keys):
