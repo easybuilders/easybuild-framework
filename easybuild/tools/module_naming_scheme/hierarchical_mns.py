@@ -186,6 +186,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                     if ec['name'] in comp_names:
                         comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
                         comp_versions = {ec['name']: self.det_full_version(ec)}
+
                         if ec['name'] == 'ifort':
                             # 'icc' key should be provided since it's the only one used in the template
                             comp_versions.update({'icc': self.det_full_version(ec)})
