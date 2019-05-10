@@ -31,6 +31,7 @@ output is statements that define the following environment variables
 
 author: Kenneth Hoste (HPC-UGent)
 """
+from __future__ import print_function
 import os
 import re
 import sys

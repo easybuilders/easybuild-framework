@@ -27,6 +27,7 @@ Set of fucntions to help with jenkins setup
 
 :author: Kenneth Hoste (Ghent University)
 """
+from __future__ import print_function
 import glob
 import os
 import xml.dom.minidom as xml

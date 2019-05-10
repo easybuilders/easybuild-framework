@@ -27,6 +27,7 @@ Unit tests for robot (dependency resolution).
 
 @author: Toon Willems (Ghent University)
 """
+from __future__ import print_function
 
 import os
 import re
@@ -686,7 +687,7 @@ class RobotTest(EnhancedTestCase):
     def test_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
         if self.github_token is None:
-            print "Skipping test_from_pr, no GitHub token available?"
+            print("Skipping test_from_pr, no GitHub token available?")
             return
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')

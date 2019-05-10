@@ -36,6 +36,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Ward Poelmans (Ghent University)
 """
+from __future__ import print_function
 import copy
 import glob
 import os

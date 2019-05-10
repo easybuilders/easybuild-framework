@@ -28,6 +28,7 @@ Overhaul all @param and @author tags for rst API documentation
 
 :author: Caroline De Brouwer (Ghent University)
 """
+from __future__ import print_function
 
 import os
 import re

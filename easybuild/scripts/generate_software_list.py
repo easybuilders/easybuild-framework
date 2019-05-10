@@ -30,6 +30,7 @@ correctly by easybuild.
 
 :author: Jens Timmerman (Ghent University)
 """
+from __future__ import print_function
 from datetime import date
 from optparse import OptionParser
 
@@ -142,35 +143,35 @@ configs = sorted(configs, key=lambda config: config.name.lower())
 firstl = ""
 
 # print out the configs in markdown format for the wiki
-print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) "
-print "to see to the list of easyconfig files."
-print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) "
-print "to go to the easyblock for this package."
-print "## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat())
-print "<center>"
-print " - ".join(["[%(letter)s](#%(letter)s)" % \
-    {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
-print "</center>"
+print("Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) ")
+print("to see to the list of easyconfig files.")
+print("And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) ")
+print("to go to the easyblock for this package.")
+print("## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat()))
+print("<center>")
+print(" - ".join(["[%(letter)s](#%(letter)s)" % \
+    {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))]))
+print("</center>")
 
 for config in configs:
     if config.name[0].lower() != firstl:
         firstl = config.name[0].lower()
         # print the first letter and the number of packages starting with this letter we support
-        print "\n### %(letter)s (%(count)d packages) <a name='%(letter)s'/>\n" % {
+        print("\n### %(letter)s (%(count)d packages) <a name='%(letter)s'/>\n" % {
                 'letter': firstl.upper(),
                 'count': len([x for x in configs if x.name[0].lower() == firstl]),
-            }
-    print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] "
-    print "(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
-            (options.branch, firstl, config.name)
+            })
+    print("* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] ")
+    print("(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
+            (options.branch, firstl, config.name))
     if config.easyblock:
-        print "[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] "
-        print " (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
-            (options.branch, firstl, config.easyblock)
+        print("[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] ")
+        print(" (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
+            (options.branch, firstl, config.easyblock))
     else:
-        print "&nbsp;&nbsp;&nbsp;&nbsp;"
+        print("&nbsp;&nbsp;&nbsp;&nbsp;")
     if config['homepage'] != "(none)":
-        print "[ %s](%s)" % (config.name, config['homepage'])
+        print("[ %s](%s)" % (config.name, config['homepage']))
     else:
-        print config.name
+        print(config.name)
 

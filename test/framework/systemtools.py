@@ -358,7 +358,7 @@ class SystemToolsTest(EnhancedTestCase):
         orig_sched_getaffinity = st.sched_getaffinity
 
         class MockedSchedGetaffinity(object):
-            cpus = [1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L]
+            cpus = [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0]
 
         st.sched_getaffinity = lambda: MockedSchedGetaffinity()
         self.assertEqual(get_avail_core_count(), 6)

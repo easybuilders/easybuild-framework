@@ -29,6 +29,7 @@ Utility module for working with github
 :author: Kenneth Hoste (Ghent University)
 :author: Toon Willems (Ghent University)
 """
+from __future__ import print_function
 import base64
 import getpass
 import glob

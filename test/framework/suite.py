@@ -30,6 +30,7 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+from __future__ import print_function
 import glob
 import os
 import sys
@@ -105,7 +106,7 @@ fancylogger.setLogLevelError()
 # make sure temporary files can be created/used
 try:
     set_tmpdir(raise_error=True)
-except EasyBuildError, err:
+except EasyBuildError as err:
     sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
     sys.exit(1)
 
@@ -128,7 +129,7 @@ fancylogger.logToFile(log_fn, enable=False)
 
 if not res.wasSuccessful():
     sys.stderr.write("ERROR: Not all tests were successful.\n")
-    print "Log available at %s" % log_fn
+    print("Log available at %s" % log_fn)
     sys.exit(2)
 else:
     for fn in glob.glob('%s*' % log_fn):

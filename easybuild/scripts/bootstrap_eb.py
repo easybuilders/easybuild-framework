@@ -39,6 +39,7 @@ License: GPLv2
 inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py
 (via http://dubroy.com/blog/so-you-want-to-install-a-python-package/)
 """
+from __future__ import print_function
 
 import copy
 import glob

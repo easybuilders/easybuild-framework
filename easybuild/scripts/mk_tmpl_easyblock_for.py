@@ -28,6 +28,7 @@ Script to create a template easyblock Python module, for a given software packag
 
 :author: Kenneth Hoste (Ghent University)
 """
+from __future__ import print_function
 
 import datetime
 import os

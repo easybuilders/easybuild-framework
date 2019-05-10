@@ -29,6 +29,7 @@ Unit tests for easyconfig.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+from __future__ import print_function
 import copy
 import glob
 import os
@@ -171,7 +172,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         os.chmod(self.eb_file, 0000)
         self.assertErrorRegex(EasyBuildError, "Permission denied", EasyConfig, self.eb_file)
-        os.chmod(self.eb_file, 0755)
+        os.chmod(self.eb_file, 0o755)
 
         self.contents += "\nsyntax_error'"
         self.prep()
@@ -1566,7 +1567,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.test_dump()
             del os.environ['EASYBUILD_DUMP_AUTOPEP8']
         except ImportError:
-            print "Skipping test_dump_autopep8, since autopep8 is not available"
+            print("Skipping test_dump_autopep8, since autopep8 is not available")
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
@@ -1794,7 +1795,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ordered_dottxt, ordered_expected)
 
         except ImportError:
-            print "Skipping test_dep_graph, since pygraph is not available"
+            print("Skipping test_dep_graph, since pygraph is not available")
 
     def test_dep_graph_multi_deps(self):
         """
@@ -1841,7 +1842,7 @@ class EasyConfigTest(EnhancedTestCase):
                 self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
 
         except ImportError:
-            print "Skipping test_dep_graph, since pygraph is not available"
+            print("Skipping test_dep_graph, since pygraph is not available")
 
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""

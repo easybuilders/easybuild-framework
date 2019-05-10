@@ -43,6 +43,7 @@ Usage: check_code_cleanup.py
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 """
+from __future__ import print_function
 import re
 import os
 import shutil
@@ -84,7 +85,7 @@ def rename_module(path):
                 warning("Module name was not lowercase, fixed that for you.")
                 return os.path.join(d, name.lower())
             else:
-                print "Module naming OK.\n"
+                print("Module naming OK.\n")
                 return path
         else:
             error("Specified easyblock %s not found!")
@@ -210,7 +211,7 @@ def refactor(txt):
 
     totn = 0
 
-    print "Refactoring..."
+    print("Refactoring...")
 
     for old, new in refactor_list:
 
@@ -223,14 +224,14 @@ def refactor(txt):
         totn += n
 
         if n > 0:
-            print "%s => %s (%d), " % (old, new, n),
+            print("%s => %s (%d), " % (old, new, n), end=' ')
 
-    print ""
+    print("")
 
     if totn > 0:
         warning("replaced %d names in total\n" % totn)
     else:
-        print "replaced %d names in total\n" % totn
+        print("replaced %d names in total\n" % totn)
 
     return txt
 
@@ -238,7 +239,7 @@ def refactor(txt):
 def check_exception(txt):
     """Check for lack of error specification in except block, or use of general Exception class."""
 
-    print "Checking except blocks..."
+    print("Checking except blocks...")
 
     empty_except_re = re.compile(r"except\s*:")
     exception_re = re.compile(r"except\s*Exception")
@@ -247,7 +248,7 @@ def check_exception(txt):
         warning("One or multiple except blocks found that don't specify an error class or use Exception.\n")
         return False
     else:
-        print "All except blocks seem to be OK!\n"
+        print("All except blocks seem to be OK!\n")
         return True
 
 # inspiration: http://stackoverflow.com/questions/2028268/invoking-pylint-programmatically
@@ -267,7 +268,7 @@ class WritableObject(object):
 # check whether PyLint still reports warnings or error
 def run_pylint(fn):
 
-    print "checking for PyLint warnings or errors..."
+    print("checking for PyLint warnings or errors...")
 
     # run PyLint on file, catch output
     pylint_output = WritableObject()
@@ -289,7 +290,7 @@ def run_pylint(fn):
         ignore = False
         for ignore_re in ignores_re:
             if ignore_re.match(line):
-                print "Ignoring %s" % line
+                print("Ignoring %s" % line)
                 ignore = True
         if ignore:
             continue
@@ -302,13 +303,13 @@ def run_pylint(fn):
             warning("PyLint: %s" % line)
             error_cnt += 1
 
-    print
+    print()
     if warning_cnt > 0 or error_cnt > 0:
         warning("PyLint is still reporting warnings (%d) and/or errors (%d).\n" % (warning_cnt, error_cnt))
         return False
 
     else:
-        print "No warnings or errors reported by PyLint we care about, nice job!\n"
+        print("No warnings or errors reported by PyLint we care about, nice job!\n")
         return True
 
 # MAIN
@@ -324,7 +325,7 @@ else:
 # determine EasyBuild home dir, assuming this script is in <EasyBuild home>/easybuild/scripts
 easybuild_home = os.path.join(*os.path.abspath(sys.argv[0]).split(os.path.sep)[:-3])
 
-print "Found EasyBuild home: %s\n" % easybuild_home
+print("Found EasyBuild home: %s\n" % easybuild_home)
 
 # rename module if needed
 easyblock = rename_module(easyblock)

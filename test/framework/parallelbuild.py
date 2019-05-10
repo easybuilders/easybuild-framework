@@ -27,6 +27,7 @@ Unit tests for parallelbuild.py
 
 @author: Kenneth Hoste (Ghent University)
 """
+from __future__ import print_function
 import os
 import re
 import stat
@@ -213,7 +214,7 @@ class ParallelBuildTest(EnhancedTestCase):
         try:
             import gc3libs  # noqa (ignore unused import)
         except ImportError:
-            print "GC3Pie not available, skipping test"
+            print("GC3Pie not available, skipping test")
             return
 
         # put GC3Pie config in place to use local host and fork/exec

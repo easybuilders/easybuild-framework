@@ -40,6 +40,7 @@ where licenseheader.txt contains '# Copyright 2012 Jens Timmerman'
 :author: Jens Timmerman (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+from __future__ import print_function
 import os
 import re
 import sys

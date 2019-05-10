@@ -33,6 +33,7 @@ Dependency resolution functionality, a.k.a. robot.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 """
+from __future__ import print_function
 import copy
 import os
 import sys

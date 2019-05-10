@@ -40,6 +40,7 @@ Usage: prep_for_release.py
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 """
+from __future__ import print_function
 
 import glob
 import re
