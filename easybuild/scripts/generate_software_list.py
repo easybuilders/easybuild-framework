@@ -163,7 +163,7 @@ for config in configs:
             })
     print("* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] ")
     print("(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" %
-            (options.branch, firstl, config.name))
+          (options.branch, firstl, config.name))
     if config.easyblock:
         print("[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] ")
         print(" (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" %
