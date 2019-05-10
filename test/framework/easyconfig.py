@@ -56,6 +56,7 @@ from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
+from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
@@ -141,7 +142,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += '\n' + '\n'.join([
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
         self.prep()
 
@@ -161,7 +162,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'stop = "notvalid"',
         ])
         self.prep()
@@ -193,6 +194,21 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = "Parsing easyconfig file failed: format requires a mapping \(line 8\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
+    def test_system_toolchain_constant(self):
+        """Test use of SYSTEM constant to specify toolchain."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+        self.assertEqual(eb['toolchain'], {'name': 'system', 'version': 'system'})
+        self.assertTrue(isinstance(eb.toolchain, SystemToolchain))
+
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
         self.contents = '\n'.join([
@@ -201,7 +217,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'sanity_check_paths = { "files": ["lib/lib.%s" % SHLIB_EXT] }',
         ])
         self.prep()
@@ -345,7 +361,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'exts_default_options = {',
             '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
             '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
@@ -411,7 +427,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix = "-test"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'dependencies = [("Python", "3.6.6")]',
             'exts_defaultclass = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
@@ -610,7 +626,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version = "3.12"',
                 'homepage = "http://example.com"',
                 'description = "test easyconfig"',
-                'toolchain = {"name": "system", "version": "system"}',
+                'toolchain = SYSTEM',
                 'patches = %s' % patches
             ])),
             (fns[1], "\n".join([
@@ -901,7 +917,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix = "-Python-%%(pyver)s"',
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
@@ -988,7 +1004,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
         self.contents = orig_contents
         self.prep()
@@ -1058,7 +1074,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'buildininstalldir = True',
         ])
         self.prep()
@@ -1338,7 +1354,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
         self.prep()
         ec = EasyConfig(self.eb_file)
@@ -1596,7 +1612,7 @@ class EasyConfigTest(EnhancedTestCase):
             'patches = ["one.patch"]',
             "easyblock = 'EB_foo'",
             '',
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
             '',
             'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
             "dependencies = [",
