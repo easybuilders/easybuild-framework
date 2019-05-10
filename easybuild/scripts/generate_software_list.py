@@ -149,8 +149,8 @@ print("And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_
 print("to go to the easyblock for this package.")
 print("## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat()))
 print("<center>")
-print(" - ".join(["[%(letter)s](#%(letter)s)" % \
-    {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))]))
+print(" - ".join(["[%(letter)s](#%(letter)s)" %
+      {'letter': x} for x in sorted(set([config.name[0].upper() for config in configs]))]))
 print("</center>")
 
 for config in configs:
@@ -162,12 +162,12 @@ for config in configs:
                 'count': len([x for x in configs if x.name[0].lower() == firstl]),
             })
     print("* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] ")
-    print("(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
+    print("(https://github.com/easybuilders/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" %
             (options.branch, firstl, config.name))
     if config.easyblock:
         print("[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] ")
-        print(" (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
-            (options.branch, firstl, config.easyblock))
+        print(" (https://github.com/easybuilders/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" %
+              (options.branch, firstl, config.easyblock))
     else:
         print("&nbsp;&nbsp;&nbsp;&nbsp;")
     if config['homepage'] != "(none)":

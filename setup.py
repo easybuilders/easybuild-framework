@@ -49,7 +49,7 @@ log.set_verbosity(1)
 try:
     from setuptools import setup
     log.info("Installing with setuptools.setup...")
-except ImportError as err:
+except ImportError:
     log.info("Failed to import setuptools.setup, so falling back to distutils.setup")
     from distutils.core import setup
 
