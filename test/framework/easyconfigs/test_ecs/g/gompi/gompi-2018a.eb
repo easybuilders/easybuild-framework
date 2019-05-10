@@ -7,7 +7,7 @@ homepage = '(none)'
 description = """GNU Compiler Collection (GCC) based compiler toolchain,
  including OpenMPI for MPI support."""
 
-toolchain = {'name': 'system', 'version': 'system'}
+toolchain = SYSTEM
 
 compname = 'GCC'
 compver = '6.4.0-2.28'

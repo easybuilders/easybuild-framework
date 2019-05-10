@@ -1320,7 +1320,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'osdependencies = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
         ])
         fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
@@ -2967,7 +2967,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "1.0"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'dependencies = [("bar", "2.0")]'
         ])
         bar_eb = '\n'.join([
@@ -2976,7 +2976,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "2.0"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
 
         write_file(os.path.join(self.test_prefix, 'foo-1.0.eb'), foo_eb)

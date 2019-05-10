@@ -97,7 +97,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -214,7 +214,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -249,7 +249,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'moduleclass = "compiler"',
         ])
         self.writeEC()
@@ -305,7 +305,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -637,7 +637,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
         ])
 
         self.writeEC()
@@ -675,7 +675,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -712,7 +712,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "system", "version": "system"}',
+            'toolchain = SYSTEM',
             'exts_list = ["ext1", "ext2"]',
             'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
             'exts_defaultclass = "DummyExtension"',
@@ -753,7 +753,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
             "dependencies = [('GCC', '6.4.0-2.28'), ('test', '1.2.3')]",
             "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
@@ -864,7 +864,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
         ])
         self.writeEC()
         stdoutorig = sys.stdout
@@ -912,7 +912,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
         ])
         self.writeEC()
 
@@ -1476,7 +1476,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         regex = re.compile('^toolchain = .*', re.M)
-        test_ectxt = regex.sub("toolchain = {'name': 'system', 'version': 'system'}", read_file(toy_ec))
+        test_ectxt = regex.sub("toolchain = SYSTEM", read_file(toy_ec))
         test_ectxt += "\ndependencies = [('GCC', '6.4.0', '-2.28')]"
         write_file(test_ec, test_ectxt)
 
@@ -1592,7 +1592,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '1.0.2'",
             "homepage = 'https://example.com'",
             "description = '1st test easyconfig'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
         ])
         write_file(ec1, ec1_txt)
 
@@ -1602,7 +1602,7 @@ class EasyBlockTest(EnhancedTestCase):
             "easyblock = 'Toolchain'",
             "name = 'two'",
             "version = '2.0'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
             "homepage = 'https://example.com'",
             "description = '2nd test easyconfig'",
             "dependencies = [('one', '1.0')]",

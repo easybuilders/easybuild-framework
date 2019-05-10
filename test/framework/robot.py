@@ -512,9 +512,9 @@ class RobotTest(EnhancedTestCase):
         })
 
         impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertTrue(re.search("^toolchain = {'name': 'system', 'version': 'system'}", impi_txt, re.M))
+        self.assertTrue(re.search("^toolchain = SYSTEM", impi_txt, re.M))
         gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
-        self.assertTrue(re.search("^toolchain = {'name': 'system', 'version': 'system'}", gzip_txt, re.M))
+        self.assertTrue(re.search("^toolchain = SYSTEM", gzip_txt, re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-foss-2018a.eb')
         barec_lines = [
@@ -527,8 +527,8 @@ class RobotTest(EnhancedTestCase):
             # to test resolving of dependencies with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
-            "   ('impi', '5.1.2.150'),",  # has toolchain ('system', 'system')
-            "   ('gzip', '1.4'),",  # has toolchain ('system', 'system')
+            "   ('impi', '5.1.2.150'),",  # has system toolchain
+            "   ('gzip', '1.4'),",  # has system toolchain
             "]",
             # toolchain as list line, for easy modification later
             "toolchain = {'name': 'foss', 'version': '2018a'}",
@@ -598,7 +598,7 @@ class RobotTest(EnhancedTestCase):
             "version = '4.5.6'",
             "homepage = 'https://example.com'",
             "description = 'some dep'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
         ])
         write_file(os.path.join(self.test_prefix, 'somedep-4.5.6.eb'), somedep_ectxt)
 
@@ -706,7 +706,7 @@ class RobotTest(EnhancedTestCase):
             "versionsuffix = '-test'",
             "homepage = 'foo'",
             "description = 'bar'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
 
@@ -1406,7 +1406,7 @@ class RobotTest(EnhancedTestCase):
             "version = '0'",
             "homepage = 'https://example.com'",
             "description = 'Just A Wrapper'",
-            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = SYSTEM",
             "dependencies = [('toy', '0.0')]",
         ])
         wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
@@ -1429,7 +1429,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec_txt = read_file(toy_ec)
         tc_regex = re.compile(r'^toolchain = .*', re.M)
-        test_ec_txt = tc_regex.sub("toolchain = {'name': 'system', 'version': 'system'}", test_ec_txt)
+        test_ec_txt = tc_regex.sub("toolchain = SYSTEM", test_ec_txt)
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.9.2', '7.3.0-2.30']}\n"
         test_ec_txt += "dependencies = [('gzip', '1.4')]\n"
 
