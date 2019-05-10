@@ -1362,7 +1362,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         )
         try:
             log.experimental('x')
-        except easybuild.tools.build_log.EasyBuildError as err:
+        except easybuild.tools.build_log.EasyBuildError:
             self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
 
         # set it back

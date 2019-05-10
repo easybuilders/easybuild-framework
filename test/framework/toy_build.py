@@ -455,7 +455,7 @@ class ToyBuildTest(EnhancedTestCase):
             (None, None, None, 0o755, 0o644, 0o755),  # default: inherit session umask
             (None, None, curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in ec
             (None, curr_grp, None, 0o750, 0o640, 0o750),  # default umask, but with specified group in cfg
-            (None, 'notagrp', curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in both cfg and ec
+            (None, 'notagrp', curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in cfg and ec
             ('000', None, None, 0o777, 0o666, 0o777),  # stupid empty umask
             ('032', None, None, 0o745, 0o644, 0o745),  # no write/execute for group, no write for other
             ('030', None, curr_grp, 0o740, 0o640, 0o740),  # no write for group, with specified group
