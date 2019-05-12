@@ -43,6 +43,7 @@ import tempfile
 from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
@@ -248,7 +249,13 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         if not res:
             raise EasyBuildError("No toolchain found in easyconfig file %s: %s", orig_ec, ectxt)
 
-        toolchain = eval(res.group(1))
+        # need to treat toolchain specified via 'SYSTEM' constant separately,
+        # since SYSTEM constant is not defined during 'eval'
+        if res.group(1) == 'SYSTEM':
+            toolchain = copy.copy(EASYCONFIG_CONSTANTS['SYSTEM'][0])
+        else:
+            toolchain = eval(res.group(1))
+
         for key in ['name', 'version']:
             tc_key = "toolchain_%s" % key
             if tc_key in keys:
