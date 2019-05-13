@@ -2152,6 +2152,23 @@ class EasyBlock(object):
         else:
             self.log.info("Skipping package step (not enabled)")
 
+    def fix_shebang(self):
+        """Fix shebang lines for specified files."""
+        for lang in ['perl', 'python']:
+            fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
+            if fix_shebang_for:
+                if isinstance(fix_shebang_for, basestring):
+                    fix_shebang_for = [fix_shebang_for]
+
+                shebang = '#!/usr/bin/env %s' % lang
+                for glob_pattern in fix_shebang_for:
+                    paths = glob.glob(os.path.join(self.installdir, glob_pattern))
+                    self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
+                                  lang, shebang, glob_pattern, paths)
+                    regex = r'^#!.*/%s[0-9.]*$' % lang
+                    for path in paths:
+                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
+
     def post_install_step(self):
         """
         Do some postprocessing
@@ -2167,20 +2184,7 @@ class EasyBlock(object):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
-        for lang in ['perl', 'python']:
-            fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
-            if fix_shebang_for:
-                if isinstance(fix_shebang_for, basestring):
-                    fix_shebang_for = [fix_shebang_for]
-
-                shebang = '#!/usr/bin/env %s' % lang
-                for glob_pattern in fix_shebang_for:
-                    paths = glob.glob(os.path.join(self.installdir, glob_pattern))
-                    self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
-                                  lang, shebang, glob_pattern, paths)
-                    regex = r'^#!.*/%s[0-9.]*$' % lang
-                    for path in paths:
-                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
+        self.fix_shebang()
 
     def sanity_check_step(self, *args, **kwargs):
         """
