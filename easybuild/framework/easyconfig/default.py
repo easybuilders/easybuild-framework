@@ -91,6 +91,8 @@ DEFAULT_CONFIG = {
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
+    'fix_python_shebang_for': [None, "List of files for which Python shebang should be fixed "
+                                     "to '#!/usr/bin/env python' (glob patterns supported)", BUILD],
     'github_account': ['%(namelower)s', "GitHub account name to be used to resolve template values in source URLs",
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],

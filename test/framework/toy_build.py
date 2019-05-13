@@ -2199,6 +2199,34 @@ class ToyBuildTest(EnhancedTestCase):
 
             check_toy_load(depends_on=True)
 
+    def test_fix_shebang(self):
+        """Test use of fix_python_shebang_for & co."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            "postinstallcmds = ["
+            "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
+            "   'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
+            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
+            "]",
+            "fix_python_shebang_for = ['bin/*.py']",
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
+
+        # no re.M, this should match at start of file!
+        py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
+        for pybin in ['t1.py', 't2.py', 't3.py']:
+            pybin_path = os.path.join(toy_bindir, pybin)
+            pybin_txt = read_file(pybin_path)
+            self.assertTrue(py_shebang_regex.match(pybin_txt),
+                            "Pattern %s found in %s: %s" % (py_shebang_regex, pybin_path, pybin_txt))
+
 
 def suite():
     """ return all the tests in this file """
