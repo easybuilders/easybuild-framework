@@ -3492,10 +3492,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot-paths=%s' % test_ecs,
         ]
         txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
-        self.assertTrue(re.search('^``4.6.3``\s+``system``', txt, re.M))
-        self.assertTrue(re.search('^\*gzip\*', txt, re.M))
-        self.assertTrue(re.search('^``1.5``\s+``foss/2018a``,\s+``intel/2018a``', txt, re.M))
+        self.assertTrue(re.search(r'^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search(r'^``4.6.3``\s+``system``', txt, re.M))
+        self.assertTrue(re.search(r'^\*gzip\*', txt, re.M))
+        self.assertTrue(re.search(r'^``1.5``\s+``foss/2018a``,\s+``intel/2018a``', txt, re.M))
 
         args = [
             '--list-installed-software',
@@ -3503,21 +3503,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot-paths=%s' % test_ecs,
         ]
         txt, _ = self._run_mock_eb(args, testing=False, raise_error=True)
-        self.assertTrue(re.search('== Processed 5/5 easyconfigs...', txt, re.M))
-        self.assertTrue(re.search('== Found 2 different software packages', txt, re.M))
-        self.assertTrue(re.search('== Retained 1 installed software packages', txt, re.M))
-        self.assertTrue(re.search('^\* GCC', txt, re.M))
-        self.assertFalse(re.search('gzip', txt, re.M))
+        self.assertTrue(re.search(r'== Processed 5/5 easyconfigs...', txt, re.M))
+        self.assertTrue(re.search(r'== Found 2 different software packages', txt, re.M))
+        self.assertTrue(re.search(r'== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
+        self.assertFalse(re.search(r'gzip', txt, re.M))
 
         args = [
             '--list-installed-software=detailed',
             '--robot-paths=%s' % test_ecs,
         ]
         txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search('^== Retained 1 installed software packages', txt, re.M))
-        self.assertTrue(re.search('^\* GCC', txt, re.M))
-        self.assertTrue(re.search('^\s+\* GCC v4.6.3: system', txt, re.M))
-        self.assertFalse(re.search('gzip', txt, re.M))
+        self.assertTrue(re.search(r'^== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
+        self.assertTrue(re.search(r'^\s+\* GCC v4.6.3: system', txt, re.M))
+        self.assertFalse(re.search(r'gzip', txt, re.M))
 
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
@@ -3698,8 +3698,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # when --verify-easyconfig-filenames is enabled, EB gets picky about the easyconfig filename
         args.append('--verify-easyconfig-filenames')
-        error_pattern = "Easyconfig filename 'test.eb' does not match with expected filename 'toy-0.0.eb' \(specs: "
-        error_pattern += "name: 'toy'; version: '0.0'; versionsuffix: ''; toolchain name, version: 'system', 'system'\)"
+        error_pattern = r"Easyconfig filename 'test.eb' does not match with expected filename 'toy-0.0.eb' \(specs: "
+        error_pattern += r"name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += r"toolchain name, version: 'system', 'system'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
 
         write_file(self.logfile, '')

@@ -225,17 +225,17 @@ class DocsTest(EnhancedTestCase):
 
         # GCC/4.6.3 is installed, no gzip module installed
         txt = list_software(output_format='txt', detailed=True, only_installed=True)
-        self.assertTrue(re.search('^\* GCC', txt, re.M))
-        self.assertTrue(re.search('^\s*\* GCC v4.6.3: system', txt, re.M))
-        self.assertFalse(re.search('^\* gzip', txt, re.M))
-        self.assertFalse(re.search('gzip v1\.', txt, re.M))
+        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
+        self.assertTrue(re.search(r'^\s*\* GCC v4.6.3: system', txt, re.M))
+        self.assertFalse(re.search(r'^\* gzip', txt, re.M))
+        self.assertFalse(re.search(r'gzip v1\.', txt, re.M))
 
         txt = list_software(output_format='rst', detailed=True, only_installed=True)
-        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
-        self.assertTrue(re.search('4\.6\.3.*system', txt, re.M))
-        self.assertFalse(re.search('^\*gzip\*', txt, re.M))
-        self.assertFalse(re.search('1\.4', txt, re.M))
-        self.assertFalse(re.search('1\.5', txt, re.M))
+        self.assertTrue(re.search(r'^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search(r'4\.6\.3.*system', txt, re.M))
+        self.assertFalse(re.search(r'^\*gzip\*', txt, re.M))
+        self.assertFalse(re.search(r'1\.4', txt, re.M))
+        self.assertFalse(re.search(r'1\.5', txt, re.M))
 
         # check for specific patterns in output for larger set of test easyconfigs
         build_options = {
