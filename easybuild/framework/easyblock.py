@@ -2167,13 +2167,20 @@ class EasyBlock(object):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
-        if self.cfg['fix_python_shebang_for']:
-            py_shebang = '#!/usr/bin/env python'
-            for glob_pattern in self.cfg['fix_python_shebang_for']:
-                paths = glob.glob(os.path.join(self.installdir, glob_pattern))
-                self.log.info("Fixing shebang to '%s' for files that match '%s': %s", py_shebang, glob_pattern, paths)
-                for path in paths:
-                    apply_regex_substitutions(path, [(r'^#!.*python[0-9.]*$', py_shebang)], backup=False)
+        for lang in ['perl', 'python']:
+            fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
+            if fix_shebang_for:
+                if isinstance(fix_shebang_for, basestring):
+                    fix_shebang_for = [fix_shebang_for]
+
+                shebang = '#!/usr/bin/env %s' % lang
+                for glob_pattern in fix_shebang_for:
+                    paths = glob.glob(os.path.join(self.installdir, glob_pattern))
+                    self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
+                                  lang, shebang, glob_pattern, paths)
+                    regex = r'^#!.*/%s[0-9.]*$' % lang
+                    for path in paths:
+                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
 
     def sanity_check_step(self, *args, **kwargs):
         """
