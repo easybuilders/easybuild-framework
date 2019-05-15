@@ -45,8 +45,6 @@ TOOLCHAIN_NAMES = {}
 
 class EasyVersion(LooseVersion):
     """Exact LooseVersion. No modifications needed (yet)"""
-    # TODO: replace all LooseVersion with EasyVersion in eb, after moving EasyVersion to easybuild/tools?
-    # TODO: is dummy some magic version? (ie do we need special attributes for dummy versions?)
 
     def __len__(self):
         """Determine length of this EasyVersion instance."""
@@ -152,7 +150,7 @@ class VersionOperator(object):
         try:
             res = self.operator(test_version, self.version)
         except TypeError:
-            # fallback for case when 'dummy' version is compared with proper version
+            # fallback for case when string-value version (e.g. 'dummy') is compared with proper version
             # this results in a TypeError in Python 3 (comparing 'str' with 'int'), but not in Python 2
             # any comparison is meaningless in this case, so always returning True as result should be fine
             res = True

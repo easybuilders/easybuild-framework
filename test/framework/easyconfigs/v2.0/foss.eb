@@ -20,7 +20,7 @@ moduleclass = toolchain
 
 [SUPPORTED]
 versions = 2018a
-toolchains = dummy == dummy
+toolchains = system == system
 
 [DEPENDENCIES]
 GCC = 6.4.0-2.28

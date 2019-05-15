@@ -55,7 +55,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         ec = ecp.get_config_dict()
 
-        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.3')
 
@@ -77,7 +77,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # this should be ok: ie the default values
         ec = ecp.get_config_dict()
-        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.2')
 
@@ -130,7 +130,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         ec = ecp.get_config_dict()
         self.assertEqual(ec['name'], 'foss')
         self.assertEqual(ec['version'], '2018a')
-        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
 
         # dependencies should be parsed correctly
         deps = [
@@ -179,7 +179,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         for constant_name in constants:
             self.assertTrue(isinstance(constant_name, string_type), "Constant name %s is a string" % constant_name)
             val = constants[constant_name]
-            self.assertTrue(isinstance(val, string_type), "Constant value %s is a string" % val)
+            self.assertTrue(isinstance(val, (string_type, dict)), "Constant value %s is a string or dict" % val)
 
         # check a couple of randomly picked constant values
         self.assertEqual(constants['SOURCE_TAR_GZ'], '%(name)s-%(version)s.tar.gz')

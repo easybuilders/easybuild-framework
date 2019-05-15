@@ -42,6 +42,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
@@ -95,23 +96,69 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc, None)
         self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
 
+    def test_system_toolchain(self):
+        """Test for system toolchain."""
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            self.assertTrue(isinstance(tc, SystemToolchain))
+
     def test_foss_toolchain(self):
         """Test for foss toolchain."""
         self.get_toolchain("foss", version="2018a")
 
-    def test_get_variable_dummy_toolchain(self):
-        """Test get_variable on dummy toolchain"""
-        tc = self.get_toolchain('dummy', version='dummy')
-        tc.prepare()
-        self.assertEqual(tc.get_variable('CC'), '')
-        self.assertEqual(tc.get_variable('CXX', typ=str), '')
-        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+    def test_get_variable_system_toolchain(self):
+        """Test get_variable on system/dummy toolchain"""
 
-        tc = self.get_toolchain('dummy', version='')
-        tc.prepare()
-        self.assertEqual(tc.get_variable('CC'), '')
-        self.assertEqual(tc.get_variable('CXX', typ=str), '')
-        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+        # system toolchain version doesn't really matter, but fine...
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            tc.prepare()
+            self.assertEqual(tc.get_variable('CC'), '')
+            self.assertEqual(tc.get_variable('CXX', typ=str), '')
+            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
+        # dummy toolchain is deprecated, so we need to allow for it (and catch the warnings that get printed)
+        self.allow_deprecated_behaviour()
+
+        for ver in ['dummy', '']:
+            self.mock_stderr(True)
+            tc = self.get_toolchain('dummy', version=ver)
+            self.mock_stderr(False)
+            tc.prepare()
+            self.assertEqual(tc.get_variable('CC'), '')
+            self.assertEqual(tc.get_variable('CXX', typ=str), '')
+            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
+    def test_is_system_toolchain(self):
+        """Test is_system_toolchain method."""
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            self.assertTrue(tc.is_system_toolchain())
+
+        tc = self.get_toolchain('foss', version='2018a')
+        self.assertFalse(tc.is_system_toolchain())
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2018a')
+        self.assertFalse(tc.is_system_toolchain())
+
+        # using dummy toolchain is deprecated, so to test for that we need to explicitely allow using deprecated stuff
+        error_pattern = "Use of 'dummy' toolchain is deprecated"
+        for ver in ['dummy', '']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.get_toolchain, 'dummy', version=ver)
+
+        dummy_depr_warning = "WARNING: Deprecated functionality, will no longer work in v5.0: Use of 'dummy' toolchain"
+
+        self.allow_deprecated_behaviour()
+
+        for ver in ['dummy', '']:
+            self.mock_stderr(True)
+            tc = self.get_toolchain('dummy', version=ver)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue(tc.is_system_toolchain())
+            self.assertTrue(dummy_depr_warning in stderr)
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""

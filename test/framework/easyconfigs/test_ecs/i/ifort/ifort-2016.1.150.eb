@@ -7,7 +7,7 @@ version = '2016.1.150'
 homepage = 'http://software.intel.com/en-us/intel-compilers/'
 description = "Fortran compiler from Intel"
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
 sources = ['l_fcompxe_%s.tgz' % version]
 

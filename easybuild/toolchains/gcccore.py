@@ -29,7 +29,7 @@ EasyBuild support for GCC compiler toolchain.
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
 class GCCcore(Gcc):
@@ -37,7 +37,7 @@ class GCCcore(Gcc):
     NAME = 'GCCcore'
     # Replace the default compiler module name with our own
     COMPILER_MODULE_NAME = [NAME]
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
     # GCCcore is only guaranteed to be present in recent toolchains
     # for old versions of some toolchains (GCC, intel) it is not part of the hierarchy and hence optional
     OPTIONAL = True

@@ -38,7 +38,7 @@ import string
 from easybuild.base import fancylogger
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.py2vs3 import string_type
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
@@ -47,14 +47,14 @@ _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 def det_full_ec_version(ec):
     """
     Determine exact install version, based on supplied easyconfig.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for system toolchains)
     """
 
     ecver = None
-    toolchain = ec.get('toolchain', {'name': DUMMY_TOOLCHAIN_NAME})
+    toolchain = ec.get('toolchain', {'name': SYSTEM_TOOLCHAIN_NAME})
 
     # determine main install version based on toolchain
-    if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
+    if is_system_toolchain(toolchain['name']):
         ecver = ec['version']
     else:
         ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])

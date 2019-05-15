@@ -31,10 +31,10 @@ CrayGNU toolchain: GCC and MPI via Cray compiler drivers + LibSci (PrgEnv-gnu) a
 from easybuild.toolchains.compiler.craype import CrayPEGCC
 from easybuild.toolchains.linalg.libsci import LibSci
 from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
 class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
     NAME = 'CrayGNU'
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

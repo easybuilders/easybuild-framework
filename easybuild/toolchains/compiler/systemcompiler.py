@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2019 Ghent University
+# Copyright 2019-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,18 +23,18 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-CrayIntel toolchain: Intel compilers and MPI via Cray compiler drivers + LibSci (PrgEnv-intel) and Cray FFTW
+Support for system compiler.
 
-:author: Petar Forai (IMP/IMBA, Austria)
 :author: Kenneth Hoste (Ghent University)
 """
-from easybuild.toolchains.compiler.craype import CrayPEIntel
-from easybuild.toolchains.linalg.libsci import LibSci
-from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+
+from easybuild.tools.toolchain.compiler import Compiler
 
 
-class CrayIntel(CrayPEIntel, CrayMPICH, LibSci):
-    """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
-    NAME = 'CrayIntel'
-    SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
+TC_CONSTANT_SYSTEM = 'SYSTEM'
+
+
+class SystemCompiler(Compiler):
+    """System compiler"""
+    COMPILER_MODULE_NAME = []
+    COMPILER_FAMILY = TC_CONSTANT_SYSTEM

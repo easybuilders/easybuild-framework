@@ -99,7 +99,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         Determine toolchain compiler tag, for given list of compilers.
         """
         if tc_comps is None:
-            # no compiler in toolchain, dummy toolchain
+            # no compiler in toolchain, system toolchain
             res = None
         elif len(tc_comps) == 1:
             res = (tc_comps[0]['name'], self.det_full_version(tc_comps[0]))
@@ -128,7 +128,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         tc_comps = det_toolchain_compilers(ec)
         # determine prefix based on type of toolchain used
         if tc_comps is None:
-            # no compiler in toolchain, dummy toolchain => Core module
+            # no compiler in toolchain, system toolchain => Core module
             subdir = CORE
         else:
             tc_comp_name, tc_comp_ver = self.det_toolchain_compilers_name_version(tc_comps)
@@ -162,12 +162,12 @@ class HierarchicalMNS(ModuleNamingScheme):
         # we consider the following to be compilers:
         # * has 'compiler' specified as moduleclass
         is_compiler = modclass == MODULECLASS_COMPILER
-        # * CUDA, but only when not installed with 'dummy' toolchain (i.e. one or more toolchain compilers found)
-        non_dummy_tc = tc_comps is not None
-        non_dummy_cuda = ec['name'] == 'CUDA' and non_dummy_tc
+        # * CUDA, but only when not installed with 'system' toolchain (i.e. one or more toolchain compilers found)
+        non_system_tc = tc_comps is not None
+        non_system_cuda = ec['name'] == 'CUDA' and non_system_tc
 
         paths = []
-        if is_compiler or non_dummy_cuda:
+        if is_compiler or non_system_cuda:
             # obtain list of compilers based on that extend $MODULEPATH in some way other than <name>/<version>
             extend_comps = []
             # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
@@ -186,10 +186,10 @@ class HierarchicalMNS(ModuleNamingScheme):
                             # 'icc' key should be provided since it's the only one used in the template
                             comp_versions.update({'icc': self.det_full_version(ec)})
 
-                        if non_dummy_tc:
+                        if non_system_tc:
                             tc_comp_name, tc_comp_ver = tc_comp_info
                             if tc_comp_name in comp_names:
-                                # also provide toolchain version for non-dummy toolchains
+                                # also provide toolchain version for non-system toolchains
                                 comp_versions.update({tc_comp_name: tc_comp_ver})
 
                         comp_ver_keys = re.findall(r'%\((\w+)\)s', comp_ver_tmpl)

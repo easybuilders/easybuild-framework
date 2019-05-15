@@ -43,7 +43,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 
@@ -112,7 +111,7 @@ def package_with_fpm(easyblock):
         cmdlist.append('--debug')
 
     deps = []
-    if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+    if not easyblock.toolchain.is_system_toolchain():
         toolchain_dict = easyblock.toolchain.as_dict()
         deps.extend([toolchain_dict])
 

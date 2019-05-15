@@ -68,7 +68,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, i
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.systemtools import check_os_dependency
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import flatten, get_class_for, nub, quote_py_str, remove_unwanted_chars
@@ -144,18 +144,18 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
     """
     Returns unique version for subtoolchain, in tc dict.
     If there is no unique version:
-    * use '' for dummy, if dummy is not skipped.
+    * use '' for system, if system is not skipped.
     * return None for skipped subtoolchains, that is,
-      optional toolchains or dummy without add_dummy_to_minimal_toolchains.
+      optional toolchains or system toolchain without add_system_to_minimal_toolchains.
     * in all other cases, raises an exception.
     """
     uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
     # init with "skipped"
     subtoolchain_version = None
 
-    # dummy toolchain: bottom of the hierarchy
-    if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-        if build_option('add_dummy_to_minimal_toolchains') and not incl_capabilities:
+    # system toolchain: bottom of the hierarchy
+    if is_system_toolchain(subtoolchain_name):
+        if build_option('add_system_to_minimal_toolchains') and not incl_capabilities:
             subtoolchain_version = ''
     elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
@@ -177,7 +177,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
 
-    The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
+    The system toolchain is considered the most minimal subtoolchain only if the add_system_to_minimal_toolchains
     build option is enabled.
 
     The most complex hierarchy we have now is goolfc which works as follows:
@@ -192,7 +192,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
               /  |
       GCCcore(*) |
               \  |
-             (dummy: only considered if --add-dummy-to-minimal-toolchains configuration option is enabled)
+             (system: only considered if --add-system-to-minimal-toolchains configuration option is enabled)
 
     :param parent_toolchain: dictionary with name/version of parent toolchain
     :param incl_capabilities: also register toolchain capabilities in result
@@ -864,7 +864,7 @@ class EasyConfig(object):
     def dependencies(self, build_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
-        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+        dependency = {'name': '', 'version': '', 'system': (False|True), 'versionsuffix': '', 'toolchain': ''}
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
@@ -927,7 +927,7 @@ class EasyConfig(object):
             tcdeps = None
             tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
 
-            if tcname != DUMMY_TOOLCHAIN_NAME:
+            if not is_system_toolchain(tcname):
                 tc_ecfile = robot_find_easyconfig(tcname, tcversion)
                 if tc_ecfile is None:
                     self.log.debug("No easyconfig found for toolchain %s version %s, can't determine dependencies",
@@ -950,7 +950,7 @@ class EasyConfig(object):
         if self._all_dependencies is None:
             self.log.debug("Composing list of all dependencies (incl. toolchain)")
             self._all_dependencies = copy.deepcopy(self.dependencies())
-            if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            if not is_system_toolchain(self['toolchain']['name']):
                 self._all_dependencies.append(self.toolchain.as_dict())
 
         return self._all_dependencies
@@ -1110,7 +1110,7 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden',
+        ['name', 'version', 'versionsuffix', 'system', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden',
          'external_module']
 
         :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
@@ -1131,8 +1131,8 @@ class EasyConfig(object):
             # toolchain with which this dependency is installed
             'toolchain': None,
             'toolchain_inherited': False,
-            # boolean indicating whether we're dealing with a dummy toolchain for this dependency
-            'dummy': False,
+            # boolean indicating whether we're dealing with a system toolchain for this dependency
+            SYSTEM_TOOLCHAIN_NAME: False,
             # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
             # boolean indicating whether this this a build-only dependency
@@ -1146,9 +1146,9 @@ class EasyConfig(object):
         if isinstance(dep, dict):
             dependency.update(dep)
 
-            # make sure 'dummy' key is handled appropriately
-            if 'dummy' in dep and 'toolchain' not in dep:
-                dependency['toolchain'] = dep['dummy']
+            # make sure 'system' key is handled appropriately
+            if SYSTEM_TOOLCHAIN_NAME in dep and 'toolchain' not in dep:
+                dependency['toolchain'] = dep[SYSTEM_TOOLCHAIN_NAME]
 
             if dep.get('external_module', False):
                 dependency.update(self.handle_external_module_metadata(dep['full_mod_name']))
@@ -1198,9 +1198,9 @@ class EasyConfig(object):
             self.log.debug("Inheriting parent toolchain %s for dep %s (until deps are finalised)", tc, dependency)
             dependency['toolchain_inherited'] = True
 
-        # (true) boolean value simply indicates that a dummy toolchain is used
+        # (true) boolean value simply indicates that a system toolchain is used
         elif isinstance(tc_spec, bool) and tc_spec:
-                tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
+                tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
 
         # two-element list/tuple value indicates custom toolchain specification
         elif isinstance(tc_spec, (list, tuple,)):
@@ -1256,9 +1256,9 @@ class EasyConfig(object):
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
                     continue
 
-                # handle dependencies with inherited (non-dummy) toolchain
+                # handle dependencies with inherited (non-system) toolchain
                 # this *must* be done after parsing all dependencies, to avoid problems with templates like %(pyver)s
-                if dep['toolchain_inherited'] and dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                if dep['toolchain_inherited'] and not is_system_toolchain(dep['toolchain']['name']):
                     tc = None
                     dep_str = '%s %s%s' % (dep['name'], dep['version'], dep['versionsuffix'])
                     self.log.debug("Figuring out toolchain to use for dep %s...", dep)
@@ -1284,8 +1284,8 @@ class EasyConfig(object):
                         dep['toolchain_inherited'] = orig_dep['toolchain_inherited'] = False
 
                 if not dep['external_module']:
-                    # make sure 'dummy' is set correctly
-                    orig_dep['dummy'] = dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+                    # make sure 'system' is set correctly
+                    orig_dep[SYSTEM_TOOLCHAIN_NAME] = is_system_toolchain(dep['toolchain']['name'])
 
                     # set module names
                     orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
@@ -1683,7 +1683,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(dep)
 
             # add toolchain as dependency too
-            if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            if not is_system_toolchain(ec['toolchain']['name']):
                 tc = ec.toolchain.as_dict()
                 _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
                 easyconfig['dependencies'].append(tc)
@@ -1845,7 +1845,7 @@ def robot_find_subtoolchain_for_dep(dep, modtool, parent_tc=None, parent_first=F
         print_warning(warning_msg, silent=build_option('silent'))
         toolchain_hierarchy = []
 
-    # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.,
+    # start with subtoolchains first, i.e. first (system or) compiler-only toolchain, etc.,
     # unless parent toolchain should be considered first
     if parent_first:
         toolchain_hierarchy = toolchain_hierarchy[::-1]

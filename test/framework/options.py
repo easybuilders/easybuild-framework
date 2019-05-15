@@ -486,7 +486,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known toolchains found in: %s" % logtxt)
         # toolchain elements should be in alphabetical order
         tcs = {
-            'dummy': [],
+            'system': [],
             'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
             'intel': ['icc', 'ifort', 'imkl', 'impi'],
         }
@@ -1020,7 +1020,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--tmpdir=%s' % tmpdir,
         ]
         try:
+            # PR #1239 includes easyconfigs that use 'dummy' toolchain,
+            # so we need to allow triggering deprecated behaviour
+            self.allow_deprecated_behaviour()
+
+            self.mock_stderr(True)  # just to capture deprecation warning
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            self.mock_stderr(False)
             modules = [
                 (tmpdir, 'FFTW/3.3.4-gompi-2015a'),
                 (tmpdir, 'foss/2015a'),
@@ -1084,7 +1090,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--tmpdir=%s' % tmpdir,
         ]
         try:
+            # PR #1239 includes easyconfigs that use 'dummy' toolchain,
+            # so we need to allow triggering deprecated behaviour
+            self.allow_deprecated_behaviour()
+
+            self.mock_stderr(True)  # just to capture deprecation warning
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            self.mock_stderr(False)
             modules = [
                 (test_ecs_path, 'toy/0.0'),  # not included in PR
                 (test_ecs_path, 'GCC/4.9.2'),  # not included in PR, available locally
@@ -1126,10 +1138,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--extended-dry-run',
         ]
         try:
+            # PR #1239 includes easyconfigs that use 'dummy' toolchain,
+            # so we need to allow triggering deprecated behaviour
+            self.allow_deprecated_behaviour()
+
+            self.mock_stderr(True)  # just to capture deprecation warning
             self.mock_stdout(True)
             self.eb_main(args, do_build=True, raise_error=True, testing=False)
             stdout = self.get_stdout()
             self.mock_stdout(False)
+            self.mock_stderr(False)
 
             msg_regexs = [
                 re.compile(r"^== Build succeeded for 1 out of 1", re.M),
@@ -1302,7 +1320,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'osdependencies = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
         ])
         fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
@@ -1513,7 +1531,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # --try-toolchain is overridden by --toolchain
-            (['--try-toolchain=gompi,2018a', '--toolchain=dummy,dummy'], 'toy/0.0'),
+            (['--try-toolchain=gompi,2018a', '--toolchain=system,system'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
@@ -1522,7 +1540,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
             (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
-            (['--try-toolchain=gompi,2018a', '--toolchain=dummy,dummy'], 'toy/0.0'),
+            (['--try-toolchain=gompi,2018a', '--toolchain=system,system'], 'toy/0.0'),
             # tweak existing list-typed value (patches)
             (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
             # append to existing list-typed value (patches)
@@ -1634,7 +1652,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_cleanup_builddir(self):
         """Test cleaning up of build dir and --disable-cleanup-builddir."""
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        toy_buildpath = os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy')
+        toy_buildpath = os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system')
 
         args = [
             toy_ec,
@@ -2901,14 +2919,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 3.7.2\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 3.7.2\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # also check with Python listed via multi_deps
         write_file(toy_ec, toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}")
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 3.7.2 \+ 2.7.15\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 3.7.2 \+ 2.7.15\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_delete(self):
@@ -2949,7 +2967,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "1.0"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'dependencies = [("bar", "2.0")]'
         ])
         bar_eb = '\n'.join([
@@ -2958,7 +2976,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "2.0"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
 
         write_file(os.path.join(self.test_prefix, 'foo-1.0.eb'), foo_eb)
@@ -3067,7 +3085,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # get file from develop branch
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
-                                       'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.8.eb'])
+                                       'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.11-GCCcore-6.4.0.eb'])
         ec_fn = os.path.basename(full_url)
         ec = download_file(ec_fn, full_url, path=os.path.join(self.test_prefix, ec_fn))
 
@@ -3474,32 +3492,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot-paths=%s' % test_ecs,
         ]
         txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
-        self.assertTrue(re.search('^``4.6.3``\s+``dummy``', txt, re.M))
-        self.assertTrue(re.search('^\*gzip\*', txt, re.M))
-        self.assertTrue(re.search('^``1.5``\s+``foss/2018a``,\s+``intel/2018a``', txt, re.M))
+        self.assertTrue(re.search(r'^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search(r'^``4.6.3``\s+``system``', txt, re.M))
+        self.assertTrue(re.search(r'^\*gzip\*', txt, re.M))
+        self.assertTrue(re.search(r'^``1.5``\s+``foss/2018a``,\s+``intel/2018a``', txt, re.M))
 
         args = [
             '--list-installed-software',
             '--output-format=rst',
             '--robot-paths=%s' % test_ecs,
         ]
-        txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search('== Processed 5/5 easyconfigs...', txt, re.M))
-        self.assertTrue(re.search('== Found 2 different software packages', txt, re.M))
-        self.assertTrue(re.search('== Retained 1 installed software packages', txt, re.M))
-        self.assertTrue(re.search('^\* GCC', txt, re.M))
-        self.assertFalse(re.search('gzip', txt, re.M))
+        txt, _ = self._run_mock_eb(args, testing=False, raise_error=True)
+        self.assertTrue(re.search(r'== Processed 5/5 easyconfigs...', txt, re.M))
+        self.assertTrue(re.search(r'== Found 2 different software packages', txt, re.M))
+        self.assertTrue(re.search(r'== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
+        self.assertFalse(re.search(r'gzip', txt, re.M))
 
         args = [
             '--list-installed-software=detailed',
             '--robot-paths=%s' % test_ecs,
         ]
         txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search('^== Retained 1 installed software packages', txt, re.M))
-        self.assertTrue(re.search('^\* GCC', txt, re.M))
-        self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
-        self.assertFalse(re.search('gzip', txt, re.M))
+        self.assertTrue(re.search(r'^== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
+        self.assertTrue(re.search(r'^\s+\* GCC v4.6.3: system', txt, re.M))
+        self.assertFalse(re.search(r'gzip', txt, re.M))
 
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
@@ -3680,8 +3698,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # when --verify-easyconfig-filenames is enabled, EB gets picky about the easyconfig filename
         args.append('--verify-easyconfig-filenames')
-        error_pattern = "Easyconfig filename 'test.eb' does not match with expected filename 'toy-0.0.eb' \(specs: "
-        error_pattern += "name: 'toy'; version: '0.0'; versionsuffix: ''; toolchain name, version: 'dummy', 'dummy'\)"
+        error_pattern = r"Easyconfig filename 'test.eb' does not match with expected filename 'toy-0.0.eb' \(specs: "
+        error_pattern += r"name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += r"toolchain name, version: 'system', 'system'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
 
         write_file(self.logfile, '')

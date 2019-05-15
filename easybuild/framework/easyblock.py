@@ -90,7 +90,6 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -1027,7 +1026,7 @@ class EasyBlock(object):
 
         # include toolchain as first dependency to load
         tc_mod = None
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+        if not self.toolchain.is_system_toolchain():
             tc_mod = self.toolchain.det_short_module_name()
             self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
 
@@ -1355,7 +1354,7 @@ class EasyBlock(object):
             # for flat module naming schemes, we can load the module directly;
             # for non-flat (hierarchical) module naming schemes, we may need to load the toolchain module first
             # to update $MODULEPATH such that the module can be loaded using the short module name
-            if self.mod_subdir and self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            if self.mod_subdir and not self.toolchain.is_system_toolchain():
                 mods.insert(0, self.toolchain.det_short_module_name())
 
             # pass initial environment, to use it for resetting the environment before loading the modules
