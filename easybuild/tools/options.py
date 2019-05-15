@@ -655,10 +655,11 @@ class EasyBuildOptions(GeneralOption):
         self.add_group_parser(opts, descr, prefix='container')
 
     def easyconfig_options(self):
-        # easyconfig options (to be passed to easyconfig instance)
-        descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
+        descr = ("Options for Easyconfigs", "Options that affect all specified easyconfig files.")
 
         opts = OrderedDict({
+            'fix-deprecated-easyconfigs': ("Fix use of deprecated functionality in specified easyconfig files.",
+                                           None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
         })

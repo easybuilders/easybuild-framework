@@ -57,10 +57,10 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
-from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
-from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
+from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -2039,6 +2039,41 @@ def copy_patch_files(patch_specs, target_dir):
         patched_files['paths_in_repo'].append(target_path)
 
     return patched_files
+
+
+def fix_deprecated_easyconfigs(paths):
+    """Fix use of deprecated functionality in easyconfigs at specified locations."""
+
+    dummy_tc_regex = re.compile('^toolchain\s*=\s*{.*name.*dummy.*version.*}', re.M)
+
+    easyconfig_paths = []
+    for path in paths:
+        easyconfig_paths.extend(find_easyconfigs(path))
+
+    cnt, idx, fixed_cnt = len(easyconfig_paths), 0, 0
+    for path in easyconfig_paths:
+        ectxt = read_file(path)
+        idx += 1
+        print_msg("* [%d/%d] fixing %s... ", idx, cnt, path, prefix=False, newline=False)
+
+        fixed = False
+
+        # fix use of 'dummy' toolchain, use SYSTEM constant instead
+        if dummy_tc_regex.search(ectxt):
+            ectxt = dummy_tc_regex.sub("toolchain = SYSTEM", ectxt)
+            fixed = True
+
+        if fixed:
+            fixed_cnt += 1
+            backup_path = find_backup_name_candidate(path + '.orig')
+            copy_file(path, backup_path)
+            write_file(path, ectxt)
+            print_msg('FIXED!', prefix=False)
+            print_msg("  (changes made in place, original copied to %s)", backup_path, prefix=False)
+        else:
+            print_msg("(no changes made)", prefix=False)
+
+    print_msg("\nAll done! Fixed %d easyconfigs (out of %d found).\n", fixed_cnt, cnt, prefix=False)
 
 
 class ActiveMNS(object):
