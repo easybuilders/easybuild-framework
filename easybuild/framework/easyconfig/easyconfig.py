@@ -2044,7 +2044,7 @@ def copy_patch_files(patch_specs, target_dir):
 def fix_deprecated_easyconfigs(paths):
     """Fix use of deprecated functionality in easyconfigs at specified locations."""
 
-    dummy_tc_regex = re.compile('^toolchain\s*=\s*{.*name.*dummy.*version.*}', re.M)
+    dummy_tc_regex = re.compile(r'^toolchain\s*=\s*{.*name.*dummy.*version.*}', re.M)
 
     easyconfig_paths = []
     for path in paths:
