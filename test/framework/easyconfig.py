@@ -46,9 +46,10 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, fix_deprecated_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
-from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -2853,6 +2854,54 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.template_values['pyver'], '3.6.6')
         self.assertTrue('pyshortver' in ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
+
+    def test_fix_deprecated_easyconfigs(self):
+        """Test fix_deprecated_easyconfigs function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ectxt = read_file(toy_ec)
+        gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.4.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        tc_regex = re.compile('^toolchain = .*', re.M)
+
+        for dummy_ver in ['dummy', '', '1.2.3']:
+            write_file(test_ec, tc_regex.sub("toolchain = {'name': 'dummy', 'version': '%s'}" % dummy_ver, toy_ectxt))
+
+            test_ec_txt = read_file(test_ec)
+            regex = re.compile("^toolchain = {'name': 'dummy', .*$", re.M)
+            self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            fix_deprecated_easyconfigs([toy_ec, test_ec, gzip_ec])
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            ectxt = read_file(test_ec)
+            self.assertFalse(regex.search(ectxt), "Pattern '%s' *not* found in: %s" % (regex.pattern, ectxt))
+            regex = re.compile("^toolchain = SYSTEM$", re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+            ec = EasyConfig(test_ec)
+            self.assertTrue(ec['toolchain'], {'name': 'system', 'version': 'system'})
+
+            self.assertFalse(stderr)
+            stdout = stdout.split('\n')
+            self.assertEqual(len(stdout), 8)
+            patterns = [
+                r"^\* \[1/3\] fixing .*/t/toy/toy-0.0.eb\.\.\. \(no changes made\)$",
+                r"^\* \[2/3\] fixing .*/test.eb\.\.\. FIXED!$",
+                r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9_]+\)$",
+                r"^\* \[3/3\] fixing .*/g/gzip/gzip-1.4.eb\.\.\. \(no changes made\)$",
+                r'^$',
+                r"^All done! Fixed 1 easyconfigs \(out of 3 found\).$",
+                r'^$',
+                r'^$',
+            ]
+            for idx, pattern in enumerate(patterns):
+                self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
 
 
 def suite():
