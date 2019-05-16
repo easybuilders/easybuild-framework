@@ -541,8 +541,11 @@ class ModuleGenerator(object):
 
         # Multi deps (if any)
         multi_deps = self._generate_multi_deps_list()
-        section_txt = "This module is compatible with the following modules, one of each is required"
-        lines.extend(self._generate_section(section_txt, '\n'.join(multi_deps)))
+        if multi_deps:
+            compatible_modules_txt = '\n'.join([
+                "This module is compatible with the following modules, one of each line is required:",
+            ] + ['* %s' % d for d in multi_deps])
+            lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
         extensions = self._generate_extension_list()
