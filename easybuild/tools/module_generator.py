@@ -541,7 +541,8 @@ class ModuleGenerator(object):
 
         # Multi deps (if any)
         multi_deps = self._generate_multi_deps_list()
-        lines.extend(self._generate_section("This module is compatible with the following modules, one of each is required", '\n'.join(multi_deps)))
+        section_txt = "This module is compatible with the following modules, one of each is required"
+        lines.extend(self._generate_section(section_txt, '\n'.join(multi_deps)))
 
         # Extensions (if any)
         extensions = self._generate_extension_list()
@@ -560,7 +561,6 @@ class ModuleGenerator(object):
                 txt = ''
                 vlist = self.app.cfg['multi_deps'].get(key)
                 for idx in range(len(vlist)):
-                    found = False
                     for deplist in self.app.cfg.multi_deps:
                         for dep in deplist:
                             if dep['name'] == key and dep['version'] == vlist[idx]:
