@@ -789,6 +789,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
             self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
 
+    def test_missing(self):
+        """Test use of --missing/-M."""
+
+        for mns in [None, 'HierarchicalMNS']:
+
+            args = ['gzip-1.4-GCC-4.6.3.eb']
+
+            if mns == 'HierarchicalMNS':
+                args.append('--module-naming-scheme=%s' % mns)
+                expected = '\n'.join([
+                    "4 out of 4 required modules missing:",
+                    '',
+                    "* Core | GCC/4.6.3 (GCC-4.6.3.eb)",
+                    "* Core | intel/2018a (intel-2018a.eb)",
+                    "* Core | toy/.0.0-deps (toy-0.0-deps.eb)",
+                    "* Compiler/GCC/4.6.3 | gzip/1.4 (gzip-1.4-GCC-4.6.3.eb)",
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    "1 out of 4 required modules missing:",
+                    '',
+                    "* gzip/1.4-GCC-4.6.3 (gzip-1.4-GCC-4.6.3.eb)",
+                    '',
+                ])
+
+            for opt in ['-M', '--missing']:
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.eb_main(args + [opt], testing=False)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+                self.assertFalse(stderr)
+                self.assertTrue(expected in stdout, "Pattern '%s' found in: %s" % (expected, stdout))
+
     def test_dry_run_short(self):
         """Test dry run (short format)."""
         # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
