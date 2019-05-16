@@ -2086,6 +2086,20 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
 
+        # also check relevant parts of "module help" and whatis bits
+        expected_descr = '\n'.join([
+            "Compatible modules",
+            "==================",
+            "This module is compatible with the following modules, one of each line is required:",
+            "* GCC/4.6.3 (default), GCC/7.3.0-2.30",
+        ])
+        error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
+        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+
+        expected_whatis = "whatis([==[Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30]==])"
+        error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
+        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
+
         def check_toy_load(depends_on=False):
             # by default, toy/0.0 should load GCC/4.6.3 (first listed GCC version in multi_deps)
             self.modtool.load(['toy/0.0'])
@@ -2156,6 +2170,8 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_mod_file)
 
         self.assertFalse(expected in toy_mod_txt, "Pattern '%s' should not be found in: %s" % (expected, toy_mod_txt))
+        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
         self.modtool.load(['toy/0.0'])
         loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
@@ -2196,6 +2212,8 @@ class ToyBuildTest(EnhancedTestCase):
                 ])
 
             self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+            self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+            self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
             check_toy_load(depends_on=True)
 
