@@ -342,7 +342,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         clean_exit(logfile, eb_tmpdir, testing)
 
     forced = options.force or options.rebuild
-    dry_run_mode = options.dry_run or options.dry_run_short or options.missing
+    dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not (forced or dry_run_mode or options.extended_dry_run or new_update_preview_pr or options.inject_checksums):
@@ -379,7 +379,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     elif dry_run_mode:
-        if options.missing:
+        if options.missing_modules:
             txt = missing_deps(easyconfigs, modtool)
         else:
             txt = dry_run(easyconfigs, modtool, short=not options.dry_run)

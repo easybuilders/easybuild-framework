@@ -815,10 +815,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     '',
                 ])
 
-            for opt in ['-M', '--missing']:
+            for opt in ['-M', '--missing-modules']:
                 self.mock_stderr(True)
                 self.mock_stdout(True)
-                self.eb_main(args + [opt], testing=False)
+                self.eb_main(args + [opt], testing=False, raise_error=True)
                 stderr, stdout = self.get_stderr(), self.get_stdout()
                 self.mock_stderr(False)
                 self.mock_stdout(False)
