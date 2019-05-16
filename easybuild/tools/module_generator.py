@@ -539,11 +539,39 @@ class ModuleGenerator(object):
                 else:
                     lines.append(" - %s contact: %s" % (contacts_type.capitalize(), contacts))
 
+        # Multi deps (if any)
+        multi_deps = self._generate_multi_deps_list()
+        lines.extend(self._generate_section("This module is compatible with the following modules, one of each is required", '\n'.join(multi_deps)))
+
         # Extensions (if any)
         extensions = self._generate_extension_list()
         lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
+
+    def _generate_multi_deps_list(self):
+        """
+        Generate a string with a comma-separated list of multi_deps.
+        """
+        multi_deps = []
+        if self.app.cfg['multi_deps']:
+            for key in sorted(self.app.cfg['multi_deps'].keys()):
+                mod_list = []
+                txt = ''
+                vlist = self.app.cfg['multi_deps'].get(key)
+                for idx in range(len(vlist)):
+                    found = False
+                    for deplist in self.app.cfg.multi_deps:
+                        for dep in deplist:
+                            if dep['name'] == key and dep['version'] == vlist[idx]:
+                                modname = dep['short_mod_name']
+                                if idx == 0:
+                                    modname += ' (default)'
+                                mod_list.append(modname)
+                txt += ', '.join(mod_list)
+                multi_deps.append(txt)
+
+        return multi_deps
 
     def _generate_section(self, sec_name, sec_txt, strip=False):
         """
@@ -567,6 +595,11 @@ class ModuleGenerator(object):
                 "Description: %s" % self.app.cfg['description'],
                 "Homepage: %s" % self.app.cfg['homepage']
             ]
+
+            multi_deps = self._generate_multi_deps_list()
+            if multi_deps:
+                whatis.append("Compatible modules: %s" % ', '.join(multi_deps))
+
             extensions = self._generate_extension_list()
             if extensions:
                 whatis.append("Extensions: %s" % extensions)
