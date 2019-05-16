@@ -2893,7 +2893,7 @@ class EasyConfigTest(EnhancedTestCase):
             patterns = [
                 r"^\* \[1/3\] fixing .*/t/toy/toy-0.0.eb\.\.\. \(no changes made\)$",
                 r"^\* \[2/3\] fixing .*/test.eb\.\.\. FIXED!$",
-                r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9]{14}_[0-9]{5}\)$",
+                r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9_]+\)$",
                 r"^\* \[3/3\] fixing .*/g/gzip/gzip-1.4.eb\.\.\. \(no changes made\)$",
                 r'^$',
                 r"^All done! Fixed 1 easyconfigs \(out of 3 found\).$",
