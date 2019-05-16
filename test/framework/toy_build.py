@@ -2096,7 +2096,11 @@ class ToyBuildTest(EnhancedTestCase):
         error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
         self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
 
-        expected_whatis = "whatis([==[Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30]==])"
+        if get_module_syntax() == 'Lua':
+            expected_whatis = "whatis([==[Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30]==])"
+        else:
+            expected_whatis = "module-whatis {Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30}"
+
         error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
         self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
