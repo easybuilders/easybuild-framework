@@ -1526,6 +1526,11 @@ class EasyBlock(object):
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
 
+        # if we were iterating already, bump iteration index
+        if self.cfg.iterating:
+            self.log.info("Done with iteration #%d!", self.iter_idx)
+            self.iter_idx += 1
+
         # disable templating in this function, since we're messing about with values in self.cfg
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
@@ -1560,9 +1565,6 @@ class EasyBlock(object):
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
-
-        # prepare for next iteration (if any)
-        self.iter_idx += 1
 
     def post_iter_step(self):
         """Restore options that were iterated over"""

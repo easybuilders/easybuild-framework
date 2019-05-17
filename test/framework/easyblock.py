@@ -665,6 +665,65 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = "lists for iterated build should have same length"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
+    def test_handle_iterate_opts(self):
+        """Test for handle_iterate_opts method."""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(toy_ec) + "\nconfigopts = ['--opt1 --anotheropt', '--opt2', '--opt3 --optbis']")
+
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        # check initial state
+        self.assertEqual(eb.iter_idx, 0)
+        self.assertEqual(eb.iter_opts, {})
+        self.assertEqual(eb.cfg.iterating, False)
+        self.assertEqual(eb.cfg.iterate_options, [])
+        self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
+
+        expected_iter_opts = {'configopts': ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]}
+
+        # once iteration mode is set, we're still in iteration #0
+        self.mock_stdout(True)
+        eb.handle_iterate_opts()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(eb.iter_idx, 0)
+        self.assertEqual(stdout, "== starting iteration #0 ...\n")
+        self.assertEqual(eb.cfg.iterating, True)
+        self.assertEqual(eb.cfg.iterate_options, ['configopts'])
+        self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
+        self.assertEqual(eb.iter_opts, expected_iter_opts)
+
+        # when next iteration is start, iteration index gets bumped
+        self.mock_stdout(True)
+        eb.handle_iterate_opts()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(eb.iter_idx, 1)
+        self.assertEqual(stdout, "== starting iteration #1 ...\n")
+        self.assertEqual(eb.cfg.iterating, True)
+        self.assertEqual(eb.cfg.iterate_options, ['configopts'])
+        self.assertEqual(eb.cfg['configopts'], "--opt2")
+        self.assertEqual(eb.iter_opts, expected_iter_opts)
+
+        self.mock_stdout(True)
+        eb.handle_iterate_opts()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(eb.iter_idx, 2)
+        self.assertEqual(stdout, "== starting iteration #2 ...\n")
+        self.assertEqual(eb.cfg.iterating, True)
+        self.assertEqual(eb.cfg.iterate_options, ['configopts'])
+        self.assertEqual(eb.cfg['configopts'], "--opt3 --optbis")
+        self.assertEqual(eb.iter_opts, expected_iter_opts)
+
+        eb.post_iter_step()
+        self.assertEqual(eb.cfg.iterating, False)
+        self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         init_config(build_options={'silent': True})
