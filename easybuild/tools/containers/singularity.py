@@ -89,7 +89,7 @@ class SingularityContainer(ContainerGenerator):
 
     def resolve_template_data(self):
 
-        base_specs = parse_container_base(self.container_base)
+        base_specs = parse_container_base(self.container_base_image)
 
         # extracting application name,version, version suffix, toolchain name, toolchain version from
         # easyconfig class
@@ -98,7 +98,7 @@ class SingularityContainer(ContainerGenerator):
 
         base_image, base_image_tag = None, None
 
-        # with localimage it only takes 2 arguments. --container-base localimage:/path/to/image
+        # with localimage it only takes 2 arguments. --container-base-image localimage:/path/to/image
         # checking if path to image is valid and verify image extension is '.img' or '.simg'
         if base_specs['bootstrap_agent'] == LOCALIMAGE:
             base_image = base_specs['arg1']
@@ -113,7 +113,7 @@ class SingularityContainer(ContainerGenerator):
                 raise EasyBuildError("Singularity base image at specified path does not exist: %s", base_image)
 
         # otherwise, bootstrap agent is 'docker' or 'shub'
-        # format --container-base {docker|shub}:<image>:<tag>
+        # format --container-base-image {docker|shub}:<image>:<tag>
         else:
             base_image = base_specs['arg1']
             # image tag is optional
@@ -202,22 +202,22 @@ class SingularityContainer(ContainerGenerator):
 
 
 def parse_container_base(base):
-    """Parse value passed to --container-base option."""
+    """Parse value passed to --container-base-image option."""
     if base:
         base_specs = base.split(':')
         if len(base_specs) > 3 or len(base_specs) <= 1:
             error_msg = '\n'.join([
-                "Invalid format for --container-base, must be one of the following:",
+                "Invalid format for --container-base-image, must be one of the following:",
                 '',
-                "--container-base localimage:/path/to/image",
-                "--container-base shub:<image>:<tag>",
-                "--container-base docker:<image>:<tag>",
+                "--container-base-image localimage:/path/to/image",
+                "--container-base-image shub:<image>:<tag>",
+                "--container-base-image docker:<image>:<tag>",
             ])
             raise EasyBuildError(error_msg)
     else:
-        raise EasyBuildError("--container-base must be specified")
+        raise EasyBuildError("--container-base-image must be specified")
 
-    # first argument to --container-base is the Singularity bootstrap agent (localimage, shub, docker)
+    # first argument to --container-base-image is the Singularity bootstrap agent (localimage, shub, docker)
     bootstrap_agent = base_specs[0]
 
     # check bootstrap type value and ensure it is localimage, shub, docker

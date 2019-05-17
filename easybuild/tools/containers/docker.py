@@ -39,7 +39,7 @@ from easybuild.tools.run import run_cmd
 
 
 DOCKER_TMPL_HEADER = """\
-FROM %(container_base)s
+FROM %(container_base_image)s
 LABEL maintainer=easybuild@lists.ugent.be
 """
 
@@ -104,8 +104,8 @@ class DockerContainer(ContainerGenerator):
 
     def resolve_template(self):
         return "\n\n".join([
-            DOCKER_TMPL_HEADER % {'container_base': self.container_base},
-            DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base],
+            DOCKER_TMPL_HEADER % {'container_base_image': self.container_base_image},
+            DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base_image],
             DOCKER_INSTALL_EASYBUILD,
             DOCKER_TMPL_FOOTER,
         ])
@@ -129,8 +129,8 @@ class DockerContainer(ContainerGenerator):
         }
 
     def validate(self):
-        if self.container_base not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
-            raise EasyBuildError("Unsupported container base image '%s'" % self.container_base)
+        if self.container_base_image not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
+            raise EasyBuildError("Unsupported container base image '%s'" % self.container_base_image)
         super(DockerContainer, self).validate()
 
     def build_image(self, dockerfile):
