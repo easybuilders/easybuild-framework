@@ -1561,6 +1561,8 @@ class EasyBlock(object):
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
 
+        # add a reference parameter for easyblocks for the current iteration
+        self.current_iteration = self.iter_idx
         # prepare for next iteration (if any)
         self.iter_idx += 1
 
