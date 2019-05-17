@@ -103,14 +103,23 @@ class DockerContainer(ContainerGenerator):
     RECIPE_FILE_NAME = 'Dockerfile'
 
     def resolve_template(self):
-        return "\n\n".join([
-            DOCKER_TMPL_HEADER % {'container_base_image': self.container_base_image},
-            DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base_image],
-            DOCKER_INSTALL_EASYBUILD,
-            DOCKER_TMPL_FOOTER,
-        ])
+        """Return template container recipe."""
+
+        if self.container_base_config:
+            raise EasyBuildError("--container-base-config is not supported yet for Docker container images!")
+        elif self.container_template_recipe:
+            raise EasyBuildError("--container-template-recipe is not supported yet for Docker container images!")
+        else:
+            return "\n\n".join([
+                DOCKER_TMPL_HEADER % {'container_base_image': self.container_base_image},
+                DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base_image],
+                DOCKER_INSTALL_EASYBUILD,
+                DOCKER_TMPL_FOOTER,
+            ])
 
     def resolve_template_data(self):
+        """Return template data for container recipe."""
+
         os_deps = det_os_deps(self.easyconfigs)
 
         ec = self.easyconfigs[-1]['ec']

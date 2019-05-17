@@ -30,10 +30,10 @@ Support for generating singularity container recipes and creating container imag
 """
 import os
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
-from easybuild.tools.filetools import remove_file, which
+from easybuild.tools.filetools import read_file, remove_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.containers.base import ContainerGenerator
 
@@ -85,10 +85,38 @@ class SingularityContainer(ContainerGenerator):
     RECIPE_FILE_NAME = 'Singularity'
 
     def resolve_template(self):
-        return SINGULARITY_TEMPLATE
+        """Return template container recipe."""
+        if self.container_template_recipe:
+            template = read_file(self.container_template_recipe)
+        else:
+            template = SINGULARITY_TEMPLATE
 
-    def resolve_template_data(self):
+        return template
 
+    def resolve_template_data_base_config(self):
+        """Return template data for container recipe based on what is passed to --container-base-config."""
+
+        template_data = {}
+
+        base_config_keys = ['bootstrap', 'from']
+
+        # configuration for base container is assumed to have <key>=<value>[,<key>=<value>] format
+        config_items = self.container_base_config.split(',')
+        for item in config_items:
+            key, value = item.split('=', 1)
+            if key in base_config_keys:
+                template_data[key] = value
+            else:
+                raise EasyBuildError("Unknown key for base container configuration: %s", key)
+
+        if sorted(base_config_keys) != sorted(template_data.keys()):
+            raise EasyBuildError("Not all keys for base configuration were specified! Found %s, expected %s",
+                                 ', '.join(sorted(base_config_keys)), ', '.join(sorted(template_data.keys())))
+
+        return template_data
+
+    def resolve_template_data_base_image(self):
+        """Return template data for container recipe based on what is passed to --container-base-image."""
         base_specs = parse_container_base(self.container_base_image)
 
         # extracting application name,version, version suffix, toolchain name, toolchain version from
@@ -123,6 +151,28 @@ class SingularityContainer(ContainerGenerator):
         if base_image_tag:
             bootstrap_from += ':' + base_image_tag
 
+        return {
+            'bootstrap': bootstrap_agent,
+            'from': bootstrap_from,
+        }
+
+    def resolve_template_data(self):
+        """Return template data for container recipe."""
+
+        template_data = {}
+
+        if self.container_base_image:
+            if self.container_base_config:
+                print_warning("--container-base-config is ignored when --container-base-image is also specified!")
+
+            template_data.update(self.resolve_template_data_base_image())
+
+        elif self.container_base_config:
+            template_data.update(self.resolve_template_data_base_config())
+
+        else:
+            raise EasyBuildError("Either --container-base-config or --container-base-image must be specified!")
+
         # if there is osdependencies in easyconfig then add them to Singularity recipe
         install_os_deps = ''
         for ec in self.easyconfigs:
@@ -135,17 +185,15 @@ class SingularityContainer(ContainerGenerator):
                 else:
                     raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
+        template_data['install_os_deps'] = install_os_deps
+
         # module names to load in container environment
         mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
+        template_data['mod_names'] = ' '.join(mod_names)
 
-        # adding all the regions for writing the  Singularity definition file
-        return {
-            'bootstrap': bootstrap_agent,
-            'from': bootstrap_from,
-            'install_os_deps': install_os_deps,
-            'easyconfigs': ' '.join(os.path.basename(e['spec']) for e in self.easyconfigs),
-            'mod_names': ' '.join(mod_names),
-        }
+        template_data['easyconfigs'] = ' '.join(os.path.basename(e['spec']) for e in self.easyconfigs)
+
+        return template_data
 
     def build_image(self, recipe_path):
 

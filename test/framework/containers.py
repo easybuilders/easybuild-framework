@@ -396,6 +396,45 @@ class ContainersTest(EnhancedTestCase):
         self.assertFalse(stderr)
         self.check_regexs(regexs, stdout)
 
+    def test_container_base_config_template_recipe(self):
+        """Test use of --container-base-config and --container-template-recipe."""
+        tmpl_path = os.path.join(self.test_prefix, 'tmpl.txt')
+        tmpl_txt = '\n'.join([
+            "# this is just a test",
+            "bootstrap: %(bootstrap)s",
+            "from: %(from)s",
+            '',
+            '%%post',
+            "eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+        ])
+        write_file(tmpl_path, tmpl_txt)
+        args = [
+            '--experimental',
+            '--containerize',
+            '--container-template-recipe=%s' % tmpl_path,
+            'toy-0.0.eb',
+        ]
+        error_pattern = "Either --container-base-config or --container-base-image must be specified!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args)
+
+        args.extend(['--container-base-config', 'bootstrap=test,from=foobar'])
+        stdout, stderr = self.run_main(args)
+
+        self.assertFalse(stderr)
+        regex = re.compile("^== Singularity definition file created at .*/containers/Singularity.toy-0.0$")
+        self.assertTrue(regex.match(stdout), "Stdout matches pattern '%s': %s" % (regex.pattern, stdout))
+
+        expected = '\n'.join([
+            "# this is just a test",
+            "bootstrap: test",
+            "from: foobar",
+            "",
+            "%post",
+            "eb toy-0.0.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+        ])
+        cont_recipe = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+        self.assertEqual(cont_recipe, expected)
+
 
 def suite():
     """ returns all the testcases in this module """

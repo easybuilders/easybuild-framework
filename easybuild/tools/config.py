@@ -127,9 +127,11 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
+        'container_base_config',
         'container_base_image',
         'container_image_format',
         'container_image_name',
+        'container_template_recipe',
         'container_tmpdir',
         'download_timeout',
         'dump_test_report',
