@@ -347,7 +347,6 @@ class ParallelBuildTest(EnhancedTestCase):
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
             'ntasks': 3,
-            'ntasks-per-node': 3,
             'output': 'gzip-1.5-foss-2018a-%j.out',
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,

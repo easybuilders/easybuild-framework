@@ -184,6 +184,5 @@ class SlurmJob(object):
         if cores:
             self.job_specs['nodes'] = 1
             self.job_specs['ntasks'] = cores
-            self.job_specs['ntasks-per-node'] = cores
         else:
             self.log.warn("Number of cores to request not specified, falling back to whatever Slurm does by default")
