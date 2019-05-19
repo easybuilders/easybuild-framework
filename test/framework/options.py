@@ -429,7 +429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     avail_arg,
                 ]
                 if fmt is not None:
-                    args.append(fmt)
+                    args.append('--output-format=%s' % fmt)
                 if custom is not None:
                     args.extend(['-e', custom])
 
@@ -449,14 +449,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
                     self.assertTrue(regex.search(logtxt), msg)
 
+                ordered_params = ['name', 'toolchain', 'version', 'versionsuffix']
+                params = ordered_params + ['buildopts', 'sources', 'start_dir', 'dependencies', 'group',
+                                           'exts_list', 'moduleclass', 'buildstats'] + extra_params
+
                 # check a couple of easyconfig parameters
-                for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
-                              "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
+                param_start = 0
+                for param in params:
                     # regex for parameter name (with optional '*') & description, matches both txt and rst formats
                     regex = re.compile("^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
                     tup = (param, avail_arg, args, regex.pattern, logtxt)
                     msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
-                    self.assertTrue(regex.search(logtxt), msg)
+                    res = regex.search(logtxt)
+                    self.assertTrue(res, msg)
+                    if param in ordered_params:
+                        # check whether this parameter is listed after previous one
+                        self.assertTrue(param_start < res.start(0), "%s is in expected order in: %s" % (param, logtxt))
+                        param_start = res.start(0)
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
