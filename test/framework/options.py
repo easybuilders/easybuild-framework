@@ -429,7 +429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     avail_arg,
                 ]
                 if fmt is not None:
-                    args.append(fmt)
+                    args.append('--output-format=%s' % fmt)
                 if custom is not None:
                     args.extend(['-e', custom])
 
@@ -449,14 +449,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
                     self.assertTrue(regex.search(logtxt), msg)
 
+                ordered_params = ['name', 'toolchain', 'version', 'versionsuffix']
+                params = ordered_params + ['buildopts', 'sources', 'start_dir', 'dependencies', 'group',
+                                           'exts_list', 'moduleclass', 'buildstats'] + extra_params
+
                 # check a couple of easyconfig parameters
-                for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
-                              "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
+                param_start = 0
+                for param in params:
                     # regex for parameter name (with optional '*') & description, matches both txt and rst formats
                     regex = re.compile("^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
                     tup = (param, avail_arg, args, regex.pattern, logtxt)
                     msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
-                    self.assertTrue(regex.search(logtxt), msg)
+                    res = regex.search(logtxt)
+                    self.assertTrue(res, msg)
+                    if param in ordered_params:
+                        # check whether this parameter is listed after previous one
+                        self.assertTrue(param_start < res.start(0), "%s is in expected order in: %s" % (param, logtxt))
+                        param_start = res.start(0)
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
@@ -788,6 +797,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for ec, mod, mark in ecs_mods:
             regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
             self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
+
+    def test_missing(self):
+        """Test use of --missing/-M."""
+
+        for mns in [None, 'HierarchicalMNS']:
+
+            args = ['gzip-1.4-GCC-4.6.3.eb']
+
+            if mns == 'HierarchicalMNS':
+                args.append('--module-naming-scheme=%s' % mns)
+                expected = '\n'.join([
+                    "4 out of 4 required modules missing:",
+                    '',
+                    "* Core | GCC/4.6.3 (GCC-4.6.3.eb)",
+                    "* Core | intel/2018a (intel-2018a.eb)",
+                    "* Core | toy/.0.0-deps (toy-0.0-deps.eb)",
+                    "* Compiler/GCC/4.6.3 | gzip/1.4 (gzip-1.4-GCC-4.6.3.eb)",
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    "1 out of 4 required modules missing:",
+                    '',
+                    "* gzip/1.4-GCC-4.6.3 (gzip-1.4-GCC-4.6.3.eb)",
+                    '',
+                ])
+
+            for opt in ['-M', '--missing-modules']:
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.eb_main(args + [opt], testing=False, raise_error=True)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+                self.assertFalse(stderr)
+                self.assertTrue(expected in stdout, "Pattern '%s' found in: %s" % (expected, stdout))
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""
@@ -2922,11 +2967,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 3.7.2\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+        # if multiple easyconfigs depending on Python are included, Python version is only listed once
+        gzip_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'), gzip_ec)
+        gzip_ec_txt = read_file(gzip_ec)
+        write_file(gzip_ec, gzip_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
+
+        txt, _ = self._run_mock_eb(args + [gzip_ec], do_build=True, raise_error=True, testing=False)
+
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0, gzip v1.4 w/ Python 3.7.2\"$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
         # also check with Python listed via multi_deps
         write_file(toy_ec, toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}")
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 3.7.2 \+ 2.7.15\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 2.7.15 \+ 3.7.2\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_delete(self):

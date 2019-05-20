@@ -1262,7 +1262,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                         else:
                             pyver.append(dep['version'])
             if pyver:
-                title += " w/ Python %s" % ' + '.join(pyver)
+                title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
 
         else:
             raise EasyBuildError("Don't know how to make a PR title for this PR. "

@@ -32,6 +32,7 @@ Implementation of an example hierarchical module naming scheme.
 import os
 import re
 
+from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
@@ -43,6 +44,8 @@ MPI = 'MPI'
 
 MODULECLASS_COMPILER = 'compiler'
 MODULECLASS_MPI = 'mpi'
+
+GCCCORE = GCCcore.NAME
 
 # note: names in keys are ordered alphabetically
 COMP_NAME_VERSION_TEMPLATES = {
@@ -188,6 +191,9 @@ class HierarchicalMNS(ModuleNamingScheme):
 
                         if non_system_tc:
                             tc_comp_name, tc_comp_ver = tc_comp_info
+                            # Stick to name GCC for GCCcore
+                            if tc_comp_name == GCCCORE:
+                                tc_comp_name = 'GCC'
                             if tc_comp_name in comp_names:
                                 # also provide toolchain version for non-system toolchains
                                 comp_versions.update({tc_comp_name: tc_comp_ver})

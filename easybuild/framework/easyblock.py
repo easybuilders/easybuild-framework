@@ -70,12 +70,12 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
-from easybuild.tools.filetools import get_source_tarball_from_git, is_alt_pypi_url, is_sha256_checksum, mkdir
-from easybuild.tools.filetools import move_file, move_logs, read_file, remove_file, rmtree2, verify_checksum, weld_paths
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, apply_regex_substitutions, back_up_file
+from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
+from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_file, rmtree2
+from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -1524,6 +1524,11 @@ class EasyBlock(object):
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
 
+        # if we were iterating already, bump iteration index
+        if self.cfg.iterating:
+            self.log.info("Done with iteration #%d!", self.iter_idx)
+            self.iter_idx += 1
+
         # disable templating in this function, since we're messing about with values in self.cfg
         prev_enable_templating = self.cfg.enable_templating
         self.cfg.enable_templating = False
@@ -1558,9 +1563,6 @@ class EasyBlock(object):
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = prev_enable_templating
-
-        # prepare for next iteration (if any)
-        self.iter_idx += 1
 
     def post_iter_step(self):
         """Restore options that were iterated over"""
@@ -2146,6 +2148,23 @@ class EasyBlock(object):
         else:
             self.log.info("Skipping package step (not enabled)")
 
+    def fix_shebang(self):
+        """Fix shebang lines for specified files."""
+        for lang in ['perl', 'python']:
+            fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
+            if fix_shebang_for:
+                if isinstance(fix_shebang_for, basestring):
+                    fix_shebang_for = [fix_shebang_for]
+
+                shebang = '#!/usr/bin/env %s' % lang
+                for glob_pattern in fix_shebang_for:
+                    paths = glob.glob(os.path.join(self.installdir, glob_pattern))
+                    self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
+                                  lang, shebang, glob_pattern, paths)
+                    regex = r'^#!.*/%s[0-9.]*$' % lang
+                    for path in paths:
+                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
+
     def post_install_step(self):
         """
         Do some postprocessing
@@ -2160,6 +2179,8 @@ class EasyBlock(object):
                 if not isinstance(cmd, string_type):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
+
+        self.fix_shebang()
 
     def sanity_check_step(self, *args, **kwargs):
         """

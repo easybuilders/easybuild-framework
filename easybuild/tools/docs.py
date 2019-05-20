@@ -223,10 +223,12 @@ def avail_easyconfig_params_rst(title, grouped_params):
         # group section title
         title = "%s parameters" % grpname
         table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        keys = sorted(grouped_params[grpname].keys())
+        values = [grouped_params[grpname][key] for key in keys]
         table_values = [
-            ['``%s``' % name for name in grouped_params[grpname].keys()],  # parameter name
-            [x[0] for x in grouped_params[grpname].values()],  # description
-            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  # default value
+            ['``%s``' % name for name in keys],  # parameter name
+            [x[0] for x in values],  # description
+            [str(quote_str(x[1])) for x in values]  # default value
         ]
 
         doc.extend(rst_title_and_table(title, table_titles, table_values))
