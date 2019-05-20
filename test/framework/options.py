@@ -2975,14 +2975,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         txt, _ = self._run_mock_eb(args + [gzip_ec], do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0, gzip v1.4 w/ Python 3.7.2\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0, gzip v1.4 w/ Python 3.7.2\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # also check with Python listed via multi_deps
         write_file(toy_ec, toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}")
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 2.7.15 \+ 3.7.2\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 2.7.15 \+ 3.7.2\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_delete(self):
