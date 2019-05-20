@@ -46,7 +46,8 @@ class Slurm(JobBackend):
     Manage SLURM server communication and create `SlurmJob` objects.
     """
 
-    REQ_VERSION = '17'
+    # Oldest version tested, may also work with earlier releases
+    REQ_VERSION = '16.05'
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
@@ -137,7 +138,9 @@ class Slurm(JobBackend):
             if job.job_specs['hold']:
                 self.log.info("releasing user hold on job %s" % job.jobid)
                 job_ids.append(job.jobid)
-        run_cmd("scontrol release %s" % ' '.join(job_ids), trace=False)
+
+        if job_ids:
+            run_cmd("scontrol release %s" % ' '.join(job_ids), trace=False)
 
         submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
         print_msg("List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs), log=self.log)
@@ -161,8 +164,9 @@ class SlurmJob(object):
         self.job_specs = {
             'job-name': self.name,
             # pattern for output file for submitted job;
-            # SLURM replaces %x with job name, %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAF)
-            'output': '%x-%j.out',
+            # SLURM replaces %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAH)
+            # %x (job name) replacement needs SLURM >= 17.02.1, thus we add name ourselves
+            'output': '%s-%%j.out' % self.name,
             'wrap': self.script,
         }
 
@@ -180,6 +184,5 @@ class SlurmJob(object):
         if cores:
             self.job_specs['nodes'] = 1
             self.job_specs['ntasks'] = cores
-            self.job_specs['ntasks-per-node'] = cores
         else:
             self.log.warn("Number of cores to request not specified, falling back to whatever Slurm does by default")

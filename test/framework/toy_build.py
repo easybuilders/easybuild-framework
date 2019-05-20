@@ -1837,6 +1837,13 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
+
+        # find_eb_script function used to find rpath_args.py requires that location where easybuild/scripts
+        # resides is listed in sys.path via absolute path;
+        # this is only needed to make this test pass when it's being called from that same location...
+        top_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sys.path.insert(0, top_path)
+
         def grab_gcc_rpath_wrapper_filter_arg():
             """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
             rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
@@ -2079,6 +2086,24 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
 
+        # also check relevant parts of "module help" and whatis bits
+        expected_descr = '\n'.join([
+            "Compatible modules",
+            "==================",
+            "This module is compatible with the following modules, one of each line is required:",
+            "* GCC/4.6.3 (default), GCC/7.3.0-2.30",
+        ])
+        error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
+        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+
+        if get_module_syntax() == 'Lua':
+            expected_whatis = "whatis([==[Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30]==])"
+        else:
+            expected_whatis = "module-whatis {Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30}"
+
+        error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
+        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
+
         def check_toy_load(depends_on=False):
             # by default, toy/0.0 should load GCC/4.6.3 (first listed GCC version in multi_deps)
             self.modtool.load(['toy/0.0'])
@@ -2149,6 +2174,8 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_mod_file)
 
         self.assertFalse(expected in toy_mod_txt, "Pattern '%s' should not be found in: %s" % (expected, toy_mod_txt))
+        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
         self.modtool.load(['toy/0.0'])
         loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
@@ -2189,8 +2216,51 @@ class ToyBuildTest(EnhancedTestCase):
                 ])
 
             self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+            self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+            self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
             check_toy_load(depends_on=True)
+
+    def test_fix_shebang(self):
+        """Test use of fix_python_shebang_for & co."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            "postinstallcmds = ["
+            "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
+            "   'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
+            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
+            "   'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
+            "   'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
+            "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
+            "]",
+            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py']",
+            "fix_perl_shebang_for = 'bin/*.pl'",
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
+
+        # no re.M, this should match at start of file!
+        py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
+        for pybin in ['t1.py', 't2.py', 't3.py']:
+            pybin_path = os.path.join(toy_bindir, pybin)
+            pybin_txt = read_file(pybin_path)
+            self.assertTrue(py_shebang_regex.match(pybin_txt),
+                            "Pattern '%s' found in %s: %s" % (py_shebang_regex.pattern, pybin_path, pybin_txt))
+
+        # no re.M, this should match at start of file!
+        perl_shebang_regex = re.compile(r'^#!/usr/bin/env perl\n# test$')
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl']:
+            perlbin_path = os.path.join(toy_bindir, perlbin)
+            perlbin_txt = read_file(perlbin_path)
+            self.assertTrue(perl_shebang_regex.match(perlbin_txt),
+                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
 
 
 def suite():

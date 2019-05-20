@@ -871,10 +871,11 @@ class EasyConfig(object):
 
         :param build_only: only return build dependencies, discard others
         """
-        if build_only:
-            deps = self.builddependencies()
-        else:
-            deps = self['dependencies'] + self.builddependencies()
+        deps = self.builddependencies()
+
+        if not build_only:
+            # use += rather than .extend to get a new list rather than updating list of build deps in place...
+            deps += self['dependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -1065,7 +1066,7 @@ class EasyConfig(object):
 
             keys = sorted(multi_deps.keys())
             for idx in range(multi_dep_cnt):
-                self['builddependencies'].append(builddeps + [(key, multi_deps[key][idx]) for key in keys])
+                self['builddependencies'].append([(key, multi_deps[key][idx]) for key in keys] + builddeps)
 
             self.log.info("Original list of build dependencies: %s", builddeps)
             self.log.info("List of lists of build dependencies to iterate over: %s", self['builddependencies'])
@@ -1295,8 +1296,7 @@ class EasyConfig(object):
     def generate_template_values(self):
         """Try to generate all template values."""
 
-        self._generate_template_values(skip_lower=True)
-        self._generate_template_values(skip_lower=False)
+        self._generate_template_values()
 
         # recursive call, until there are no more changes to template values;
         # important since template values may include other templates
@@ -1314,7 +1314,7 @@ class EasyConfig(object):
                     # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
                     pass
 
-    def _generate_template_values(self, ignore=None, skip_lower=True):
+    def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
         if self.template_values is None:
             self.template_values = {}
@@ -1326,7 +1326,7 @@ class EasyConfig(object):
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
         prev_enable_templating = self.enable_templating
         self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore, skip_lower=skip_lower)
+        template_values = template_constant_dict(self, ignore=ignore)
         self.enable_templating = prev_enable_templating
 
         # update the template_values dict
@@ -1530,6 +1530,12 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
+def is_generic_easyblock(easyblock):
+    """Return whether specified easyblock name is a generic easyblock or not."""
+
+    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+
+
 def get_module_path(name, generic=None, decode=True):
     """
     Determine the module path for a given easyblock or software name,
@@ -1542,7 +1548,7 @@ def get_module_path(name, generic=None, decode=True):
         return None
 
     if generic is None:
-        generic = not name.startswith(EASYBLOCK_CLASS_PREFIX)
+        generic = is_generic_easyblock(name)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:

@@ -143,10 +143,13 @@ for ext in extensions:
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=True):
+def template_constant_dict(config, ignore=None, skip_lower=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
+    if skip_lower is not None:
+        _log.deprecated("Use of 'skip_lower' named argument for template_constant_dict has no effect anymore", '4.0')
+
     # TODO find better name
     # ignore
     if ignore is None:
@@ -224,7 +227,9 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
             if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
                 template_values['%sver' % pref] = dep_version
-                template_values['%sshortver' % pref] = '.'.join(dep_version.split('.')[:2])
+                dep_version_parts = dep_version.split('.')
+                template_values['%smajver' % pref] = dep_version_parts[0]
+                template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
                 break
 
     # step 3: add remaining from config
@@ -235,19 +240,19 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             template_values[name] = config[name]
             _log.debug('name: %s, config: %s', name, config[name])
 
-    # step 4. make lower variants if not skip_lower
-    if not skip_lower:
-        for name in TEMPLATE_NAMES_LOWER:
-            if name in ignore:
-                continue
-            t_v = template_values.get(name, None)
-            if t_v is None:
-                continue
-            try:
-                template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = t_v.lower()
-            except Exception:
-                _log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)" %
-                           (name, t_v, type(t_v)))
+    # step 4. make lower variants
+    for name in TEMPLATE_NAMES_LOWER:
+        if name in ignore:
+            continue
+
+        value = config.get(name) or template_values.get(name)
+
+        if value is None:
+            continue
+        try:
+            template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = value.lower()
+        except Exception:
+            _log.warning("Failed to get .lower() for name %s value %s (type %s)", name, value, type(value))
 
     return template_values
 

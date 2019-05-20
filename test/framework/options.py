@@ -49,7 +49,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -59,6 +60,14 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from vsc.utils import fancylogger
+
+try:
+    import pycodestyle  # noqa
+except ImportError:
+    try:
+        import pep8  # noqa
+    except ImportError:
+        pass
 
 
 EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
@@ -420,7 +429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     avail_arg,
                 ]
                 if fmt is not None:
-                    args.append(fmt)
+                    args.append('--output-format=%s' % fmt)
                 if custom is not None:
                     args.extend(['-e', custom])
 
@@ -440,14 +449,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
                     self.assertTrue(regex.search(logtxt), msg)
 
+                ordered_params = ['name', 'toolchain', 'version', 'versionsuffix']
+                params = ordered_params + ['buildopts', 'sources', 'start_dir', 'dependencies', 'group',
+                                           'exts_list', 'moduleclass', 'buildstats'] + extra_params
+
                 # check a couple of easyconfig parameters
-                for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
-                              "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
+                param_start = 0
+                for param in params:
                     # regex for parameter name (with optional '*') & description, matches both txt and rst formats
                     regex = re.compile("^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
                     tup = (param, avail_arg, args, regex.pattern, logtxt)
                     msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
-                    self.assertTrue(regex.search(logtxt), msg)
+                    res = regex.search(logtxt)
+                    self.assertTrue(res, msg)
+                    if param in ordered_params:
+                        # check whether this parameter is listed after previous one
+                        self.assertTrue(param_start < res.start(0), "%s is in expected order in: %s" % (param, logtxt))
+                        param_start = res.start(0)
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
@@ -779,6 +797,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for ec, mod, mark in ecs_mods:
             regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
             self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
+
+    def test_missing(self):
+        """Test use of --missing/-M."""
+
+        for mns in [None, 'HierarchicalMNS']:
+
+            args = ['gzip-1.4-GCC-4.6.3.eb']
+
+            if mns == 'HierarchicalMNS':
+                args.append('--module-naming-scheme=%s' % mns)
+                expected = '\n'.join([
+                    "4 out of 4 required modules missing:",
+                    '',
+                    "* Core | GCC/4.6.3 (GCC-4.6.3.eb)",
+                    "* Core | intel/2018a (intel-2018a.eb)",
+                    "* Core | toy/.0.0-deps (toy-0.0-deps.eb)",
+                    "* Compiler/GCC/4.6.3 | gzip/1.4 (gzip-1.4-GCC-4.6.3.eb)",
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    "1 out of 4 required modules missing:",
+                    '',
+                    "* gzip/1.4-GCC-4.6.3 (gzip-1.4-GCC-4.6.3.eb)",
+                    '',
+                ])
+
+            for opt in ['-M', '--missing-modules']:
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.eb_main(args + [opt], testing=False, raise_error=True)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+                self.assertFalse(stderr)
+                self.assertTrue(expected in stdout, "Pattern '%s' found in: %s" % (expected, stdout))
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""
@@ -2236,6 +2290,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
+        if ec > 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2248,7 +2315,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--avail-module-naming-schemes',
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+
+        env_cmd = "export PATH='%s' PYTHONPATH='%s'; " % (path, pythonpath)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
@@ -2266,7 +2337,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--avail-module-naming-schemes',
             '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
 
     def test_use_included_module_naming_scheme(self):
@@ -2311,6 +2383,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
         self.restore_env_path_pythonpath()
 
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
+        if ec > 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2326,7 +2411,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--list-toolchains',
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        env_cmd = "export PATH='%s' PYTHONPATH='%s'; " % (path, pythonpath)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
@@ -2349,7 +2437,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
             '--list-toolchains',
         ]
-        logtxt, _ = run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        cmd = "cd %s; eb %s" % (self.test_prefix, ' '.join(args))
+
+        logtxt, _ = run_cmd(env_cmd + cmd, simple=False)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
 
     def test_cleanup_tmpdir(self):
@@ -2833,6 +2923,51 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "buildstats\s*=",
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
+
+    def test_new_pr_python(self):
+        """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
+        if self.github_token is None:
+            print "Skipping test_new_pr_python, no GitHub token available?"
+            return
+
+        # copy toy test easyconfig
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'), toy_ec)
+
+        # modify file to include Python dependency
+        toy_ec_txt = read_file(toy_ec)
+        write_file(toy_ec, toy_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
+
+        args = [
+            '--new-pr',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            toy_ec,
+            '-D',
+            '--disable-cleanup-tmpdir',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 3.7.2\"$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # if multiple easyconfigs depending on Python are included, Python version is only listed once
+        gzip_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'), gzip_ec)
+        gzip_ec_txt = read_file(gzip_ec)
+        write_file(gzip_ec, gzip_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
+
+        txt, _ = self._run_mock_eb(args + [gzip_ec], do_build=True, raise_error=True, testing=False)
+
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0, gzip v1.4 w/ Python 3.7.2\"$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # also check with Python listed via multi_deps
+        write_file(toy_ec, toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}")
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        regex = re.compile(r"^\* title: \"\{tools\}\[dummy/dummy\] toy v0.0 w/ Python 2.7.15 \+ 3.7.2\"$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""
@@ -3530,6 +3665,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_check_contrib_non_style(self):
         """Test non-style checks performed by --check-contrib."""
+
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)"
+            return
+
         args = [
             '--check-contrib',
             'toy-0.0.eb',
