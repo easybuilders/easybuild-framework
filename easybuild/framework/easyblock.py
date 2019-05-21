@@ -2153,7 +2153,7 @@ class EasyBlock(object):
         for lang in ['perl', 'python']:
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
-                if isinstance(fix_shebang_for, basestring):
+                if isinstance(fix_shebang_for, string_type):
                     fix_shebang_for = [fix_shebang_for]
 
                 shebang = '#!/usr/bin/env %s' % lang
