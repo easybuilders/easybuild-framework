@@ -2903,6 +2903,34 @@ class EasyConfigTest(EnhancedTestCase):
             for idx, pattern in enumerate(patterns):
                 self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
 
+    def test_parse_list_comprehension_scope(self):
+        """Test parsing of an easyconfig file that uses a local variable in list comprehension."""
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "bindir = 'bin'",
+            "binaries = ['foo', 'bar']",
+            "sanity_check_paths = {",
+            # using local variable 'bindir' in list comprehension in sensitive w.r.t. scope,
+            # especially in Python 3 where list comprehensions have their own scope
+            # cfr. https://github.com/easybuilders/easybuild-easyconfigs/pull/7848
+            "   'files': ['%s/%s' % (bindir, x) for x in binaries],",
+            "   'dirs': [],",
+            "}",
+        ])
+        write_file(test_ec, test_ectxt)
+        ec = EasyConfig(test_ec)
+        expected_sanity_check_paths = {
+            'files': ['bin/foo', 'bin/bar'],
+            'dirs': [],
+        }
+        self.assertEqual(ec['sanity_check_paths'], expected_sanity_check_paths)
+
 
 def suite():
     """ returns all the testcases in this module """
