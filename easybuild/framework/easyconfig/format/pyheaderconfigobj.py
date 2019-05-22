@@ -201,11 +201,14 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
                 err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
             raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
 
+        self.log.debug("pyheader parsed cfg: %s", cfg)
+
         # get rid of constants from parsed easyconfig file, they are not valid easyconfig parameters
         for key in global_vars:
+            self.log.debug("Removing key '%s' from parsed cfg (constant, not an easyconfig parameter)", key)
             del cfg[key]
 
-        self.log.debug("pyheader final cfg %s", cfg)
+        self.log.debug("pyheader final parsed cfg: %s", cfg)
 
         if '__doc__' in cfg:
             self.docstring = cfg.pop('__doc__')
