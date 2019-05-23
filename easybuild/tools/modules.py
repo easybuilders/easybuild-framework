@@ -832,10 +832,10 @@ class ModulesTool(object):
                 elif action == IGNORE:
                     self.log.info(msg + ", but ignoring as configured")
                 elif action == UNSET:
-                    print_warning(msg + "; unsetting them")
+                    print_warning(msg + "; unsetting them", silent=build_option('silent'))
                     unset_env_vars(eb_module_keys)
                 else:
-                    print_warning(msg + msg_control)
+                    print_warning(msg + msg_control, silent=build_option('silent'))
 
             if loaded_eb_modules:
                 opt = '--detect-loaded-modules={%s}' % ','.join(LOADED_MODULES_ACTIONS)
@@ -863,21 +863,21 @@ class ModulesTool(object):
 
                 elif action == PURGE:
                     msg = "Found non-allowed loaded (EasyBuild-generated) modules (%s), running 'module purge'"
-                    print_warning(msg % ', '.join(loaded_eb_modules))
+                    print_warning(msg % ', '.join(loaded_eb_modules), silent=build_option('silent'))
 
                     self.log.info(msg)
                     self.purge()
 
                 elif action == UNLOAD:
                     msg = "Unloading non-allowed loaded (EasyBuild-generated) modules: %s"
-                    print_warning(msg % ', '.join(loaded_eb_modules))
+                    print_warning(msg % ', '.join(loaded_eb_modules), silent=build_option('silent'))
 
                     self.log.info(msg)
                     self.unload(loaded_eb_modules[::-1])
 
                 else:
                     # default behaviour is just to print out a warning and continue
-                    print_warning(verbose_msg)
+                    print_warning(verbose_msg, silent=build_option('silent'))
 
     def read_module_file(self, mod_name):
         """
@@ -1188,6 +1188,8 @@ class Lmod(ModulesTool):
         setvar('LMOD_IGNORE_CACHE', '1', verbose=False)
         # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
         setvar('LMOD_REDIRECT', 'no', verbose=False)
+        # disable extended defaults within Lmod (introduced and set as default in Lmod 8.0.7)
+        setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
         self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)

@@ -228,10 +228,12 @@ def avail_easyconfig_params_rst(title, grouped_params):
         # group section title
         title = "%s parameters" % grpname
         table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        keys = sorted(grouped_params[grpname].keys())
+        values = [grouped_params[grpname][key] for key in keys]
         table_values = [
-            ['``%s``' % name for name in grouped_params[grpname].keys()],  # parameter name
-            [x[0] for x in grouped_params[grpname].values()],  # description
-            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  # default value
+            ['``%s``' % name for name in keys],  # parameter name
+            [x[0] for x in values],  # description
+            [str(quote_str(x[1])) for x in values]  # default value
         ]
 
         doc.extend(rst_title_and_table(title, table_titles, table_values))
@@ -544,7 +546,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         # make sure values like homepage & versionsuffix get properly templated
         if isinstance(ec, dict):
-            template_values = template_constant_dict(ec, skip_lower=False)
+            template_values = template_constant_dict(ec)
             for key in keys:
                 if '%(' in info[key]:
                     try:

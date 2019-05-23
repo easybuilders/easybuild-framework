@@ -33,7 +33,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import apply_patch, change_dir, extract_file
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
 
 _log = fancylogger.getLogger('extensioneasyblock', fname=False)
@@ -122,17 +122,36 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['exts_filter'] = exts_filter
         self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
 
-        fake_mod_data = None
-        if not (self.is_extension or self.dry_run):
-            # load fake module
-            fake_mod_data = self.load_fake_module(purge=True)
+        # for stand-alone installations that were done for multiple dependency versions (via multi_deps),
+        # we need to perform the extension sanity check for each of them, by loading the corresponding modules first
+        if self.cfg['multi_deps'] and not self.is_extension:
+            multi_deps = self.cfg.get_parsed_multi_deps()
+            lists_of_extra_modules = [[d['short_mod_name'] for d in deps] for deps in multi_deps]
+        else:
+            # make sure Extension sanity check step is run once, by using a single empty list of extra modules
+            lists_of_extra_modules = [[]]
 
-        # perform extension sanity check
-        (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
+        for extra_modules in lists_of_extra_modules:
 
-        if fake_mod_data:
-            # unload fake module and clean up
-            self.clean_up_fake_module(fake_mod_data)
+            fake_mod_data = None
+
+            # only load fake module + extra modules for stand-alone installations (not for extensions),
+            # since for extension the necessary modules should already be loaded at this point
+            if not (self.is_extension or self.dry_run):
+                # load fake module
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
+
+                if extra_modules:
+                    info_msg = "Running extension sanity check with extra modules: %s" % ', '.join(extra_modules)
+                    self.log.info(info_msg)
+                    trace_msg(info_msg)
+
+            # perform extension sanity check
+            (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
+
+            if fake_mod_data:
+                # unload fake module and clean up
+                self.clean_up_fake_module(fake_mod_data)
 
         if custom_paths or custom_commands or not self.is_extension:
             super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,

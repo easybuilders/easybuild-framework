@@ -62,7 +62,7 @@ from easybuild.tools.github import close_pr, list_prs, new_pr, merge_pr, update_
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.robot import check_conflicts, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
@@ -231,7 +231,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.close_pr:
-        close_pr(options.close_pr, reasons=options.close_pr_msg)
+        close_pr(options.close_pr, motivation_msg=options.close_pr_msg)
 
     elif options.list_prs:
         print(list_prs(options.list_prs))
@@ -342,7 +342,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         clean_exit(logfile, eb_tmpdir, testing)
 
     forced = options.force or options.rebuild
-    dry_run_mode = options.dry_run or options.dry_run_short
+    dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not (forced or dry_run_mode or options.extended_dry_run or new_update_preview_pr or options.inject_checksums):
@@ -379,7 +379,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     elif dry_run_mode:
-        txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
+        if options.missing_modules:
+            txt = missing_deps(easyconfigs, modtool)
+        else:
+            txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     elif options.check_conflicts:

@@ -122,23 +122,13 @@ tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, 
          tw, p, i, pkg, d, env, et, y, st, h, ct, lib]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
-
-# uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
-xml_msg = ""
-try:
-    import xmlrunner  # requires unittest-xml-reporting package
-    xml_dir = 'test-reports'
-    res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(SUITE)
-    xml_msg = ", XML output of tests available in %s directory" % xml_dir
-except ImportError, err:
-    sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
-    res = unittest.TextTestRunner().run(SUITE)
+res = unittest.TextTestRunner().run(SUITE)
 
 fancylogger.logToFile(log_fn, enable=False)
 
 if not res.wasSuccessful():
     sys.stderr.write("ERROR: Not all tests were successful.\n")
-    print "Log available at %s" % log_fn, xml_msg
+    print "Log available at %s" % log_fn
     sys.exit(2)
 else:
     for fn in glob.glob('%s*' % log_fn):
