@@ -131,6 +131,10 @@ class ContainerGenerator(object):
                                      recipe_path)
 
         recipe_content = template % data
+
+        # strip off leading/trailing whitespace from recipe
+        recipe_content = recipe_content.strip()
+
         write_file(recipe_path, recipe_content)
         print_msg("%s definition file created at %s" % (self.RECIPE_FILE_NAME, recipe_path), log=self.log)
 
