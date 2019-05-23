@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20190521.01'
+EB_BOOTSTRAP_VERSION = '20190523.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -738,6 +738,11 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
             eb_args.append('--installpath=%s' % install_path)
         if sourcepath is not None:
             eb_args.append('--sourcepath=%s' % sourcepath)
+
+        # make sure EasyBuild can find EasyBuild-*.eb easyconfig file when it needs to;
+        # (for example when HierarchicalMNS is used as module naming scheme,
+        #  see https://github.com/easybuilders/easybuild-framework/issues/2393)
+        eb_args.append('--robot-paths=%s:' % tmpdir)
 
     # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
     if install_path is not None:
