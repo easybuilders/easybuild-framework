@@ -74,13 +74,14 @@ class ContainersTest(EnhancedTestCase):
     """Tests for containers support"""
 
     def test_parse_container_base(self):
-        """Test parse_container_base function."""
+        """Test parse_container_basefunction."""
 
         for base_spec in [None, '']:
-            self.assertErrorRegex(EasyBuildError, "--container-base must be specified", parse_container_base, base_spec)
+            error_pattern = "--container-base-image must be specified"
+            self.assertErrorRegex(EasyBuildError, error_pattern, parse_container_base, base_spec)
 
         # format of base spec must be correct: <bootstrap_agent>:<arg> or <bootstrap_agent>:<arg1>:<arg2>
-        error_regex = "Invalid format for --container-base"
+        error_regex = "Invalid format for --container-base-image"
         for base_spec in ['foo', 'foo:bar:baz:sjee']:
             self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base, base_spec)
 
@@ -133,13 +134,13 @@ class ContainersTest(EnhancedTestCase):
             '--experimental',
         ]
 
-        error_pattern = "--container-base must be specified"
+        error_pattern = "--container-base-image must be specified"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # generating Singularity definition file with 'docker' or 'shub' bootstrap agents always works,
         # i.e. image label is not verified, image tag can be anything
         for cont_base in ['docker:test123', 'docker:test123:foo', 'shub:test123', 'shub:test123:foo']:
-            stdout, stderr = self.run_main(args + ['--container-base=%s' % cont_base])
+            stdout, stderr = self.run_main(args + ['--container-base-image=%s' % cont_base])
 
             self.assertFalse(stderr)
             regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
@@ -147,7 +148,7 @@ class ContainersTest(EnhancedTestCase):
 
             remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
-        args.append("--container-base=shub:test123")
+        args.append("--container-base-image=shub:test123")
         self.run_main(args)
 
         # existing definition file is not overwritten without use of --force
@@ -169,7 +170,7 @@ class ContainersTest(EnhancedTestCase):
 
         # with 'localimage' bootstrap agent, specified image must exist
         test_img = os.path.join(self.test_prefix, 'test123.img')
-        args[-1] = "--container-base=localimage:%s" % test_img
+        args[-1] = "--container-base-image=localimage:%s" % test_img
         error_pattern = "Singularity base image at specified path does not exist"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
@@ -192,7 +193,7 @@ class ContainersTest(EnhancedTestCase):
         # image extension must make sense when localimage is used
         for img_name in ['test123.foo', 'test123']:
             test_img = os.path.join(self.test_prefix, img_name)
-            args[-1] = "--container-base=localimage:%s" % test_img
+            args[-1] = "--container-base-image=localimage:%s" % test_img
             write_file(test_img, '')
             error_pattern = "Invalid image extension '.*' must be \.img or \.simg"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
@@ -214,7 +215,7 @@ class ContainersTest(EnhancedTestCase):
             toy_ec,
             '-C',  # equivalent with --containerize
             '--experimental',
-            '--container-base=localimage:%s' % test_img,
+            '--container-base-image=localimage:%s' % test_img,
             '--container-build-image',
         ]
 
@@ -314,30 +315,30 @@ class ContainersTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
                               self.run_main,
-                              base_args + ['--container-base=not-supported'],
+                              base_args + ['--container-base-image=not-supported'],
                               raise_error=True)
 
         for cont_base in ['ubuntu:16.04', 'centos:7']:
-            stdout, stderr = self.run_main(base_args + ['--container-base=%s' % cont_base])
+            stdout, stderr = self.run_main(base_args + ['--container-base-image=%s' % cont_base])
             self.assertFalse(stderr)
             regexs = ["^== Dockerfile definition file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
             self.check_regexs(regexs, stdout)
             remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
-        self.run_main(base_args + ['--container-base=centos:7'])
+        self.run_main(base_args + ['--container-base-image=centos:7'])
 
         error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, " \
                         "not overwriting it without --force" % self.test_prefix
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
                               self.run_main,
-                              base_args + ['--container-base=centos:7'],
+                              base_args + ['--container-base-image=centos:7'],
                               raise_error=True)
 
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-        self.run_main(base_args + ['--container-base=ubuntu:16.04'])
+        self.run_main(base_args + ['--container-base-image=ubuntu:16.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
             "FROM ubuntu:16.04",
@@ -361,7 +362,7 @@ class ContainersTest(EnhancedTestCase):
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-type=docker',
-            '--container-base=ubuntu:16.04',
+            '--container-base-image=ubuntu:16.04',
             '--container-build-image',
         ]
 
@@ -394,6 +395,45 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         self.check_regexs(regexs, stdout)
+
+    def test_container_base_config_template_recipe(self):
+        """Test use of --container-base-config and --container-template-recipe."""
+        tmpl_path = os.path.join(self.test_prefix, 'tmpl.txt')
+        tmpl_txt = '\n'.join([
+            "# this is just a test",
+            "bootstrap: %(bootstrap)s",
+            "from: %(from)s",
+            '',
+            '%%post',
+            "eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+        ])
+        write_file(tmpl_path, tmpl_txt)
+        args = [
+            '--experimental',
+            '--containerize',
+            '--container-template-recipe=%s' % tmpl_path,
+            'toy-0.0.eb',
+        ]
+        error_pattern = "Either --container-base-config or --container-base-image must be specified!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args)
+
+        args.extend(['--container-base-config', 'bootstrap=test,from=foobar'])
+        stdout, stderr = self.run_main(args)
+
+        self.assertFalse(stderr)
+        regex = re.compile("^== Singularity definition file created at .*/containers/Singularity.toy-0.0$")
+        self.assertTrue(regex.match(stdout), "Stdout matches pattern '%s': %s" % (regex.pattern, stdout))
+
+        expected = '\n'.join([
+            "# this is just a test",
+            "bootstrap: test",
+            "from: foobar",
+            "",
+            "%post",
+            "eb toy-0.0.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+        ])
+        cont_recipe = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+        self.assertEqual(cont_recipe, expected)
 
 
 def suite():
