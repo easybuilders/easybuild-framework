@@ -2865,11 +2865,19 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         tc_regex = re.compile('^toolchain = .*', re.M)
 
-        for dummy_ver in ['dummy', '', '1.2.3']:
-            write_file(test_ec, tc_regex.sub("toolchain = {'name': 'dummy', 'version': '%s'}" % dummy_ver, toy_ectxt))
+        tc_strs = [
+            "{'name': 'dummy', 'version': 'dummy'}",
+            "{'name': 'dummy', 'version': ''}",
+            "{'name': 'dummy', 'version': '1.2.3'}",
+            "{'version': '', 'name': 'dummy'}",
+            "{'version': 'dummy', 'name': 'dummy'}",
+        ]
+
+        for tc_str in tc_strs:
+            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, toy_ectxt))
 
             test_ec_txt = read_file(test_ec)
-            regex = re.compile("^toolchain = {'name': 'dummy', .*$", re.M)
+            regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
             self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
 
             self.mock_stderr(True)
