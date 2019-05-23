@@ -189,6 +189,11 @@ class ContainersTest(EnhancedTestCase):
         ]
         self.check_regexs(regexs, def_file)
 
+        # there should be no leading/trailing whitespace included
+        for pattern in [r'^\s+', r'\s+$']:
+            regex = re.compile(pattern)
+            self.assertFalse(regex.search(def_file), "Pattern '%s' should *not* be found in: %s" % (pattern, def_file))
+
         # image extension must make sense when localimage is used
         for img_name in ['test123.foo', 'test123']:
             test_img = os.path.join(self.test_prefix, img_name)
@@ -345,6 +350,11 @@ class ContainersTest(EnhancedTestCase):
             "module load toy/0.0 GCC/4.9.2",
         ]
         self.check_regexs(regexs, def_file)
+
+        # there should be no leading/trailing whitespace included
+        for pattern in [r'^\s+', r'\s+$']:
+            regex = re.compile(pattern)
+            self.assertFalse(regex.search(def_file), "Pattern '%s' should *not* be found in: %s" % (pattern, def_file))
 
     def test_end2end_docker_image(self):
 
