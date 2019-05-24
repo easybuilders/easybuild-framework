@@ -41,7 +41,7 @@ from easybuild.tools.containers.singularity import parse_container_base
 
 MOCKED_SINGULARITY = """#!/bin/bash
 if [[ $1 == '--version' ]]; then
-    echo "2.4.0"
+    echo "%(version)s"
 else
     echo "singularity was called with arguments: $@"
     # actually create image file using 'touch'
@@ -230,7 +230,7 @@ class ContainersTest(EnhancedTestCase):
 
         # install mocked versions of 'sudo' and 'singularity' commands
         singularity = os.path.join(self.test_prefix, 'bin', 'singularity')
-        write_file(singularity, MOCKED_SINGULARITY)
+        write_file(singularity, '')  # placeholder
         adjust_permissions(singularity, stat.S_IXUSR, add=True)
 
         sudo = os.path.join(self.test_prefix, 'bin', 'sudo')
@@ -239,31 +239,39 @@ class ContainersTest(EnhancedTestCase):
 
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
-        stdout, stderr = self.run_main(args)
-        self.assertFalse(stderr)
-        regexs = [
-            "^== singularity tool found at %s/bin/singularity" % self.test_prefix,
-            "^== singularity version '2.4.0' is 2.4 or higher ... OK",
-            "^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
-            "^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
-            "^== Singularity image created at %s/containers/toy-0.0\.simg" % self.test_prefix,
-        ]
-        self.check_regexs(regexs, stdout)
+        for (version, ext) in [('2.4.0', 'simg'), ('3.1.0', 'sif')]:
+            write_file(singularity, MOCKED_SINGULARITY % {'version': version})
 
-        self.assertTrue(os.path.exists(os.path.join(containerpath, 'toy-0.0.simg')))
+            stdout, stderr = self.run_main(args)
+            self.assertFalse(stderr)
+            regexs = [
+                "^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+                "^== singularity version '%s' is 2.4 or higher ... OK" % version,
+                "^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
+                "^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
+                "^== Singularity image created at %s/containers/toy-0.0\.%s" % (self.test_prefix, ext),
+            ]
+            self.check_regexs(regexs, stdout)
 
-        remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
+            self.assertTrue(os.path.exists(os.path.join(containerpath, 'toy-0.0.%s' % ext)))
+
+            remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
         # check use of --container-image-format & --container-image-name
+        write_file(singularity, MOCKED_SINGULARITY % {'version': '2.4.0'})
         args.extend([
             "--container-image-format=ext3",
             "--container-image-name=foo-bar",
         ])
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
-        regexs[-3] = "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix
-        regexs[-2] = "^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*"
-        regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix
+        regexs = [
+            "^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+            "^== singularity version '2.4.0' is 2.4 or higher ... OK",
+            "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix,
+            "^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*",
+            "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix,
+        ]
         self.check_regexs(regexs, stdout)
 
         cont_img = os.path.join(containerpath, 'foo-bar.img')
