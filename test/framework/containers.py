@@ -36,7 +36,7 @@ from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
-from easybuild.tools.containers.singularity import parse_container_base
+from easybuild.tools.containers.singularity import parse_container_base_image
 
 
 MOCKED_SINGULARITY = """#!/bin/bash
@@ -73,32 +73,32 @@ fi
 class ContainersTest(EnhancedTestCase):
     """Tests for containers support"""
 
-    def test_parse_container_base(self):
-        """Test parse_container_basefunction."""
+    def test_parse_container_base_image(self):
+        """Test parse_container_base_image function."""
 
         for base_spec in [None, '']:
             error_pattern = "--container-base-image must be specified"
-            self.assertErrorRegex(EasyBuildError, error_pattern, parse_container_base, base_spec)
+            self.assertErrorRegex(EasyBuildError, error_pattern, parse_container_base_image, base_spec)
 
         # format of base spec must be correct: <bootstrap_agent>:<arg> or <bootstrap_agent>:<arg1>:<arg2>
         error_regex = "Invalid format for --container-base-image"
         for base_spec in ['foo', 'foo:bar:baz:sjee']:
-            self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base, base_spec)
+            self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base_image, base_spec)
 
         # bootstrap agent must be known
-        error_regex = "Bootstrap agent in container base spec must be one of: docker, localimage, shub"
-        self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base, 'foo:bar')
+        error_regex = "Bootstrap agent in container base image spec must be one of: docker, library, localimage, shub"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base_image, 'foo:bar')
 
         # check parsing of 'localimage' base spec
         expected = {'bootstrap_agent': 'localimage', 'arg1': '/path/to/base.img'}
-        self.assertEqual(parse_container_base('localimage:/path/to/base.img'), expected)
+        self.assertEqual(parse_container_base_image('localimage:/path/to/base.img'), expected)
 
         # check parsing of 'docker' and 'shub' base spec (2nd argument, image tag, is optional)
         for agent in ['docker', 'shub']:
             expected = {'bootstrap_agent': agent, 'arg1': 'foo'}
-            self.assertEqual(parse_container_base('%s:foo' % agent), expected)
+            self.assertEqual(parse_container_base_image('%s:foo' % agent), expected)
             expected.update({'arg2': 'bar'})
-            self.assertEqual(parse_container_base('%s:foo:bar' % agent), expected)
+            self.assertEqual(parse_container_base_image('%s:foo:bar' % agent), expected)
 
     def run_main(self, args, raise_error=True):
         """Helper function to run main with arguments specified in 'args' and return stdout/stderr."""
@@ -118,8 +118,8 @@ class ContainersTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-    def test_end2end_singularity_recipe(self):
-        """End-to-end test for --containerize (recipe only)."""
+    def test_end2end_singularity_recipe_base_image(self):
+        """End-to-end test for --containerize (recipe only), using --container-base-image."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
@@ -134,7 +134,7 @@ class ContainersTest(EnhancedTestCase):
             '--experimental',
         ]
 
-        error_pattern = "--container-base-image must be specified"
+        error_pattern = "--container-base-config or --container-base-image must be specified"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # generating Singularity definition file with 'docker' or 'shub' bootstrap agents always works,
@@ -202,6 +202,98 @@ class ContainersTest(EnhancedTestCase):
             write_file(test_img, '')
             error_pattern = "Invalid image extension '.*' must be \.img or \.simg"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+
+    def test_end2end_singularity_recipe_base_config(self):
+        """End-to-end test for --containerize (recipe only), using --container-base-config."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        containerpath = os.path.join(self.test_prefix, 'containers')
+        os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
+        # --containerpath must be an existing directory (this is done to avoid misconfiguration)
+        mkdir(containerpath)
+
+        test_container_recipe = os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0')
+
+        args = [
+            toy_ec,
+            '--containerize',
+            '--experimental',
+        ]
+
+        args.extend(['--container-base-config', 'bootstrap=foobar'])
+        error_pattern = r"Unknown value specified for 'bootstrap' keyword: foobar \(known: arch, busybox, debootstrap, "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+
+        # default mirror URL for yum bootstrap agent uses ${OSVERSION}, so 'osversion' must be specified too
+        args.extend(['--container-base-config', 'bootstrap=yum'])
+        error_pattern = "Keyword 'osversion' is required in container base config when '%{OSVERSION}' is used"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810'
+        stdout, stderr = self.run_main(args, raise_error=True)
+
+        txt = read_file(test_container_recipe)
+        expected = '\n'.join([
+            "Bootstrap: yum",
+            "OSVersion: 7.6.1810",
+            "MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/os/x86_64/",
+            '',
+        ])
+        self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+
+        remove_file(test_container_recipe)
+
+        # can also specify a custom mirror URL
+        args[-1] += ',mirrorurl=https://example.com'
+        stdout, stderr = self.run_main(args, raise_error=True)
+
+        txt = read_file(test_container_recipe)
+        expected = '\n'.join([
+            "Bootstrap: yum",
+            "OSVersion: 7.6.1810",
+            "MirrorURL: https://example.com",
+            '',
+        ])
+        self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+
+        remove_file(test_container_recipe)
+
+        # osversion is not required when %{OSVERSION} is nost used in mirror URL
+        args[-1] = 'bootstrap=yum,mirrorurl=https://example.com'
+        stdout, stderr = self.run_main(args, raise_error=True)
+
+        txt = read_file(test_container_recipe)
+        expected = '\n'.join([
+            "Bootstrap: yum",
+            "MirrorURL: https://example.com",
+            '',
+        ])
+        self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+
+        # also check with image-based bootstrap agent, which requires 'from'
+        test_cases = [
+            ('docker', 'test'),
+            ('localimage', 'test.simg'),
+            ('library', 'sylabsed/examples/lolcow:latest'),
+            ('shub', 'test'),
+        ]
+        error_pattern = "Keyword 'from' is required in container base config when using bootstrap agent"
+        for (bootstrap, from_spec) in test_cases:
+            args[-1] = 'bootstrap=%s' % bootstrap
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+
+            args[-1] += ',from=%s' % from_spec
+            remove_file(test_container_recipe)
+            stdout, stderr = self.run_main(args, raise_error=True)
+
+            txt = read_file(test_container_recipe)
+            expected = '\n'.join([
+                "Bootstrap: %s" % bootstrap,
+                "From: %s" % from_spec,
+                '',
+            ])
+            self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
     def test_end2end_singularity_image(self):
         """End-to-end test for --containerize (recipe + image)."""
@@ -435,7 +527,7 @@ class ContainersTest(EnhancedTestCase):
         error_pattern = "Either --container-base-config or --container-base-image must be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args)
 
-        args.extend(['--container-base-config', 'bootstrap=test,from=foobar'])
+        args.extend(['--container-base-config', 'bootstrap=localimage,from=foobar'])
         stdout, stderr = self.run_main(args)
 
         self.assertFalse(stderr)
@@ -444,7 +536,7 @@ class ContainersTest(EnhancedTestCase):
 
         expected = '\n'.join([
             "# this is just a test",
-            "bootstrap: test",
+            "bootstrap: localimage",
             "from: foobar",
             "",
             "%post",
