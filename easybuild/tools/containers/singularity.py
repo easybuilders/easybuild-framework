@@ -28,10 +28,13 @@ Support for generating singularity container recipes and creating container imag
 :author: Kenneth Hoste (HPC-UGent)
 :author: Mohamed Abidi (Bright Computing)
 """
+from distutils.version import LooseVersion
 import os
+import re
 
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
-from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
+from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
+from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
 from easybuild.tools.filetools import read_file, remove_file, which
 from easybuild.tools.run import run_cmd
@@ -83,6 +86,20 @@ class SingularityContainer(ContainerGenerator):
     TOOLS = {'singularity': '2.4', 'sudo': None}
 
     RECIPE_FILE_NAME = 'Singularity'
+
+    @staticmethod
+    def singularity_version():
+        """Get Singularity version."""
+        version_cmd = "singularity --version"
+        out, ec = run_cmd(version_cmd, simple=False, trace=False, force_in_dry_run=True)
+        if ec:
+            raise EasyBuildError("Error running '%s': %s for tool {1} with output: {2}" % (version_cmd, out))
+
+        res = re.search(r"\d+\.\d+(\.\d+)?", out.strip())
+        if not res:
+            raise EasyBuildError("Error parsing Singularity version: %s" % out)
+
+        return res.group(0)
 
     def resolve_template(self):
         """Return template container recipe."""
@@ -210,14 +227,24 @@ class SingularityContainer(ContainerGenerator):
 
         image_format = self.image_format
 
+        singularity_version = self.singularity_version()
+
         # squashfs image format (default for Singularity)
-        if image_format in [None, CONT_IMAGE_FORMAT_SQUASHFS]:
-            img_path = os.path.join(cont_path, img_name + '.simg')
+        if image_format in [None, CONT_IMAGE_FORMAT_SQUASHFS, CONT_IMAGE_FORMAT_SIF]:
+            if LooseVersion(singularity_version) > LooseVersion('3.0'):
+                ext = '.sif'
+            else:
+                ext = '.simg'
+            img_path = os.path.join(cont_path, img_name + ext)
 
         # ext3 image format, creating as writable container
         elif image_format == CONT_IMAGE_FORMAT_EXT3:
-            img_path = os.path.join(cont_path, img_name + '.img')
-            cmd_opts = '--writable'
+            if LooseVersion(singularity_version) > LooseVersion('3.0'):
+                raise EasyBuildError("ext3 image format is only supported with Singularity 2.x (found Singularity %s)",
+                                     singularity_version)
+            else:
+                img_path = os.path.join(cont_path, img_name + '.img')
+                cmd_opts = '--writable'
 
         # sandbox image format, creates as a directory but acts like a container
         elif image_format == CONT_IMAGE_FORMAT_SANDBOX:
