@@ -245,11 +245,11 @@ class ContainersTest(EnhancedTestCase):
             stdout, stderr = self.run_main(args)
             self.assertFalse(stderr)
             regexs = [
-                "^== singularity tool found at %s/bin/singularity" % self.test_prefix,
-                "^== singularity version '%s' is 2.4 or higher ... OK" % version,
-                "^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
-                "^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
-                "^== Singularity image created at %s/containers/toy-0.0\.%s" % (self.test_prefix, ext),
+                r"^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+                r"^== singularity version '%s' is 2.4 or higher ... OK" % version,
+                r"^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
+                r"^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
+                r"^== Singularity image created at %s/containers/toy-0.0\.%s" % (self.test_prefix, ext),
             ]
             self.check_regexs(regexs, stdout)
 
@@ -266,11 +266,11 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            "^== singularity tool found at %s/bin/singularity" % self.test_prefix,
-            "^== singularity version '2.4.0' is 2.4 or higher ... OK",
-            "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix,
-            "^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*",
-            "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix,
+            r"^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+            r"^== singularity version '2.4.0' is 2.4 or higher ... OK",
+            r"^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix,
+            r"^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*",
+            r"^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix,
         ]
         self.check_regexs(regexs, stdout)
 

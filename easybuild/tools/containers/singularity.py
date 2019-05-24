@@ -95,7 +95,7 @@ class SingularityContainer(ContainerGenerator):
         if ec:
             raise EasyBuildError("Error running '%s': %s for tool {1} with output: {2}" % (version_cmd, out))
 
-        res = re.search("\d+\.\d+(\.\d+)?", out.strip())
+        res = re.search(r"\d+\.\d+(\.\d+)?", out.strip())
         if not res:
             raise EasyBuildError("Error parsing Singularity version: %s" % out)
 
