@@ -49,13 +49,18 @@ LIBRARY = 'library'  # Sylabs Container Library
 LOCALIMAGE = 'localimage'  # local image file
 SHUB = 'shub'  # image hosted on Singularity Hub
 YUM = 'yum'  # yum-based systems like CentOS
-ZYPPER = 'zypper'  # zypper-based systems like CentOS
+ZYPPER = 'zypper'  # zypper-based systems like openSUSE
 
 # valid bootstrap agents for 'bootstrap' keyword in --container-base-config
 SINGULARITY_BOOTSTRAP_AGENTS = [ARCH, BUSYBOX, DEBOOTSTRAP, DOCKER, LIBRARY, LOCALIMAGE, SHUB, YUM, ZYPPER]
 
 # valid bootstrap agents for --container-base-image value
 SINGULARITY_BOOTSTRAP_AGENTS_IMAGE = [DOCKER, LIBRARY, LOCALIMAGE, SHUB]
+
+SINGULARITY_INCLUDE_DEFAULTS = {
+    YUM: 'yum',
+    ZYPPER: 'zypper',
+}
 
 SINGULARITY_MIRRORURL_DEFAULTS = {
     BUSYBOX: 'https://www.busybox.net/downloads/binaries/%{OSVERSION}/busybox-x86_64',
@@ -171,7 +176,7 @@ class SingularityContainer(ContainerGenerator):
                                  bootstrap)
 
         # use default value for mirror URI if none was specified
-        if bootstrap in [BUSYBOX, DEBOOTSTRAP, YUM, ZYPPER] and template_data.get('mirrorurl') is None:
+        if bootstrap in SINGULARITY_MIRRORURL_DEFAULTS and template_data.get('mirrorurl') is None:
             template_data['mirrorurl'] = SINGULARITY_MIRRORURL_DEFAULTS[bootstrap]
 
         # check whether OS version is specified if required
@@ -179,6 +184,10 @@ class SingularityContainer(ContainerGenerator):
         if mirrorurl and '%{OSVERSION}' in mirrorurl and template_data.get('osversion') is None:
             raise EasyBuildError("Keyword 'osversion' is required in container base config when '%%{OSVERSION}' "
                                  "is used in mirror URI: %s", mirrorurl)
+
+        # use default value for list of included OS packages if nothing else was specified
+        if bootstrap in SINGULARITY_INCLUDE_DEFAULTS and template_data.get('include') is None:
+            template_data['include'] = SINGULARITY_INCLUDE_DEFAULTS[bootstrap]
 
         return template_data
 

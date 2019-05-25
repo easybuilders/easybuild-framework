@@ -238,7 +238,8 @@ class ContainersTest(EnhancedTestCase):
             "Bootstrap: yum",
             "OSVersion: 7.6.1810",
             "MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/os/x86_64/",
-            '',
+            "Include: yum",
+            '\n',
         ])
         self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
@@ -253,21 +254,23 @@ class ContainersTest(EnhancedTestCase):
             "Bootstrap: yum",
             "OSVersion: 7.6.1810",
             "MirrorURL: https://example.com",
-            '',
+            "Include: yum",
+            '\n',
         ])
         self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
         remove_file(test_container_recipe)
 
         # osversion is not required when %{OSVERSION} is nost used in mirror URL
-        args[-1] = 'bootstrap=yum,mirrorurl=https://example.com'
+        args[-1] = 'bootstrap=yum,mirrorurl=https://example.com,include=test123'
         stdout, stderr = self.run_main(args, raise_error=True)
 
         txt = read_file(test_container_recipe)
         expected = '\n'.join([
             "Bootstrap: yum",
             "MirrorURL: https://example.com",
-            '',
+            "Include: test123",
+            '\n',
         ])
         self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
