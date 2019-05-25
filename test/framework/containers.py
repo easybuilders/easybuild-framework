@@ -221,6 +221,10 @@ class ContainersTest(EnhancedTestCase):
             '--experimental',
         ]
 
+        args.extend(['--container-base-config', 'osversion=7.6.1810'])
+        error_pattern = r"Keyword 'bootstrap' is required in container base config"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+
         args.extend(['--container-base-config', 'bootstrap=foobar'])
         error_pattern = r"Unknown value specified for 'bootstrap' keyword: foobar \(known: arch, busybox, debootstrap, "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)

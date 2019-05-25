@@ -162,7 +162,7 @@ class SingularityContainer(ContainerGenerator):
                 raise EasyBuildError("Unknown key for base container configuration: %s", key)
 
         # make sure correct bootstrap agent is specified
-        bootstrap = template_data['bootstrap']
+        bootstrap = template_data.get('bootstrap')
         if bootstrap:
             if bootstrap not in SINGULARITY_BOOTSTRAP_AGENTS:
                 raise EasyBuildError("Unknown value specified for 'bootstrap' keyword: %s (known: %s)",
