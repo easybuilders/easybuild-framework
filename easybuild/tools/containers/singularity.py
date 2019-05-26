@@ -41,15 +41,37 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.containers.base import ContainerGenerator
 
 
-DOCKER = 'docker'
-LOCALIMAGE = 'localimage'
-SHUB = 'shub'
-SINGULARITY_BOOTSTRAP_TYPES = [DOCKER, LOCALIMAGE, SHUB]
+ARCH = 'arch'  # Arch Linux
+BUSYBOX = 'busybox'  # BusyBox Linux
+DEBOOTSTRAP = 'debootstrap'  # apt-based systems like Ubuntu/Debian
+DOCKER = 'docker'  # image hosted on Docker Hub
+LIBRARY = 'library'  # Sylabs Container Library
+LOCALIMAGE = 'localimage'  # local image file
+SHUB = 'shub'  # image hosted on Singularity Hub
+YUM = 'yum'  # yum-based systems like CentOS
+ZYPPER = 'zypper'  # zypper-based systems like openSUSE
 
+# valid bootstrap agents for 'bootstrap' keyword in --container-base-config
+SINGULARITY_BOOTSTRAP_AGENTS = [ARCH, BUSYBOX, DEBOOTSTRAP, DOCKER, LIBRARY, LOCALIMAGE, SHUB, YUM, ZYPPER]
+
+# valid bootstrap agents for --container-base-image value
+SINGULARITY_BOOTSTRAP_AGENTS_IMAGE = [DOCKER, LIBRARY, LOCALIMAGE, SHUB]
+
+SINGULARITY_INCLUDE_DEFAULTS = {
+    YUM: 'yum',
+    ZYPPER: 'zypper',
+}
+
+SINGULARITY_MIRRORURL_DEFAULTS = {
+    BUSYBOX: 'https://www.busybox.net/downloads/binaries/%{OSVERSION}/busybox-x86_64',
+    DEBOOTSTRAP: 'http://us.archive.ubuntu.com/ubuntu/',
+    YUM: 'http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/os/x86_64/',
+    ZYPPER: 'http://download.opensuse.org/distribution/leap/%{OSVERSION}/repo/oss/',
+}
 
 SINGULARITY_TEMPLATE = """
 Bootstrap: %(bootstrap)s
-From: %(from)s
+%(bootstrap_config)s
 
 %%post
 %(install_os_deps)s
@@ -115,26 +137,63 @@ class SingularityContainer(ContainerGenerator):
 
         template_data = {}
 
-        base_config_keys = ['bootstrap', 'from']
+        base_config_known_keys = [
+            # bootstrap agent to use
+            # see https://www.sylabs.io/guides/latest/user-guide/definition_files.html#header
+            'bootstrap',
+            # argument for bootstrap agents; only valid for: docker, library, localimage, shub
+            'from',
+            # list of additional OS packages to include; only valid with debootstrap, yum, zypper
+            'include',
+            # URI to use to download OS; only valid with busybox, debootstrap, yum, zypper
+            'mirrorurl',
+            # OS 'version' to use; only valid with busybox, debootstrap, yum, zypper
+            # only required if value for %(mirrorurl)s contains %{OSVERSION}s
+            'osversion',
+        ]
 
         # configuration for base container is assumed to have <key>=<value>[,<key>=<value>] format
         config_items = self.container_base_config.split(',')
         for item in config_items:
             key, value = item.split('=', 1)
-            if key in base_config_keys:
+            if key in base_config_known_keys:
                 template_data[key] = value
             else:
                 raise EasyBuildError("Unknown key for base container configuration: %s", key)
 
-        if sorted(base_config_keys) != sorted(template_data.keys()):
-            raise EasyBuildError("Not all keys for base configuration were specified! Found %s, expected %s",
-                                 ', '.join(sorted(base_config_keys)), ', '.join(sorted(template_data.keys())))
+        # make sure correct bootstrap agent is specified
+        bootstrap = template_data.get('bootstrap')
+        if bootstrap:
+            if bootstrap not in SINGULARITY_BOOTSTRAP_AGENTS:
+                raise EasyBuildError("Unknown value specified for 'bootstrap' keyword: %s (known: %s)",
+                                     bootstrap, ', '.join(SINGULARITY_BOOTSTRAP_AGENTS))
+        else:
+            raise EasyBuildError("Keyword 'bootstrap' is required in container base config")
+
+        # make sure 'from' is specified when required
+        if bootstrap in SINGULARITY_BOOTSTRAP_AGENTS_IMAGE and template_data.get('from') is None:
+            raise EasyBuildError("Keyword 'from' is required in container base config when using bootstrap agent '%s'",
+                                 bootstrap)
+
+        # use default value for mirror URI if none was specified
+        if bootstrap in SINGULARITY_MIRRORURL_DEFAULTS and template_data.get('mirrorurl') is None:
+            template_data['mirrorurl'] = SINGULARITY_MIRRORURL_DEFAULTS[bootstrap]
+
+        # check whether OS version is specified if required
+        mirrorurl = template_data.get('mirrorurl')
+        if mirrorurl and '%{OSVERSION}' in mirrorurl and template_data.get('osversion') is None:
+            raise EasyBuildError("Keyword 'osversion' is required in container base config when '%%{OSVERSION}' "
+                                 "is used in mirror URI: %s", mirrorurl)
+
+        # use default value for list of included OS packages if nothing else was specified
+        if bootstrap in SINGULARITY_INCLUDE_DEFAULTS and template_data.get('include') is None:
+            template_data['include'] = SINGULARITY_INCLUDE_DEFAULTS[bootstrap]
 
         return template_data
 
     def resolve_template_data_base_image(self):
         """Return template data for container recipe based on what is passed to --container-base-image."""
-        base_specs = parse_container_base(self.container_base_image)
+        base_specs = parse_container_base_image(self.container_base_image)
 
         # extracting application name,version, version suffix, toolchain name, toolchain version from
         # easyconfig class
@@ -157,8 +216,8 @@ class SingularityContainer(ContainerGenerator):
             else:
                 raise EasyBuildError("Singularity base image at specified path does not exist: %s", base_image)
 
-        # otherwise, bootstrap agent is 'docker' or 'shub'
-        # format --container-base-image {docker|shub}:<image>:<tag>
+        # otherwise, bootstrap agent is 'docker', 'library' or 'shub'
+        # format --container-base-image {docker|library|shub}:<image>:<tag>
         else:
             base_image = base_specs['arg1']
             # image tag is optional
@@ -190,6 +249,13 @@ class SingularityContainer(ContainerGenerator):
         else:
             raise EasyBuildError("Either --container-base-config or --container-base-image must be specified!")
 
+        # puzzle together specs for bootstrap agent
+        bootstrap_config_lines = []
+        for key in ['From', 'OSVersion', 'MirrorURL', 'Include']:
+            if key.lower() in template_data:
+                bootstrap_config_lines.append('%s: %s' % (key, template_data[key.lower()]))
+        template_data['bootstrap_config'] = '\n'.join(bootstrap_config_lines)
+
         # if there is osdependencies in easyconfig then add them to Singularity recipe
         install_os_deps = ''
         for ec in self.easyconfigs:
@@ -213,6 +279,7 @@ class SingularityContainer(ContainerGenerator):
         return template_data
 
     def build_image(self, recipe_path):
+        """Build container image by calling out to 'sudo singularity build'."""
 
         cont_path = container_path()
         def_file = os.path.basename(recipe_path)
@@ -276,7 +343,7 @@ class SingularityContainer(ContainerGenerator):
         print_msg("Singularity image created at %s" % img_path, log=self.log)
 
 
-def parse_container_base(base):
+def parse_container_base_image(base):
     """Parse value passed to --container-base-image option."""
     if base:
         base_specs = base.split(':')
@@ -284,21 +351,22 @@ def parse_container_base(base):
             error_msg = '\n'.join([
                 "Invalid format for --container-base-image, must be one of the following:",
                 '',
+                "--container-base-image library:<entity>/<collection>/<container>:<tag>",
                 "--container-base-image localimage:/path/to/image",
-                "--container-base-image shub:<image>:<tag>",
-                "--container-base-image docker:<image>:<tag>",
+                "--container-base-image shub:<registry>/<username>/<container-name>:<tag>@digest",
+                "--container-base-image docker:<registry>/<namespace>/<container>:<tag>@<digest>",
             ])
             raise EasyBuildError(error_msg)
     else:
         raise EasyBuildError("--container-base-image must be specified")
 
-    # first argument to --container-base-image is the Singularity bootstrap agent (localimage, shub, docker)
+    # first argument to --container-base-image is the Singularity bootstrap agent (library, localimage, shub, docker)
     bootstrap_agent = base_specs[0]
 
-    # check bootstrap type value and ensure it is localimage, shub, docker
-    if bootstrap_agent not in SINGULARITY_BOOTSTRAP_TYPES:
-        known_bootstrap_agents = ', '.join(SINGULARITY_BOOTSTRAP_TYPES)
-        raise EasyBuildError("Bootstrap agent in container base spec must be one of: %s" % known_bootstrap_agents)
+    # check bootstrap type value and ensure it is library, localimage, shub, docker
+    if bootstrap_agent not in SINGULARITY_BOOTSTRAP_AGENTS_IMAGE:
+        known_bootstrap_agents = ', '.join(SINGULARITY_BOOTSTRAP_AGENTS_IMAGE)
+        raise EasyBuildError("Bootstrap agent in container base image spec must be one of: %s" % known_bootstrap_agents)
 
     res = {'bootstrap_agent': bootstrap_agent}
 
