@@ -2167,9 +2167,12 @@ class EasyBlock(object):
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
                                   lang, shebang, glob_pattern, paths)
-                    regex = r'^#!.*/%s[0-9.]*$' % lang
+                    # Use a regex group to capture any option passed to the interpreter
+                    # in the original shebang to preserve them in the new one.
+                    regex = r'^#!.*/%s[0-9.]?([^\.]*)$' % lang
+                    replace = r'%s\1' % shebang
                     for path in paths:
-                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
+                        apply_regex_substitutions(path, [(regex, replace)], backup=False)
 
     def post_install_step(self):
         """
