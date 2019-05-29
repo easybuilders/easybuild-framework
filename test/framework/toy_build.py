@@ -2261,12 +2261,12 @@ class ToyBuildTest(EnhancedTestCase):
         for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl']:
             perlbin_path = os.path.join(toy_bindir, perlbin)
             perlbin_txt = read_file(perlbin_path)
-            if perlbin != 't4.pl':
-                self.assertTrue(perl_shebang_regex.match(perlbin_txt),
-                                "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+            if perlbin == 't4.pl':
+                regex = perl_opt_shebang_regex
             else:
-                self.assertTrue(perl_opt_shebang_regex.match(perlbin_txt),
-                                "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+                regex = perl_shebang_regex
+            self.assertTrue(regex.match(perlbin_txt),
+                            "Pattern '%s' found in %s: %s" % (regex.pattern, perlbin_path, perlbin_txt))
 
 def suite():
     """ return all the tests in this file """
