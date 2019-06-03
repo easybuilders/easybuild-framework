@@ -1041,13 +1041,11 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             backup_ext = ''
 
         try:
-            counter = 0
-            for line in fileinput.input(path, inplace=1, backup=backup_ext):
-                counter += 1
+            for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
                 for regex, subtxt in regex_subs:
                     match = regex.search(line)
                     if match:
-                        _log.info("Replacing line %d in %s: '%s' -> '%s'", counter, path, match.group(0), subtxt)
+                        _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, match.group(0), subtxt)
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
 
