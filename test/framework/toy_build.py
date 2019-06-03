@@ -2237,6 +2237,7 @@ class ToyBuildTest(EnhancedTestCase):
             "   'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
             "   'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
             "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
+            "   'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
             "]",
             "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py']",
             "fix_perl_shebang_for = 'bin/*.pl'",
@@ -2256,12 +2257,16 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no re.M, this should match at start of file!
         perl_shebang_regex = re.compile(r'^#!/usr/bin/env perl\n# test$')
-        for perlbin in ['t1.pl', 't2.pl', 't3.pl']:
+        perl_opt_shebang_regex = re.compile(r'^#!/usr/bin/env perl -w\n# test$')
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl']:
             perlbin_path = os.path.join(toy_bindir, perlbin)
             perlbin_txt = read_file(perlbin_path)
-            self.assertTrue(perl_shebang_regex.match(perlbin_txt),
-                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
-
+            if perlbin == 't4.pl':
+                regex = perl_opt_shebang_regex
+            else:
+                regex = perl_shebang_regex
+            self.assertTrue(regex.match(perlbin_txt),
+                            "Pattern '%s' found in %s: %s" % (regex.pattern, perlbin_path, perlbin_txt))
 
 def suite():
     """ return all the tests in this file """
