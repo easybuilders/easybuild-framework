@@ -32,7 +32,7 @@ from distutils.version import LooseVersion
 import os
 import re
 
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
@@ -54,10 +54,10 @@ ZYPPER = 'zypper'  # zypper-based systems like openSUSE
 # 'distro' bootstrap agents (starting from scratch, not from existing image)
 SINGULARITY_BOOTSTRAP_AGENTS_DISTRO = [ARCH, BUSYBOX, DEBOOTSTRAP, YUM, ZYPPER]
 
-# valid bootstrap agents for --container-base-image value
+# 'image' bootstrap agents (starting from an existing image)
 SINGULARITY_BOOTSTRAP_AGENTS_IMAGE = [DOCKER, LIBRARY, LOCALIMAGE, SHUB]
 
-# valid bootstrap agents for 'bootstrap' keyword in --container-base-config
+# valid bootstrap agents for 'bootstrap' keyword in --container-config
 SINGULARITY_BOOTSTRAP_AGENTS = sorted(SINGULARITY_BOOTSTRAP_AGENTS_DISTRO + SINGULARITY_BOOTSTRAP_AGENTS_IMAGE)
 
 SINGULARITY_INCLUDE_DEFAULTS = {
@@ -136,12 +136,12 @@ class SingularityContainer(ContainerGenerator):
 
         return template
 
-    def resolve_template_data_base_config(self):
-        """Return template data for container recipe based on what is passed to --container-base-config."""
+    def resolve_template_data_config(self):
+        """Return template data for container recipe based on what is passed to --container-config."""
 
         template_data = {}
 
-        base_config_known_keys = [
+        config_known_keys = [
             # bootstrap agent to use
             # see https://www.sylabs.io/guides/latest/user-guide/definition_files.html#header
             'bootstrap',
@@ -161,10 +161,10 @@ class SingularityContainer(ContainerGenerator):
         ]
 
         # configuration for base container is assumed to have <key>=<value>[,<key>=<value>] format
-        config_items = self.container_base_config.split(',')
+        config_items = self.container_config.split(',')
         for item in config_items:
             key, value = item.split('=', 1)
-            if key in base_config_known_keys:
+            if key in config_known_keys:
                 template_data[key] = value
             else:
                 raise EasyBuildError("Unknown key for base container configuration: %s", key)
@@ -199,63 +199,15 @@ class SingularityContainer(ContainerGenerator):
 
         return template_data
 
-    def resolve_template_data_base_image(self):
-        """Return template data for container recipe based on what is passed to --container-base-image."""
-        base_specs = parse_container_base_image(self.container_base_image)
-
-        # extracting application name,version, version suffix, toolchain name, toolchain version from
-        # easyconfig class
-
-        bootstrap_agent = base_specs['bootstrap_agent']
-
-        base_image, base_image_tag = None, None
-
-        # with localimage it only takes 2 arguments. --container-base-image localimage:/path/to/image
-        # checking if path to image is valid and verify image extension is '.img' or '.simg'
-        if base_specs['bootstrap_agent'] == LOCALIMAGE:
-            base_image = base_specs['arg1']
-            if os.path.exists(base_image):
-                # get the extension of container image
-                image_ext = os.path.splitext(base_image)[1]
-                if image_ext == '.img' or image_ext == '.simg':
-                    self.log.debug("Extension for base container image to use is OK: %s", image_ext)
-                else:
-                    raise EasyBuildError("Invalid image extension '%s' must be .img or .simg", image_ext)
-            else:
-                raise EasyBuildError("Singularity base image at specified path does not exist: %s", base_image)
-
-        # otherwise, bootstrap agent is 'docker', 'library' or 'shub'
-        # format --container-base-image {docker|library|shub}:<image>:<tag>
-        else:
-            base_image = base_specs['arg1']
-            # image tag is optional
-            base_image_tag = base_specs.get('arg2', None)
-
-        bootstrap_from = base_image
-        if base_image_tag:
-            bootstrap_from += ':' + base_image_tag
-
-        return {
-            'bootstrap': bootstrap_agent,
-            'from': bootstrap_from,
-        }
-
     def resolve_template_data(self):
         """Return template data for container recipe."""
 
         template_data = {}
 
-        if self.container_base_image:
-            if self.container_base_config:
-                print_warning("--container-base-config is ignored when --container-base-image is also specified!")
-
-            template_data.update(self.resolve_template_data_base_image())
-
-        elif self.container_base_config:
-            template_data.update(self.resolve_template_data_base_config())
-
+        if self.container_config:
+            template_data.update(self.resolve_template_data_config())
         else:
-            raise EasyBuildError("Either --container-base-config or --container-base-image must be specified!")
+            raise EasyBuildError("--container-config must be specified!")
 
         # puzzle together specs for bootstrap agent
         bootstrap_config_lines = []
@@ -403,36 +355,3 @@ class SingularityContainer(ContainerGenerator):
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
         run_cmd(cmd, stream_output=True)
         print_msg("Singularity image created at %s" % img_path, log=self.log)
-
-
-def parse_container_base_image(base):
-    """Parse value passed to --container-base-image option."""
-    if base:
-        base_specs = base.split(':')
-        if len(base_specs) > 3 or len(base_specs) <= 1:
-            error_msg = '\n'.join([
-                "Invalid format for --container-base-image, must be one of the following:",
-                '',
-                "--container-base-image library:<entity>/<collection>/<container>:<tag>",
-                "--container-base-image localimage:/path/to/image",
-                "--container-base-image shub:<registry>/<username>/<container-name>:<tag>@digest",
-                "--container-base-image docker:<registry>/<namespace>/<container>:<tag>@<digest>",
-            ])
-            raise EasyBuildError(error_msg)
-    else:
-        raise EasyBuildError("--container-base-image must be specified")
-
-    # first argument to --container-base-image is the Singularity bootstrap agent (library, localimage, shub, docker)
-    bootstrap_agent = base_specs[0]
-
-    # check bootstrap type value and ensure it is library, localimage, shub, docker
-    if bootstrap_agent not in SINGULARITY_BOOTSTRAP_AGENTS_IMAGE:
-        known_bootstrap_agents = ', '.join(SINGULARITY_BOOTSTRAP_AGENTS_IMAGE)
-        raise EasyBuildError("Bootstrap agent in container base image spec must be one of: %s" % known_bootstrap_agents)
-
-    res = {'bootstrap_agent': bootstrap_agent}
-
-    for idx, base_spec in enumerate(base_specs[1:]):
-        res.update({'arg%d' % (idx + 1): base_spec})
-
-    return res
