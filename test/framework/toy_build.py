@@ -2261,7 +2261,7 @@ class ToyBuildTest(EnhancedTestCase):
             perlbin_path = os.path.join(toy_bindir, perlbin)
             perlbin_txt = read_file(perlbin_path)
             self.assertTrue(perl_shebang_regex.match(perlbin_txt),
-                            "Pattern '%s' found in %s: %s" % (regex.pattern, perlbin_path, perlbin_txt))
+                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
 
 def suite():
     """ return all the tests in this file """
