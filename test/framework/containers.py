@@ -247,6 +247,29 @@ class ContainersTest(EnhancedTestCase):
         ])
         self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
+        # when installing from scratch, a bunch of OS packages are installed too
+        pkgs = ['epel-release', 'python', 'setuptools', 'Lmod', r'gcc-c\+\+', 'make', 'patch', 'tar']
+        for pkg in pkgs:
+            regex = re.compile(r"^yum install .*%s" % pkg, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        pip_patterns = [
+            # EasyBuild and dependencies are installed with pip by default
+            "pip install -U setuptools",
+            "pip install.*vsc-base",
+            "pip install easybuild",
+        ]
+        post_commands_patterns = [
+            # easybuild user is added if it doesn't exist yet
+            r"id easybuild \|\| useradd easybuild",
+            # /app and /scratch are created (if missing) by default
+            r"if \[ ! -d /app \]; then mkdir -p /app",
+            r"if \[ ! -d /scratch \]; then mkdir -p /scratch",
+        ]
+        for pattern in pip_patterns + post_commands_patterns:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
         remove_file(test_container_recipe)
 
         # can also specify a custom mirror URL
@@ -301,6 +324,41 @@ class ContainersTest(EnhancedTestCase):
                 '',
             ])
             self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+
+            # no OS packages are installed by default when starting from an existing image
+            self.assertFalse("yum install" in txt)
+
+            for pattern in pip_patterns + post_commands_patterns:
+                regex = re.compile('^' + pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        remove_file(test_container_recipe)
+
+        # commands to install EasyBuild can be customized via 'eb_install' keyword
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810,install_eb=easy_install easybuild'
+        stdout, stderr = self.run_main(args, raise_error=True)
+        txt = read_file(test_container_recipe)
+
+        for pattern in pip_patterns:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+
+        regex = re.compile("^easy_install easybuild", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        remove_file(test_container_recipe)
+
+        # post commands be be customized via 'post_commands' keyword
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810,post_commands=id easybuild'
+        stdout, stderr = self.run_main(args, raise_error=True)
+        txt = read_file(test_container_recipe)
+
+        for pattern in post_commands_patterns:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+
+        regex = re.compile("^id easybuild", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
     def test_end2end_singularity_image(self):
         """End-to-end test for --containerize (recipe + image)."""

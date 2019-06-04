@@ -51,11 +51,14 @@ SHUB = 'shub'  # image hosted on Singularity Hub
 YUM = 'yum'  # yum-based systems like CentOS
 ZYPPER = 'zypper'  # zypper-based systems like openSUSE
 
-# valid bootstrap agents for 'bootstrap' keyword in --container-base-config
-SINGULARITY_BOOTSTRAP_AGENTS = [ARCH, BUSYBOX, DEBOOTSTRAP, DOCKER, LIBRARY, LOCALIMAGE, SHUB, YUM, ZYPPER]
+# 'distro' bootstrap agents (starting from scratch, not from existing image)
+SINGULARITY_BOOTSTRAP_AGENTS_DISTRO = [ARCH, BUSYBOX, DEBOOTSTRAP, YUM, ZYPPER]
 
 # valid bootstrap agents for --container-base-image value
 SINGULARITY_BOOTSTRAP_AGENTS_IMAGE = [DOCKER, LIBRARY, LOCALIMAGE, SHUB]
+
+# valid bootstrap agents for 'bootstrap' keyword in --container-base-config
+SINGULARITY_BOOTSTRAP_AGENTS = sorted(SINGULARITY_BOOTSTRAP_AGENTS_DISTRO + SINGULARITY_BOOTSTRAP_AGENTS_IMAGE)
 
 SINGULARITY_INCLUDE_DEFAULTS = {
     YUM: 'yum',
@@ -76,8 +79,9 @@ Bootstrap: %(bootstrap)s
 %%post
 %(install_os_deps)s
 
-# upgrade easybuild package automatically to latest version
-pip install -U easybuild
+%(install_eb)s
+
+%(post_commands)s
 
 # change to 'easybuild' user
 su - easybuild
@@ -145,11 +149,15 @@ class SingularityContainer(ContainerGenerator):
             'from',
             # list of additional OS packages to include; only valid with debootstrap, yum, zypper
             'include',
+            # commands to install EasyBuild
+            'install_eb',
             # URI to use to download OS; only valid with busybox, debootstrap, yum, zypper
             'mirrorurl',
             # OS 'version' to use; only valid with busybox, debootstrap, yum, zypper
             # only required if value for %(mirrorurl)s contains %{OSVERSION}s
             'osversion',
+            # additional commands for 'post' section
+            'post_commands',
         ]
 
         # configuration for base container is assumed to have <key>=<value>[,<key>=<value>] format
@@ -256,19 +264,73 @@ class SingularityContainer(ContainerGenerator):
                 bootstrap_config_lines.append('%s: %s' % (key, template_data[key.lower()]))
         template_data['bootstrap_config'] = '\n'.join(bootstrap_config_lines)
 
-        # if there is osdependencies in easyconfig then add them to Singularity recipe
-        install_os_deps = ''
+        # basic tools & utilities to install in container image
+        osdeps = []
+
+        # install bunch of required/useful OS packages, but only when starting from scratch;
+        # when starting from an existing image, the required OS packages are assumed to be installed already
+        if template_data['bootstrap'] in SINGULARITY_BOOTSTRAP_AGENTS_DISTRO:
+            osdeps.extend([
+                # EPEL is required for installing Lmod
+                'epel-release',
+                # EasyBuild requirements
+                'python setuptools Lmod',
+                # useful utilities
+                'bzip2 gzip tar unzip xz',  # extracting sources
+                'curl wget',  # downloading
+                'patch make',  # building
+                'file git which',  # misc. tools
+                'python-pip',
+                # additional packages that EasyBuild relies on (for now)
+                'gcc-c++',  # C/C++ components of GCC (gcc, g++)
+                'perl-Data-Dumper',  # required for GCC build
+                # required for Automake build, see https://github.com/easybuilders/easybuild-easyconfigs/issues/1822
+                'perl-Thread-Queue',
+            ])
+
+        # also include additional OS dependencies specified in easyconfigs
         for ec in self.easyconfigs:
             for osdep in ec['ec']['osdependencies']:
-                if isinstance(osdep, basestring):
-                    install_os_deps += "yum install -y %s\n" % osdep
-                # tuple entry indicates multiple options
-                elif isinstance(osdep, tuple):
-                    install_os_deps += "yum --skip-broken -y install %s\n" % ' '.join(osdep)
-                else:
-                    raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
+                if osdep not in osdeps:
+                    osdeps.append(osdep)
 
-        template_data['install_os_deps'] = install_os_deps
+        install_os_deps = []
+        for osdep in osdeps:
+            if isinstance(osdep, basestring):
+                install_os_deps.append("yum install --quiet --assumeyes %s" % osdep)
+            # tuple entry indicates multiple options
+            elif isinstance(osdep, tuple):
+                install_os_deps.append("yum --skip-broken --quiet --assumeyes install %s" % ' '.join(osdep))
+            else:
+                raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
+
+        template_data['install_os_deps'] = '\n'.join(install_os_deps)
+
+        # install (latest) EasyBuild in container image
+        # use 'pip install', unless custom commands are specified via 'install_eb' keyword
+        if 'install_eb' not in template_data:
+            template_data['install_eb'] = '\n'.join([
+                "# install EasyBuild using pip",
+                # EasyBuild 3.x requires setuptools as runtime dependency
+                "pip install -U setuptools",
+                # stick to previous version of vsc-install to avoid requiring mock (which causes installation problems)
+                # stick to previous version of vsc-base to avoid requiring 'future' (irrelevant for EasyBuild)
+                # this is just a temporary measure, since vsc-install & vsc-base have been ingested for EasyBuild 4.x
+                "pip install 'vsc-install<0.11.4' 'vsc-base<2.9.0'",
+                "pip install easybuild",
+            ])
+
+        # if no custom value is specified for 'post_commands' keyword,
+        # make sure 'easybuild' user exists and that installation prefix + scratch dir are in place
+        if 'post_commands' not in template_data:
+            template_data['post_commands'] = '\n'.join([
+                "# create 'easybuild' user (if missing)",
+                "id easybuild || useradd easybuild",
+                '',
+                "# create /app software installation prefix + /scratch sandbox directory",
+                "if [ ! -d /app ]; then mkdir -p /app; chown easybuild:easybuild -R /app; fi",
+                "if [ ! -d /scratch ]; then mkdir -p /scratch; chown easybuild:easybuild -R /scratch; fi",
+            ])
 
         # module names to load in container environment
         mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
