@@ -57,6 +57,16 @@ class EB_toy(ExtensionEasyBlock):
         self.cfg['exts_defaultclass'] = "Toy_Extension"
         self.cfg['exts_filter'] = ("%(ext_name)s", "")
 
+    def run_all_steps(self, *args, **kwargs):
+        """
+        Tweak iterative easyconfig parameters.
+        """
+        if isinstance(self.cfg['buildopts'], list):
+            # inject list of values for prebuildopts, same length as buildopts
+            self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
+
+        return super(EB_toy, self).run_all_steps(*args, **kwargs)
+
     def configure_step(self, name=None):
         """Configure build of toy."""
         if name is None:

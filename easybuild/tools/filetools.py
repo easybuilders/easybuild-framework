@@ -676,11 +676,11 @@ def find_eb_script(script_name):
         prev_script_loc = script_loc
 
         # fallback mechanism: check in location relative to location of 'eb'
-        eb_path = resolve_path(which('eb'))
+        eb_path = which('eb')
         if eb_path is None:
             _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
         else:
-            install_prefix = os.path.dirname(os.path.dirname(eb_path))
+            install_prefix = os.path.dirname(os.path.dirname(resolve_path(eb_path)))
             script_loc = os.path.join(install_prefix, 'easybuild', 'scripts', script_name)
 
         if not os.path.exists(script_loc):
@@ -1014,12 +1014,13 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return ec == 0
 
 
-def apply_regex_substitutions(path, regex_subs):
+def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
     """
     Apply specified list of regex substitutions.
 
     :param path: path to file to patch
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
+    :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     """
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
@@ -1033,8 +1034,14 @@ def apply_regex_substitutions(path, regex_subs):
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
+        if backup:
+            backup_ext = backup
+        else:
+            # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
+            backup_ext = ''
+
         try:
-            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+            for line in fileinput.input(path, inplace=1, backup=backup_ext):
                 for regex, subtxt in regex_subs:
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
@@ -1301,12 +1308,12 @@ def find_backup_name_candidate(src_file):
 
     # e.g. 20170817234510 on Aug 17th 2017 at 23:45:10
     timestamp = datetime.datetime.now()
-    dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+    dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
     while os.path.exists(dst_file):
-        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, timestamp)
+        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, dst_file, timestamp)
         time.sleep(1)
         timestamp = datetime.datetime.now()
-        dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+        dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
 
     return dst_file
 

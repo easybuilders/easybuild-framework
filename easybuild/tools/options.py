@@ -273,6 +273,8 @@ class EasyBuildOptions(GeneralOption):
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
+            'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
+                                None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
@@ -663,13 +665,15 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Container options", "Options related to generating container recipes & images")
 
         opts = OrderedDict({
-            'base': ("Base for container image. Examples (for Singularity): "
-                     "--container-base localimage:/path/to/image.img, "
-                     "--container-base shub:<image>:<tag>, "
-                     "--container-base docker:<image>:<tag> ", str, 'store', None),
+            'base-config': ("Configuration for container image", str, 'store', None),
+            'base-image': ("Base image to use for container image. Examples (for Singularity): "
+                           "--container-base-image localimage:/path/to/image.img, "
+                           "--container-base-image shub:<image>:<tag>, "
+                           "--container-base-image docker:<image>:<tag> ", str, 'store', None),
             'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
             'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
             'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
+            'template-recipe': ("Template recipe for container image", str, 'store', None),
             'tmpdir': ("Temporary directory where container image is built", None, 'store', None),
             'type': ("Type of container recipe/image to create", 'choice', 'store', DEFAULT_CONT_TYPE, CONT_TYPES),
         })
@@ -1326,7 +1330,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
-        'silent': testing,
+        'silent': testing or options.new_pr or options.update_pr,
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }

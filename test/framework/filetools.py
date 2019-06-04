@@ -1047,6 +1047,35 @@ class FileToolsTest(EnhancedTestCase):
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
 
+        # backup file is created by default
+        backup = testfile + '.orig.eb'
+        self.assertTrue(os.path.exists(backup))
+        self.assertEqual(ft.read_file(backup), testtxt)
+
+        # cleanup
+        ft.remove_file(backup)
+        ft.write_file(testfile, testtxt)
+
+        # extension of backed up file can be controlled
+        ft.apply_regex_substitutions(testfile, regex_subs, backup='.backup')
+
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt)
+
+        backup = testfile + '.backup'
+        self.assertTrue(os.path.exists(backup))
+        self.assertEqual(ft.read_file(backup), testtxt)
+
+        # cleanup
+        ft.remove_file(backup)
+        ft.write_file(testfile, testtxt)
+
+        # creation of backup can be avoided
+        ft.apply_regex_substitutions(testfile, regex_subs, backup=False)
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt)
+        self.assertFalse(os.path.exists(backup))
+
         # passing empty list of substitions is a no-op
         ft.write_file(testfile, testtxt)
         ft.apply_regex_substitutions(testfile, [])
@@ -1607,7 +1636,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(test_file, 'foo')
 
         # timestamp should be exactly 14 digits (year, month, day, hours, minutes, seconds)
-        regex = re.compile('^test\.txt_[0-9]{14}$')
+        regex = re.compile(r'^test\.txt_[0-9]{14}_[0-9]+$')
 
         res = ft.find_backup_name_candidate(test_file)
         self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))

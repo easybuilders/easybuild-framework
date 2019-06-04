@@ -73,7 +73,7 @@ from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
-from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
+from easybuild.tools.utilities import flatten, quote_py_str, remove_unwanted_chars
 from easybuild.tools.version import VERSION
 from easybuild.toolchains.compiler.cuda import Cuda
 
@@ -83,7 +83,8 @@ _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
-ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+ITERATE_OPTIONS = ['builddependencies',
+                   'preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
 # name of easyconfigs archive subdirectory
 EASYCONFIGS_ARCHIVE_DIR = '__archive__'
@@ -384,6 +385,10 @@ class EasyConfig(object):
 
         self.external_modules_metadata = build_option('external_modules_metadata')
 
+        # list of all options to iterate over
+        self.iterate_options = []
+        self.iterating = False
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -526,25 +531,41 @@ class EasyConfig(object):
             else:
                 self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
 
-        # trigger parse hook
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
-        hooks = load_hooks(build_option('hooks'))
         prev_enable_templating = self.enable_templating
         self.enable_templating = False
+
+        # if any lists of dependency versions are specified over which we should iterate,
+        # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters...
+        self.handle_multi_deps()
 
         parse_hook_msg = None
         if self.path:
             parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
 
+        # trigger parse hook
+        hooks = load_hooks(build_option('hooks'))
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
-        self['builddependencies'] = [self._parse_dependency(dep, build_only=True) for dep in self['builddependencies']]
         self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
         self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+
+        # need to take into account that builddependencies may need to be iterated over,
+        # i.e. when the value is a list of lists of tuples
+        builddeps = self['builddependencies']
+        if builddeps and all(isinstance(x, (list, tuple)) for b in builddeps for x in b):
+            self.iterate_options.append('builddependencies')
+            builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
+        else:
+            builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
+        self['builddependencies'] = builddeps
+
+        # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
+        self.multi_deps = self.get_parsed_multi_deps()
 
         # restore templating
         self.enable_templating = prev_enable_templating
@@ -665,6 +686,10 @@ class EasyConfig(object):
         opt_counts = []
         for opt in ITERATE_OPTIONS:
 
+            # only when builddependencies is a list of lists are we iterating over them
+            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self[opt]):
+                continue
+
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
             if self.get(opt, None) is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
@@ -680,35 +705,59 @@ class EasyConfig(object):
 
         return True
 
+    def start_iterating(self):
+        """Start iterative mode."""
+
+        for opt in ITERATE_OPTIONS:
+            # builddpendencies is already handled, see __init__
+            if opt == 'builddependencies':
+                continue
+
+            # list of values indicates that this is a value to iterate over
+            if isinstance(self[opt], (list, tuple)):
+                self.iterate_options.append(opt)
+
+        # keep track of when we're iterating (used by builddependencies())
+        self.iterating = True
+
+    def stop_iterating(self):
+        """Stop iterative mode."""
+
+        self.iterating = False
+
     def filter_hidden_deps(self):
         """
         Replace dependencies by hidden dependencies in list of (build) dependencies, where appropriate.
         """
         faulty_deps = []
 
-        for hidden_idx, hidden_dep in enumerate(self['hiddendependencies']):
+        # obtain reference to original lists, so their elements can be changed in place
+        deps = dict([(key, self.get_ref(key)) for key in ['dependencies', 'builddependencies', 'hiddendependencies']])
+
+        if 'builddependencies' in self.iterate_options:
+            deplists = copy.deepcopy(deps['builddependencies'])
+        else:
+            deplists = [deps['builddependencies']]
+
+        deplists.append(deps['dependencies'])
+
+        for hidden_idx, hidden_dep in enumerate(deps['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
 
             # replace (build) dependencies with their equivalent hidden (build) dependency (if any)
             replaced = False
-            for key in ['builddependencies', 'dependencies']:
-                for idx, dep in enumerate(self[key]):
+            for deplist in deplists:
+                for idx, dep in enumerate(deplist):
                     dep_mod_name = dep['full_mod_name']
                     if dep_mod_name in [visible_mod_name, hidden_mod_name]:
 
-                        # templating must be temporarily disabled to obtain reference to original lists,
-                        # so their elements can be changed in place
-                        # see comments in resolve_template
-                        enable_templating = self.enable_templating
-                        self.enable_templating = False
                         # track whether this hidden dep is listed as a build dep
-                        orig_hidden_dep = self['hiddendependencies'][hidden_idx]
-                        if key == 'builddependencies':
-                            orig_hidden_dep['build_only'] = True
+                        hidden_dep = deps['hiddendependencies'][hidden_idx]
+                        hidden_dep['build_only'] = dep['build_only']
+
                         # actual replacement
-                        self[key][idx] = orig_hidden_dep
-                        self.enable_templating = enable_templating
+                        deplist[idx] = hidden_dep
 
                         replaced = True
                         if dep_mod_name == visible_mod_name:
@@ -818,13 +867,15 @@ class EasyConfig(object):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+        Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
         """
-        if build_only:
-            deps = self['builddependencies']
-        else:
-            deps = self['dependencies'] + self['builddependencies']
+        deps = self.builddependencies()
+
+        if not build_only:
+            # use += rather than .extend to get a new list rather than updating list of build deps in place...
+            deps += self['dependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -837,9 +888,22 @@ class EasyConfig(object):
 
     def builddependencies(self):
         """
-        return the parsed build dependencies
+        Return a flat list of the parsed build dependencies
+        When builddependencies are iterable they are flattened lists with
+        duplicates removed outside of the iterating process, because the callers
+        want simple lists.
         """
-        return self['builddependencies']
+        builddeps = self['builddependencies']
+
+        if 'builddependencies' in self.iterate_options and not self.iterating:
+            # flatten and remove duplicates (can't use 'nub', since dict values are not hashable)
+            all_builddeps = flatten(builddeps)
+            builddeps = []
+            for dep in all_builddeps:
+                if dep not in builddeps:
+                    builddeps.append(dep)
+
+        return builddeps
 
     @property
     def name(self):
@@ -972,6 +1036,71 @@ class EasyConfig(object):
             self.log.info("No metadata available for external module %s", dep_name)
 
         return dependency
+
+    def handle_multi_deps(self):
+        """
+        Handle lists of dependency versions of which we should iterate specified in 'multi_deps' easyconfig parameter.
+
+        This is basically just syntactic sugar to prevent having to specify a list of lists in 'builddependencies'.
+        """
+
+        multi_deps = self['multi_deps']
+        if multi_deps:
+
+            # first, make sure all lists have same length, otherwise we're dealing with invalid input...
+            multi_dep_cnts = nub([len(dep_vers) for dep_vers in multi_deps.values()])
+            if len(multi_dep_cnts) == 1:
+                multi_dep_cnt = multi_dep_cnts[0]
+            else:
+                raise EasyBuildError("Not all the dependencies listed in multi_deps have the same number of versions!")
+
+            self.log.info("Found %d lists of %d dependency versions to iterate over", len(multi_deps), multi_dep_cnt)
+
+            # make sure that build dependencies is not a list of lists to iterate over already...
+            if self['builddependencies'] and all(isinstance(bd, list) for bd in self['builddependencies']):
+                raise EasyBuildError("Can't combine multi_deps with builddependencies specified as list of lists")
+
+            # now make builddependencies a list of lists to iterate over
+            builddeps = self['builddependencies']
+            self['builddependencies'] = []
+
+            keys = sorted(multi_deps.keys())
+            for idx in range(multi_dep_cnt):
+                self['builddependencies'].append([(key, multi_deps[key][idx]) for key in keys] + builddeps)
+
+            self.log.info("Original list of build dependencies: %s", builddeps)
+            self.log.info("List of lists of build dependencies to iterate over: %s", self['builddependencies'])
+
+    def get_parsed_multi_deps(self):
+        """Get list of lists of parsed dependencies that correspond with entries in multi_deps easyconfig parameter."""
+
+        multi_deps = []
+
+        if self['multi_deps']:
+
+            builddeps = self['builddependencies']
+
+            # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
+            if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
+
+                for iter_id in range(len(builddeps)):
+
+                    # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
+                    # (other build dependencies should not be required to make sanity check pass for this iteration)
+                    iter_deps = []
+                    for key in self['multi_deps']:
+                        hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                        if len(hits) == 1:
+                            iter_deps.append(hits[0])
+                        else:
+                            raise EasyBuildError("Failed to isolate %s dep during iter #%d: %s", key, iter_id, hits)
+
+                    multi_deps.append(iter_deps)
+            else:
+                error_msg = "builddependencies should be a list of lists when calling get_parsed_multi_deps(): %s"
+                raise EasyBuildError(error_msg, builddeps)
+
+        return multi_deps
 
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
@@ -1110,11 +1239,20 @@ class EasyConfig(object):
 
         for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
-            # to update the original dep dict, we need to index with idx into self._config[key][0]...
-            for idx, dep in enumerate(self[key]):
+            deps = self[key]
+
+            # to update the original dep dict, we need to get a reference with templating disabled...
+            deps_ref = self.get_ref(key)
+
+            # take into account that this *dependencies parameter may be iterated over
+            if key in self.iterate_options:
+                deps = flatten(deps)
+                deps_ref = flatten(deps_ref)
+
+            for idx, dep in enumerate(deps):
 
                 # reference to original dep dict, this is the one we should be updating
-                orig_dep = self._config[key][0][idx]
+                orig_dep = deps_ref[idx]
 
                 if filter_deps and orig_dep['name'] in filter_deps:
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
@@ -1158,8 +1296,7 @@ class EasyConfig(object):
     def generate_template_values(self):
         """Try to generate all template values."""
 
-        self._generate_template_values(skip_lower=True)
-        self._generate_template_values(skip_lower=False)
+        self._generate_template_values()
 
         # recursive call, until there are no more changes to template values;
         # important since template values may include other templates
@@ -1177,7 +1314,7 @@ class EasyConfig(object):
                     # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
                     pass
 
-    def _generate_template_values(self, ignore=None, skip_lower=True):
+    def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
         if self.template_values is None:
             self.template_values = {}
@@ -1189,7 +1326,7 @@ class EasyConfig(object):
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
         prev_enable_templating = self.enable_templating
         self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore, skip_lower=skip_lower)
+        template_values = template_constant_dict(self, ignore=ignore)
         self.enable_templating = prev_enable_templating
 
         # update the template_values dict
@@ -1220,6 +1357,24 @@ class EasyConfig(object):
             value = resolve_template(value, self.template_values)
 
         return value
+
+    def get_ref(self, key):
+        """
+        Obtain reference to original/untemplated value of specified easyconfig parameter
+        rather than a copied value with templated values.
+        """
+        # see also comments in resolve_template
+
+        # temporarily disable templating
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
+        ref = self[key]
+
+        # restore previous value for 'enable_templating'
+        self.enable_templating = prev_enable_templating
+
+        return ref
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):
@@ -1375,6 +1530,12 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
+def is_generic_easyblock(easyblock):
+    """Return whether specified easyblock name is a generic easyblock or not."""
+
+    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+
+
 def get_module_path(name, generic=None, decode=True):
     """
     Determine the module path for a given easyblock or software name,
@@ -1387,7 +1548,7 @@ def get_module_path(name, generic=None, decode=True):
         return None
 
     if generic is None:
-        generic = not name.startswith(EASYBLOCK_CLASS_PREFIX)
+        generic = is_generic_easyblock(name)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:

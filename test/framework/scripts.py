@@ -66,7 +66,7 @@ class ScriptsTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         eb_blocks_path = os.path.join(test_dir, 'sandbox')
         pythonpath = os.environ.get('PYTHONPATH', os.path.dirname(test_dir))
-        os.environ['PYTHONPATH'] = os.pathsep.join([pythonpath, eb_blocks_path])
+        os.environ['PYTHONPATH'] = os.pathsep.join([eb_blocks_path, pythonpath])
 
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))

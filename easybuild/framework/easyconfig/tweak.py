@@ -56,7 +56,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import flatten, quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.tweak', fname=False)
@@ -390,12 +390,12 @@ def pick_version(req_ver, avail_vers):
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if v <= LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if LooseVersion(v) <= LooseVersion(ver)]
             if retained_vers:
-                selected_ver = retained_vers[-1]
+                selected_ver = sorted(retained_vers, key=LooseVersion)[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
-                selected_ver = sorted([LooseVersion(v) for v in avail_vers])[0]
+                selected_ver = sorted(avail_vers, key=LooseVersion)[0]
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
@@ -484,9 +484,12 @@ def select_or_generate_ec(fp, paths, specs):
     # TOOLCHAIN NAME
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
-    def unique(lst):
+    def unique(lst, sortkey=None):
         """Retain unique elements in a sorted list."""
-        lst = sorted(lst)
+        if sortkey:
+            lst = sorted(lst, key=sortkey)
+        else:
+            lst = sorted(lst)
         if len(lst) > 1:
             res = [lst[0]]
             for x in lst:
@@ -536,8 +539,8 @@ def select_or_generate_ec(fp, paths, specs):
     _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # TOOLCHAIN VERSION
-
-    tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files])
+    tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files if x[0]['toolchain']['version']],
+                    sortkey=LooseVersion)
     _log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))
 
     tcver = specs.pop('toolchain_version', None)
@@ -560,7 +563,8 @@ def select_or_generate_ec(fp, paths, specs):
 
     # SOFTWARE VERSION
 
-    vers = unique([x[0]['version'] for x in ecs_and_files])
+    vers = unique([x[0]['version'] for x in ecs_and_files if x[0]['version']], sortkey=LooseVersion)
+
     _log.debug("Found %d unique software versions: %s" % (len(vers), vers))
 
     ver = specs.pop('version', None)
@@ -821,21 +825,29 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     :return: Location of the modified easyconfig file
     """
     # Fully parse the original easyconfig
-    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
+    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]['ec']
+
     # Replace the toolchain if the mapping exists
-    tc_name = parsed_ec['ec']['toolchain']['name']
+    tc_name = parsed_ec['toolchain']['name']
     if tc_name in toolchain_mapping:
         new_toolchain = toolchain_mapping[tc_name]
-        _log.debug("Replacing parent toolchain %s with %s", parsed_ec['ec']['toolchain'], new_toolchain)
-        parsed_ec['ec']['toolchain'] = new_toolchain
+        _log.debug("Replacing parent toolchain %s with %s", parsed_ec['toolchain'], new_toolchain)
+        parsed_ec['toolchain'] = new_toolchain
 
     # Replace the toolchains of all the dependencies
     for key in DEPENDENCY_PARAMETERS:
         # loop over a *copy* of dependency dicts (with resolved templates);
-        # to update the original dep dict, we need to index with idx into self._config[key][0]...
-        for idx, dep in enumerate(parsed_ec['ec'][key]):
+        # to update the original dep dict, we need to get a reference with templating disabled...
+        val = parsed_ec[key]
+        orig_val = parsed_ec.get_ref(key)
+
+        if key in parsed_ec.iterate_options:
+            val = flatten(val)
+            orig_val = flatten(orig_val)
+
+        for idx, dep in enumerate(val):
             # reference to original dep dict, this is the one we should be updating
-            orig_dep = parsed_ec['ec']._config[key][0][idx]
+            orig_dep = orig_val[idx]
             # skip dependencies that are marked as external modules
             if dep['external_module']:
                 continue
@@ -849,10 +861,10 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
                 orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
     # Determine the name of the modified easyconfig and dump it to target_dir
-    ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
+    ec_filename = '%s-%s.eb' % (parsed_ec['name'], det_full_ec_version(parsed_ec))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
-    parsed_ec['ec'].dump(tweaked_spec, always_overwrite=False, backup=True)
+    parsed_ec.dump(tweaked_spec, always_overwrite=False, backup=True)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
 
     return tweaked_spec

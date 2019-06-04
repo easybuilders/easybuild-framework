@@ -39,7 +39,7 @@ from easybuild.tools.run import run_cmd
 
 
 DOCKER_TMPL_HEADER = """\
-FROM %(container_base)s
+FROM %(container_base_image)s
 LABEL maintainer=easybuild@lists.ugent.be
 """
 
@@ -103,14 +103,23 @@ class DockerContainer(ContainerGenerator):
     RECIPE_FILE_NAME = 'Dockerfile'
 
     def resolve_template(self):
-        return "\n\n".join([
-            DOCKER_TMPL_HEADER % {'container_base': self.container_base},
-            DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base],
-            DOCKER_INSTALL_EASYBUILD,
-            DOCKER_TMPL_FOOTER,
-        ])
+        """Return template container recipe."""
+
+        if self.container_base_config:
+            raise EasyBuildError("--container-base-config is not supported yet for Docker container images!")
+        elif self.container_template_recipe:
+            raise EasyBuildError("--container-template-recipe is not supported yet for Docker container images!")
+        else:
+            return "\n\n".join([
+                DOCKER_TMPL_HEADER % {'container_base_image': self.container_base_image},
+                DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base_image],
+                DOCKER_INSTALL_EASYBUILD,
+                DOCKER_TMPL_FOOTER,
+            ])
 
     def resolve_template_data(self):
+        """Return template data for container recipe."""
+
         os_deps = det_os_deps(self.easyconfigs)
 
         ec = self.easyconfigs[-1]['ec']
@@ -129,8 +138,8 @@ class DockerContainer(ContainerGenerator):
         }
 
     def validate(self):
-        if self.container_base not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
-            raise EasyBuildError("Unsupported container base image '%s'" % self.container_base)
+        if self.container_base_image not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
+            raise EasyBuildError("Unsupported container base image '%s'" % self.container_base_image)
         super(DockerContainer, self).validate()
 
     def build_image(self, dockerfile):
