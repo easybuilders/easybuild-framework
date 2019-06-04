@@ -1029,7 +1029,7 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
 
     else:
-        _log.debug("Applying following regex substitutions to %s: %s", path, regex_subs)
+        _log.info("Applying following regex substitutions to %s: %s", path, regex_subs)
 
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
@@ -1041,8 +1041,11 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             backup_ext = ''
 
         try:
-            for line in fileinput.input(path, inplace=1, backup=backup_ext):
+            for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
                 for regex, subtxt in regex_subs:
+                    match = regex.search(line)
+                    if match:
+                        _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, match.group(0), subtxt)
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
 
