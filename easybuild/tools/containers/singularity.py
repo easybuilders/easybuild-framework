@@ -99,7 +99,11 @@ eval "$@"
 
 %%environment
 source /etc/profile
+# avoid picking up modules from outside of container
+module unuse $MODULEPATH
+# pick up modules installed in /app
 module use /app/modules/all
+# load module(s) corresponding to installed software
 module load %(mod_names)s
 
 %%labels
