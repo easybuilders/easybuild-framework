@@ -83,10 +83,28 @@ Bootstrap: %(bootstrap)s
 
 %(post_commands)s
 
+# install Lmod RC file
+cat > /etc/lmodrc.lua << EOF
+scDescriptT = {
+  {
+    ["dir"]       = "/app/lmodcache",
+    ["timestamp"] = "/app/lmodcache/timestamp",
+  },
+}
+EOF
+
 # change to 'easybuild' user
 su - easybuild
 
+# verbose commands
+set -v
+
+# use EasyBuild to install specified software
 eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+
+# update Lmod cache
+mkdir -p /app/lmodcache
+$LMOD_DIR/update_lmod_system_cache_files -d /app/lmodcache -t /app/lmodcache/timestamp /app/modules/all
 
 # exit from 'easybuild' user
 exit
@@ -98,8 +116,17 @@ rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo
 eval "$@"
 
 %%environment
+# make sure that 'module' and 'ml' commands are defined
 source /etc/profile
+# increase threshold time for Lmod to write cache in $HOME (which we don't want to do)
+export LMOD_SHORT_TIME=86400
+# purge any modules that may be loaded outside container
+module --force purge
+# avoid picking up modules from outside of container
+module unuse $MODULEPATH
+# pick up modules installed in /app
 module use /app/modules/all
+# load module(s) corresponding to installed software
 module load %(mod_names)s
 
 %%labels
@@ -235,6 +262,8 @@ class SingularityContainer(ContainerGenerator):
                 'python-pip',
                 # additional packages that EasyBuild relies on (for now)
                 'gcc-c++',  # C/C++ components of GCC (gcc, g++)
+                ('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),  # for OpenMPI
+                ('openssl-devel', 'libssl-dev', 'libopenssl-devel'),  # for CMake, Python, ...
                 'perl-Data-Dumper',  # required for GCC build
                 # required for Automake build, see https://github.com/easybuilders/easybuild-easyconfigs/issues/1822
                 'perl-Thread-Queue',
