@@ -96,11 +96,26 @@ EOF
 # change to 'easybuild' user
 su - easybuild
 
-# verbose commands
-set -v
+# verbose commands, exit on first error
+set -ve
+
+# configure EasyBuild
+
+# use /scratch as general prefix, used for sources, build directories, etc.
+export EASYBUILD_PREFIX=/scratch
+
+# also use /scratch for temporary directories
+export EASYBUILD_TMPDIR=/scratch/tmp
+
+# download sources to /scratch/sources, but also consider files located in /tmp/easybuild/sources;
+# that way, source files that can not be downloaded can be seeded in
+export EASYBUILD_SOURCEPATH=/scratch/sources:/tmp/easybuild/sources
+
+# install software & modules into /app
+export EASYBUILD_INSTALLPATH=/app
 
 # use EasyBuild to install specified software
-eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+eb %(easyconfigs)s --robot
 
 # update Lmod cache
 mkdir -p /app/lmodcache
@@ -109,8 +124,8 @@ $LMOD_DIR/update_lmod_system_cache_files -d /app/lmodcache -t /app/lmodcache/tim
 # exit from 'easybuild' user
 exit
 
-# cleanup
-rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo
+# cleanup, everything in /scratch is assumed to be temporary
+rm -rf /scratch/*
 
 %%runscript
 eval "$@"
@@ -250,23 +265,24 @@ class SingularityContainer(ContainerGenerator):
         # when starting from an existing image, the required OS packages are assumed to be installed already
         if template_data['bootstrap'] in SINGULARITY_BOOTSTRAP_AGENTS_DISTRO:
             osdeps.extend([
-                # EPEL is required for installing Lmod
+                # EPEL is required for installing Lmod & python-pip
                 'epel-release',
                 # EasyBuild requirements
                 'python setuptools Lmod',
+                # pip is used to install EasyBuild packages
+                'python-pip',
                 # useful utilities
-                'bzip2 gzip tar unzip xz',  # extracting sources
+                'bzip2 gzip tar zip unzip xz',  # extracting sources
                 'curl wget',  # downloading
                 'patch make',  # building
                 'file git which',  # misc. tools
-                'python-pip',
                 # additional packages that EasyBuild relies on (for now)
                 'gcc-c++',  # C/C++ components of GCC (gcc, g++)
-                ('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),  # for OpenMPI
-                ('openssl-devel', 'libssl-dev', 'libopenssl-devel'),  # for CMake, Python, ...
                 'perl-Data-Dumper',  # required for GCC build
                 # required for Automake build, see https://github.com/easybuilders/easybuild-easyconfigs/issues/1822
                 'perl-Thread-Queue',
+                ('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),  # for OpenMPI
+                ('openssl-devel', 'libssl-dev', 'libopenssl-devel'),  # for CMake, Python, ...
             ])
 
         # also include additional OS dependencies specified in easyconfigs
