@@ -86,7 +86,22 @@ Bootstrap: %(bootstrap)s
 # change to 'easybuild' user
 su - easybuild
 
+# install Lmod RC file
+cat > /etc/lmodrc.lua << EOF
+scDescriptT = {
+  {
+    ["dir"]       = "/app/lmodcache",
+    ["timestamp"] = "/app/lmodcache/timestamp",
+  },
+}
+EOF
+
+# use EasyBuild to install specified software
 eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+
+# update Lmod cache
+mkdir -p /app/lmodcache
+$LMOD_DIR/update_lmod_system_cache_files -d /app/lmodcache -t /app/lmodcache/timestamp /app/modules/all
 
 # exit from 'easybuild' user
 exit
@@ -98,7 +113,10 @@ rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo
 eval "$@"
 
 %%environment
+# make sure that 'module' and 'ml' commands are defined
 source /etc/profile
+# increase threshold time for Lmod to write cache in $HOME (which we don't want to do)
+export LMOD_SHORT_TIME=86400
 # avoid picking up modules from outside of container
 module unuse $MODULEPATH
 # pick up modules installed in /app
