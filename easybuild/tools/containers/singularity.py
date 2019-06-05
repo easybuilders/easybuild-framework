@@ -83,9 +83,6 @@ Bootstrap: %(bootstrap)s
 
 %(post_commands)s
 
-# change to 'easybuild' user
-su - easybuild
-
 # install Lmod RC file
 cat > /etc/lmodrc.lua << EOF
 scDescriptT = {
@@ -95,6 +92,12 @@ scDescriptT = {
   },
 }
 EOF
+
+# change to 'easybuild' user
+su - easybuild
+
+# verbose commands
+set -v
 
 # use EasyBuild to install specified software
 eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
@@ -117,6 +120,8 @@ eval "$@"
 source /etc/profile
 # increase threshold time for Lmod to write cache in $HOME (which we don't want to do)
 export LMOD_SHORT_TIME=86400
+# purge any modules that may be loaded outside container
+module --force purge
 # avoid picking up modules from outside of container
 module unuse $MODULEPATH
 # pick up modules installed in /app
