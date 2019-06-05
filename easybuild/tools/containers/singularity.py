@@ -235,6 +235,8 @@ class SingularityContainer(ContainerGenerator):
                 'python-pip',
                 # additional packages that EasyBuild relies on (for now)
                 'gcc-c++',  # C/C++ components of GCC (gcc, g++)
+                ('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),  # for OpenMPI
+                ('openssl-devel', 'libssl-dev', 'libopenssl-devel'),  # for CMake, Python, ...
                 'perl-Data-Dumper',  # required for GCC build
                 # required for Automake build, see https://github.com/easybuilders/easybuild-easyconfigs/issues/1822
                 'perl-Thread-Queue',
