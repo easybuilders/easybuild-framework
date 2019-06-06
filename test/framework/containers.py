@@ -153,7 +153,8 @@ class ContainersTest(EnhancedTestCase):
             r"if \[ ! -d /app \]; then mkdir -p /app",
             r"if \[ ! -d /scratch \]; then mkdir -p /scratch",
         ]
-        for pattern in pip_patterns + post_commands_patterns:
+        eb_pattern = r"eb toy-0.0.eb --robot\s*$"
+        for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
             regex = re.compile('^' + pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
@@ -215,7 +216,7 @@ class ContainersTest(EnhancedTestCase):
             # no OS packages are installed by default when starting from an existing image
             self.assertFalse("yum install" in txt)
 
-            for pattern in pip_patterns + post_commands_patterns:
+            for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
                 regex = re.compile('^' + pattern, re.M)
                 self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
@@ -230,8 +231,9 @@ class ContainersTest(EnhancedTestCase):
             regex = re.compile('^' + pattern, re.M)
             self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
 
-        regex = re.compile("^easy_install easybuild", re.M)
-        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        for pattern in ["easy_install easybuild", eb_pattern]:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
         remove_file(test_container_recipe)
 
@@ -244,7 +246,18 @@ class ContainersTest(EnhancedTestCase):
             regex = re.compile('^' + pattern, re.M)
             self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
 
-        regex = re.compile("^id easybuild", re.M)
+        for pattern in ["id easybuild", eb_pattern]:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        remove_file(test_container_recipe)
+
+        # options can be passed to 'eb' command in recipe via 'eb_args' keyword
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810,eb_args=--debug -l'
+        stdout, stderr = self.run_main(args, raise_error=True)
+        txt = read_file(test_container_recipe)
+
+        regex = re.compile(r"^eb toy-0.0.eb --robot --debug -l", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
     def test_end2end_singularity_image(self):
@@ -467,7 +480,7 @@ class ContainersTest(EnhancedTestCase):
             "from: %(from)s",
             '',
             '%%post',
-            "eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+            "eb %(easyconfigs)s --robot --debug -l",
         ])
         write_file(tmpl_path, tmpl_txt)
         args = [
@@ -492,7 +505,7 @@ class ContainersTest(EnhancedTestCase):
             "from: foobar",
             "",
             "%post",
-            "eb toy-0.0.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+            "eb toy-0.0.eb --robot --debug -l",
         ])
         cont_recipe = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
         self.assertEqual(cont_recipe, expected)

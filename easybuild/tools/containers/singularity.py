@@ -115,7 +115,7 @@ export EASYBUILD_SOURCEPATH=/scratch/sources:/tmp/easybuild/sources
 export EASYBUILD_INSTALLPATH=/app
 
 # use EasyBuild to install specified software
-eb %(easyconfigs)s --robot
+eb %(easyconfigs)s --robot %(eb_args)s
 
 # update Lmod cache
 mkdir -p /app/lmodcache
@@ -187,6 +187,8 @@ class SingularityContainer(ContainerGenerator):
             # bootstrap agent to use
             # see https://www.sylabs.io/guides/latest/user-guide/definition_files.html#header
             'bootstrap',
+            # additional arguments for 'eb' command
+            'eb_args',
             # argument for bootstrap agents; only valid for: docker, library, localimage, shub
             'from',
             # list of additional OS packages to include; only valid with debootstrap, yum, zypper
@@ -209,7 +211,7 @@ class SingularityContainer(ContainerGenerator):
             if key in config_known_keys:
                 template_data[key] = value
             else:
-                raise EasyBuildError("Unknown key for base container configuration: %s", key)
+                raise EasyBuildError("Unknown key for container configuration: %s", key)
 
         # make sure correct bootstrap agent is specified
         bootstrap = template_data.get('bootstrap')
@@ -328,6 +330,10 @@ class SingularityContainer(ContainerGenerator):
                 "if [ ! -d /app ]; then mkdir -p /app; chown easybuild:easybuild -R /app; fi",
                 "if [ ! -d /scratch ]; then mkdir -p /scratch; chown easybuild:easybuild -R /scratch; fi",
             ])
+
+        # use empty value for 'eb_args' keyword if nothing was specified
+        if 'eb_args' not in template_data:
+            template_data['eb_args'] = ''
 
         # module names to load in container environment
         mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
