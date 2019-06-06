@@ -187,8 +187,16 @@ class ToolchainTest(EnhancedTestCase):
             tc = self.get_toolchain(tcname, version='2015.06-XC')
             tc.set_options({'dynamic': True})
             tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
             tc.reset()
             tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
+            tc.reset()
+            tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
+            tc.reset()
+            tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
