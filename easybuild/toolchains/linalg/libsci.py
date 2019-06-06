@@ -82,6 +82,14 @@ class LibSci(LinAlg):
         """Skip setting ScaLAPACK related variables"""
         pass
 
+    def _set_blas_variables(self):
+        """Skip setting BLAS related variables"""
+        pass
+
+    def _set_lapack_variables(self):
+        """Skip setting LAPACK related variables"""
+        pass
+
     def definition(self):
         """
         Filter BLAS module from toolchain definition.
