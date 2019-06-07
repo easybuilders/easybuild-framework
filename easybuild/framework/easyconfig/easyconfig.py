@@ -515,7 +515,9 @@ class EasyConfig(object):
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
         if typos:
-            raise EasyBuildError("You may have some typos in your easyconfig file: %s",
+            raise EasyBuildError("You may have some typos in your easyconfig file: %s\n(if your use of a variable in an"
+                                 " easyconfig is intended to be local please prefix it with 'local_' to avoid potential"
+                                 " name clashes with available easyconfig parameters)",
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
         # we need toolchain to be set when we call _parse_dependency
