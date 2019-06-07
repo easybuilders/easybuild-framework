@@ -9,19 +9,19 @@ v3.9.2 (June 9th 2019)
 update/bugfix release
 
 - various enhancements, including:
-  - add support for --container-base-config and --container-template-recipe + rename --container-base to --container-base-image (#2884)
-  - strip off leading/trailing whitespace from generated container recipes (#2900)
-  - add support for 'sif' container image format (only supported with Singularity 3.x) (#2902)
-  - add support for specifying non-image based bootstrap agents in Singularity container recipes via --container-base-config (#2903)
-  - install default set of OS packages in container recipes starting from scratch + allow customizing EasyBuild installation commands + 'post' commands (#2907)
-  - drop --container-base-image configuration option + rename --container-base-config to --container-config (#2909)
-  - configure Lmod w.r.t. spider cache in generated Singularity container recipes + also install OS pkgs for OpenSSL & IB libs (#2910)
-  - configure EasyBuild via environment variables, also consider /tmp/easybuild/sources in source path + add zip to set of default OS pkgs (#2913)
-  - add support to pass additional arguments/options to 'eb' command in generated container recipe (#2915)
+  - enhance (experimental) support for generating Singularity container recipes/images (#2884, #2900, #2902, #2903, #2907, #2909, #2910, #2913, #2915)
+      - add support for specifying container configuration via --container-config (--container-base option has been removed)
+      - add support for providing custom template for container recipe via --container-template-recipe
+      - add support for 'sif' Singularity 3.x container image format
+      - add support for specifying non-image based Singularity bootstrap agents
+      - install default set of OS packages in container recipes starting from scratch
+      - configure Lmod and update Lmod spider cache in generated Singularity container recipes
+      - configure EasyBuild via environment variables (to allow overriding configuration settings via options to 'eb' command)
+      - also consider /tmp/easybuild/sources in source path (to allow seeding in sources in container build environment)
+      - updated documentation is available at https://easybuild.readthedocs.io/en/latest/Containers.html
 - various bug fixes, including:
   - make sure that easyconfig file for EasyBuild version being bootstrapped is found in robot search path (#2899)
-  - preserve interpreter options when fixing script shebang (#2905)
-  - remove shebang options - Improve apply_regex_substitution log output (#2906)
+  - remove interpreter options when fixing script shebang (#2905, #2906)
   - fix crash on iterated installation when using Cray toolchains (#2914)
 - other changes:
   - stick to vsc-base<2.9.0 in bootstrap script to avoid requiring 'future' dependency (#2892)
