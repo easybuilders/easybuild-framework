@@ -23,6 +23,7 @@ update/bugfix release
   - make sure that easyconfig file for EasyBuild version being bootstrapped is found in robot search path (#2899)
   - remove interpreter options when fixing script shebang (#2905, #2906)
   - fix crash on iterated installation when using Cray toolchains (#2914)
+  - disable checking of read/exec permissions when checking for availability of 'sudo' command (#2918)
 - other changes:
   - stick to vsc-base<2.9.0 in bootstrap script to avoid requiring 'future' dependency (#2892)
 
