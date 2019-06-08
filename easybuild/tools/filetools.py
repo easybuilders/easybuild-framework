@@ -376,7 +376,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return find_base_dir()
 
 
-def which(cmd, retain_all=False):
+def which(cmd, retain_all=False, check_perms=True):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
@@ -389,9 +389,14 @@ def which(cmd, retain_all=False):
     paths = os.environ.get('PATH', '').split(os.pathsep)
     for path in paths:
         cmd_path = os.path.join(path, cmd)
-        # only accept path is command is there, and both readable and executable
-        if os.access(cmd_path, os.R_OK | os.X_OK) and os.path.isfile(cmd_path):
-            _log.info("Command %s found at %s" % (cmd, cmd_path))
+        # only accept path if command is there
+        if os.path.isfile(cmd_path):
+            _log.info("Command %s found at %s", cmd, cmd_path)
+            if check_perms:
+                # check if read/executable permissions are available
+                if not os.access(cmd_path, os.R_OK | os.X_OK):
+                    _log.info("No read/exec permissions for %s, so continuing search...", cmd_path)
+                    continue
             if retain_all:
                 res.append(cmd_path)
             else:
