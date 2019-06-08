@@ -380,7 +380,9 @@ def which(cmd, retain_all=False, check_perms=True):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
-    :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one"""
+    :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
+    :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
+    """
     if retain_all:
         res = []
     else:
