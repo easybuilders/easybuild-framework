@@ -215,6 +215,25 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res[0], bar))
         self.assertTrue(os.path.samefile(res[1], barbis))
 
+        # both read/exec permissions must be available
+        # if read permissions are removed for first hit, second hit is found instead
+        ft.adjust_permissions(bar, stat.S_IRUSR, add=False)
+        self.assertTrue(os.path.samefile(ft.which('bar'), barbis))
+
+        # likewise for read permissions
+        ft.adjust_permissions(bar, stat.S_IRUSR, add=True)
+        self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        ft.adjust_permissions(bar, stat.S_IXUSR, add=False)
+        self.assertTrue(os.path.samefile(ft.which('bar'), barbis))
+
+        # if read permission on other 'bar' are also removed, nothing is found anymore
+        ft.adjust_permissions(barbis, stat.S_IRUSR, add=False)
+        self.assertEqual(ft.which('bar'), None)
+
+        # checking of read/exec permissions can be disabled via 'check_perms'
+        self.assertTrue(os.path.samefile(ft.which('bar', check_perms=False), bar))
+
     def test_checksums(self):
         """Test checksum functionality."""
         fh, fp = tempfile.mkstemp()

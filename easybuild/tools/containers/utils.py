@@ -57,7 +57,13 @@ def check_tool(tool_name, min_tool_version=None):
     This function is a predicate check for the existence of tool_name on the system PATH.
     If min_tool_version is not None, it will check that the version has an equal or higher value.
     """
-    tool_path = which(tool_name)
+    if tool_name == 'sudo':
+        # disable checking of permissions for 'sudo' command,
+        # since read permissions may not be available for 'sudo' executable (e.g. on CentOS)
+        tool_path = which(tool_name, check_perms=False)
+    else:
+        tool_path = which(tool_name)
+
     if not tool_path:
         return False
 
