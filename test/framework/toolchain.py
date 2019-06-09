@@ -178,6 +178,26 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.check_vars_foss_usempi(tc)
 
+    def test_cray_reset(self):
+        """Test toolchain preparation after reset for Cray* toolchain."""
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2911
+        init_config(build_options={'optarch': 'test', 'silent': True})
+
+        for tcname in ['CrayGNU', 'CrayCCE', 'CrayIntel']:
+            tc = self.get_toolchain(tcname, version='2015.06-XC')
+            tc.set_options({'dynamic': True})
+            tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
+            tc.reset()
+            tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
+            tc.reset()
+            tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
+            tc.reset()
+            tc.prepare()
+            self.assertEqual(os.environ.get('LIBBLAS'), '')
+
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc = self.get_toolchain('foss', version='2018a')

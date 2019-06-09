@@ -47,9 +47,10 @@ class ContainerGenerator(object):
     RECIPE_FILE_NAME = None
 
     def __init__(self, easyconfigs):
-        self.container_base = build_option('container_base')
+        self.container_config = build_option('container_config')
         self.container_build_image = build_option('container_build_image')
         self.container_path = container_path()
+        self.container_template_recipe = build_option('container_template_recipe')
         self.easyconfigs = easyconfigs
         self.image_format = build_option('container_image_format')
         self.img_name = build_option('container_image_name')
@@ -129,6 +130,10 @@ class ContainerGenerator(object):
                                      recipe_path)
 
         recipe_content = template % data
+
+        # strip off leading/trailing whitespace from recipe
+        recipe_content = recipe_content.strip()
+
         write_file(recipe_path, recipe_content)
         print_msg("%s definition file created at %s" % (self.RECIPE_FILE_NAME, recipe_path), log=self.log)
 

@@ -376,11 +376,13 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return find_base_dir()
 
 
-def which(cmd, retain_all=False):
+def which(cmd, retain_all=False, check_perms=True):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
-    :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one"""
+    :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
+    :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
+    """
     if retain_all:
         res = []
     else:
@@ -389,9 +391,14 @@ def which(cmd, retain_all=False):
     paths = os.environ.get('PATH', '').split(os.pathsep)
     for path in paths:
         cmd_path = os.path.join(path, cmd)
-        # only accept path is command is there, and both readable and executable
-        if os.access(cmd_path, os.R_OK | os.X_OK) and os.path.isfile(cmd_path):
-            _log.info("Command %s found at %s" % (cmd, cmd_path))
+        # only accept path if command is there
+        if os.path.isfile(cmd_path):
+            _log.info("Command %s found at %s", cmd, cmd_path)
+            if check_perms:
+                # check if read/executable permissions are available
+                if not os.access(cmd_path, os.R_OK | os.X_OK):
+                    _log.info("No read/exec permissions for %s, so continuing search...", cmd_path)
+                    continue
             if retain_all:
                 res.append(cmd_path)
             else:
@@ -1029,7 +1036,7 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
 
     else:
-        _log.debug("Applying following regex substitutions to %s: %s", path, regex_subs)
+        _log.info("Applying following regex substitutions to %s: %s", path, regex_subs)
 
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
@@ -1041,8 +1048,11 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             backup_ext = ''
 
         try:
-            for line in fileinput.input(path, inplace=1, backup=backup_ext):
+            for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
                 for regex, subtxt in regex_subs:
+                    match = regex.search(line)
+                    if match:
+                        _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, match.group(0), subtxt)
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
 

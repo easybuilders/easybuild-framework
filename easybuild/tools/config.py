@@ -64,8 +64,14 @@ PKG_TYPE_RPM = 'rpm'
 
 CONT_IMAGE_FORMAT_EXT3 = 'ext3'
 CONT_IMAGE_FORMAT_SANDBOX = 'sandbox'
+CONT_IMAGE_FORMAT_SIF = 'sif'
 CONT_IMAGE_FORMAT_SQUASHFS = 'squashfs'
-CONT_IMAGE_FORMATS = [CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS]
+CONT_IMAGE_FORMATS = [
+    CONT_IMAGE_FORMAT_EXT3,
+    CONT_IMAGE_FORMAT_SANDBOX,
+    CONT_IMAGE_FORMAT_SIF,
+    CONT_IMAGE_FORMAT_SQUASHFS,
+]
 
 CONT_TYPE_DOCKER = 'docker'
 CONT_TYPE_SINGULARITY = 'singularity'
@@ -127,9 +133,10 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
-        'container_base',
+        'container_config',
         'container_image_format',
         'container_image_name',
+        'container_template_recipe',
         'container_tmpdir',
         'download_timeout',
         'dump_test_report',
