@@ -81,7 +81,7 @@ def run_cmd_cache(func):
         key = (cmd, kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
         if isinstance(cmd, basestring) and key in cache:
-            _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
+            _log.debug("Using cached value for command (%s): %s", cmd, cache[key])
             return cache[key]
         else:
             res = func(cmd, *args, **kwargs)
@@ -132,7 +132,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             cmd_log = open(cmd_log_fn, 'w')
         except IOError as err:
             raise EasyBuildError("Failed to open temporary log file for output of command: %s", err)
-        _log.debug('run_cmd: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+        _log.debug('run_cmd: Output of (%s) will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
 
@@ -265,7 +265,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             cmd_log = open(cmd_log_fn, 'w')
         except IOError as err:
             raise EasyBuildError("Failed to open temporary log file for output of interactive command: %s", err)
-        _log.debug('run_cmd_qa: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+        _log.debug('run_cmd_qa: Output of (%s) will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
 
@@ -498,14 +498,14 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
         if check_ec:
-            raise EasyBuildError('cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
+            raise EasyBuildError('cmd (%s) exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
         else:
-            _log.warn('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.warn('cmd (%s) exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
     elif not ec:
         if log_all:
-            _log.info('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.info('cmd (%s) exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
         else:
-            _log.debug('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.debug('cmd (%s) exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
     if use_regexp or regexp:
