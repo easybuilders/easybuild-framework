@@ -70,6 +70,7 @@ try:
     # PyGraph (used for generating dependency graphs)
     # https://pypi.python.org/pypi/python-graph-core
     from pygraph.classes.digraph import digraph
+    from pygraph.classes.exceptions import AdditionError
     # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
     # graphviz (used for creating dependency graph images)
@@ -208,11 +209,11 @@ def dep_graph(filename, specs):
         for dep in spec['ec'].all_dependencies:
             try:
                 dgr.add_edge((spec['module'], dep))
-            except Exception as err:
+            except AdditionError as err:
                 # When multiple specs are given we can easily have overlapping edges (i.e., common dependency trees)
                 # so we need to explicitly account this in our digraph
                 if "already in digraph" in str(err):
-                    _log.info("Edge (%s) -> (%s) already exists in digraph (but duplication is permitted)" %
+                    _log.info("Edge (%s) -> (%s) already exists in digraph (but duplication is permitted)",
                               (spec['module'], dep))
                     continue
                 else:
