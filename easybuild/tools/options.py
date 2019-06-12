@@ -642,13 +642,11 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Container options", "Options related to generating container recipes & images")
 
         opts = OrderedDict({
-            'base': ("Base for container image. Examples (for Singularity): "
-                     "--container-base localimage:/path/to/image.img, "
-                     "--container-base shub:<image>:<tag>, "
-                     "--container-base docker:<image>:<tag> ", str, 'store', None),
             'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
+            'config': ("Configuration for container image", str, 'store', None),
             'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
             'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
+            'template-recipe': ("Template recipe for container image", str, 'store', None),
             'tmpdir': ("Temporary directory where container image is built", None, 'store', None),
             'type': ("Type of container recipe/image to create", 'choice', 'store', DEFAULT_CONT_TYPE, CONT_TYPES),
         })
