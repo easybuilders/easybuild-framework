@@ -36,7 +36,6 @@ from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
-from easybuild.tools.containers.singularity import parse_container_base_image
 
 
 MOCKED_SINGULARITY = """#!/bin/bash
@@ -73,33 +72,6 @@ fi
 class ContainersTest(EnhancedTestCase):
     """Tests for containers support"""
 
-    def test_parse_container_base_image(self):
-        """Test parse_container_base_image function."""
-
-        for base_spec in [None, '']:
-            error_pattern = "--container-base-image must be specified"
-            self.assertErrorRegex(EasyBuildError, error_pattern, parse_container_base_image, base_spec)
-
-        # format of base spec must be correct: <bootstrap_agent>:<arg> or <bootstrap_agent>:<arg1>:<arg2>
-        error_regex = "Invalid format for --container-base-image"
-        for base_spec in ['foo', 'foo:bar:baz:sjee']:
-            self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base_image, base_spec)
-
-        # bootstrap agent must be known
-        error_regex = "Bootstrap agent in container base image spec must be one of: docker, library, localimage, shub"
-        self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base_image, 'foo:bar')
-
-        # check parsing of 'localimage' base spec
-        expected = {'bootstrap_agent': 'localimage', 'arg1': '/path/to/base.img'}
-        self.assertEqual(parse_container_base_image('localimage:/path/to/base.img'), expected)
-
-        # check parsing of 'docker' and 'shub' base spec (2nd argument, image tag, is optional)
-        for agent in ['docker', 'shub']:
-            expected = {'bootstrap_agent': agent, 'arg1': 'foo'}
-            self.assertEqual(parse_container_base_image('%s:foo' % agent), expected)
-            expected.update({'arg2': 'bar'})
-            self.assertEqual(parse_container_base_image('%s:foo:bar' % agent), expected)
-
     def run_main(self, args, raise_error=True):
         """Helper function to run main with arguments specified in 'args' and return stdout/stderr."""
         self.mock_stdout(True)
@@ -118,93 +90,8 @@ class ContainersTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-    def test_end2end_singularity_recipe_base_image(self):
-        """End-to-end test for --containerize (recipe only), using --container-base-image."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
-
-        containerpath = os.path.join(self.test_prefix, 'containers')
-        os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
-        # --containerpath must be an existing directory (this is done to avoid misconfiguration)
-        mkdir(containerpath)
-
-        args = [
-            toy_ec,
-            '--containerize',
-            '--experimental',
-        ]
-
-        error_pattern = "--container-base-config or --container-base-image must be specified"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
-
-        # generating Singularity definition file with 'docker' or 'shub' bootstrap agents always works,
-        # i.e. image label is not verified, image tag can be anything
-        for cont_base in ['docker:test123', 'docker:test123:foo', 'shub:test123', 'shub:test123:foo']:
-            stdout, stderr = self.run_main(args + ['--container-base-image=%s' % cont_base])
-
-            self.assertFalse(stderr)
-            regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
-            self.check_regexs(regexs, stdout)
-
-            remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
-
-        args.append("--container-base-image=shub:test123")
-        self.run_main(args)
-
-        # existing definition file is not overwritten without use of --force
-        error_pattern = "Container recipe at .* already exists, not overwriting it without --force"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
-
-        stdout, stderr = self.run_main(args + ['--force'])
-        self.assertFalse(stderr)
-        regexs = [
-            "^== WARNING: overwriting existing container recipe at .* due to --force",
-            "^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix,
-        ]
-        self.check_regexs(regexs, stdout)
-
-        remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
-
-        # add another easyconfig file to check if multiple easyconfigs are handled correctly
-        args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-
-        # with 'localimage' bootstrap agent, specified image must exist
-        test_img = os.path.join(self.test_prefix, 'test123.img')
-        args[-1] = "--container-base-image=localimage:%s" % test_img
-        error_pattern = "Singularity base image at specified path does not exist"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
-
-        write_file(test_img, '')
-        stdout, stderr = self.run_main(args)
-        self.assertFalse(stderr)
-        regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
-        self.check_regexs(regexs, stdout)
-
-        # check contents of generated recipe
-        def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
-        regexs = [
-            "^Bootstrap: localimage$",
-            "^From: %s$" % test_img,
-            "^eb toy-0.0.eb GCC-4.9.2.eb",
-            "module load toy/0.0 GCC/4.9.2$",
-        ]
-        self.check_regexs(regexs, def_file)
-
-        # there should be no leading/trailing whitespace included
-        for pattern in [r'^\s+', r'\s+$']:
-            regex = re.compile(pattern)
-            self.assertFalse(regex.search(def_file), "Pattern '%s' should *not* be found in: %s" % (pattern, def_file))
-
-        # image extension must make sense when localimage is used
-        for img_name in ['test123.foo', 'test123']:
-            test_img = os.path.join(self.test_prefix, img_name)
-            args[-1] = "--container-base-image=localimage:%s" % test_img
-            write_file(test_img, '')
-            error_pattern = "Invalid image extension '.*' must be \.img or \.simg"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
-
-    def test_end2end_singularity_recipe_base_config(self):
-        """End-to-end test for --containerize (recipe only), using --container-base-config."""
+    def test_end2end_singularity_recipe_config(self):
+        """End-to-end test for --containerize (recipe only), using --container-config."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
@@ -221,16 +108,16 @@ class ContainersTest(EnhancedTestCase):
             '--experimental',
         ]
 
-        args.extend(['--container-base-config', 'osversion=7.6.1810'])
+        args.extend(['--container-config', 'osversion=7.6.1810'])
         error_pattern = r"Keyword 'bootstrap' is required in container base config"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
-        args.extend(['--container-base-config', 'bootstrap=foobar'])
+        args.extend(['--container-config', 'bootstrap=foobar'])
         error_pattern = r"Unknown value specified for 'bootstrap' keyword: foobar \(known: arch, busybox, debootstrap, "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # default mirror URL for yum bootstrap agent uses ${OSVERSION}, so 'osversion' must be specified too
-        args.extend(['--container-base-config', 'bootstrap=yum'])
+        args.extend(['--container-config', 'bootstrap=yum'])
         error_pattern = "Keyword 'osversion' is required in container base config when '%{OSVERSION}' is used"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
@@ -246,6 +133,30 @@ class ContainersTest(EnhancedTestCase):
             '\n',
         ])
         self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+
+        # when installing from scratch, a bunch of OS packages are installed too
+        pkgs = ['epel-release', 'python', 'setuptools', 'Lmod', r'gcc-c\+\+', 'make', 'patch', 'tar']
+        for pkg in pkgs:
+            regex = re.compile(r"^yum install .*%s" % pkg, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        pip_patterns = [
+            # EasyBuild and dependencies are installed with pip by default
+            "pip install -U setuptools",
+            "pip install.*vsc-base",
+            "pip install easybuild",
+        ]
+        post_commands_patterns = [
+            # easybuild user is added if it doesn't exist yet
+            r"id easybuild \|\| useradd easybuild",
+            # /app and /scratch are created (if missing) by default
+            r"if \[ ! -d /app \]; then mkdir -p /app",
+            r"if \[ ! -d /scratch \]; then mkdir -p /scratch",
+        ]
+        eb_pattern = r"eb toy-0.0.eb --robot\s*$"
+        for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         remove_file(test_container_recipe)
 
@@ -302,6 +213,53 @@ class ContainersTest(EnhancedTestCase):
             ])
             self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
+            # no OS packages are installed by default when starting from an existing image
+            self.assertFalse("yum install" in txt)
+
+            for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
+                regex = re.compile('^' + pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        remove_file(test_container_recipe)
+
+        # commands to install EasyBuild can be customized via 'eb_install' keyword
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810,install_eb=easy_install easybuild'
+        stdout, stderr = self.run_main(args, raise_error=True)
+        txt = read_file(test_container_recipe)
+
+        for pattern in pip_patterns:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+
+        for pattern in ["easy_install easybuild", eb_pattern]:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        remove_file(test_container_recipe)
+
+        # post commands be be customized via 'post_commands' keyword
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810,post_commands=id easybuild'
+        stdout, stderr = self.run_main(args, raise_error=True)
+        txt = read_file(test_container_recipe)
+
+        for pattern in post_commands_patterns:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+
+        for pattern in ["id easybuild", eb_pattern]:
+            regex = re.compile('^' + pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        remove_file(test_container_recipe)
+
+        # options can be passed to 'eb' command in recipe via 'eb_args' keyword
+        args[-1] = 'bootstrap=yum,osversion=7.6.1810,eb_args=--debug -l'
+        stdout, stderr = self.run_main(args, raise_error=True)
+        txt = read_file(test_container_recipe)
+
+        regex = re.compile(r"^eb toy-0.0.eb --robot --debug -l", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
     def test_end2end_singularity_image(self):
         """End-to-end test for --containerize (recipe + image)."""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -319,7 +277,7 @@ class ContainersTest(EnhancedTestCase):
             toy_ec,
             '-C',  # equivalent with --containerize
             '--experimental',
-            '--container-base-image=localimage:%s' % test_img,
+            '--container-config=bootstrap=localimage,from=%s' % test_img,
             '--container-build-image',
         ]
 
@@ -423,34 +381,34 @@ class ContainersTest(EnhancedTestCase):
             '--experimental',
         ]
 
-        error_pattern = "Unsupported container base image 'not-supported'"
+        error_pattern = "Unsupported container config 'not-supported'"
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
                               self.run_main,
-                              base_args + ['--container-base-image=not-supported'],
+                              base_args + ['--container-config=not-supported'],
                               raise_error=True)
 
         for cont_base in ['ubuntu:16.04', 'centos:7']:
-            stdout, stderr = self.run_main(base_args + ['--container-base-image=%s' % cont_base])
+            stdout, stderr = self.run_main(base_args + ['--container-config=%s' % cont_base])
             self.assertFalse(stderr)
             regexs = ["^== Dockerfile definition file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
             self.check_regexs(regexs, stdout)
             remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
-        self.run_main(base_args + ['--container-base-image=centos:7'])
+        self.run_main(base_args + ['--container-config=centos:7'])
 
         error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, " \
                         "not overwriting it without --force" % self.test_prefix
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
                               self.run_main,
-                              base_args + ['--container-base-image=centos:7'],
+                              base_args + ['--container-config=centos:7'],
                               raise_error=True)
 
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-        self.run_main(base_args + ['--container-base-image=ubuntu:16.04'])
+        self.run_main(base_args + ['--container-config=ubuntu:16.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
             "FROM ubuntu:16.04",
@@ -479,7 +437,7 @@ class ContainersTest(EnhancedTestCase):
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-type=docker',
-            '--container-base-image=ubuntu:16.04',
+            '--container-config=ubuntu:16.04',
             '--container-build-image',
         ]
 
@@ -513,8 +471,8 @@ class ContainersTest(EnhancedTestCase):
         self.assertFalse(stderr)
         self.check_regexs(regexs, stdout)
 
-    def test_container_base_config_template_recipe(self):
-        """Test use of --container-base-config and --container-template-recipe."""
+    def test_container_config_template_recipe(self):
+        """Test use of --container-config and --container-template-recipe."""
         tmpl_path = os.path.join(self.test_prefix, 'tmpl.txt')
         tmpl_txt = '\n'.join([
             "# this is just a test",
@@ -522,7 +480,7 @@ class ContainersTest(EnhancedTestCase):
             "from: %(from)s",
             '',
             '%%post',
-            "eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+            "eb %(easyconfigs)s --robot --debug -l",
         ])
         write_file(tmpl_path, tmpl_txt)
         args = [
@@ -531,10 +489,10 @@ class ContainersTest(EnhancedTestCase):
             '--container-template-recipe=%s' % tmpl_path,
             'toy-0.0.eb',
         ]
-        error_pattern = "Either --container-base-config or --container-base-image must be specified!"
+        error_pattern = "--container-config must be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args)
 
-        args.extend(['--container-base-config', 'bootstrap=localimage,from=foobar'])
+        args.extend(['--container-config', 'bootstrap=localimage,from=foobar'])
         stdout, stderr = self.run_main(args)
 
         self.assertFalse(stderr)
@@ -547,7 +505,7 @@ class ContainersTest(EnhancedTestCase):
             "from: foobar",
             "",
             "%post",
-            "eb toy-0.0.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp",
+            "eb toy-0.0.eb --robot --debug -l",
         ])
         cont_recipe = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
         self.assertEqual(cont_recipe, expected)

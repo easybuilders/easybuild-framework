@@ -47,8 +47,7 @@ class ContainerGenerator(object):
     RECIPE_FILE_NAME = None
 
     def __init__(self, easyconfigs):
-        self.container_base_config = build_option('container_base_config')
-        self.container_base_image = build_option('container_base_image')
+        self.container_config = build_option('container_config')
         self.container_build_image = build_option('container_build_image')
         self.container_path = container_path()
         self.container_template_recipe = build_option('container_template_recipe')

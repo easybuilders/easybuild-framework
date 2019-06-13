@@ -32,7 +32,7 @@ from distutils.version import LooseVersion
 import os
 import re
 
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
@@ -51,11 +51,14 @@ SHUB = 'shub'  # image hosted on Singularity Hub
 YUM = 'yum'  # yum-based systems like CentOS
 ZYPPER = 'zypper'  # zypper-based systems like openSUSE
 
-# valid bootstrap agents for 'bootstrap' keyword in --container-base-config
-SINGULARITY_BOOTSTRAP_AGENTS = [ARCH, BUSYBOX, DEBOOTSTRAP, DOCKER, LIBRARY, LOCALIMAGE, SHUB, YUM, ZYPPER]
+# 'distro' bootstrap agents (starting from scratch, not from existing image)
+SINGULARITY_BOOTSTRAP_AGENTS_DISTRO = [ARCH, BUSYBOX, DEBOOTSTRAP, YUM, ZYPPER]
 
-# valid bootstrap agents for --container-base-image value
+# 'image' bootstrap agents (starting from an existing image)
 SINGULARITY_BOOTSTRAP_AGENTS_IMAGE = [DOCKER, LIBRARY, LOCALIMAGE, SHUB]
+
+# valid bootstrap agents for 'bootstrap' keyword in --container-config
+SINGULARITY_BOOTSTRAP_AGENTS = sorted(SINGULARITY_BOOTSTRAP_AGENTS_DISTRO + SINGULARITY_BOOTSTRAP_AGENTS_IMAGE)
 
 SINGULARITY_INCLUDE_DEFAULTS = {
     YUM: 'yum',
@@ -76,26 +79,69 @@ Bootstrap: %(bootstrap)s
 %%post
 %(install_os_deps)s
 
-# upgrade easybuild package automatically to latest version
-pip install -U easybuild
+%(install_eb)s
+
+%(post_commands)s
+
+# install Lmod RC file
+cat > /etc/lmodrc.lua << EOF
+scDescriptT = {
+  {
+    ["dir"]       = "/app/lmodcache",
+    ["timestamp"] = "/app/lmodcache/timestamp",
+  },
+}
+EOF
 
 # change to 'easybuild' user
 su - easybuild
 
-eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+# verbose commands, exit on first error
+set -ve
+
+# configure EasyBuild
+
+# use /scratch as general prefix, used for sources, build directories, etc.
+export EASYBUILD_PREFIX=/scratch
+
+# also use /scratch for temporary directories
+export EASYBUILD_TMPDIR=/scratch/tmp
+
+# download sources to /scratch/sources, but also consider files located in /tmp/easybuild/sources;
+# that way, source files that can not be downloaded can be seeded in
+export EASYBUILD_SOURCEPATH=/scratch/sources:/tmp/easybuild/sources
+
+# install software & modules into /app
+export EASYBUILD_INSTALLPATH=/app
+
+# use EasyBuild to install specified software
+eb %(easyconfigs)s --robot %(eb_args)s
+
+# update Lmod cache
+mkdir -p /app/lmodcache
+$LMOD_DIR/update_lmod_system_cache_files -d /app/lmodcache -t /app/lmodcache/timestamp /app/modules/all
 
 # exit from 'easybuild' user
 exit
 
-# cleanup
-rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo
+# cleanup, everything in /scratch is assumed to be temporary
+rm -rf /scratch/*
 
 %%runscript
 eval "$@"
 
 %%environment
+# make sure that 'module' and 'ml' commands are defined
 source /etc/profile
+# increase threshold time for Lmod to write cache in $HOME (which we don't want to do)
+export LMOD_SHORT_TIME=86400
+# purge any modules that may be loaded outside container
+module --force purge
+# avoid picking up modules from outside of container
+module unuse $MODULEPATH
+# pick up modules installed in /app
 module use /app/modules/all
+# load module(s) corresponding to installed software
 module load %(mod_names)s
 
 %%labels
@@ -132,34 +178,40 @@ class SingularityContainer(ContainerGenerator):
 
         return template
 
-    def resolve_template_data_base_config(self):
-        """Return template data for container recipe based on what is passed to --container-base-config."""
+    def resolve_template_data_config(self):
+        """Return template data for container recipe based on what is passed to --container-config."""
 
         template_data = {}
 
-        base_config_known_keys = [
+        config_known_keys = [
             # bootstrap agent to use
             # see https://www.sylabs.io/guides/latest/user-guide/definition_files.html#header
             'bootstrap',
+            # additional arguments for 'eb' command
+            'eb_args',
             # argument for bootstrap agents; only valid for: docker, library, localimage, shub
             'from',
             # list of additional OS packages to include; only valid with debootstrap, yum, zypper
             'include',
+            # commands to install EasyBuild
+            'install_eb',
             # URI to use to download OS; only valid with busybox, debootstrap, yum, zypper
             'mirrorurl',
             # OS 'version' to use; only valid with busybox, debootstrap, yum, zypper
             # only required if value for %(mirrorurl)s contains %{OSVERSION}s
             'osversion',
+            # additional commands for 'post' section
+            'post_commands',
         ]
 
         # configuration for base container is assumed to have <key>=<value>[,<key>=<value>] format
-        config_items = self.container_base_config.split(',')
+        config_items = self.container_config.split(',')
         for item in config_items:
             key, value = item.split('=', 1)
-            if key in base_config_known_keys:
+            if key in config_known_keys:
                 template_data[key] = value
             else:
-                raise EasyBuildError("Unknown key for base container configuration: %s", key)
+                raise EasyBuildError("Unknown key for container configuration: %s", key)
 
         # make sure correct bootstrap agent is specified
         bootstrap = template_data.get('bootstrap')
@@ -191,63 +243,15 @@ class SingularityContainer(ContainerGenerator):
 
         return template_data
 
-    def resolve_template_data_base_image(self):
-        """Return template data for container recipe based on what is passed to --container-base-image."""
-        base_specs = parse_container_base_image(self.container_base_image)
-
-        # extracting application name,version, version suffix, toolchain name, toolchain version from
-        # easyconfig class
-
-        bootstrap_agent = base_specs['bootstrap_agent']
-
-        base_image, base_image_tag = None, None
-
-        # with localimage it only takes 2 arguments. --container-base-image localimage:/path/to/image
-        # checking if path to image is valid and verify image extension is '.img' or '.simg'
-        if base_specs['bootstrap_agent'] == LOCALIMAGE:
-            base_image = base_specs['arg1']
-            if os.path.exists(base_image):
-                # get the extension of container image
-                image_ext = os.path.splitext(base_image)[1]
-                if image_ext == '.img' or image_ext == '.simg':
-                    self.log.debug("Extension for base container image to use is OK: %s", image_ext)
-                else:
-                    raise EasyBuildError("Invalid image extension '%s' must be .img or .simg", image_ext)
-            else:
-                raise EasyBuildError("Singularity base image at specified path does not exist: %s", base_image)
-
-        # otherwise, bootstrap agent is 'docker', 'library' or 'shub'
-        # format --container-base-image {docker|library|shub}:<image>:<tag>
-        else:
-            base_image = base_specs['arg1']
-            # image tag is optional
-            base_image_tag = base_specs.get('arg2', None)
-
-        bootstrap_from = base_image
-        if base_image_tag:
-            bootstrap_from += ':' + base_image_tag
-
-        return {
-            'bootstrap': bootstrap_agent,
-            'from': bootstrap_from,
-        }
-
     def resolve_template_data(self):
         """Return template data for container recipe."""
 
         template_data = {}
 
-        if self.container_base_image:
-            if self.container_base_config:
-                print_warning("--container-base-config is ignored when --container-base-image is also specified!")
-
-            template_data.update(self.resolve_template_data_base_image())
-
-        elif self.container_base_config:
-            template_data.update(self.resolve_template_data_base_config())
-
+        if self.container_config:
+            template_data.update(self.resolve_template_data_config())
         else:
-            raise EasyBuildError("Either --container-base-config or --container-base-image must be specified!")
+            raise EasyBuildError("--container-config must be specified!")
 
         # puzzle together specs for bootstrap agent
         bootstrap_config_lines = []
@@ -256,19 +260,80 @@ class SingularityContainer(ContainerGenerator):
                 bootstrap_config_lines.append('%s: %s' % (key, template_data[key.lower()]))
         template_data['bootstrap_config'] = '\n'.join(bootstrap_config_lines)
 
-        # if there is osdependencies in easyconfig then add them to Singularity recipe
-        install_os_deps = ''
+        # basic tools & utilities to install in container image
+        osdeps = []
+
+        # install bunch of required/useful OS packages, but only when starting from scratch;
+        # when starting from an existing image, the required OS packages are assumed to be installed already
+        if template_data['bootstrap'] in SINGULARITY_BOOTSTRAP_AGENTS_DISTRO:
+            osdeps.extend([
+                # EPEL is required for installing Lmod & python-pip
+                'epel-release',
+                # EasyBuild requirements
+                'python setuptools Lmod',
+                # pip is used to install EasyBuild packages
+                'python-pip',
+                # useful utilities
+                'bzip2 gzip tar zip unzip xz',  # extracting sources
+                'curl wget',  # downloading
+                'patch make',  # building
+                'file git which',  # misc. tools
+                # additional packages that EasyBuild relies on (for now)
+                'gcc-c++',  # C/C++ components of GCC (gcc, g++)
+                'perl-Data-Dumper',  # required for GCC build
+                # required for Automake build, see https://github.com/easybuilders/easybuild-easyconfigs/issues/1822
+                'perl-Thread-Queue',
+                ('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),  # for OpenMPI
+                ('openssl-devel', 'libssl-dev', 'libopenssl-devel'),  # for CMake, Python, ...
+            ])
+
+        # also include additional OS dependencies specified in easyconfigs
         for ec in self.easyconfigs:
             for osdep in ec['ec']['osdependencies']:
-                if isinstance(osdep, basestring):
-                    install_os_deps += "yum install -y %s\n" % osdep
-                # tuple entry indicates multiple options
-                elif isinstance(osdep, tuple):
-                    install_os_deps += "yum --skip-broken -y install %s\n" % ' '.join(osdep)
-                else:
-                    raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
+                if osdep not in osdeps:
+                    osdeps.append(osdep)
 
-        template_data['install_os_deps'] = install_os_deps
+        install_os_deps = []
+        for osdep in osdeps:
+            if isinstance(osdep, basestring):
+                install_os_deps.append("yum install --quiet --assumeyes %s" % osdep)
+            # tuple entry indicates multiple options
+            elif isinstance(osdep, tuple):
+                install_os_deps.append("yum --skip-broken --quiet --assumeyes install %s" % ' '.join(osdep))
+            else:
+                raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
+
+        template_data['install_os_deps'] = '\n'.join(install_os_deps)
+
+        # install (latest) EasyBuild in container image
+        # use 'pip install', unless custom commands are specified via 'install_eb' keyword
+        if 'install_eb' not in template_data:
+            template_data['install_eb'] = '\n'.join([
+                "# install EasyBuild using pip",
+                # EasyBuild 3.x requires setuptools as runtime dependency
+                "pip install -U setuptools",
+                # stick to previous version of vsc-install to avoid requiring mock (which causes installation problems)
+                # stick to previous version of vsc-base to avoid requiring 'future' (irrelevant for EasyBuild)
+                # this is just a temporary measure, since vsc-install & vsc-base have been ingested for EasyBuild 4.x
+                "pip install 'vsc-install<0.11.4' 'vsc-base<2.9.0'",
+                "pip install easybuild",
+            ])
+
+        # if no custom value is specified for 'post_commands' keyword,
+        # make sure 'easybuild' user exists and that installation prefix + scratch dir are in place
+        if 'post_commands' not in template_data:
+            template_data['post_commands'] = '\n'.join([
+                "# create 'easybuild' user (if missing)",
+                "id easybuild || useradd easybuild",
+                '',
+                "# create /app software installation prefix + /scratch sandbox directory",
+                "if [ ! -d /app ]; then mkdir -p /app; chown easybuild:easybuild -R /app; fi",
+                "if [ ! -d /scratch ]; then mkdir -p /scratch; chown easybuild:easybuild -R /scratch; fi",
+            ])
+
+        # use empty value for 'eb_args' keyword if nothing was specified
+        if 'eb_args' not in template_data:
+            template_data['eb_args'] = ''
 
         # module names to load in container environment
         mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
@@ -341,36 +406,3 @@ class SingularityContainer(ContainerGenerator):
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
         run_cmd(cmd, stream_output=True)
         print_msg("Singularity image created at %s" % img_path, log=self.log)
-
-
-def parse_container_base_image(base):
-    """Parse value passed to --container-base-image option."""
-    if base:
-        base_specs = base.split(':')
-        if len(base_specs) > 3 or len(base_specs) <= 1:
-            error_msg = '\n'.join([
-                "Invalid format for --container-base-image, must be one of the following:",
-                '',
-                "--container-base-image library:<entity>/<collection>/<container>:<tag>",
-                "--container-base-image localimage:/path/to/image",
-                "--container-base-image shub:<registry>/<username>/<container-name>:<tag>@digest",
-                "--container-base-image docker:<registry>/<namespace>/<container>:<tag>@<digest>",
-            ])
-            raise EasyBuildError(error_msg)
-    else:
-        raise EasyBuildError("--container-base-image must be specified")
-
-    # first argument to --container-base-image is the Singularity bootstrap agent (library, localimage, shub, docker)
-    bootstrap_agent = base_specs[0]
-
-    # check bootstrap type value and ensure it is library, localimage, shub, docker
-    if bootstrap_agent not in SINGULARITY_BOOTSTRAP_AGENTS_IMAGE:
-        known_bootstrap_agents = ', '.join(SINGULARITY_BOOTSTRAP_AGENTS_IMAGE)
-        raise EasyBuildError("Bootstrap agent in container base image spec must be one of: %s" % known_bootstrap_agents)
-
-    res = {'bootstrap_agent': bootstrap_agent}
-
-    for idx, base_spec in enumerate(base_specs[1:]):
-        res.update({'arg%d' % (idx + 1): base_spec})
-
-    return res
