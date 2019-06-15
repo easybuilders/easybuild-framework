@@ -2941,6 +2941,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_local_vars_detection(self):
         """Test detection of using unknown easyconfig parameters that are likely local variables."""
+
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ectxt = '\n'.join([
             "easyblock = 'ConfigureMake'",
@@ -2956,9 +2957,17 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec)
 
         # all unknown keys are detected at once, and reported alphabetically
-        write_file(test_ec, 'zzz_test = ["one", "two"]\n' + test_ectxt + '\nan_unknown_key = 123')
+        # single-letter local variables are not a problem
+        test_ectxt = '\n'.join([
+            'zzz_test = ["one", "two"]',
+            test_ectxt,
+            'a = "blah"',
+            'test_list = [x for x in ["1", "2", "3"]]',
+            'an_unknown_key = 123',
+        ])
+        write_file(test_ec, test_ectxt)
 
-        expected_error = "Use of 3 unknown easyconfig parameters detected: an_unknown_key, foobar, zzz_test"
+        expected_error = "Use of 4 unknown easyconfig parameters detected: an_unknown_key, foobar, test_list, zzz_test"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec)
 
 

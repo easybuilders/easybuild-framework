@@ -533,10 +533,13 @@ class EasyConfig(object):
             # anything is considered to be a local variable in the easyconfig file;
             # to catch mistakes (using unknown easyconfig parameters),
             # and to protect against using a local variable name that may later become a known easyconfig parameter,
-            # we require that names of local variables start with 'local_'
+            # we require that non-single letter names of local variables start with 'local_'
             elif key.startswith(LOCAL_VAR_PREFIX):
                 self.log.debug("Ignoring local variable '%s' (value: %s)", key, local_vars[key])
-            elif key not in ['__builtins__']:
+
+            # __builtins__ is always defined as a 'local' variables
+            # single-letter local variable names are allowed (mainly for use in list comprehensions)
+            elif len(key) > 1 and key not in ['__builtins__']:
                 unknown_keys.append(key)
 
         if unknown_keys:
