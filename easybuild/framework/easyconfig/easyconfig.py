@@ -87,6 +87,9 @@ ITERATE_OPTIONS = ['builddependencies',
 # name of easyconfigs archive subdirectory
 EASYCONFIGS_ARCHIVE_DIR = '__archive__'
 
+# prefix for names of local variables in easyconfig files
+LOCAL_VAR_PREFIX = 'local_'
+
 
 try:
     import autopep8
@@ -516,6 +519,8 @@ class EasyConfig(object):
             raise EasyBuildError("You may have some typos in your easyconfig file: %s",
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
+        unknown_keys = []
+
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + list(local_vars):
             # validations are skipped, just set in the config
@@ -525,9 +530,21 @@ class EasyConfig(object):
             elif key in REPLACED_PARAMETERS:
                 _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
-            # do not store variables we don't need
-            else:
-                self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
+            # anything is considered to be a local variable in the easyconfig file;
+            # to catch mistakes (using unknown easyconfig parameters),
+            # and to protect against using a local variable name that may later become a known easyconfig parameter,
+            # we require that names of local variables start with 'local_'
+            elif key.startswith(LOCAL_VAR_PREFIX):
+                self.log.debug("Ignoring local variable '%s' (value: %s)", key, local_vars[key])
+            elif key not in ['__builtins__']:
+                unknown_keys.append(key)
+
+        if unknown_keys:
+            unknown_keys = sorted(unknown_keys)
+            error_msg = "\nUse of %d unknown easyconfig parameters detected: %s\n"
+            error_msg += "If these are just local variables please rename them to start with '%s', "
+            error_msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
+            raise EasyBuildError(error_msg, len(unknown_keys), ', '.join(unknown_keys), LOCAL_VAR_PREFIX)
 
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)

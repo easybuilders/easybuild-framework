@@ -2939,6 +2939,28 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(ec['sanity_check_paths'], expected_sanity_check_paths)
 
+    def test_local_vars_detection(self):
+        """Test detection of using unknown easyconfig parameters that are likely local variables."""
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "foobar = 'xxx'",
+        ])
+        write_file(test_ec, test_ectxt)
+        expected_error = "Use of 1 unknown easyconfig parameters detected: foobar"
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec)
+
+        # all unknown keys are detected at once, and reported alphabetically
+        write_file(test_ec, 'zzz_test = ["one", "two"]\n' + test_ectxt + '\nan_unknown_key = 123')
+
+        expected_error = "Use of 3 unknown easyconfig parameters detected: an_unknown_key, foobar, zzz_test"
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec)
+
 
 def suite():
     """ returns all the testcases in this module """
