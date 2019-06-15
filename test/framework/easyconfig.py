@@ -1344,6 +1344,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         easyconfig.parser.DEPRECATED_PARAMETERS = orig_deprecated_parameters
         reload(easyconfig.parser)
+        reload(easyconfig.easyconfig)
         easyconfig.easyconfig.EasyConfig = orig_EasyConfig
         easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 
