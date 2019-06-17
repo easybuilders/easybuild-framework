@@ -114,6 +114,8 @@ script:
     # to run tests on an *installed* version of the EasyBuild framework;
     # this is done to catch possible packaging issues
     - cd $HOME
+    # eb --version with verbose output from 'eb' command (to show selection of 'python' command to use)
+    - EB_VERBOSE=1 eb --version
     # check GitHub configuration
     - eb --check-github --github-user=easybuild_test
     # run test suite
