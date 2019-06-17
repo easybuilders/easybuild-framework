@@ -43,7 +43,7 @@ function verbose() {
 }
 
 PYTHON=
-for python_cmd in 'python2' 'python3' 'python'; do
+for python_cmd in ${EB_PYTHON} 'python2' 'python3' 'python'; do
 
     verbose "Considering '$python_cmd'..."
 
