@@ -296,7 +296,7 @@ class SingularityContainer(ContainerGenerator):
 
         install_os_deps = []
         for osdep in osdeps:
-            if isinstance(osdep, basestring):
+            if isinstance(osdep, string_type):
                 install_os_deps.append("yum install --quiet --assumeyes %s" % osdep)
             # tuple entry indicates multiple options
             elif isinstance(osdep, tuple):
