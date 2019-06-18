@@ -19,7 +19,8 @@ source_urls = [
 ]
 sources = [SOURCELOWER_TAR_GZ]
 
-languages = ['c', 'c++', 'fortran', 'lto']
+# commented out 'languages' setting since dummy GCC easyblock doesn't define this as a known easyconfig parameter
+# languages = ['c', 'c++', 'fortran', 'lto']
 
 # building GCC sometimes fails if make parallelism is too high, so let's limit it
 maxparallel = 4

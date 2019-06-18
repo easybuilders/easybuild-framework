@@ -23,7 +23,8 @@ sources = [
     'mpc-1.0.1.tar.gz',
 ]
 
-languages = ['c', 'c++', 'fortran', 'lto']
+# commented out 'languages' setting since dummy GCC easyblock doesn't define this as a known easyconfig parameter
+# languages = ['c', 'c++', 'fortran', 'lto']
 
 patches = ['mpfr-3.1.0-changes_fix.patch']
 

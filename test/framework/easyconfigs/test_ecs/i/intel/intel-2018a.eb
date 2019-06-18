@@ -8,10 +8,8 @@ description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and
 
 toolchain = SYSTEM
 
-compver = '2011.13.367'
-
 # fake intel toolchain easyconfig, no dependencies (good enough for testing)
-fake_dependencies = [
+local_fake_dependencies = [
     ('GCCcore', '6.4.0'),
     ('binutils', '2.28', '-GCCcore-6.4.0'),
     ('icc', '2018.1.163', '-GCCcore-6.4.0'),

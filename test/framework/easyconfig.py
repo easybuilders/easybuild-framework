@@ -664,7 +664,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'homepage = "http://example.com"',
                 'description = "test easyconfig"',
                 'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
-                'foo_extra1 = "bar"',
+                'local_foo_extra1 = "bar"',
             ]))
         ]
 
@@ -2348,7 +2348,7 @@ class EasyConfigTest(EnhancedTestCase):
             ec_file,
             '--dry-run',
         ]
-        outtxt = self.eb_main(args)
+        outtxt = self.eb_main(args, raise_error=True)
         self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
@@ -2860,12 +2860,17 @@ class EasyConfigTest(EnhancedTestCase):
         """Test fix_deprecated_easyconfigs function."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ectxt = read_file(toy_ec)
         gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.4.eb')
 
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
-        tc_regex = re.compile('^toolchain = .*', re.M)
+        gzip_ec_txt = read_file(gzip_ec)
+        toy_ec_txt = read_file(toy_ec)
 
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        test_ectxt = toy_ec_txt
+
+        # test fixing the use of 'dummy' toolchain to SYSTEM
+        tc_regex = re.compile('^toolchain = .*', re.M)
         tc_strs = [
             "{'name': 'dummy', 'version': 'dummy'}",
             "{'name': 'dummy', 'version': ''}",
@@ -2875,7 +2880,7 @@ class EasyConfigTest(EnhancedTestCase):
         ]
 
         for tc_str in tc_strs:
-            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, toy_ectxt))
+            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, test_ectxt))
 
             test_ec_txt = read_file(test_ec)
             regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
@@ -2893,6 +2898,11 @@ class EasyConfigTest(EnhancedTestCase):
             regex = re.compile("^toolchain = SYSTEM$", re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
+            self.assertEqual(gzip_ec_txt, read_file(gzip_ec))
+            self.assertEqual(toy_ec_txt, read_file(toy_ec))
+            self.assertTrue(test_ec_txt != read_file(test_ec))
+
+            # parsing works now, toolchain is replaced with system toolchain
             ec = EasyConfig(test_ec)
             self.assertTrue(ec['toolchain'], {'name': 'system', 'version': 'system'})
 
@@ -2922,13 +2932,13 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'https://example.com'",
             "description = 'test'",
             "toolchain = SYSTEM",
-            "bindir = 'bin'",
-            "binaries = ['foo', 'bar']",
+            "local_bindir = 'bin'",
+            "local_binaries = ['foo', 'bar']",
             "sanity_check_paths = {",
             # using local variable 'bindir' in list comprehension in sensitive w.r.t. scope,
             # especially in Python 3 where list comprehensions have their own scope
             # cfr. https://github.com/easybuilders/easybuild-easyconfigs/pull/7848
-            "   'files': ['%s/%s' % (bindir, x) for x in binaries],",
+            "   'files': ['%s/%s' % (local_bindir, x) for x in local_binaries],",
             "   'dirs': [],",
             "}",
         ])
