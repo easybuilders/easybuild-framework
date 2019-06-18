@@ -119,6 +119,44 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     return new_ec_method
 
 
+def triage_easyconfig_params(variables, ec):
+    """
+    Triage supplied variables into known easyconfig parameters and other variables.
+
+    Unknown easyconfig parameters that have a single-letter name, or of which the name starts with 'local_'
+    are considered to be local variables.
+
+    :param variables: dictionary with names/values of variables that should be triaged
+    :param ec: dictionary with set of known easyconfig parameters
+
+    :return: 2-tuple with dict of names/values for known easyconfig parameters + unknown (non-local) variables
+    """
+    ec_params, unknown_keys = {}, []
+
+    for key in variables:
+        # validations are skipped, just set in the config
+        if key in ec.keys():
+            ec_params[key] = variables[key]
+            _log.info("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
+        elif key in REPLACED_PARAMETERS:
+            _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
+
+        # anything else is considered to be a local variable in the easyconfig file;
+        # to catch mistakes (using unknown easyconfig parameters),
+        # and to protect against using a local variable name that may later become a known easyconfig parameter,
+        # we require that non-single letter names of local variables start with 'local_'
+        elif key.startswith(LOCAL_VAR_PREFIX):
+            _log.debug("Ignoring local variable '%s' (value: %s)", key, variables[key])
+
+        # __builtins__ is always defined as a 'local' variables
+        # single-letter local variable names are allowed (mainly for use in list comprehensions)
+        # in Python 2, variables defined in list comprehensions leak to the outside (no longer the case in Python 3)
+        elif len(key) > 1 and key not in ['__builtins__']:
+            unknown_keys.append(key)
+
+    return ec_params, unknown_keys
+
+
 def toolchain_hierarchy_cache(func):
     """Function decorator to cache (and retrieve cached) toolchain hierarchy queries."""
     cache = {}
@@ -484,6 +522,22 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
+    def set_keys(self, params):
+        """
+        Set keys in this EasyConfig instance based on supplied easyconfig parameter values.
+
+        If any unknown easyconfig parameters are encountered here, an error is raised.
+
+        :param params: a dict value with names/values of easyconfig parameters to set
+        """
+        for key in params:
+            # validations are skipped, just set in the config
+            if key in self._config.keys():
+                self[key] = params[key]
+                self.log.info("setting easyconfig parameter %s: value %s (type: %s)", key, self[key], type(self[key]))
+            else:
+                raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
+
     def parse(self):
         """
         Parse the file and set options
@@ -519,28 +573,10 @@ class EasyConfig(object):
             raise EasyBuildError("You may have some typos in your easyconfig file: %s",
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
-        unknown_keys = []
+        # set keys in current EasyConfig instance based on dict obtained by parsing easyconfig file
+        known_ec_params, unknown_keys = triage_easyconfig_params(local_vars, self._config)
 
-        # we need toolchain to be set when we call _parse_dependency
-        for key in ['toolchain'] + list(local_vars):
-            # validations are skipped, just set in the config
-            if key in self._config.keys():
-                self[key] = local_vars[key]
-                self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
-            elif key in REPLACED_PARAMETERS:
-                _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
-
-            # anything is considered to be a local variable in the easyconfig file;
-            # to catch mistakes (using unknown easyconfig parameters),
-            # and to protect against using a local variable name that may later become a known easyconfig parameter,
-            # we require that non-single letter names of local variables start with 'local_'
-            elif key.startswith(LOCAL_VAR_PREFIX):
-                self.log.debug("Ignoring local variable '%s' (value: %s)", key, local_vars[key])
-
-            # __builtins__ is always defined as a 'local' variables
-            # single-letter local variable names are allowed (mainly for use in list comprehensions)
-            elif len(key) > 1 and key not in ['__builtins__']:
-                unknown_keys.append(key)
+        self.set_keys(known_ec_params)
 
         if unknown_keys:
             unknown_keys = sorted(unknown_keys)
