@@ -505,6 +505,16 @@ class ModuleGenerator(object):
 
         return extensions
 
+    def _generate_provides_list(self):
+        """
+        Generate a string with a comma-separated list of extensions in name/version format
+        """
+        exts_list = self.app.cfg['exts_list']
+        exts_ver_list = ['"%s/%s"' % (ext[0], ext[1]) for ext in exts_list]
+        extensions = ', '.join(sorted(exts_ver_list, key=str.lower))
+
+        return extensions
+
     def _generate_help_text(self):
         """
         Generate syntax-independent help text used for `module help`.
@@ -702,6 +712,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         lines = [
             '%(whatis_lines)s',
             '',
+            '%(module_provides)s',
+            '',
             "set root %(installdir)s",
         ]
 
@@ -720,12 +732,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = ["module-whatis {%s}" % re.sub('([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
+        whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
             'whatis_lines': '\n'.join(whatis_lines),
             'installdir': self.app.installdir,
+            'module_provides': "module-provides %s" % self._generate_provides_list(),
         }
 
         return txt
@@ -1078,6 +1091,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         lines = [
             "%(whatis_lines)s",
             '',
+            '%(module_provides)s',
+            '',
             'local root = "%(installdir)s"',
         ]
 
@@ -1098,6 +1113,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             'whatis_lines': '\n'.join(whatis_lines),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
+            'module_provides': "module_provides(%s)" % self._generate_provides_list(),
         }
 
         return txt
