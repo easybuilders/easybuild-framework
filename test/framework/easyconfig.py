@@ -2873,7 +2873,9 @@ class EasyConfigTest(EnhancedTestCase):
         test_ectxt = toy_ec_txt
         # inject local variables with names that need to be tweaked (or not for single-letter ones)
         regex = re.compile('^(sanity_check_paths)', re.M)
-        test_ectxt = regex.sub(r'foobar = "foobar"\n\n\1', toy_ec_txt)
+        # purposely define configopts via local variable 'foo', which has value that also contains 'foo' substring;
+        # that way, we can check whether only the 'foo' variable name is replaced with 'local_foo'
+        test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', toy_ec_txt)
         regex = re.compile('^(toolchain\s*=.*)$', re.M)
         test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
 
@@ -2906,7 +2908,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertFalse(stdout)
 
             warnings = [
-                "WARNING: Use of 2 unknown easyconfig parameters detected: foobar, some_list",
+                "WARNING: Use of 2 unknown easyconfig parameters detected: foo, some_list",
                 "Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead",
             ]
             for warning in warnings:
@@ -2915,7 +2917,7 @@ class EasyConfigTest(EnhancedTestCase):
             init_config(build_options={'strict_local_var_naming': True, 'silent': True})
 
             # easyconfig doesn't parse because of local variables with name other than 'local_*'
-            error_pattern = "Use of 2 unknown easyconfig parameters detected: foobar, some_list"
+            error_pattern = "Use of 2 unknown easyconfig parameters detected: foo, some_list"
             self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
             self.mock_stderr(True)
@@ -2944,7 +2946,8 @@ class EasyConfigTest(EnhancedTestCase):
 
             # parsing works now, toolchain is replaced with system toolchain
             ec = EasyConfig(test_ec)
-            self.assertTrue(ec['toolchain'], {'name': 'system', 'version': 'system'})
+            self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
+            self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
 
             self.assertFalse(stderr)
             stdout = stdout.split('\n')
