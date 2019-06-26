@@ -65,7 +65,8 @@ from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
 from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
 from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, WARN
-from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
+from easybuild.tools.config import get_build_log_path, get_pretend_installpath
+from easybuild.tools.config import init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -1293,7 +1294,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise logging for main
     log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
                                 silent=(testing or options.terse or search_query or silent),
-                                colorize=options.color)
+                                colorize=options.color, tmp_logdir=get_build_log_path())
 
     # log startup info (must be done after setting up logger)
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
