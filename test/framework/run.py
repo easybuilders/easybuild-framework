@@ -103,7 +103,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(regex.findall(read_file(logfile))), 1)
         write_file(logfile, '')
 
-        # Test that we set the directory for the logfile
+        # Test that we can set the directory for the logfile
         log_path = os.path.join(self.test_prefix, 'chicken')
         os.mkdir(log_path)
         logfile = None
