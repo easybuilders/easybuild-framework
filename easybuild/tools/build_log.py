@@ -191,14 +191,14 @@ fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO, tmp_logdir=None):
     """Initialize logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
     else:
         if logfile is None:
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-', dir=tmp_logdir)
             os.close(fd)
 
         fancylogger.logToFile(logfile, max_bytes=0)
