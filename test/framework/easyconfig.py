@@ -2876,7 +2876,7 @@ class EasyConfigTest(EnhancedTestCase):
         # purposely define configopts via local variable 'foo', which has value that also contains 'foo' substring;
         # that way, we can check whether only the 'foo' variable name is replaced with 'local_foo'
         test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', toy_ec_txt)
-        regex = re.compile('^(toolchain\s*=.*)$', re.M)
+        regex = re.compile(r'^(toolchain\s*=.*)$', re.M)
         test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
 
         # test fixing the use of 'dummy' toolchain to SYSTEM
