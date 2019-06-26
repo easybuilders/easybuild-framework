@@ -346,7 +346,7 @@ class EasyConfig(object):
     """
 
     def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
-                 auto_convert_value_types=True):
+                 auto_convert_value_types=True, strict_local_var_naming=None):
         """
         initialize an easyconfig.
         :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -357,6 +357,7 @@ class EasyConfig(object):
         :param rawtxt: raw contents of easyconfig file
         :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
+        :param strict_local_var_naming: enforce strict naming scheme for local variables in easyconfig file
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -432,13 +433,19 @@ class EasyConfig(object):
         self.build_specs = build_specs
         self.parse()
 
+        if strict_local_var_naming is None:
+            strict_local_var_naming = build_option('strict_local_var_naming')
+
         if self.unknown_keys:
             cnt = len(self.unknown_keys)
             unknown_keys_msg = ', '.join(sorted(self.unknown_keys))
             msg = "Use of %d unknown easyconfig parameters detected: %s\n" % (cnt, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
             msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
-            print_warning(msg, silent=build_option('silent'))
+            if strict_local_var_naming:
+                raise EasyBuildError(msg)
+            else:
+                print_warning(msg, silent=build_option('silent'))
 
         # check whether this easyconfig file is deprecated, and act accordingly if so
         self.check_deprecated(self.path)
@@ -2121,7 +2128,7 @@ def fix_deprecated_easyconfigs(paths):
             fixed = True
 
         # fix use of local variables with a name other than a single letter or 'local_*'
-        ec = EasyConfig(path)
+        ec = EasyConfig(path, strict_local_var_naming=False)
         for key in ec.unknown_keys:
             regexp = re.compile(key, re.M)  # FIXME avoid replacing partial matches!
             ectxt = regexp.sub('local_' + key, ectxt)
