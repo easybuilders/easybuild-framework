@@ -665,7 +665,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         """Test for build_log_path()"""
         init_config()
         self.assertEqual(get_build_log_path(), tempfile.gettempdir())
-        build_log_path = os.path.join(os.getcwd(), 'chicken')
+        build_log_path = os.path.join(self.test_prefix, 'chicken')
         init_config(args=['--tmp-logdir=%s' % build_log_path])
         self.assertEqual(get_build_log_path(), build_log_path)
 
