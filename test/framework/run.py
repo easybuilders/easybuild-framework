@@ -111,6 +111,7 @@ class RunTest(EnhancedTestCase):
         logfiles = os.listdir(log_path)
         self.assertEqual(len(logfiles), 1)
         self.assertTrue(logfiles[0].startswith("easybuild"))
+        self.assertTrue(logfiles[0].endswith("log"))
 
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
