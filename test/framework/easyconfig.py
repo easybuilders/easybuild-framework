@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, cre
 from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, fix_deprecated_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
-from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -2992,6 +2992,34 @@ class EasyConfigTest(EnhancedTestCase):
             'dirs': [],
         }
         self.assertEqual(ec['sanity_check_paths'], expected_sanity_check_paths)
+
+    def test_triage_easyconfig_params(self):
+        """Test for triage_easyconfig_params function."""
+        variables = {
+            'foobar': 'foobar',
+            'local_foo': 'test123',
+            '_bar': 'bar',
+            'name': 'example',
+            'version': '1.2.3',
+            'toolchain': {'name': 'system', 'version': 'system'},
+            'homepage': 'https://example.com',
+            'bleh': "just a local var",
+        }
+        ec = {
+            'name': None,
+            'version': None,
+            'homepage': None,
+            'toolchain': None,
+        }
+        ec_params, unknown_keys = triage_easyconfig_params(variables, ec)
+        expected = {
+            'name': 'example',
+            'version': '1.2.3',
+            'homepage': 'https://example.com',
+            'toolchain': {'name': 'system', 'version': 'system'},
+        }
+        self.assertEqual(ec_params, expected)
+        self.assertEqual(sorted(unknown_keys), ['bleh', 'foobar'])
 
     def test_local_vars_detection(self):
         """Test detection of using unknown easyconfig parameters that are likely local variables."""
