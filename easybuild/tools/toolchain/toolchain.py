@@ -161,7 +161,8 @@ class Toolchain(object):
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
         if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0')
+            self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0',
+                                silent=build_option('silent'))
             self.name = SYSTEM_TOOLCHAIN_NAME
 
         if version is None:
