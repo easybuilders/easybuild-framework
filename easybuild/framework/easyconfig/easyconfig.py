@@ -145,7 +145,7 @@ def triage_easyconfig_params(variables, ec):
         # to catch mistakes (using unknown easyconfig parameters),
         # and to protect against using a local variable name that may later become a known easyconfig parameter,
         # we require that non-single letter names of local variables start with 'local_'
-        elif key.startswith(LOCAL_VAR_PREFIX):
+        elif key.startswith(LOCAL_VAR_PREFIX) or key.startswith('_'):
             _log.debug("Ignoring local variable '%s' (value: %s)", key, variables[key])
 
         # __builtins__ is always defined as a 'local' variables
