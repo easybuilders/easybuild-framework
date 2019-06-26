@@ -2868,6 +2868,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         test_ectxt = toy_ec_txt
+        # inject local variables with names that need to be tweaked (or not for single-letter ones)
+        regex = re.compile('^(sanity_check_paths)', re.M)
+        test_ectxt = regex.sub(r'foobar = "foobar"\n\n\1', toy_ec_txt)
+        regex = re.compile('^(toolchain\s*=.*)$', re.M)
+        test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
+        print test_ectxt
 
         # test fixing the use of 'dummy' toolchain to SYSTEM
         tc_regex = re.compile('^toolchain = .*', re.M)
@@ -2886,6 +2892,10 @@ class EasyConfigTest(EnhancedTestCase):
             regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
             self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
 
+            # easyconfig doesn't parse because of local variables with name other than 'local_*'
+            error_pattern = "Use of 2 unknown easyconfig parameters detected: foobar, some_list"
+            self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
             self.mock_stderr(True)
             self.mock_stdout(True)
             fix_deprecated_easyconfigs([toy_ec, test_ec, gzip_ec])
@@ -2901,6 +2911,11 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(gzip_ec_txt, read_file(gzip_ec))
             self.assertEqual(toy_ec_txt, read_file(toy_ec))
             self.assertTrue(test_ec_txt != read_file(test_ec))
+
+            # original easyconfig is backed up automatically
+            test_ecs = sorted([f for f in os.listdir(self.test_prefix) if f.startswith('test.eb')])
+            self.assertEqual(len(test_ecs), 2)
+            self.assertEqual(test_ec_txt, read_file(os.path.join(self.test_prefix, test_ecs[1])))
 
             # parsing works now, toolchain is replaced with system toolchain
             ec = EasyConfig(test_ec)
