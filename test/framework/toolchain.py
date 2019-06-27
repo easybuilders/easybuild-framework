@@ -131,6 +131,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_is_system_toolchain(self):
         """Test is_system_toolchain method."""
+
+        init_config()
+
         for ver in ['system', '']:
             tc = self.get_toolchain('system', version=ver)
             self.assertTrue(tc.is_system_toolchain())
@@ -158,7 +161,7 @@ class ToolchainTest(EnhancedTestCase):
             stderr = self.get_stderr()
             self.mock_stderr(False)
             self.assertTrue(tc.is_system_toolchain())
-            self.assertTrue(dummy_depr_warning in stderr)
+            self.assertTrue(dummy_depr_warning in stderr, "Found '%s' in: %s" % (dummy_depr_warning, stderr))
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
