@@ -198,6 +198,10 @@ DEFAULT_CONFIG = {
     'whatis': [None, "List of brief (one line) description entries for the software", MODULES],
 
     # OTHER easyconfig parameters
+    # 'block' must be a known easyconfig parameter in case strict local variable naming is enabled;
+    # see also retrieve_blocks_in_spec function
+    'block': [None, "List of other 'block' sections on which this block depends "
+                    "(only relevant in easyconfigs with subblocks)", OTHER],
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
     'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
                           "and will be archived in the next major release of EasyBuild", OTHER],
