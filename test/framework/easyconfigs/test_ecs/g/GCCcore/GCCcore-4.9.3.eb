@@ -14,7 +14,7 @@ source_urls = [
     'http://ftpmirror.gnu.org/%(namelower)s/%(namelower)s-%(version)s',  # GCC auto-resolving HTTP mirror
 ]
 
-gcc_name = 'GCC'
+#gcc_name = 'GCC'
 
 sources = [
     SOURCELOWER_TAR_BZ2,
