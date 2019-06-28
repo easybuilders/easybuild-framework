@@ -3028,6 +3028,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain': {'name': 'system', 'version': 'system'},
             'homepage': 'https://example.com',
             'bleh': "just a local var",
+            'x': "single letter local var",
         }
         ec = {
             'name': None,
@@ -3044,6 +3045,16 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(ec_params, expected)
         self.assertEqual(sorted(unknown_keys), ['bleh', 'foobar'])
+
+        # check behaviour when easyconfig parameters that use a name indicating a local variable were defined
+        ec.update({
+            'x': None,
+            'local_foo': None,
+            '_foo': None,
+            '_': None,
+        })
+        error = "Found 4 easyconfig parameters that are considered local variables: _, _foo, local_foo, x"
+        self.assertErrorRegex(EasyBuildError, error, triage_easyconfig_params, variables, ec)
 
     def test_local_vars_detection(self):
         """Test detection of using unknown easyconfig parameters that are likely local variables."""

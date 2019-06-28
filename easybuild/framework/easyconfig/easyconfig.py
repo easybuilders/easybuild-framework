@@ -119,6 +119,30 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     return new_ec_method
 
 
+def is_local_var_name(name):
+    """
+    Determine whether provided variable name can be considered as the name of a local variable:
+
+    One of the following suffices to be considered a name of a local variable:
+    * name starts with 'local_' or '_'
+    * name consists of a single letter
+    * name is __builtins__ (which is always defined)
+    """
+    res = False
+    if name.startswith(LOCAL_VAR_PREFIX) or name.startswith('_'):
+        res = True
+    # __builtins__ is always defined as a 'local' variables
+    # single-letter local variable names are allowed (mainly for use in list comprehensions)
+    # in Python 2, variables defined in list comprehensions leak to the outside (no longer the case in Python 3)
+    elif name in ['__builtins__']:
+        res = True
+    # single letters are acceptable names for local variables
+    elif len(name) == 1 and re.match('^[a-zA-Z]$', name):
+        res = True
+
+    return res
+
+
 def triage_easyconfig_params(variables, ec):
     """
     Triage supplied variables into known easyconfig parameters and other variables.
@@ -131,11 +155,21 @@ def triage_easyconfig_params(variables, ec):
 
     :return: 2-tuple with dict of names/values for known easyconfig parameters + unknown (non-local) variables
     """
+
+    # first make sure that none of the known easyconfig parameters have a name that makes it look like a local variable
+    wrong_params = []
+    for key in ec:
+        if is_local_var_name(key):
+            wrong_params.append(key)
+    if wrong_params:
+        raise EasyBuildError("Found %d easyconfig parameters that are considered local variables: %s",
+                             len(wrong_params), ', '.join(sorted(wrong_params)))
+
     ec_params, unknown_keys = {}, []
 
     for key in variables:
         # validations are skipped, just set in the config
-        if key in ec.keys():
+        if key in ec:
             ec_params[key] = variables[key]
             _log.info("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
@@ -145,13 +179,10 @@ def triage_easyconfig_params(variables, ec):
         # to catch mistakes (using unknown easyconfig parameters),
         # and to protect against using a local variable name that may later become a known easyconfig parameter,
         # we require that non-single letter names of local variables start with 'local_'
-        elif key.startswith(LOCAL_VAR_PREFIX) or key.startswith('_'):
+        elif is_local_var_name(key):
             _log.debug("Ignoring local variable '%s' (value: %s)", key, variables[key])
 
-        # __builtins__ is always defined as a 'local' variables
-        # single-letter local variable names are allowed (mainly for use in list comprehensions)
-        # in Python 2, variables defined in list comprehensions leak to the outside (no longer the case in Python 3)
-        elif len(key) > 1 and key not in ['__builtins__']:
+        else:
             unknown_keys.append(key)
 
     return ec_params, unknown_keys
