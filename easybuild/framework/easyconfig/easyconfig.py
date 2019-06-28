@@ -2130,8 +2130,9 @@ def fix_deprecated_easyconfigs(paths):
         # fix use of local variables with a name other than a single letter or 'local_*'
         ec = EasyConfig(path, strict_local_var_naming=False)
         for key in ec.unknown_keys:
-            regexp = re.compile(r'(^|\W)' + key + r'(\W|$)', re.M)
+            regexp = re.compile(r'\b(%s)\b' % key)
             ectxt = regexp.sub(LOCAL_VAR_PREFIX + key, ectxt)
+            fixed = True
 
         if fixed:
             fixed_cnt += 1

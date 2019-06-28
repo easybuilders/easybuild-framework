@@ -2889,14 +2889,39 @@ class EasyConfigTest(EnhancedTestCase):
             "{'version': 'dummy', 'name': 'dummy'}",
         ]
 
+        unknown_params_error_pattern = "Use of 2 unknown easyconfig parameters detected: foo, some_list"
+
         for tc_str in tc_strs:
+            # first check if names of local variables get fixed if 'dummy' toolchain is not used
+            init_config(build_options={'strict_local_var_naming': True, 'silent': True})
+
+            write_file(test_ec, test_ectxt)
+            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            fix_deprecated_easyconfigs([test_ec])
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+            self.assertFalse(stderr)
+            self.assertTrue("test.eb... FIXED!" in stdout)
+
+            # parsing now works
+            ec = EasyConfig(test_ec)
+
+            # cleanup
+            remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
+
+            # now inject use of 'dummy' toolchain
             write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, test_ectxt))
 
             test_ec_txt = read_file(test_ec)
             regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
             self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
 
-            # mimic default behaviour where only warnings are being printed
+            # mimic default behaviour where only warnings are being printed;
+            # use of dummy toolchain or local variables not following recommended naming scheme is not fatal by default
             init_config(build_options={'strict_local_var_naming': False, 'silent': False})
             self.mock_stderr(True)
             self.mock_stdout(True)
@@ -2917,8 +2942,7 @@ class EasyConfigTest(EnhancedTestCase):
             init_config(build_options={'strict_local_var_naming': True, 'silent': True})
 
             # easyconfig doesn't parse because of local variables with name other than 'local_*'
-            error_pattern = "Use of 2 unknown easyconfig parameters detected: foo, some_list"
-            self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
 
             self.mock_stderr(True)
             self.mock_stdout(True)
