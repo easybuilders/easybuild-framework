@@ -183,6 +183,16 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(regex.findall(read_file(logfile))), 1)
         write_file(logfile, '')
 
+        # Test that we can set the directory for the logfile
+        log_path = os.path.join(self.test_prefix, 'chicken')
+        os.mkdir(log_path)
+        logfile = None
+        init_logging(logfile, silent=True, tmp_logdir=log_path)
+        logfiles = os.listdir(log_path)
+        self.assertEqual(len(logfiles), 1)
+        self.assertTrue(logfiles[0].startswith("easybuild"))
+        self.assertTrue(logfiles[0].endswith("log"))
+
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
         # define signal handler to call in case run_cmd takes too long

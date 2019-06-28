@@ -39,7 +39,7 @@ from unittest import TextTestRunner
 import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, build_path, get_log_filename, get_repositorypath
+from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
 from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
@@ -661,6 +661,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
         res = log_path(ec=ec)
         self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
         self.assertEqual(log_file_format(), 'log.txt')
+
+    def test_get_build_log_path(self):
+        """Test for build_log_path()"""
+        init_config()
+        self.assertEqual(get_build_log_path(), tempfile.gettempdir())
+        build_log_path = os.path.join(self.test_prefix, 'chicken')
+        init_config(args=['--tmp-logdir=%s' % build_log_path])
+        self.assertEqual(get_build_log_path(), build_log_path)
 
 
 def suite():
