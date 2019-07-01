@@ -2889,7 +2889,7 @@ class EasyConfigTest(EnhancedTestCase):
             "{'version': 'dummy', 'name': 'dummy'}",
         ]
 
-        unknown_params_error_pattern = "Use of 2 unknown easyconfig parameters detected: foo, some_list"
+        unknown_params_error_pattern = "Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list"
 
         for tc_str in tc_strs:
             # first check if names of local variables get fixed if 'dummy' toolchain is not used
@@ -2933,7 +2933,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertFalse(stdout)
 
             warnings = [
-                "WARNING: Use of 2 unknown easyconfig parameters detected: foo, some_list",
+                "WARNING: Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list",
                 "Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead",
             ]
             for warning in warnings:
@@ -3072,7 +3072,7 @@ class EasyConfigTest(EnhancedTestCase):
             "local_bar = 'bar'",  # not reported
         ])
         write_file(test_ec, test_ectxt)
-        expected_error = "Use of 1 unknown easyconfig parameters detected: foobar"
+        expected_error = "Use of 1 unknown easyconfig parameters detected in test.eb: foobar"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, strict_local_var_naming=True)
 
         # all unknown keys are detected at once, and reported alphabetically
@@ -3088,7 +3088,8 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ectxt)
 
-        expected_error = "Use of 4 unknown easyconfig parameters detected: an_unknown_key, foobar, test_list, zzz_test"
+        expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
+        expected_error += "an_unknown_key, foobar, test_list, zzz_test"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, strict_local_var_naming=True)
 
 

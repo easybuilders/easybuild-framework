@@ -469,8 +469,12 @@ class EasyConfig(object):
 
         if self.unknown_keys:
             cnt = len(self.unknown_keys)
+            if self.path:
+                in_fn = "in %s" % os.path.basename(self.path)
+            else:
+                in_fn = ''
             unknown_keys_msg = ', '.join(sorted(self.unknown_keys))
-            msg = "Use of %d unknown easyconfig parameters detected: %s\n" % (cnt, unknown_keys_msg)
+            msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
             msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
             if strict_local_var_naming:
