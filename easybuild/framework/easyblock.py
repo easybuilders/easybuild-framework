@@ -331,10 +331,12 @@ class EasyBlock(object):
                 return checksums[index]
             else:
                 return None
+        elif isinstance(checksums, dict):
+            return checksums.get(filename)
         elif checksums is None:
             return None
         else:
-            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
+            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple, dict or None.", type(checksums))
 
     def fetch_sources(self, sources=None, checksums=None):
         """
@@ -1812,10 +1814,16 @@ class EasyBlock(object):
             msg += "vs %d checksums" % checksum_cnt
             checksum_issues.append(msg)
 
-        for fn, checksum in zip(sources + patches, checksums):
-            if not is_sha256_checksum(checksum):
-                msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
-                checksum_issues.append(msg)
+        if isinstance(checksums, (tuple, list)):
+            for fn, checksum in zip(sources + patches, checksums):
+                if not is_sha256_checksum(checksum):
+                    msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
+                    checksum_issues.append(msg)
+        elif isinstance(checksums, dict):
+            for fn, checksum in checksums.items():
+                if not is_sha256_checksum(checksum):
+                    msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
+                    checksum_issues.append(msg)
 
         return checksum_issues
 

@@ -420,20 +420,39 @@ def to_dependencies(dep_list):
 
 def to_checksums(checksums):
     """Ensure correct element types for list of checksums: convert list elements to tuples."""
-    res = []
-    for checksum in checksums:
-        # each list entry can be:
-        # * a string (MD5 checksum)
-        # * a tuple with 2 elements: checksum type + checksum value
-        # * a list of checksums (i.e. multiple checksums for a single file)
-        if isinstance(checksum, basestring):
-            res.append(checksum)
-        elif isinstance(checksum, (list, tuple)):
-            # 2 elements + only string/int values => a checksum tuple
-            if len(checksum) == 2 and all(isinstance(x, (basestring, int)) for x in checksum):
-                res.append(tuple(checksum))
-            else:
-                res.append(to_checksums(checksum))
+    if isinstance(checksums, (list, tuple)):
+        res = []
+        for checksum in checksums:
+            # each list entry can be:
+            # * a string (MD5 checksum)
+            # * a tuple with 2 elements: checksum type + checksum value
+            # * a list of checksums (i.e. multiple checksums for a single file)
+            if isinstance(checksum, basestring):
+                res.append(checksum)
+            elif isinstance(checksum, (list, tuple)):
+                # 2 elements + only string/int values => a checksum tuple
+                if len(checksum) == 2 and all(isinstance(x, (basestring, int)) for x in checksum):
+                    res.append(tuple(checksum))
+                else:
+                    res.append(to_checksums(checksum))
+
+    elif isinstance(checksums, dict):
+        res = {}
+        for filename, checksum in checksums.items():
+            # each checksum entry can be:
+            # * a string (MD5 checksum)
+            # * a tuple with 2 elements: checksum type + checksum value
+            # * a list of checksums (i.e. multiple checksums for a single file)
+            if isinstance(checksum, basestring):
+                res['filename'] = checksum
+            elif isinstance(checksum, (list, tuple)):
+                # 2 elements + only string/int values => a checksum tuple
+                if len(checksum) == 2 and all(isinstance(x, (basestring, int)) for x in checksum):
+                    res['filename'] = tuple(checksum)
+                else:
+                    res['filename'] = to_checksums(checksum)
+    else:
+        raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple, dict or None.", type(checksums))
 
     return res
 
@@ -495,7 +514,8 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': ['files', 'dirs'],
 }))
-CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
+CHECKSUMS_DICT = (dict, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
+CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST, CHECKSUMS_DICT]}))
 
 CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
                    STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
@@ -505,7 +525,6 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
-    'checksums': CHECKSUMS,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_LIST,
