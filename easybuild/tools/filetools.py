@@ -755,7 +755,7 @@ def verify_checksum(path, checksums):
         else:
             return True
 
-    # make sure we have a list of checksums
+    # make sure we have a list or dict of checksums
     if not isinstance(checksums, (tuple, list)):
         if isinstance(checksums, dict):
             checksums = checksums.values()
