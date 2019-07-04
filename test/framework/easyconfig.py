@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, cre
 from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, fix_deprecated_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
-from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -664,7 +664,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'homepage = "http://example.com"',
                 'description = "test easyconfig"',
                 'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
-                'foo_extra1 = "bar"',
+                'local_foo_extra1 = "bar"',
             ]))
         ]
 
@@ -1344,6 +1344,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         easyconfig.parser.DEPRECATED_PARAMETERS = orig_deprecated_parameters
         reload(easyconfig.parser)
+        reload(easyconfig.easyconfig)
         easyconfig.easyconfig.EasyConfig = orig_EasyConfig
         easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 
@@ -2347,7 +2348,7 @@ class EasyConfigTest(EnhancedTestCase):
             ec_file,
             '--dry-run',
         ]
-        outtxt = self.eb_main(args)
+        outtxt = self.eb_main(args, raise_error=True)
         self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
@@ -2859,12 +2860,27 @@ class EasyConfigTest(EnhancedTestCase):
         """Test fix_deprecated_easyconfigs function."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ectxt = read_file(toy_ec)
         gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.4.eb')
 
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
-        tc_regex = re.compile('^toolchain = .*', re.M)
+        gzip_ec_txt = read_file(gzip_ec)
+        toy_ec_txt = read_file(toy_ec)
 
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # need to allow triggering deprecated behaviour, since that's exactly what we're fixing...
+        self.allow_deprecated_behaviour()
+
+        test_ectxt = toy_ec_txt
+        # inject local variables with names that need to be tweaked (or not for single-letter ones)
+        regex = re.compile('^(sanity_check_paths)', re.M)
+        # purposely define configopts via local variable 'foo', which has value that also contains 'foo' substring;
+        # that way, we can check whether only the 'foo' variable name is replaced with 'local_foo'
+        test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', toy_ec_txt)
+        regex = re.compile(r'^(toolchain\s*=.*)$', re.M)
+        test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
+
+        # test fixing the use of 'dummy' toolchain to SYSTEM
+        tc_regex = re.compile('^toolchain = .*', re.M)
         tc_strs = [
             "{'name': 'dummy', 'version': 'dummy'}",
             "{'name': 'dummy', 'version': ''}",
@@ -2873,12 +2889,60 @@ class EasyConfigTest(EnhancedTestCase):
             "{'version': 'dummy', 'name': 'dummy'}",
         ]
 
+        unknown_params_error_pattern = "Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list"
+
         for tc_str in tc_strs:
-            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, toy_ectxt))
+            # first check if names of local variables get fixed if 'dummy' toolchain is not used
+            init_config(build_options={'strict_local_var_naming': True, 'silent': True})
+
+            write_file(test_ec, test_ectxt)
+            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            fix_deprecated_easyconfigs([test_ec])
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+            self.assertFalse(stderr)
+            self.assertTrue("test.eb... FIXED!" in stdout)
+
+            # parsing now works
+            ec = EasyConfig(test_ec)
+
+            # cleanup
+            remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
+
+            # now inject use of 'dummy' toolchain
+            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, test_ectxt))
 
             test_ec_txt = read_file(test_ec)
             regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
             self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
+
+            # mimic default behaviour where only warnings are being printed;
+            # use of dummy toolchain or local variables not following recommended naming scheme is not fatal by default
+            init_config(build_options={'strict_local_var_naming': False, 'silent': False})
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            ec = EasyConfig(test_ec)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stdout)
+
+            warnings = [
+                "WARNING: Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list",
+                "Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead",
+            ]
+            for warning in warnings:
+                self.assertTrue(warning in stderr, "Found warning '%s' in stderr output: %s" % (warning, stderr))
+
+            init_config(build_options={'strict_local_var_naming': True, 'silent': True})
+
+            # easyconfig doesn't parse because of local variables with name other than 'local_*'
+            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
 
             self.mock_stderr(True)
             self.mock_stdout(True)
@@ -2892,8 +2956,22 @@ class EasyConfigTest(EnhancedTestCase):
             regex = re.compile("^toolchain = SYSTEM$", re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
+            self.assertEqual(gzip_ec_txt, read_file(gzip_ec))
+            self.assertEqual(toy_ec_txt, read_file(toy_ec))
+            self.assertTrue(test_ec_txt != read_file(test_ec))
+
+            # original easyconfig is backed up automatically
+            test_ecs = sorted([f for f in os.listdir(self.test_prefix) if f.startswith('test.eb')])
+            self.assertEqual(len(test_ecs), 2)
+            backup_test_ec = os.path.join(self.test_prefix, test_ecs[1])
+            self.assertEqual(test_ec_txt, read_file(backup_test_ec))
+
+            remove_file(backup_test_ec)
+
+            # parsing works now, toolchain is replaced with system toolchain
             ec = EasyConfig(test_ec)
-            self.assertTrue(ec['toolchain'], {'name': 'system', 'version': 'system'})
+            self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
+            self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
 
             self.assertFalse(stderr)
             stdout = stdout.split('\n')
@@ -2921,13 +2999,13 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'https://example.com'",
             "description = 'test'",
             "toolchain = SYSTEM",
-            "bindir = 'bin'",
-            "binaries = ['foo', 'bar']",
+            "local_bindir = 'bin'",
+            "local_binaries = ['foo', 'bar']",
             "sanity_check_paths = {",
             # using local variable 'bindir' in list comprehension in sensitive w.r.t. scope,
             # especially in Python 3 where list comprehensions have their own scope
             # cfr. https://github.com/easybuilders/easybuild-easyconfigs/pull/7848
-            "   'files': ['%s/%s' % (bindir, x) for x in binaries],",
+            "   'files': ['%s/%s' % (local_bindir, x) for x in local_binaries],",
             "   'dirs': [],",
             "}",
         ])
@@ -2938,6 +3016,81 @@ class EasyConfigTest(EnhancedTestCase):
             'dirs': [],
         }
         self.assertEqual(ec['sanity_check_paths'], expected_sanity_check_paths)
+
+    def test_triage_easyconfig_params(self):
+        """Test for triage_easyconfig_params function."""
+        variables = {
+            'foobar': 'foobar',
+            'local_foo': 'test123',
+            '_bar': 'bar',
+            'name': 'example',
+            'version': '1.2.3',
+            'toolchain': {'name': 'system', 'version': 'system'},
+            'homepage': 'https://example.com',
+            'bleh': "just a local var",
+            'x': "single letter local var",
+        }
+        ec = {
+            'name': None,
+            'version': None,
+            'homepage': None,
+            'toolchain': None,
+        }
+        ec_params, unknown_keys = triage_easyconfig_params(variables, ec)
+        expected = {
+            'name': 'example',
+            'version': '1.2.3',
+            'homepage': 'https://example.com',
+            'toolchain': {'name': 'system', 'version': 'system'},
+        }
+        self.assertEqual(ec_params, expected)
+        self.assertEqual(sorted(unknown_keys), ['bleh', 'foobar'])
+
+        # check behaviour when easyconfig parameters that use a name indicating a local variable were defined
+        ec.update({
+            'x': None,
+            'local_foo': None,
+            '_foo': None,
+            '_': None,
+        })
+        error = "Found 4 easyconfig parameters that are considered local variables: _, _foo, local_foo, x"
+        self.assertErrorRegex(EasyBuildError, error, triage_easyconfig_params, variables, ec)
+
+    def test_local_vars_detection(self):
+        """Test detection of using unknown easyconfig parameters that are likely local variables."""
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "foobar = 'xxx'",
+            "_foo = 'foo'",  # not reported
+            "local_bar = 'bar'",  # not reported
+        ])
+        write_file(test_ec, test_ectxt)
+        expected_error = "Use of 1 unknown easyconfig parameters detected in test.eb: foobar"
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, strict_local_var_naming=True)
+
+        # all unknown keys are detected at once, and reported alphabetically
+        # single-letter local variables are not a problem
+        test_ectxt = '\n'.join([
+            'zzz_test = ["one", "two"]',
+            test_ectxt,
+            'a = "blah"',
+            'local_foo = "foo"',  # matches local variable naming scheme, so not reported!
+            'test_list = [x for x in ["1", "2", "3"]]',
+            '_bar = "bar"',  # matches local variable naming scheme, so not reported!
+            'an_unknown_key = 123',
+        ])
+        write_file(test_ec, test_ectxt)
+
+        expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
+        expected_error += "an_unknown_key, foobar, test_list, zzz_test"
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, strict_local_var_naming=True)
 
 
 def suite():

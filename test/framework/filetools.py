@@ -1866,7 +1866,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(stdout, '')
 
-        error_pattern = r"Detected import from 'vsc' namespace in .*/test/framework/filetools.py \(line [0-9]+\)"
+        error_pattern = r"Detected import from 'vsc' namespace in .*test/framework/filetools.py \(line [0-9]+\)"
         regex = re.compile(r"^\nERROR: %s" % error_pattern)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 

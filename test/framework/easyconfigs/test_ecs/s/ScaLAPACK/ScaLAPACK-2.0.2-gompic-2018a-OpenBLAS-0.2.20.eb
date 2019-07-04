@@ -14,12 +14,12 @@ toolchainopts = {'pic': True}
 source_urls = [homepage]
 sources = ['%(namelower)s-%(version)s.tgz']
 
-blaslib = 'OpenBLAS'
-blasver = '0.2.20'
+local_blaslib = 'OpenBLAS'
+local_blasver = '0.2.20'
 
-versionsuffix = "-%s-%s" % (blaslib, blasver)
+versionsuffix = "-%s-%s" % (local_blaslib, local_blasver)
 
-dependencies = [(blaslib, blasver)]
+dependencies = [(local_blaslib, local_blasver)]
 
 # parallel build tends to fail, so disabling it
 parallel = 1

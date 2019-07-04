@@ -9,18 +9,13 @@ OpenBLAS (BLAS and LAPACK support), and FFTW."""
 
 toolchain = SYSTEM
 
-comp_name = 'GCC'
-comp_version = '6.4.0-2.28'
-comp = (comp_name, comp_version)
-
-blaslib = 'OpenBLAS'
-blasver = '0.2.20'
+local_comp = ('GCC', '6.4.0-2.28')
 
 # compiler toolchain dependencies
 dependencies = [
-    comp,
-    (blaslib, blasver, '', comp),
-    ('FFTW', '3.3.7', '-serial', comp),
+    local_comp,
+    ('OpenBLAS', '0.2.20', '', local_comp),
+    ('FFTW', '3.3.7', '-serial', local_comp),
 ]
 
 moduleclass = 'toolchain'

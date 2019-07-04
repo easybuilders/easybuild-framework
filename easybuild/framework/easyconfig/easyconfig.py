@@ -87,6 +87,9 @@ ITERATE_OPTIONS = ['builddependencies',
 # name of easyconfigs archive subdirectory
 EASYCONFIGS_ARCHIVE_DIR = '__archive__'
 
+# prefix for names of local variables in easyconfig files
+LOCAL_VAR_PREFIX = 'local_'
+
 
 try:
     import autopep8
@@ -114,6 +117,75 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
         return ec_method(self, key, *args, **kwargs)
 
     return new_ec_method
+
+
+def is_local_var_name(name):
+    """
+    Determine whether provided variable name can be considered as the name of a local variable:
+
+    One of the following suffices to be considered a name of a local variable:
+    * name starts with 'local_' or '_'
+    * name consists of a single letter
+    * name is __builtins__ (which is always defined)
+    """
+    res = False
+    if name.startswith(LOCAL_VAR_PREFIX) or name.startswith('_'):
+        res = True
+    # __builtins__ is always defined as a 'local' variables
+    # single-letter local variable names are allowed (mainly for use in list comprehensions)
+    # in Python 2, variables defined in list comprehensions leak to the outside (no longer the case in Python 3)
+    elif name in ['__builtins__']:
+        res = True
+    # single letters are acceptable names for local variables
+    elif re.match('^[a-zA-Z]$', name):
+        res = True
+
+    return res
+
+
+def triage_easyconfig_params(variables, ec):
+    """
+    Triage supplied variables into known easyconfig parameters and other variables.
+
+    Unknown easyconfig parameters that have a single-letter name, or of which the name starts with 'local_'
+    are considered to be local variables.
+
+    :param variables: dictionary with names/values of variables that should be triaged
+    :param ec: dictionary with set of known easyconfig parameters
+
+    :return: 2-tuple with dict of names/values for known easyconfig parameters + unknown (non-local) variables
+    """
+
+    # first make sure that none of the known easyconfig parameters have a name that makes it look like a local variable
+    wrong_params = []
+    for key in ec:
+        if is_local_var_name(key):
+            wrong_params.append(key)
+    if wrong_params:
+        raise EasyBuildError("Found %d easyconfig parameters that are considered local variables: %s",
+                             len(wrong_params), ', '.join(sorted(wrong_params)))
+
+    ec_params, unknown_keys = {}, []
+
+    for key in variables:
+        # validations are skipped, just set in the config
+        if key in ec:
+            ec_params[key] = variables[key]
+            _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
+        elif key in REPLACED_PARAMETERS:
+            _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
+
+        # anything else is considered to be a local variable in the easyconfig file;
+        # to catch mistakes (using unknown easyconfig parameters),
+        # and to protect against using a local variable name that may later become a known easyconfig parameter,
+        # we require that non-single letter names of local variables start with 'local_'
+        elif is_local_var_name(key):
+            _log.debug("Ignoring local variable '%s' (value: %s)", key, variables[key])
+
+        else:
+            unknown_keys.append(key)
+
+    return ec_params, unknown_keys
 
 
 def toolchain_hierarchy_cache(func):
@@ -305,7 +377,7 @@ class EasyConfig(object):
     """
 
     def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
-                 auto_convert_value_types=True):
+                 auto_convert_value_types=True, strict_local_var_naming=None):
         """
         initialize an easyconfig.
         :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -316,6 +388,7 @@ class EasyConfig(object):
         :param rawtxt: raw contents of easyconfig file
         :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
+        :param strict_local_var_naming: enforce strict naming scheme for local variables in easyconfig file
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -390,6 +463,24 @@ class EasyConfig(object):
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
+
+        if strict_local_var_naming is None:
+            strict_local_var_naming = build_option('strict_local_var_naming')
+
+        if self.unknown_keys:
+            cnt = len(self.unknown_keys)
+            if self.path:
+                in_fn = "in %s" % os.path.basename(self.path)
+            else:
+                in_fn = ''
+            unknown_keys_msg = ', '.join(sorted(self.unknown_keys))
+            msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
+            msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
+            msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
+            if strict_local_var_naming:
+                raise EasyBuildError(msg)
+            else:
+                print_warning(msg, silent=build_option('silent'))
 
         # check whether this easyconfig file is deprecated, and act accordingly if so
         self.check_deprecated(self.path)
@@ -481,6 +572,22 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
+    def set_keys(self, params):
+        """
+        Set keys in this EasyConfig instance based on supplied easyconfig parameter values.
+
+        If any unknown easyconfig parameters are encountered here, an error is raised.
+
+        :param params: a dict value with names/values of easyconfig parameters to set
+        """
+        for key in params:
+            # validations are skipped, just set in the config
+            if key in self._config.keys():
+                self[key] = params[key]
+                self.log.info("setting easyconfig parameter %s: value %s (type: %s)", key, self[key], type(self[key]))
+            else:
+                raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
+
     def parse(self):
         """
         Parse the file and set options
@@ -516,18 +623,10 @@ class EasyConfig(object):
             raise EasyBuildError("You may have some typos in your easyconfig file: %s",
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
-        # we need toolchain to be set when we call _parse_dependency
-        for key in ['toolchain'] + list(local_vars):
-            # validations are skipped, just set in the config
-            if key in self._config.keys():
-                self[key] = local_vars[key]
-                self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
-            elif key in REPLACED_PARAMETERS:
-                _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
+        # set keys in current EasyConfig instance based on dict obtained by parsing easyconfig file
+        known_ec_params, self.unknown_keys = triage_easyconfig_params(local_vars, self._config)
 
-            # do not store variables we don't need
-            else:
-                self.log.debug("Ignoring unknown easyconfig parameter %s (value: %s)" % (key, local_vars[key]))
+        self.set_keys(known_ec_params)
 
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
@@ -2061,6 +2160,13 @@ def fix_deprecated_easyconfigs(paths):
         # fix use of 'dummy' toolchain, use SYSTEM constant instead
         if dummy_tc_regex.search(ectxt):
             ectxt = dummy_tc_regex.sub("toolchain = SYSTEM", ectxt)
+            fixed = True
+
+        # fix use of local variables with a name other than a single letter or 'local_*'
+        ec = EasyConfig(path, strict_local_var_naming=False)
+        for key in ec.unknown_keys:
+            regexp = re.compile(r'\b(%s)\b' % key)
+            ectxt = regexp.sub(LOCAL_VAR_PREFIX + key, ectxt)
             fixed = True
 
         if fixed:

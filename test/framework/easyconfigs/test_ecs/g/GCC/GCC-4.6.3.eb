@@ -25,7 +25,8 @@ source_urls = [
     'http://www.multiprecision.org/mpc/download',  # MPC official
 ]
 
-languages = ['c', 'c++', 'fortran', 'lto']
+# commented out 'languages' setting since dummy GCC easyblock doesn't define this as a known easyconfig parameter
+# languages = ['c', 'c++', 'fortran', 'lto']
 
 # compiler class
 moduleclass = 'compiler'

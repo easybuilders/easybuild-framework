@@ -662,6 +662,9 @@ class EasyBuildOptions(GeneralOption):
                                            None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'strict-local-var-naming': ("Enforce specific naming scheme for local variables in easyconfig files, "
+                                        "where only single-letter or names that start with 'local_' or '_' "
+                                        "are allowed", None, 'store_true', False),
         })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='')
