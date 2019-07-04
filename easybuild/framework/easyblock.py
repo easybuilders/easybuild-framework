@@ -1429,49 +1429,65 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
-        # obtaining untemplated reference value is required here to support legacy string templates like name/version
-        exts_filter = self.cfg.get_ref('exts_filter')
 
-        if not exts_filter or len(exts_filter) == 0:
-            raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
-        elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
-            raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
-        cmdtmpl = exts_filter[0]
-        cmdinputtmpl = exts_filter[1]
+        # only consider actually skipping extensions when --skip is used,
+        # or when one or more individual extensions are marked 'only_if_missing'
+        do_skip = self.skip or any(ext.get('options', {}).get('only_if_missing', False) for ext in self.exts)
 
-        res = []
-        for ext in self.exts:
-            name = ext['name']
-            if 'options' in ext and 'modulename' in ext['options']:
-                modname = ext['options']['modulename']
-            else:
-                modname = name
-            tmpldict = {
-                'ext_name': modname,
-                'ext_version': ext.get('version'),
-                'src': ext.get('source'),
-            }
+        if do_skip:
+            # obtaining untemplated reference value is required here
+            # to support legacy string templates like name/version
+            exts_filter = self.cfg.get_ref('exts_filter')
 
-            try:
-                cmd = cmdtmpl % tmpldict
-            except KeyError as err:
-                msg = "KeyError occurred on completing extension filter template: %s; "
-                msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
-                self.log.nosupport(msg % err, '2.0')
+            if not exts_filter or len(exts_filter) == 0:
+                raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
-            if cmdinputtmpl:
-                stdin = cmdinputtmpl % tmpldict
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
-            else:
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
-            self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
-            if ec:
-                self.log.info("Not skipping %s" % name)
-                self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
-                res.append(ext)
-            else:
-                self.log.info("Skipping %s" % name)
-        self.exts = res
+            elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
+                raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
+
+            cmdtmpl = exts_filter[0]
+            cmdinputtmpl = exts_filter[1]
+
+            res = []
+            for ext in self.exts:
+                name = ext['name']
+                options = ext.get('options', {})
+
+                # at this point either --skip is being used, *or* one or more extensions are marked 'only_if_missing'
+                if not (self.skip or options.get('only_if_missing', False)):
+                    self.log.debug("Not considering extension %s for skipping...", name)
+                    res.append(ext)
+                    continue
+
+                modname = options.get('modulename', name)
+
+                tmpldict = {
+                    'ext_name': modname,
+                    'ext_version': ext.get('version'),
+                    'src': ext.get('source'),
+                }
+
+                try:
+                    cmd = cmdtmpl % tmpldict
+                except KeyError as err:
+                    msg = "KeyError occurred on completing extension filter template: %s; "
+                    msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
+                    self.log.nosupport(msg % err, '2.0')
+
+                if cmdinputtmpl:
+                    stdin = cmdinputtmpl % tmpldict
+                    (outerr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
+                else:
+                    (outerr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+                self.log.info("exts_filter result %s %s", outerr, ec)
+                if ec:
+                    self.log.info("Not skipping %s", name)
+                    self.log.debug("exit code: %s, stdout/err: %s", ec, outerr)
+                    res.append(ext)
+                else:
+                    self.log.info("Skipping %s", name)
+
+            self.exts = res
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
@@ -2020,8 +2036,7 @@ class EasyBlock(object):
 
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
-        if self.skip:
-            self.skip_extensions()
+        self.skip_extensions()
 
         # actually install extensions
         self.log.debug("Installing extensions")

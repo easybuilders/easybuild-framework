@@ -754,6 +754,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.extensions_step(fetch=True)
 
         # test for proper error message when skip is set, but no exts_filter is set
+        eb.skip = True
         self.assertRaises(EasyBuildError, eb.skip_extensions)
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
 
@@ -787,6 +788,68 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
         # 'ext2' should not
         self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_only_if_missing(self):
+        """
+        Test support for always considering specific extensions for skipping,
+        by marking them with 'only_if_missing'.
+        """
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        write_file(os.path.join(self.test_prefix, 'extensions', 'ext1-1.0.tar.gz'), '')
+        write_file(os.path.join(self.test_prefix, 'extensions', 'ext2-2.0.tar.gz'), '')
+
+        init_config(build_options={'silent': True})
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = [',
+            '    ("ext1", "1.0"),',
+            '    ("ext2", "2.0"),',
+            ']',
+            # use silly extension filter that always return 'true' on skipping whether an extension is installed
+            'exts_filter = ("exit 0", "")',
+            'exts_defaultclass = "DummyExtension"',
+        ])
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+
+        # by default (without --skip), all extensions are retained (regardless of whether they are installed yet or not)
+        eb = EasyBlock(ec)
+        eb.builddir, eb.installdir = config.build_path(), config.install_path()
+        eb.extensions_step(fetch=True)
+        ext_names = [ext['name'] for ext in eb.exts]
+        self.assertFalse(eb.skip)
+        self.assertTrue('ext1' in ext_names)
+        self.assertTrue('ext2' in ext_names)
+
+        # if --skip is used, both extensions are skipped
+        eb.exts = None
+        eb.skip = True
+        eb.extensions_step(fetch=True)
+        self.assertEqual(eb.exts, [])
+
+        # when one extension is marked with only_if_missing, it is automatically skipped, even if --skip is not used
+        ext1_regex = re.compile(r'^.*"ext1", "1.0".*', re.M)
+        self.contents = ext1_regex.sub('    ("ext1", "1.0", {"only_if_missing": True}),', self.contents)
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+
+        eb = EasyBlock(ec)
+        eb.builddir, eb.installdir = config.build_path(), config.install_path()
+        eb.extensions_step(fetch=True)
+        ext_names = [ext['name'] for ext in eb.exts]
+        self.assertFalse(eb.skip)
+        self.assertFalse('ext1' in ext_names)
+        self.assertTrue('ext2' in ext_names)
 
         # cleanup
         eb.close_log()
