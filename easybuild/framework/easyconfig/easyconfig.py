@@ -137,7 +137,7 @@ def is_local_var_name(name):
     elif name in ['__builtins__']:
         res = True
     # single letters are acceptable names for local variables
-    elif len(name) == 1 and re.match('^[a-zA-Z]$', name):
+    elif re.match('^[a-zA-Z]$', name):
         res = True
 
     return res
@@ -171,7 +171,7 @@ def triage_easyconfig_params(variables, ec):
         # validations are skipped, just set in the config
         if key in ec:
             ec_params[key] = variables[key]
-            _log.info("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
+            _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
