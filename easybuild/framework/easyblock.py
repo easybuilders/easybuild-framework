@@ -336,7 +336,8 @@ class EasyBlock(object):
         elif checksums is None:
             return None
         else:
-            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple, dict or None.", type(checksums))
+            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple, dict or None.",
+                                 type(checksums))
 
     def fetch_sources(self, sources=None, checksums=None):
         """
