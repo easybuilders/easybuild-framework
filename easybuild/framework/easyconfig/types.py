@@ -514,8 +514,7 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': ['files', 'dirs'],
 }))
-CHECKSUMS_DICT = (dict, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
-CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST, CHECKSUMS_DICT]}))
+CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST, dict]}))
 
 CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
                    STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
@@ -526,6 +525,7 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'name': basestring,
+    'checksums': CHECKSUMS,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
