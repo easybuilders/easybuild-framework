@@ -3,6 +3,18 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.9.3 (July 8th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add a URL whatis to the modules (#2933)
+- various bug fixes, including:
+  - stick to Ubuntu Trusty when testing with Python 2.6 in Travis (#2928)
+  - honor --tmp-logdir when determining location of temporary log file (#2937)
+
+
 v3.9.2 (June 9th 2019)
 ----------------------
 
