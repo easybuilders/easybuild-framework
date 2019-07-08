@@ -1,5 +1,6 @@
 language: python
 python: 2.6
+dist: trusty
 env:
   matrix:
     # purposely specifying slowest builds first, to gain time overall
@@ -21,6 +22,7 @@ matrix:
     # also test default configuration with Python 2.7
     - python: 2.7
       env: LMOD_VERSION=6.6.3
+      dist: xenial
 addons:
   apt:
     packages:

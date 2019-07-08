@@ -596,7 +596,8 @@ class ModuleGenerator(object):
             # default: include 'whatis' statements with description, homepage, and extensions (if any)
             whatis = [
                 "Description: %s" % self.app.cfg['description'],
-                "Homepage: %s" % self.app.cfg['homepage']
+                "Homepage: %s" % self.app.cfg['homepage'],
+                "URL: %s" % self.app.cfg['homepage'],
             ]
 
             multi_deps = self._generate_multi_deps_list()

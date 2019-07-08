@@ -1293,7 +1293,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise logging for main
     log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
                                 silent=(testing or options.terse or search_query or silent),
-                                colorize=options.color)
+                                colorize=options.color, tmp_logdir=options.tmp_logdir)
 
     # log startup info (must be done after setting up logger)
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
