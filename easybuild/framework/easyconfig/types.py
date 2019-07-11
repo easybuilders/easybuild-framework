@@ -435,7 +435,10 @@ def to_checksums(checksums):
             else:
                 res.append(to_checksums(checksum))
         elif isinstance(checksum, dict):
-            res.append({k: to_checksums(v) for k, v in checksum.items()})
+            d = {}
+            for k, v in checksum.items():
+                d[k] = to_checksums(v)
+            res.append(d)
 
     return res
 
