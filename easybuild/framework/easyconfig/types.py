@@ -73,7 +73,6 @@ def check_element_types(elems, allowed_types):
             allowed_types = dict(allowed_types)
         except (ValueError, TypeError):
             pass
-
         if isinstance(allowed_types, (list, tuple)):
             elems_and_allowed_types = [(elem, allowed_types) for elem in elems.values()]
         elif isinstance(allowed_types, dict):
@@ -434,6 +433,8 @@ def to_checksums(checksums):
                 res.append(tuple(checksum))
             else:
                 res.append(to_checksums(checksum))
+        elif isinstance(checksum, dict):
+            res.append({k: to_checksums(v) for k, v in checksum.items()})
 
     return res
 
@@ -495,10 +496,17 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': ['files', 'dirs'],
 }))
-CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
+CHECKSUM = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
+DICT_CHECKSUM = (dict, as_hashable(
+    {
+        'elem_types': [str, CHECKSUM],
+        'key_types': [str],
+    }
+))
+CHECKSUMS = (list, as_hashable({'elem_types': [CHECKSUM, DICT_CHECKSUM]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
-                   STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [CHECKSUM, DICT_CHECKSUM, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT,
+                   SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
