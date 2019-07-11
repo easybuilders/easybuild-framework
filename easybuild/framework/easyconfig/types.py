@@ -73,6 +73,7 @@ def check_element_types(elems, allowed_types):
             allowed_types = dict(allowed_types)
         except (ValueError, TypeError):
             pass
+
         if isinstance(allowed_types, (list, tuple)):
             elems_and_allowed_types = [(elem, allowed_types) for elem in elems.values()]
         elif isinstance(allowed_types, dict):
