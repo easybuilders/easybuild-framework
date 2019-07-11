@@ -760,6 +760,17 @@ def verify_checksum(path, checksums):
         checksums = [checksums]
 
     for checksum in checksums:
+        if isinstance(checksum, dict):
+            filename = os.path.split(path)[-1]
+            if filename in checksum:
+                checksum = checksum[filename]
+            else:
+                # No checksum for this file
+                if build_option('enforce_checksums'):
+                    raise EasyBuildError("Missing checksum for %s", os.path.basename(path))
+                else:
+                    continue
+
         if isinstance(checksum, basestring):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
             if len(checksum) == 64:
