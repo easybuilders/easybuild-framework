@@ -284,6 +284,10 @@ def to_template_str(key, value, templ_const, templ_val):
             if tval in value and tname != key:
                 value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
 
+            # special case of %(pyshortver)s, where we should template 'python2.7' to 'python%(pyshortver)s'
+            if tname == 'pyshortver' and ('python' + tval) in value:
+                value = re.sub(r'(^|\W)python' + re.escape(tval) + r'(\W|$)', r'\1python%(' + tname + r')s\2', value)
+
     return value
 
 

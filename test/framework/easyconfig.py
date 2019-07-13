@@ -1876,6 +1876,11 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(to_template_str('versionsuffix', test_input, templ_const, templ_val), '-Python-%(pyver)s')
         self.assertEqual(to_template_str('test', test_input, templ_const, templ_val), '%(versionsuffix)s')
 
+        # test special case for 'python%(pyshortver)s'
+        test_input = "sanity_check_paths = {\n    'files': [],\n    'dirs': ['lib/python2.7/site-packages'],\n}"
+        res = "sanity_check_paths = {\n    'files': [],\n    'dirs': ['lib/python%(pyshortver)s/site-packages'],\n}"
+        self.assertEqual(to_template_str('sanity_check_paths', test_input, templ_const, templ_val), res)
+
     def test_dep_graph(self):
         """Test for dep_graph."""
         try:
