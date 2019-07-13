@@ -67,7 +67,7 @@ from easybuild.tools.filetools import symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
-from easybuild.tools.py2vs3 import reload
+from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -1860,14 +1860,21 @@ class EasyConfigTest(EnhancedTestCase):
             '-test': 'special_char',
         }
 
-        self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
-        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
-        self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
-        templ_list = to_template_str("['-test', 'dontreplacenamehere']", templ_const, templ_val)
+        self.assertEqual(to_template_str('test', "template", templ_const, templ_val), 'TEMPLATE_VALUE')
+        self.assertEqual(to_template_str('test', "foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
+        self.assertEqual(to_template_str('test', "foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
+        templ_list = to_template_str('test', "['-test', 'dontreplacenamehere']", templ_const, templ_val)
         self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
-        templ_dict = to_template_str("{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
+        templ_dict = to_template_str('test', "{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
         self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
-        self.assertEqual(to_template_str("('foo', '0.0.1')", templ_const, templ_val), "('%(name)s', '%(version)s')")
+        templ_tuple = to_template_str('test', "('foo', '0.0.1')", templ_const, templ_val)
+        self.assertEqual(templ_tuple, "('%(name)s', '%(version)s')")
+
+        # if easyconfig parameter name and name of matching template are identical, no replacement
+        templ_val = OrderedDict([('-Python-2.7.15', 'versionsuffix'), ('2.7.15', 'pyver'), ('2.7', 'pyshortver')])
+        test_input = '-Python-2.7.15'
+        self.assertEqual(to_template_str('versionsuffix', test_input, templ_const, templ_val), '-Python-%(pyver)s')
+        self.assertEqual(to_template_str('test', test_input, templ_const, templ_val), '%(versionsuffix)s')
 
     def test_dep_graph(self):
         """Test for dep_graph."""
