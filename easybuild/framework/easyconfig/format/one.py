@@ -217,10 +217,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
-            new_val = to_template_str(val, templ_const, templ_val)
-            # avoid self-referencing templated parameter definitions
-            if not r'%(' + key in new_val:
-                val = new_val
+            val = to_template_str(key, val, templ_const, templ_val)
 
         if key in self.comments['inline']:
             res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))

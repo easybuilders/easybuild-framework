@@ -258,12 +258,14 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
     return template_values
 
 
-def to_template_str(value, templ_const, templ_val):
+def to_template_str(key, value, templ_const, templ_val):
     """
     Insert template values where possible
-        - value is a string
-        - templ_const is a dictionary of template strings (constants)
-        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
+
+    :param key: name of easyconfig parameter
+    :param value: string representing easyconfig parameter value
+    :param templ_const: dictionary of template strings (constants)
+    :param templ_val: (ordered) dictionary of template strings specific for this easyconfig file
     """
     old_value = None
     while value != old_value:
@@ -276,9 +278,15 @@ def to_template_str(value, templ_const, templ_val):
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
-            # by another non-alphanumeric.
-            if tval in value:
+            # by another non-alphanumeric;
+            # avoid introducing self-referencing easyconfig parameter value
+            # by taking into account given name of easyconfig parameter ('key')
+            if tval in value and tname != key:
                 value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+
+            # special case of %(pyshortver)s, where we should template 'python2.7' to 'python%(pyshortver)s'
+            if tname == 'pyshortver' and ('python' + tval) in value:
+                value = re.sub(r'(^|\W)python' + re.escape(tval) + r'(\W|$)', r'\1python%(' + tname + r')s\2', value)
 
     return value
 
