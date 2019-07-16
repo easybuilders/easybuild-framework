@@ -54,6 +54,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
+from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import only_if_module_is_available
 
 
@@ -105,6 +106,7 @@ URL_SEPARATOR = '/'
 
 VALID_CLOSE_PR_REASONS = {
     'archived': 'uses an archived toolchain',
+    'deprecated': 'uses a deprecated toolchain',
     'inactive': 'no activity for > 6 months',
     'obsolete': 'obsoleted by more recent PRs',
 }
@@ -1017,10 +1019,16 @@ def reasons_for_closing(pr_data):
 
     obsoleted = []
     uses_archived_tc = []
+    uses_deprecated_tc = []
     for pr_file in pr_files:
         pr_ec = EasyConfigParser(pr_file).get_config_dict()
         pr_tc = '%s-%s' % (pr_ec['toolchain']['name'], pr_ec['toolchain']['version'])
         print_msg("* %s-%s" % (pr_ec['name'], pr_ec['version']), prefix=False)
+
+        if get_toolchain(pr_ec['toolchain'], pr_ec.get('toolchainopts', None)).is_deprecated():
+            print_msg(" - uses deprecated toolchain %s" % pr_tc, prefix=False)
+            uses_deprecated_tc.append(pr_ec)
+
         for robot_path in robot_paths:
             # check if PR easyconfig uses an archived toolchain
             path = os.path.join(robot_path, EASYCONFIGS_ARCHIVE_DIR, pr_tc[0].lower(), pr_tc.split('-')[0])
@@ -1049,6 +1057,9 @@ def reasons_for_closing(pr_data):
             if newer_versions:
                 print_msg(" - found newer versions %s" % ", ".join(sorted(newer_versions)), prefix=False)
                 obsoleted.append(pr_ec)
+
+    if uses_deprecated_tc:
+        possible_reasons.append('deprecated')
 
     if uses_archived_tc:
         possible_reasons.append('archived')
@@ -1098,7 +1109,12 @@ def close_pr(pr, motivation_msg=None):
             print_msg("\nNo reason specified but found possible reasons: %s.\n" % motivation_msg, prefix=False)
 
     msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], motivation_msg)
-    msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
+    if VALID_CLOSE_PR_REASONS['deprecated'] in motivation_msg:
+        msg += "For more information on deprecated toolchains, see "
+        msg += "https://easybuild.readthedocs.io/en/latest/Deprecated-easyconfigs.html#deprecated-toolchains.\n"
+        msg += "Please consider reopening or submitting a new PR using a supported toolchain.\n"
+    else:
+        msg += "Please don't hesitate to reopen this PR or add a comment if you feel it is still relevant.\n"
     msg += "For more information on our policy w.r.t. closing PRs, see "
     msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html"
     msg += "#why-a-pull-request-may-be-closed-by-a-maintainer"
