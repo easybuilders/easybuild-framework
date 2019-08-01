@@ -40,8 +40,14 @@ class Gompi(GccToolchain, OpenMPI):
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
+        gompi_ver = LooseVersion(self.version)
         # deprecate oldest gompi toolchains (versions 1.x)
-        if LooseVersion(self.version) < LooseVersion('2000'):
+        if gompi_ver < LooseVersion('2000'):
+            deprecated = True
+        # gompi toolchains older than gompi/2016a are deprecated
+        # take into account that gompi/2016.x is always < gompi/2016a according to LooseVersion;
+        # gompi/2016.01 & co are not deprecated yet...
+        elif gompi_ver < LooseVersion('2016a') and gompi_ver < LooseVersion('2016.01'):
             deprecated = True
         else:
             deprecated = False
