@@ -1189,7 +1189,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 re.compile(r"^\*\*\* DRY RUN using 'ConfigureMake' easyblock", re.M),
                 re.compile(r"^== building and installing FFTW/3.3.4-gompi-2015a\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
-                re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
             ]
 
             for msg_regex in msg_regexs:
@@ -2627,7 +2627,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg_regexs = [
             re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
             re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
-            re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+            re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
             re.compile(r"^\(no ignored errors during dry run\)", re.M),
         ]
         ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
@@ -3363,7 +3363,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['toy-0.0.eb', '--force', '--stop=configure']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile("COMPLETED: Installation STOPPED successfully", re.M)
+        regex = re.compile("COMPLETED: Installation STOPPED successfully \(took .* sec\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_fetch(self):
@@ -3381,7 +3381,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         patterns = [
             "^== fetching files\.\.\.$",
-            "^== COMPLETED: Installation STOPPED successfully$",
+            "^== COMPLETED: Installation STOPPED successfully \(took .* sec\)$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)

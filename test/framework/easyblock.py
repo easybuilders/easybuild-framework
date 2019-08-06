@@ -47,6 +47,7 @@ from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import reset_module_caches
+from easybuild.tools.utilities import time2str
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
@@ -1720,6 +1721,28 @@ class EasyBlockTest(EnhancedTestCase):
         hpl = easyblocks['easybuild.easyblocks.hpl']
         self.assertEqual(hpl['class'], 'EB_HPL')
         self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
+
+    def test_time2str(self):
+        """Test time2str function."""
+
+        test_cases = [
+            (14, "14 sec"),
+            (59, "59 sec"),
+            (60, "1 min 0 sec"),
+            (119, "1 min 59 sec"),
+            (1383, "23 min 3 sec"),
+            (3599, "59 min 59 sec"),
+            (3600, "1 hour 0 min 0 sec"),
+            (5691, "1 hour 34 min 51 sec"),
+            (7200, "2 hours 0 min 0 sec"),
+            (12096, "3 hours 21 min 36 sec"),
+            (40501, "11 hours 15 min 1 sec"),
+            (86400 - 1, "23 hours 59 min 59 sec"),
+            (86400, "24 hours 0 min 0 sec"),
+            (573921, "159 hours 25 min 21 sec"),
+        ]
+        for secs, expected in test_cases:
+            self.assertEqual(time2str(secs), expected)
 
 
 def suite():

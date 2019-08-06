@@ -183,3 +183,22 @@ def trace_msg(message, silent=False):
     """Print trace message."""
     if build_option('trace'):
         print_msg('  >> ' + message, prefix=False)
+
+
+def time2str(time_secs):
+    """Return string representing provided amount of time (in seconds) in human-readable form."""
+    res = None
+    if time_secs < 60:
+        res = '%s sec' % time_secs
+    elif time_secs < 3600:
+        mins = int(time_secs / 60)
+        secs = int(time_secs - (mins * 60))
+        res = '%d min %d sec' % (mins, secs)
+    else:
+        hours = int(time_secs / 3600)
+        mins = int((time_secs - hours * 3600) / 60)
+        secs = int(time_secs - (hours * 3600) - (mins * 60))
+        hours_str = 'hours' if hours > 1 else 'hour'
+        res = '%d %s %d min %d sec' % (hours, hours_str, mins, secs)
+
+    return res

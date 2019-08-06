@@ -81,7 +81,8 @@ class ToyBuildTest(EnhancedTestCase):
         full_version = ''.join([versionprefix, version, versionsuffix])
 
         # check for success
-        success = re.compile("COMPLETED: Installation ended successfully")
+        success = re.compile(r"COMPLETED: Installation ended successfully \(took .* sec\)")
+        print success.pattern, outtxt
         self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s" % outtxt)
 
         # if the module exists, it should be fine
