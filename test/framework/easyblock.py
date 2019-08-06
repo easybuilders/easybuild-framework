@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from datetime import datetime
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -1725,24 +1726,30 @@ class EasyBlockTest(EnhancedTestCase):
     def test_time2str(self):
         """Test time2str function."""
 
+        start = datetime(2019, 7, 30, 5, 14, 23)
+
         test_cases = [
-            (14, "14 sec"),
-            (59, "59 sec"),
-            (60, "1 min 0 sec"),
-            (119, "1 min 59 sec"),
-            (1383, "23 min 3 sec"),
-            (3599, "59 min 59 sec"),
-            (3600, "1 hour 0 min 0 sec"),
-            (5691, "1 hour 34 min 51 sec"),
-            (7200, "2 hours 0 min 0 sec"),
-            (12096, "3 hours 21 min 36 sec"),
-            (40501, "11 hours 15 min 1 sec"),
-            (86400 - 1, "23 hours 59 min 59 sec"),
-            (86400, "24 hours 0 min 0 sec"),
-            (573921, "159 hours 25 min 21 sec"),
+            (start, "0 sec"),
+            (datetime(2019, 7, 30, 5, 14, 37), "14 sec"),
+            (datetime(2019, 7, 30, 5, 15, 22), "59 sec"),
+            (datetime(2019, 7, 30, 5, 15, 23), "1 min 0 sec"),
+            (datetime(2019, 7, 30, 5, 16, 22), "1 min 59 sec"),
+            (datetime(2019, 7, 30, 5, 37, 26), "23 min 3 sec"),
+            (datetime(2019, 7, 30, 6, 14, 22), "59 min 59 sec"),
+            (datetime(2019, 7, 30, 6, 14, 23), "1 hour 0 min 0 sec"),
+            (datetime(2019, 7, 30, 6, 49, 14), "1 hour 34 min 51 sec"),
+            (datetime(2019, 7, 30, 7, 14, 23), "2 hours 0 min 0 sec"),
+            (datetime(2019, 7, 30, 8, 35, 59), "3 hours 21 min 36 sec"),
+            (datetime(2019, 7, 30, 16, 29, 24), "11 hours 15 min 1 sec"),
+            (datetime(2019, 7, 31, 5, 14, 22), "23 hours 59 min 59 sec"),
+            (datetime(2019, 7, 31, 5, 14, 23), "24 hours 0 min 0 sec"),
+            (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 min 21 sec"),
         ]
-        for secs, expected in test_cases:
-            self.assertEqual(time2str(secs), expected)
+        for end, expected in test_cases:
+            self.assertEqual(time2str(end - start), expected)
+
+        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <type 'int'>"
+        self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
 
 
 def suite():

@@ -27,6 +27,7 @@ Module with various utility functions
 
 :author: Kenneth Hoste (Ghent University)
 """
+import datetime
 import glob
 import os
 import string
@@ -185,19 +186,25 @@ def trace_msg(message, silent=False):
         print_msg('  >> ' + message, prefix=False)
 
 
-def time2str(time_secs):
-    """Return string representing provided amount of time (in seconds) in human-readable form."""
+def time2str(delta):
+    """Return string representing provided datetime.timedelta value in human-readable form."""
     res = None
-    if time_secs < 60:
-        res = '%s sec' % time_secs
-    elif time_secs < 3600:
-        mins = int(time_secs / 60)
-        secs = int(time_secs - (mins * 60))
+
+    if not isinstance(delta, datetime.timedelta):
+        raise EasyBuildError("Incorrect value type provided to time2str, should be datetime.timedelta: %s", type(delta))
+
+    delta_secs = delta.days * 3600 * 24 + delta.seconds + delta.microseconds / 10**6
+
+    if delta_secs < 60:
+        res = '%s sec' % delta_secs
+    elif delta_secs < 3600:
+        mins = int(delta_secs / 60)
+        secs = int(delta_secs - (mins * 60))
         res = '%d min %d sec' % (mins, secs)
     else:
-        hours = int(time_secs / 3600)
-        mins = int((time_secs - hours * 3600) / 60)
-        secs = int(time_secs - (hours * 3600) - (mins * 60))
+        hours = int(delta_secs / 3600)
+        mins = int((delta_secs - hours * 3600) / 60)
+        secs = int(delta_secs - (hours * 3600) - (mins * 60))
         hours_str = 'hours' if hours > 1 else 'hour'
         res = '%d %s %d min %d sec' % (hours, hours_str, mins, secs)
 

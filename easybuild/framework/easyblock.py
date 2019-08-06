@@ -3145,7 +3145,7 @@ def build_and_install_one(ecdict, init_env):
         app.close_log()
         application_log = app.logfile
 
-    req_time = time2str((end_timestamp - start_timestamp).total_seconds())
+    req_time = time2str(end_timestamp - start_timestamp)
     print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent)
 
     # check for errors
