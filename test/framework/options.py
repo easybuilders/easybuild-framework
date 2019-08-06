@@ -3363,7 +3363,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['toy-0.0.eb', '--force', '--stop=configure']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile("COMPLETED: Installation STOPPED successfully \(took .* sec\)", re.M)
+        regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* sec\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_fetch(self):
@@ -3380,8 +3380,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
         patterns = [
-            "^== fetching files\.\.\.$",
-            "^== COMPLETED: Installation STOPPED successfully \(took .* sec\)$",
+            r"^== fetching files\.\.\.$",
+            r"^== COMPLETED: Installation STOPPED successfully \(took .* sec\)$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
