@@ -3,6 +3,43 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.9.3 (July 8th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add a URL whatis line to generated module files (#2933)
+- various bug fixes, including:
+  - stick to Ubuntu Trusty when testing with Python 2.6 in Travis (#2928)
+  - honor --tmp-logdir when determining location of temporary log file (#2937)
+
+
+v3.9.2 (June 9th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - enhance (experimental) support for generating Singularity container recipes/images (#2884, #2900, #2902, #2903, #2907, #2909, #2910, #2913, #2915)
+      - add support for specifying container configuration via --container-config (--container-base option has been removed)
+      - add support for providing custom template for container recipe via --container-template-recipe
+      - add support for 'sif' Singularity 3.x container image format
+      - add support for specifying non-image based Singularity bootstrap agents
+      - install default set of OS packages in container recipes starting from scratch
+      - configure Lmod and update Lmod spider cache in generated Singularity container recipes
+      - configure EasyBuild via environment variables (to allow overriding configuration settings via options to 'eb' command)
+      - also consider /tmp/easybuild/sources in source path (to allow seeding in sources in container build environment)
+      - updated documentation is available at https://easybuild.readthedocs.io/en/latest/Containers.html
+- various bug fixes, including:
+  - make sure that easyconfig file for EasyBuild version being bootstrapped is found in robot search path (#2899)
+  - remove interpreter options when fixing script shebang (#2905, #2906)
+  - fix crash on iterated installation when using Cray toolchains (#2914)
+  - disable checking of read/exec permissions when checking for availability of 'sudo' command (#2918)
+- other changes:
+  - stick to vsc-base<2.9.0 in bootstrap script to avoid requiring 'future' dependency (#2892)
+
+
 v3.9.1 (May 20th 2019)
 ----------------------
 
