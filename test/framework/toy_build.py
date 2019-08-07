@@ -2265,6 +2265,27 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(perl_shebang_regex.match(perlbin_txt),
                             "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
 
+    def test_toy_system_toolchain_alias(self):
+        """Test use of 'system' toolchain alias."""
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        tc_regex = re.compile('^toolchain = .*', re.M)
+
+        test_tcs = [
+            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = {'name': 'system', 'version': ''}",
+            "toolchain = SYSTEM",
+        ]
+
+        for tc in test_tcs:
+            test_ec_txt = tc_regex.sub(tc, toy_ec_txt)
+            write_file(test_ec, test_ec_txt)
+
+            self.test_toy_build(ec_file=test_ec)
+
+
 def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
