@@ -435,10 +435,10 @@ def to_checksums(checksums):
             else:
                 res.append(to_checksums(checksum))
         elif isinstance(checksum, dict):
-            d = {}
-            for k, v in checksum.items():
-                d[k] = to_checksums(v)
-            res.append(d)
+            validated_dict = {}
+            for key, value in checksum.items():
+                validated_dict[key] = to_checksums(value)
+            res.append(validated_dict)
 
     return res
 
