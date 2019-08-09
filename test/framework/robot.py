@@ -692,6 +692,9 @@ class RobotTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
+        self.allow_deprecated_behaviour()
+
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         test_ec = 'toy-0.0-deps.eb'

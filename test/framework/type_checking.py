@@ -34,9 +34,10 @@ from unittest import TextTestRunner
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, ensure_iterable_license_specs
-from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT
 from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
-from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_toolchain_dict
+from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_strings_and_tuples, to_toolchain_dict
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
 from easybuild.tools.build_log import EasyBuildError
 
@@ -187,11 +188,18 @@ class TypeCheckingTest(EnhancedTestCase):
         # 1.6 can't be parsed as an int (yields "invalid literal for int() with base 10" error)
         self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '1.6', int)
 
+        # to list of strings
+        self.assertEqual(convert_value_type('foo', LIST_OF_STRINGS), ['foo'])
+        self.assertEqual(convert_value_type(('foo', 'bar'), LIST_OF_STRINGS), ['foo', 'bar'])
+        self.assertEqual(convert_value_type((), LIST_OF_STRINGS), [])
+
         # idempotency
         self.assertEqual(convert_value_type('foo', basestring), 'foo')
         self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type(100, int), 100)
         self.assertEqual(convert_value_type(1.6, float), 1.6)
+        self.assertEqual(convert_value_type(['foo', 'bar'], LIST_OF_STRINGS), ['foo', 'bar'])
+        self.assertEqual(convert_value_type([], LIST_OF_STRINGS), [])
 
         # complex types
         dep = [{'GCC': '1.2.3', 'versionsuffix': 'foo'}]
@@ -342,6 +350,14 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type({'one': 1}, list))
         self.assertFalse(is_value_of_type(1, str))
         self.assertFalse(is_value_of_type("foo", int))
+
+        # list of strings check
+        self.assertTrue(is_value_of_type([], LIST_OF_STRINGS))
+        self.assertTrue(is_value_of_type(['foo', 'bar'], LIST_OF_STRINGS))
+        self.assertTrue(is_value_of_type([''], LIST_OF_STRINGS))
+        self.assertFalse(is_value_of_type(123, LIST_OF_STRINGS))
+        self.assertFalse(is_value_of_type('foo', LIST_OF_STRINGS))
+        self.assertFalse(is_value_of_type(('foo', 'bar'), LIST_OF_STRINGS))
 
         # toolchain type check
         self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, TOOLCHAIN_DICT))
@@ -502,6 +518,28 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # errors
         self.assertErrorRegex(EasyBuildError, "Don't know how to check element types .*", check_element_types, 1, [])
+
+    def test_to_list_of_strings(self):
+        """Test to_list_of_strings function."""
+        # no conversion if value type is already correct
+        self.assertEqual(to_list_of_strings([]), [])
+        self.assertEqual(to_list_of_strings(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings(['foo', 'bar', 'baz']), ['foo', 'bar', 'baz'])
+
+        # single string is converted to a single-element list
+        self.assertEqual(to_list_of_strings('foo'), ['foo'])
+        self.assertEqual(to_list_of_strings(''), [''])
+
+        # tuple of strings is converted to list of strings
+        self.assertEqual(to_list_of_strings(['foo', 'bar']), ['foo', 'bar'])
+        self.assertEqual(to_list_of_strings(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings(()), [])
+
+        # proper error reporting for other values
+        error_pattern = r"Don't know how to convert provided value to a list of strings: "
+        self.assertErrorRegex(EasyBuildError, error_pattern + '123', to_list_of_strings, 123)
+        self.assertErrorRegex(EasyBuildError, error_pattern + 'True', to_list_of_strings, True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, to_list_of_strings, [('foo', 'bar')])
 
     def test_to_list_of_strings_and_tuples(self):
         """Test to_list_of_strings_and_tuples function."""
