@@ -301,6 +301,27 @@ def to_name_version_dict(spec):
     _log.nosupport("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
 
 
+def to_list_of_strings(value):
+    """
+    Convert specified value to a list of strings, if possible.
+
+    Supported: single string value, tuple of string values.
+    """
+    res = None
+
+    # if value is already of correct type, we don't need to change anything
+    if isinstance(value, list) and all(isinstance(s, basestring) for s in value):
+        res = value
+    elif isinstance(value, basestring):
+        res = [value]
+    elif isinstance(value, tuple) and all(isinstance(s, basestring) for s in value):
+        res = list(value)
+    else:
+        raise EasyBuildError("Don't know how to convert provided value to a list of strings: %s", value)
+
+    return res
+
+
 def to_list_of_strings_and_tuples(spec):
     """
     Convert a 'list of lists and strings' to a 'list of tuples and strings'
@@ -486,6 +507,7 @@ DEPENDENCY_DICT = (dict, as_hashable({
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
 
 TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
+LIST_OF_STRINGS = (list, as_hashable({'elem_types': [str]}))
 STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
@@ -497,8 +519,8 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 }))
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
-                   STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT,
+                   STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
@@ -506,6 +528,7 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'checksums': CHECKSUMS,
+    'docurls': LIST_OF_STRINGS,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_LIST,
@@ -524,6 +547,7 @@ TYPE_CONVERSION_FUNCTIONS = {
     str: str,
     CHECKSUMS: to_checksums,
     DEPENDENCIES: to_dependencies,
+    LIST_OF_STRINGS: to_list_of_strings,
     TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
     STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
