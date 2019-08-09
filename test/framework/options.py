@@ -1053,6 +1053,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
+        self.allow_deprecated_behaviour()
+
         tmpdir = tempfile.mkdtemp()
         args = [
             # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
@@ -1161,6 +1164,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
+        self.allow_deprecated_behaviour()
+
         args = [
             # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
@@ -1172,9 +1178,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         try:
             self.mock_stdout(True)
+            self.mock_stderr(True)
             self.eb_main(args, do_build=True, raise_error=True, testing=False)
             stdout = self.get_stdout()
             self.mock_stdout(False)
+            self.mock_stderr(False)
 
             msg_regexs = [
                 re.compile(r"^== Build succeeded for 1 out of 1", re.M),
