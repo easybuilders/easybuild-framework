@@ -292,7 +292,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # Test dictionary-type checksums
-        for checksum_type, checksum in known_checksums.items():
+        for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
 
