@@ -293,7 +293,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # Test dictionary-type checksums
         for checksum_type, checksum in known_checksums.items():
-            dict_checksum = {fp: checksum}
+            dict_checksum = {fp: checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
 
         # cleanup
