@@ -532,11 +532,12 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 # each entry can be:
 # a single checksum value (string)
 # a single checksum value of a specified type (2-tuple, 1st element is checksum type, 2nd element is checksum)
-# a list of checksums (of different types) as string values, which should *all* be valid
+# a list of checksums (of different types, perhaps different formats), which should *all* be valid
 # a dictionary with a mapping from filename to checksum value
-CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, LIST_OF_STRINGS, STRING_DICT]}))
+CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
+CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
+CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
                    SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
