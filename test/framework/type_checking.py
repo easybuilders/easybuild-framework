@@ -202,6 +202,12 @@ class TypeCheckingTest(EnhancedTestCase):
                 ('md5', md5_checksum),
                 {'foo.txt': sha256_checksum2, 'bar.txt': sha256_checksum3},
             ],
+            # each item can be a list of checksums for a single file, which can be of different types...
+            [
+                [sha256_checksum1, sha256_checksum2, sha256_checksum3],
+                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum2}],
+                [sha256_checksum1],
+            ]
         ]
         for inp in inputs:
             self.assertEqual(check_type_of_param_value('checksums', inp), (True, inp))
