@@ -36,6 +36,7 @@ import os
 import random
 import re
 import socket
+import stat
 import string
 import sys
 import tempfile
@@ -101,6 +102,7 @@ GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
+GITHUB_TOKEN_FILE = os.path.expanduser('~/.config/easybuild/github_token')
 URL_SEPARATOR = '/'
 
 VALID_CLOSE_PR_REASONS = {
@@ -1555,8 +1557,26 @@ def fetch_github_token(user):
     if user is None:
         msg = "No GitHub user name provided, required for fetching GitHub token."
     elif not HAVE_KEYRING:
-        msg = "Failed to obtain GitHub token from keyring, "
-        msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
+        if os.path.exists(GITHUB_TOKEN_FILE):
+            st = os.stat(GITHUB_TOKEN_FILE)
+
+            # Check if the GitHub token file is a regular file, owned by the same user as the invoker of
+            # easybuild, only readable by the owner, but not by the group or others.
+            if (stat.S_ISREG(st.st_mode)
+                and st.st_uid == os.getuid()
+                and bool(st.st_mode & stat.S_IRUSR)
+                and not bool(st.st_mode & (stat.S_IRWXG + stat.S_IRWXO))
+            ):
+                fh_token = open(GITHUB_TOKEN_FILE, 'r')
+                token = fh_token.read(40)
+                fh_token.close()
+            else:
+                msg = "Failed to obtain GitHub token from GitHub token file \"%s\".\n" % (GITHUB_TOKEN_FILE)
+                msg += "Make sure the file is only readable by the owner:\n"
+                msg += "$ chmod u+rw-x,go-rwx %s" % (GITHUB_TOKEN_FILE)
+        else:
+            msg = "Failed to obtain GitHub token from keyring, "
+            msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
     else:
         try:
             token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
@@ -1577,13 +1597,14 @@ def fetch_github_token(user):
     if token is None:
         # failed to obtain token, log message explaining why
         _log.warning(msg)
+    elif not HAVE_KEYRING:
+        _log.info("Successfully obtained GitHub token from GitHub token file.")
     else:
         _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
 
     return token
 
 
-@only_if_module_is_available('keyring')
 def install_github_token(github_user, silent=False):
     """
     Install specified GitHub token for specified user.
@@ -1618,8 +1639,18 @@ def install_github_token(github_user, silent=False):
         raise EasyBuildError("Token validation failed, not installing it. Please verify your token and try again.")
 
     # install token
-    keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
-    print_msg("Token '%s..%s' installed!" % (token[:3], token[-3:]), prefix=False, silent=silent)
+    if HAVE_KEYRING:
+        keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
+        print_msg("Token '%s..%s' installed in keyring!" % (token[:3], token[-3:]), prefix=False, silent=silent)
+    else:
+        mkdir(os.path.dirname(GITHUB_TOKEN_FILE), parents=True)
+        token_fh = open(GITHUB_TOKEN_FILE, 'w')
+        token_fh.write(token + "\n")
+        token_fh.close()
+        # Make GitHub token file only readable (and writable) by the owner.
+        os.chmod(GITHUB_TOKEN_FILE, 0o600)
+        print_msg("Token '%s..%s' installed in config file ('%s')!" % (token[:3], token[-3:], GITHUB_TOKEN_FILE),
+                  prefix=False, silent=silent)
 
 
 def validate_github_token(token, github_user):
