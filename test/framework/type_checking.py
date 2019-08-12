@@ -186,9 +186,14 @@ class TypeCheckingTest(EnhancedTestCase):
             [sha256_checksum1],
             # one checksum, for 3 files
             [sha256_checksum1, sha256_checksum2, sha256_checksum3],
-            # one checksum of specific type
+            # one checksum of specific type (as 2-tuple)
             [('md5', md5_checksum)],
             [('sha256', sha256_checksum1)],
+            # alternative checksums for a single file (n-tuple)
+            [(sha256_checksum1, sha256_checksum2)],
+            [(sha256_checksum1, sha256_checksum2, sha256_checksum3)],
+            [(sha256_checksum1, sha256_checksum2, sha256_checksum3, md5_checksum)],
+            [(md5_checksum,)],
             # multiple checksums of specific type, one for each file
             [('md5', md5_checksum), ('sha256', sha256_checksum1)],
             # checksum as dict (file to checksum mapping)
@@ -204,9 +209,16 @@ class TypeCheckingTest(EnhancedTestCase):
             ],
             # each item can be a list of checksums for a single file, which can be of different types...
             [
-                [sha256_checksum1, sha256_checksum2, sha256_checksum3],
-                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum2}],
-                [sha256_checksum1],
+                # two checksums for a single file, *both* should match
+                [sha256_checksum1, md5_checksum],
+                # three checksums for a single file, *all* should match
+                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum1}],
+                # single checksum for a single file
+                sha256_checksum1,
+                # filename-to-checksum mapping
+                {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2},
+                # 3 alternative checksums for a single file, one match is sufficient
+                (sha256_checksum1, sha256_checksum2, sha256_checksum3),
             ]
         ]
         for inp in inputs:
