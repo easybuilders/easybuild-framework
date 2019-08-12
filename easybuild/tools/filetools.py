@@ -748,18 +748,19 @@ def verify_checksum(path, checksums):
     :param file: path of file to verify checksum of
     :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
+
+    filename = os.path.basename(path)
+
     # if no checksum is provided, pretend checksum to be valid, unless presence of checksums to verify is enforced
     if checksums is None:
         if build_option('enforce_checksums'):
-            raise EasyBuildError("Missing checksum for %s", os.path.basename(path))
+            raise EasyBuildError("Missing checksum for %s", filename)
         else:
             return True
 
     # make sure we have a list of checksums
     if not isinstance(checksums, list):
         checksums = [checksums]
-
-    filename = os.path.basename(path)
 
     for checksum in checksums:
         if isinstance(checksum, dict):
@@ -781,8 +782,21 @@ def verify_checksum(path, checksums):
             else:
                 raise EasyBuildError("Length of checksum '%s' (%d) does not match with either MD5 (32) or SHA256 (64)",
                                      checksum, len(checksum))
-        elif isinstance(checksum, tuple) and len(checksum) == 2:
-            typ, checksum = checksum
+
+        elif isinstance(checksum, tuple):
+            # if checksum is specified as a tuple, it could either be specifying:
+            # * the type of checksum + the checksum value
+            # * a set of alternative valid checksums to consider => recursive call
+            if len(checksum) == 2 and checksum[0] in CHECKSUM_FUNCTIONS:
+                typ, checksum = checksum
+            else:
+                _log.info("Found %d alternative checksums for %s, considering them one-by-one...", len(checksum), path)
+                for cand_checksum in checksum:
+                    if verify_checksum(path, cand_checksum):
+                        _log.info("Found matching checksum for %s: %s", path, cand_checksum)
+                        return True
+                    else:
+                        _log.info("Ignoring non-matching checksum for %s (%s)...", path, cand_checksum)
         else:
             raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
                                  checksum)
