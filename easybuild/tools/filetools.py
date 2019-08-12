@@ -759,7 +759,19 @@ def verify_checksum(path, checksums):
     if not isinstance(checksums, list):
         checksums = [checksums]
 
+    filename = os.path.basename(path)
+
     for checksum in checksums:
+        if isinstance(checksum, dict):
+            if filename in checksum:
+                # Set this to a string-type checksum
+                checksum = checksum[filename]
+            elif build_option('enforce_checksums'):
+                raise EasyBuildError("Missing checksum for %s", filename)
+            else:
+                # Set to None and allow to fail elsewhere
+                checksum = None
+
         if isinstance(checksum, basestring):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
             if len(checksum) == 64:

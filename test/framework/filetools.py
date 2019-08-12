@@ -236,6 +236,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_checksums(self):
         """Test checksum functionality."""
+        # Test dictionary-type checksums
         fh, fp = tempfile.mkstemp()
         os.close(fh)
         ft.write_file(fp, "easybuild\n")
@@ -289,6 +290,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
+
+        # Test dictionary-type checksums
+        for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
+            dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
+            self.assertTrue(ft.verify_checksum(fp, dict_checksum))
 
         # cleanup
         os.remove(fp)

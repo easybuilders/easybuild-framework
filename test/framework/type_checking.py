@@ -170,6 +170,48 @@ class TypeCheckingTest(EnhancedTestCase):
         out = {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': [('lib', 'lib64', 'lib32')]}
         self.assertEqual(check_type_of_param_value('sanity_check_paths', inp, auto_convert=True), (True, out))
 
+    def test_check_type_of_param_value_checksums(self):
+        """Test check_type_of_param_value function for checksums."""
+
+        md5_checksum = 'fa618be8435447a017fd1bf2c7ae9224'
+        sha256_checksum1 = 'fa618be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265'
+        sha256_checksum2 = 'b5f9cb06105c1d2d30719db5ffb3ea67da60919fb68deaefa583deccd8813551'
+        sha256_checksum3 = '033be54514a03e255df75c5aee8f9e672f663f93abb723444caec8fe43437bde'
+
+        # valid values for 'checksums' easyconfig parameters
+        inputs = [
+            [],
+            # single checksum (one file)
+            [md5_checksum],
+            [sha256_checksum1],
+            # one checksum, for 3 files
+            [sha256_checksum1, sha256_checksum2, sha256_checksum3],
+            # one checksum of specific type
+            [('md5', md5_checksum)],
+            [('sha256', sha256_checksum1)],
+            # multiple checksums of specific type, one for each file
+            [('md5', md5_checksum), ('sha256', sha256_checksum1)],
+            # checksum as dict (file to checksum mapping)
+            [{'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2}],
+            # list of checksums for a single file
+            [[md5_checksum]],
+            [[sha256_checksum1, sha256_checksum2, sha256_checksum3]],
+            # in the mix (3 files, each a different kind of checksum spec)...
+            [
+                sha256_checksum1,
+                ('md5', md5_checksum),
+                {'foo.txt': sha256_checksum2, 'bar.txt': sha256_checksum3},
+            ],
+            # each item can be a list of checksums for a single file, which can be of different types...
+            [
+                [sha256_checksum1, sha256_checksum2, sha256_checksum3],
+                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum2}],
+                [sha256_checksum1],
+            ]
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('checksums', inp), (True, inp))
+
     def test_convert_value_type(self):
         """Test convert_value_type function."""
         # to string

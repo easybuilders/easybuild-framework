@@ -455,6 +455,11 @@ def to_checksums(checksums):
                 res.append(tuple(checksum))
             else:
                 res.append(to_checksums(checksum))
+        elif isinstance(checksum, dict):
+            validated_dict = {}
+            for key, value in checksum.items():
+                validated_dict[key] = to_checksums(value)
+            res.append(validated_dict)
 
     return res
 
@@ -509,6 +514,12 @@ DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
 TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
 LIST_OF_STRINGS = (list, as_hashable({'elem_types': [str]}))
 STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
+STRING_DICT = (dict, as_hashable(
+    {
+        'elem_types': [str],
+        'key_types': [str],
+    }
+))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
         'files': [STRING_OR_TUPLE_LIST],
@@ -517,10 +528,17 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': ['files', 'dirs'],
 }))
-CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
+# checksums is a list of checksums, one entry per file (source/patch)
+# each entry can be:
+# a single checksum value (string)
+# a single checksum value of a specified type (2-tuple, 1st element is checksum type, 2nd element is checksum)
+# a list of checksums (of different types, perhaps different formats), which should *all* be valid
+# a dictionary with a mapping from filename to checksum value
+CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
+CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT,
-                   STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
+                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
