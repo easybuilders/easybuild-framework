@@ -1610,6 +1610,17 @@ class FileToolsTest(EnhancedTestCase):
                                 'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
                                 'hwloc-1.8-gcccuda-2018a.eb'])
 
+        # patterns that include special characters + (or ++) shouldn't cause trouble
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
+        for pattern in ['netCDF-C++', 'foo.*bar', 'foo|bar']:
+            var_defs, hits = ft.search_file([test_ecs], pattern, terse=True, filename_only=True)
+            self.assertEqual(var_defs, [])
+            self.assertEqual(hits, [])
+
+        # check how simply invalid queries are handled
+        for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
+            self.assertErrorRegex(EasyBuildError, "Invalid search query", ft.search_file, [test_ecs], pattern)
+
     def test_find_eb_script(self):
         """Test find_eb_script function."""
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
