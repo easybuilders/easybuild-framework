@@ -2905,7 +2905,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         for tc_str in tc_strs:
             # first check if names of local variables get fixed if 'dummy' toolchain is not used
-            init_config(build_options={'strict_local_var_naming': True, 'silent': True})
+            init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
 
             write_file(test_ec, test_ectxt)
             self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
@@ -2934,7 +2934,7 @@ class EasyConfigTest(EnhancedTestCase):
 
             # mimic default behaviour where only warnings are being printed;
             # use of dummy toolchain or local variables not following recommended naming scheme is not fatal by default
-            init_config(build_options={'strict_local_var_naming': False, 'silent': False})
+            init_config(build_options={'local_var_naming_check': 'warn', 'silent': False})
             self.mock_stderr(True)
             self.mock_stdout(True)
             ec = EasyConfig(test_ec)
@@ -2951,7 +2951,7 @@ class EasyConfigTest(EnhancedTestCase):
             for warning in warnings:
                 self.assertTrue(warning in stderr, "Found warning '%s' in stderr output: %s" % (warning, stderr))
 
-            init_config(build_options={'strict_local_var_naming': True, 'silent': True})
+            init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
 
             # easyconfig doesn't parse because of local variables with name other than 'local_*'
             self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
@@ -3085,7 +3085,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ectxt)
         expected_error = "Use of 1 unknown easyconfig parameters detected in test.eb: foobar"
-        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, strict_local_var_naming=True)
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error-eb')
 
         # all unknown keys are detected at once, and reported alphabetically
         # single-letter local variables are not a problem
@@ -3102,7 +3102,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
-        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, strict_local_var_naming=True)
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error-eb')
 
 
 def suite():

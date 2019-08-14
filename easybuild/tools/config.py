@@ -120,6 +120,15 @@ JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
 
+LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
+LOCAL_VAR_NAMING_CHECK_ERROR_EB = 'error-eb'
+LOCAL_VAR_NAMING_CHECK_LOG = 'log'
+LOCAL_VAR_NAMING_CHECK_WARN = 'warn'
+LOCAL_VAR_NAMING_CHECK_WARN_EB = 'warn-eb'
+LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_ERROR_EB,
+                           LOCAL_VAR_NAMING_CHECK_LOG,
+                           LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECK_WARN_EB]
+
 
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
@@ -230,7 +239,6 @@ BUILD_OPTIONS_CMDLINE = {
         'set_gid_bit',
         'skip_test_cases',
         'sticky_bit',
-        'strict_local_var_naming',
         'trace',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -278,6 +286,9 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_ALLOW_LOADED_MODULES: [
         'allow_loaded_modules',
     ],
+    LOCAL_VAR_NAMING_CHECK_WARN: [
+        'local_var_naming_check',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {

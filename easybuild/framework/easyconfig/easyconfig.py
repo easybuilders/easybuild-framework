@@ -58,7 +58,9 @@ from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACE
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
-from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_ERROR_EB
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN_EB, Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
@@ -377,7 +379,7 @@ class EasyConfig(object):
     """
 
     def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
-                 auto_convert_value_types=True, strict_local_var_naming=None):
+                 auto_convert_value_types=True, local_var_naming_check=None):
         """
         initialize an easyconfig.
         :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -388,7 +390,7 @@ class EasyConfig(object):
         :param rawtxt: raw contents of easyconfig file
         :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
-        :param strict_local_var_naming: enforce strict naming scheme for local variables in easyconfig file
+        :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -464,23 +466,7 @@ class EasyConfig(object):
         self.build_specs = build_specs
         self.parse()
 
-        if strict_local_var_naming is None:
-            strict_local_var_naming = build_option('strict_local_var_naming')
-
-        if self.unknown_keys:
-            cnt = len(self.unknown_keys)
-            if self.path:
-                in_fn = "in %s" % os.path.basename(self.path)
-            else:
-                in_fn = ''
-            unknown_keys_msg = ', '.join(sorted(self.unknown_keys))
-            msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
-            msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
-            msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
-            if strict_local_var_naming:
-                raise EasyBuildError(msg)
-            else:
-                print_warning(msg, silent=build_option('silent'))
+        self.local_var_naming(local_var_naming_check)
 
         # check whether this easyconfig file is deprecated, and act accordingly if so
         self.check_deprecated(self.path)
@@ -675,6 +661,34 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def local_var_naming(self, local_var_naming_check):
+        """Deal with local variables that do not follow the recommended naming scheme (if any)."""
+
+        if local_var_naming_check is None:
+            local_var_naming_check = build_option('local_var_naming_check')
+
+        if self.unknown_keys:
+            cnt = len(self.unknown_keys)
+            if self.path:
+                in_fn = "in %s" % os.path.basename(self.path)
+            else:
+                in_fn = ''
+            unknown_keys_msg = ', '.join(sorted(self.unknown_keys))
+
+            msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
+            msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
+            msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
+
+            # always log a warning if local variable that don't follow recommended naming scheme are found
+            self.log.warning(msg)
+
+            if local_var_naming_check in [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_ERROR_EB]:
+                raise EasyBuildError(msg)
+            elif local_var_naming_check in [LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECK_WARN_EB]:
+                print_warning(msg, silent=build_option('silent'))
+            elif local_var_naming_check != LOCAL_VAR_NAMING_CHECK_LOG:
+                raise EasyBuildError("Unknown mode for checking local variable names: %s", local_var_naming_check)
 
     def check_deprecated(self, path):
         """Check whether this easyconfig file is deprecated."""
@@ -2163,7 +2177,7 @@ def fix_deprecated_easyconfigs(paths):
             fixed = True
 
         # fix use of local variables with a name other than a single letter or 'local_*'
-        ec = EasyConfig(path, strict_local_var_naming=False)
+        ec = EasyConfig(path, local_var_naming_check=LOCAL_VAR_NAMING_CHECK_LOG)
         for key in ec.unknown_keys:
             regexp = re.compile(r'\b(%s)\b' % key)
             ectxt = regexp.sub(LOCAL_VAR_PREFIX + key, ectxt)
