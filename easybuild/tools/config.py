@@ -120,6 +120,11 @@ JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
 
+LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
+LOCAL_VAR_NAMING_CHECK_LOG = 'log'
+LOCAL_VAR_NAMING_CHECK_WARN = WARN
+LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
+
 
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
@@ -230,7 +235,6 @@ BUILD_OPTIONS_CMDLINE = {
         'set_gid_bit',
         'skip_test_cases',
         'sticky_bit',
-        'strict_local_var_naming',
         'trace',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -251,6 +255,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     WARN: [
         'check_ebroot_env_vars',
+        'local_var_naming_check',
         'detect_loaded_modules',
         'strict',
     ],
