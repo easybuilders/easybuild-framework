@@ -1615,7 +1615,16 @@ class FileToolsTest(EnhancedTestCase):
         for pattern in ['netCDF-C++', 'foo.*bar', 'foo|bar']:
             var_defs, hits = ft.search_file([test_ecs], pattern, terse=True, filename_only=True)
             self.assertEqual(var_defs, [])
+            # no hits for any of these in test easyconfigs
             self.assertEqual(hits, [])
+
+        # create hit for netCDF-C++ search
+        test_ec = os.path.join(self.test_prefix, 'netCDF-C++-4.2-foss-2019a.eb')
+        ft.write_file(test_ec, '')
+        for pattern in ['netCDF-C++', 'CDF', 'C++', '^netCDF']:
+            var_defs, hits = ft.search_file([self.test_prefix], pattern, terse=True, filename_only=True)
+            self.assertEqual(var_defs, [])
+            self.assertEqual(hits, ['netCDF-C++-4.2-foss-2019a.eb'])
 
         # check how simply invalid queries are handled
         for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
