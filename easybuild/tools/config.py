@@ -123,7 +123,7 @@ DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
 LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
 LOCAL_VAR_NAMING_CHECK_ERROR_EB = 'error-eb'
 LOCAL_VAR_NAMING_CHECK_LOG = 'log'
-LOCAL_VAR_NAMING_CHECK_WARN = 'warn'
+LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECK_WARN_EB = 'warn-eb'
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_ERROR_EB,
                            LOCAL_VAR_NAMING_CHECK_LOG,
@@ -259,6 +259,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     WARN: [
         'check_ebroot_env_vars',
+        'local_var_naming_check',
         'detect_loaded_modules',
         'strict',
     ],
@@ -286,9 +287,6 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_ALLOW_LOADED_MODULES: [
         'allow_loaded_modules',
     ],
-    LOCAL_VAR_NAMING_CHECK_WARN: [
-        'local_var_naming_check',
-    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
