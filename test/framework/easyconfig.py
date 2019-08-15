@@ -3085,7 +3085,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ectxt)
         expected_error = "Use of 1 unknown easyconfig parameters detected in test.eb: foobar"
-        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error-eb')
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
         # all unknown keys are detected at once, and reported alphabetically
         # single-letter local variables are not a problem
@@ -3102,7 +3102,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
-        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error-eb')
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
 
 def suite():

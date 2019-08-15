@@ -664,11 +664,9 @@ class EasyBuildOptions(GeneralOption):
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
-                                       "naming scheme ('log': only log warnings, no printed messages; 'warn': print "
-                                       "warnings; 'warn-eb': print warnings but only for easyconfig files specified "
-                                       "on the 'eb' command line; 'error': fail with an error; 'error-eb': fail with "
-                                       "an error, but only for easyconfig specfiied on the 'eb' command line)",
-                                       'choice', 'store', LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS),
+                                       "naming scheme ('log': only log warnings (no printed messages); 'warn': print "
+                                       "warnings; 'error': fail with an error)", 'choice', 'store',
+                                       LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS),
         })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='')

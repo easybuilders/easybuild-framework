@@ -58,9 +58,8 @@ from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACE
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_ERROR_EB
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN_EB, Singleton, build_option, get_module_naming_scheme
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
+from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
@@ -683,9 +682,9 @@ class EasyConfig(object):
             # always log a warning if local variable that don't follow recommended naming scheme are found
             self.log.warning(msg)
 
-            if local_var_naming_check in [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_ERROR_EB]:
+            if local_var_naming_check == LOCAL_VAR_NAMING_CHECK_ERROR:
                 raise EasyBuildError(msg)
-            elif local_var_naming_check in [LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECK_WARN_EB]:
+            elif local_var_naming_check == LOCAL_VAR_NAMING_CHECK_WARN:
                 print_warning(msg, silent=build_option('silent'))
             elif local_var_naming_check != LOCAL_VAR_NAMING_CHECK_LOG:
                 raise EasyBuildError("Unknown mode for checking local variable names: %s", local_var_naming_check)
