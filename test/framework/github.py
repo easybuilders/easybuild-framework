@@ -526,8 +526,8 @@ class GithubTest(EnhancedTestCase):
 
         patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
         file_info = {'ecs': [
-                {'name': 'A', 'patches': ['1.patch']},
-                {'name': 'B', 'patches': []},
+                {'name': 'A', 'patches': ['1.patch'], 'exts_list': []},
+                {'name': 'B', 'patches': [], 'exts_list': []},
             ]
         }
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
@@ -535,7 +535,7 @@ class GithubTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
         self.mock_stdout(False)
 
-        file_info['ecs'].append({'name': 'C', 'patches': [('3.patch', 'subdir'), '2.patch']})
+        file_info['ecs'].append({'name': 'C', 'patches': [('3.patch', 'subdir'), '2.patch'], 'exts_list': []})
         self.mock_stdout(True)
         res = gh.det_patch_specs(patch_paths, file_info, [])
         self.mock_stdout(False)
@@ -547,6 +547,31 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(res[1][1], 'C')
         self.assertEqual(os.path.basename(res[2][0]), '3.patch')
         self.assertEqual(res[2][1], 'C')
+
+        # check if patches for extensions are found
+        file_info['ecs'][-1] = {
+            'name': 'patched_ext',
+            'patches': [],
+            'exts_list': [
+                'foo',
+                ('bar', '1.2.3'),
+                ('patched', '4.5.6', {
+                    'patches': [('2.patch', 1), '3.patch'],
+                }),
+            ],
+        }
+
+        self.mock_stdout(True)
+        res = gh.det_patch_specs(patch_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual(len(res), 3)
+        self.assertEqual(os.path.basename(res[0][0]), '1.patch')
+        self.assertEqual(res[0][1], 'A')
+        self.assertEqual(os.path.basename(res[1][0]), '2.patch')
+        self.assertEqual(res[1][1], 'patched_ext')
+        self.assertEqual(os.path.basename(res[2][0]), '3.patch')
+        self.assertEqual(res[2][1], 'patched_ext')
 
 
 def suite():
