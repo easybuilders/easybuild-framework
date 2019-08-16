@@ -619,8 +619,15 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         raise EasyBuildError("search_file: ignore_dirs (%s) should be of type list, not %s",
                              ignore_dirs, type(ignore_dirs))
 
+    # escape some special characters in query that may also occur in actual software names: +
+    # do not use re.escape, since that breaks queries with genuine regex characters like ^ or .*
+    query = re.sub('([+])', r'\\\1', query)
+
     # compile regex, case-insensitive
-    query = re.compile(query, re.I)
+    try:
+        query = re.compile(query, re.I)
+    except re.error as err:
+        raise EasyBuildError("Invalid search query: %s", err)
 
     var_defs = []
     hits = []

@@ -747,6 +747,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertTrue(re.search('GCC-4.9.2', txt))
 
+        # test using a search pattern that includes special characters like '+', '(', or ')' (should not crash)
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
+        # characters like ^, . or * are not touched, since these can be used as regex characters in queries
+        for opt in ['--search', '-S', '--search-short']:
+            for pattern in ['netCDF-C++', 'foo|bar', '^foo', 'foo.*bar']:
+                args = [opt, pattern, '--robot', test_easyconfigs_dir]
+                self.mock_stdout(True)
+                self.eb_main(args, raise_error=True, verbose=True, testing=False)
+                stdout = self.get_stdout()
+                self.mock_stdout(False)
+                # there shouldn't be any hits for any of these queries, so empty output...
+                self.assertEqual(stdout.strip(), '')
+
+        # some search patterns are simply invalid,
+        # if they include allowed special characters like '*' but are used incorrectly...
+        # a proper error is produced in that case (as opposed to a crash)
+        for opt in ['--search', '-S', '--search-short']:
+            for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
+                args = [opt, pattern, '--robot', test_easyconfigs_dir]
+                self.assertErrorRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
+
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
         args = ['--search-filename=^intel']
