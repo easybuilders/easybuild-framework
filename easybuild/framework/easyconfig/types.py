@@ -312,11 +312,11 @@ def to_list_of_strings(value):
     res = None
 
     # if value is already of correct type, we don't need to change anything
-    if isinstance(value, list) and all(isinstance(s, basestring) for s in value):
+    if isinstance(value, list) and all(isinstance(s, string_type) for s in value):
         res = value
-    elif isinstance(value, basestring):
+    elif isinstance(value, string_type):
         res = [value]
-    elif isinstance(value, tuple) and all(isinstance(s, basestring) for s in value):
+    elif isinstance(value, tuple) and all(isinstance(s, string_type) for s in value):
         res = list(value)
     else:
         raise EasyBuildError("Don't know how to convert provided value to a list of strings: %s", value)
