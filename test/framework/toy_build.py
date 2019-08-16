@@ -2177,14 +2177,30 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_mod_file)
 
         self.assertFalse(expected in toy_mod_txt, "Pattern '%s' should not be found in: %s" % (expected, toy_mod_txt))
-        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
-        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
         self.modtool.load(['toy/0.0'])
         loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
         self.assertTrue('toy/0.0' in loaded_mod_names)
         self.assertFalse('GCC/4.6.3' in loaded_mod_names)
         self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+
+        # also check relevant parts of "module help" and whatis bits (no '(default)' here!)
+        expected_descr_no_default = '\n'.join([
+            "Compatible modules",
+            "==================",
+            "This module is compatible with the following modules, one of each line is required:",
+            "* GCC/4.6.3, GCC/7.3.0-2.30",
+        ])
+        error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr_no_default, toy_mod_txt)
+        self.assertTrue(expected_descr_no_default in toy_mod_txt, error_msg_descr)
+
+        if get_module_syntax() == 'Lua':
+            expected_whatis_no_default = "whatis([==[Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30]==])"
+        else:
+            expected_whatis_no_default = "module-whatis {Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30}"
+
+        error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis_no_default, toy_mod_txt)
+        self.assertTrue(expected_whatis_no_default in toy_mod_txt, error_msg_whatis)
 
         # restore original environment to continue testing with a clean slate
         modify_env(os.environ, self.orig_environ, verbose=False)
@@ -2219,7 +2235,9 @@ class ToyBuildTest(EnhancedTestCase):
                 ])
 
             self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+            error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
             self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+            error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
             self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
             check_toy_load(depends_on=True)
