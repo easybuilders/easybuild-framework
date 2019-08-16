@@ -30,6 +30,7 @@ Utility module for working with github
 :author: Toon Willems (Ghent University)
 """
 import base64
+import copy
 import getpass
 import glob
 import os
@@ -819,7 +820,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
     res = False
-    for patch in ec['patches']:
+
+    patches = copy.copy(ec['patches'])
+
+    for ext in ec['exts_list']:
+        if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
+            ext_options = ext[2]
+            patches.extend(ext_options.get('patches', []))
+
+    for patch in patches:
         if isinstance(patch, (tuple, list)):
             patch = patch[0]
         if patch == patch_name:

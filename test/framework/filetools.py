@@ -236,9 +236,10 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_checksums(self):
         """Test checksum functionality."""
-        fh, fp = tempfile.mkstemp()
-        os.close(fh)
+
+        fp = os.path.join(self.test_prefix, 'test.txt')
         ft.write_file(fp, "easybuild\n")
+
         known_checksums = {
             'adler32': '0x379257805',
             'crc32': '0x1457143216',
@@ -261,10 +262,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
-        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
         # providing non-matching MD5 and SHA256 checksums results in failed verification
         self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
         self.assertFalse(ft.verify_checksum(fp, '7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db'))
+
+        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
         # checksum of length other than 32/64 yields an error
         error_pattern = "Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
         for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['sha256'] + 'foo']:
@@ -280,6 +282,23 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
 
+        # test specify alternative checksums
+        alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', known_checksums['sha256'])
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = ('fecf50db81148786647312bbd3b5c740', '2c829facaba19c0fcd81f9ce96bef712',
+                         '840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'])
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = ('840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'], '2c829facaba19c0fcd81f9ce96bef712')
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = (known_checksums['md5'], '840078aeb4b5d69506e7c8edae1e1b89', '2c829facaba19c0fcd81f9ce96bef712')
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = (known_checksums['sha256'],)
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
         # check whether missing checksums are enforced
         build_options = {
             'enforce_checksums': True,
@@ -290,8 +309,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
-        # cleanup
-        os.remove(fp)
+        # Test dictionary-type checksums
+        for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
+            dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
+            self.assertTrue(ft.verify_checksum(fp, dict_checksum))
 
     def test_common_path_prefix(self):
         """Test get common path prefix for a list of paths."""
@@ -1584,6 +1605,26 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
                                 'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
                                 'hwloc-1.8-gcccuda-2018a.eb'])
+
+        # patterns that include special characters + (or ++) shouldn't cause trouble
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
+        for pattern in ['netCDF-C++', 'foo.*bar', 'foo|bar']:
+            var_defs, hits = ft.search_file([test_ecs], pattern, terse=True, filename_only=True)
+            self.assertEqual(var_defs, [])
+            # no hits for any of these in test easyconfigs
+            self.assertEqual(hits, [])
+
+        # create hit for netCDF-C++ search
+        test_ec = os.path.join(self.test_prefix, 'netCDF-C++-4.2-foss-2019a.eb')
+        ft.write_file(test_ec, '')
+        for pattern in ['netCDF-C++', 'CDF', 'C++', '^netCDF']:
+            var_defs, hits = ft.search_file([self.test_prefix], pattern, terse=True, filename_only=True)
+            self.assertEqual(var_defs, [])
+            self.assertEqual(hits, ['netCDF-C++-4.2-foss-2019a.eb'])
+
+        # check how simply invalid queries are handled
+        for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
+            self.assertErrorRegex(EasyBuildError, "Invalid search query", ft.search_file, [test_ecs], pattern)
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""

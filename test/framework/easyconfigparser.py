@@ -175,6 +175,11 @@ class EasyConfigParserTest(EnhancedTestCase):
     def test_easyconfig_constants(self):
         """Test available easyconfig constants."""
         constants = build_easyconfig_constants_dict()
+
+        # SYSTEM constant is a dict value, so takes special care
+        system_constant = constants.pop('SYSTEM')
+        self.assertEqual(system_constant, {'name': 'system', 'version': 'system'})
+
         # make sure both keys and values are only strings
         for constant_name in constants:
             self.assertTrue(isinstance(constant_name, string_type), "Constant name %s is a string" % constant_name)

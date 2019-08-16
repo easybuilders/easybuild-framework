@@ -49,6 +49,7 @@ import stat
 import tempfile
 import time
 import traceback
+from datetime import datetime
 from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
@@ -91,7 +92,8 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import det_parallelism, use_group
-from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str, remove_unwanted_chars, trace_msg
+from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
+from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
@@ -2980,6 +2982,8 @@ def build_and_install_one(ecdict, init_env):
     """
     silent = build_option('silent')
 
+    start_timestamp = datetime.now()
+
     spec = ecdict['spec']
     rawtxt = ecdict['ec'].rawtxt
     name = ecdict['ec']['name']
@@ -3118,6 +3122,8 @@ def build_and_install_one(ecdict, init_env):
             # take away user write permissions (again)
             adjust_permissions(new_log_dir, stat.S_IWUSR, add=False, recursive=False)
 
+    end_timestamp = datetime.now()
+
     if result:
         success = True
         summary = 'COMPLETED'
@@ -3136,7 +3142,8 @@ def build_and_install_one(ecdict, init_env):
         app.close_log()
         application_log = app.logfile
 
-    print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
+    req_time = time2str(end_timestamp - start_timestamp)
+    print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent)
 
     # check for errors
     if filetools.errors_found_in_log > 0:

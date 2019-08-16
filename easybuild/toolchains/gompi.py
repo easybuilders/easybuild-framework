@@ -46,11 +46,18 @@ class Gompi(GccToolchain, OpenMPI):
         # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
         version = self.version.replace('a', '.01').replace('b', '.07')
 
-        # deprecate oldest gompi toolchains (versions 1.x)
+        deprecated = False
+
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
-        if re.match('^[0-9]', version) and LooseVersion(version) < LooseVersion('2000'):
-            deprecated = True
-        else:
-            deprecated = False
+        if re.match('^[0-9]', version):
+            gompi_ver = LooseVersion(version)
+            # deprecate oldest gompi toolchains (versions 1.x)
+            if gompi_ver < LooseVersion('2000'):
+                deprecated = True
+            # gompi toolchains older than gompi/2016a are deprecated
+            # take into account that gompi/2016.x is always < gompi/2016a according to LooseVersion;
+            # gompi/2016.01 & co are not deprecated yet...
+            elif gompi_ver < LooseVersion('2016a') and gompi_ver < LooseVersion('2016.01'):
+                deprecated = True
 
         return deprecated
