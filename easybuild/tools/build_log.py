@@ -198,7 +198,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
     else:
         if logfile is None:
             # if logdir is specified but doesn't exist yet, create it first
-            if tmp_logdir:
+            if tmp_logdir and not os.path.exists(tmp_logdir):
                 try:
                     os.makedirs(tmp_logdir)
                 except (IOError, OSError) as err:
