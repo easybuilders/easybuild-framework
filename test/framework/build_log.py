@@ -37,7 +37,7 @@ from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning
-from easybuild.tools.build_log import init_logging, print_error, print_msg, print_warning, time_str_since
+from easybuild.tools.build_log import init_logging, print_error, print_msg, print_warning, stop_logging, time_str_since
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -385,11 +385,15 @@ class BuildLogTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(logfile))
         self.assertTrue(isinstance(log, EasyBuildLog))
 
+        stop_logging(logfile)
+
         # no log provided, so create one (should be file in $TMPDIR)
         log, logfile = init_logging(None, silent=True)
         self.assertTrue(os.path.exists(logfile))
         self.assertEqual(os.path.dirname(logfile), tmpdir)
         self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile)
 
         # no problem with specifying a different directory to put log file in (even if it doesn't exist yet)
         tmp_logdir = os.path.join(self.test_prefix, 'tmp_logs')
@@ -398,6 +402,8 @@ class BuildLogTest(EnhancedTestCase):
         log, logfile = init_logging(None, silent=True, tmp_logdir=tmp_logdir)
         self.assertEqual(os.path.dirname(logfile), tmp_logdir)
         self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile)
 
         # by default, path to tmp log file is printed
         self.mock_stdout(True)
@@ -409,12 +415,16 @@ class BuildLogTest(EnhancedTestCase):
         self.assertTrue(isinstance(log, EasyBuildLog))
         self.assertTrue(stdout.startswith("== temporary log file in case of crash"))
 
+        stop_logging(logfile)
+
         # logging to stdout implies no log file
         self.mock_stdout(True)
         log, logfile = init_logging(None, logtostdout=True)
         self.mock_stdout(False)
         self.assertEqual(logfile, None)
         self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile, logtostdout=True)
 
 
 def suite():
