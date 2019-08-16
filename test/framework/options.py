@@ -4074,6 +4074,37 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_tmp_logdir(self):
+        """Test use of --tmp-logdir."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        # purposely use a non-existing directory as log directory
+        tmp_logdir = os.path.join(self.test_prefix, 'tmp-logs')
+        self.assertFalse(os.path.exists(tmp_logdir))
+
+        # force passing logfile=None to main in eb_main
+        self.logfile = None
+
+        # check log message with --skip for existing module
+        args = [
+            toy_ec,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--force',
+            '--debug',
+            '--tmp-logdir=%s' % tmp_logdir,
+        ]
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        tmp_logs = os.listdir(tmp_logdir)
+        self.assertEqual(len(tmp_logs), 1)
+
+        logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
+        self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
+
 
 def suite():
     """ returns all the testcases in this module """
