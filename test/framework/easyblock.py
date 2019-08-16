@@ -1751,7 +1751,7 @@ class EasyBlockTest(EnhancedTestCase):
         for end, expected in test_cases:
             self.assertEqual(time2str(end - start), expected)
 
-        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <type 'int'>"
+        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
         self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
 
 

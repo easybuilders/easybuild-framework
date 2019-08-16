@@ -295,7 +295,7 @@ def time2str(delta):
     delta_secs = delta.days * 3600 * 24 + delta.seconds + delta.microseconds / 10**6
 
     if delta_secs < 60:
-        res = '%s sec' % delta_secs
+        res = '%d sec' % int(delta_secs)
     elif delta_secs < 3600:
         mins = int(delta_secs / 60)
         secs = int(delta_secs - (mins * 60))
