@@ -568,7 +568,8 @@ class ModuleGenerator(object):
                         for dep in deplist:
                             if dep['name'] == key and dep['version'] == vlist[idx]:
                                 modname = dep['short_mod_name']
-                                if idx == 0:
+                                # indicate which version is loaded by default (unless that's disabled)
+                                if idx == 0 and self.app.cfg['multi_deps_load_default']:
                                     modname += ' (default)'
                                 mod_list.append(modname)
                 txt += ', '.join(mod_list)
