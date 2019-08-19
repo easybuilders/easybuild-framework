@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20190523.01'
+EB_BOOTSTRAP_VERSION = '20190806.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -385,7 +385,7 @@ def check_easy_install_cmd():
     import setuptools
     debug("Location of active setuptools installation: %s" % setuptools.__file__)
 
-    easy_install_regex = re.compile('^(setuptools|distribute) %s' % setuptools.__version__)
+    easy_install_regex = re.compile('^(setuptools|distribute) %s' % setuptools.__version__, re.M)
     debug("Pattern for 'easy_install --version': %s" % easy_install_regex.pattern)
 
     pythonpath = os.getenv('PYTHONPATH', '')
@@ -393,7 +393,7 @@ def check_easy_install_cmd():
     os.system("%s > %s 2>&1" % (cmd, outfile))
     outtxt = open(outfile).read().strip()
     debug("Output of '%s':\n%s" % (cmd, outtxt))
-    res = bool(easy_install_regex.match(outtxt))
+    res = bool(easy_install_regex.search(outtxt))
     debug("Result: %s" % res)
     if res:
         debug("Found right 'easy_install' command")
