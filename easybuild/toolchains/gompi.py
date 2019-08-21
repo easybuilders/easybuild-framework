@@ -57,7 +57,7 @@ class Gompi(GccToolchain, OpenMPI):
             # gompi toolchains older than gompi/2016a are deprecated
             # take into account that gompi/2016.x is always < gompi/2016a according to LooseVersion;
             # gompi/2016.01 & co are not deprecated yet...
-            elif gompi_ver < LooseVersion('2016a') and gompi_ver < LooseVersion('2016.01'):
+            elif gompi_ver < LooseVersion('2016.01'):
                 deprecated = True
 
         return deprecated
