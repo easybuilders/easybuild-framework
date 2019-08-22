@@ -47,7 +47,7 @@ for python_cmd in ${EB_PYTHON} 'python2' 'python3' 'python'; do
 
     verbose "Considering '$python_cmd'..."
 
-    which $python_cmd &> /dev/null
+    command -v $python_cmd &> /dev/null
     if [ $? -eq 0 ]; then
 
         # make sure Python version being used is compatible
