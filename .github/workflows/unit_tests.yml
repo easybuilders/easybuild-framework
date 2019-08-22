@@ -1,0 +1,12 @@
+name: EasyBuild framework unit tests
+on: pull_request
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+    steps:
+    - uses: actions/checkout@v1
+    - name: test 'eb' command
+      run: ./eb --version
