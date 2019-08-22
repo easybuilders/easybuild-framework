@@ -10,9 +10,9 @@ update/bugfix release
 
 - various enhancements, including:
   - add support for specifying checksum via dict providing a filename-to-checksum mapping (#2946)
-  - enhance 'completed' message with how much time was needed the installation (#2956)
+  - enhance 'completed' message with how much time was needed for the installation (#2956)
   - add support for specifying tuple of alternative checksums (#2958)
-  - support using 'system' as alias for 'dummy' toolchain (#2960)
+  - support using 'system' as alias for 'dummy' toolchain + SYSTEM constant (#2960)
   - ensure 'docurls' easyconfig parameter value is a list of string values, not a single string value (#2963)
   - automatically enable --ignore-osdeps when using --check-contrib or --check-style (#2965)
 - various bug fixes, including:
