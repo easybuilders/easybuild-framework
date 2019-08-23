@@ -34,8 +34,8 @@ import tempfile
 from datetime import datetime, timedelta
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
+from easybuild.base.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning
 from easybuild.tools.build_log import init_logging, print_error, print_msg, print_warning, stop_logging, time_str_since
 from easybuild.tools.filetools import read_file, write_file
@@ -105,7 +105,7 @@ class BuildLogTest(EnhancedTestCase):
         log.setLevelName('DEBUG')
         log.debug("123 debug")
         log.info("foobar info")
-        log.warn("justawarning")
+        log.warning("justawarning")
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
@@ -157,7 +157,7 @@ class BuildLogTest(EnhancedTestCase):
 
         # test formatting log messages by providing extra arguments
         logToFile(tmplog, enable=True)
-        log.warn("%s", "bleh"),
+        log.warning("%s", "bleh")
         log.info("%s+%s = %d", '4', '2', 42)
         args = ['this', 'is', 'just', 'a', 'test']
         log.debug("%s %s %s %s %s", *args)

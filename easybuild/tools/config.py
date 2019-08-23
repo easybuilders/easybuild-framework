@@ -33,20 +33,20 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Andy Georges (Ghent University)
 """
 import copy
 import glob
 import os
 import random
-import string
 import tempfile
 import time
-from vsc.utils import fancylogger
-from vsc.utils.missing import FrozenDictKnownKeys
-from vsc.utils.patterns import Singleton
+from abc import ABCMeta
 
+from easybuild.base import fancylogger
+from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
+from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -111,11 +111,32 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+# general module class
+GENERAL_CLASS = 'all'
+
 JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
 JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
 
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
+
+LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
+LOCAL_VAR_NAMING_CHECK_LOG = 'log'
+LOCAL_VAR_NAMING_CHECK_WARN = WARN
+LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
+
+
+class Singleton(ABCMeta):
+    """Serves as metaclass for classes that should implement the Singleton pattern.
+
+    See http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 # utility function for obtaining default paths
@@ -184,7 +205,7 @@ BUILD_OPTIONS_CMDLINE = {
         'zip_logs',
     ],
     False: [
-        'add_dummy_to_minimal_toolchains',
+        'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'consider_archived_easyconfigs',
         'container_build_image',
@@ -234,6 +255,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     WARN: [
         'check_ebroot_env_vars',
+        'local_var_naming_check',
         'detect_loaded_modules',
         'strict',
     ],
@@ -319,11 +341,12 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
-class ConfigurationVariables(FrozenDictKnownKeys):
-    """This is a dict that supports legacy config names transparently."""
+# singleton metaclass: only one instance is created
+BaseConfigurationVariables = create_base_metaclass('BaseConfigurationVariables', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class ConfigurationVariables(BaseConfigurationVariables):
+    """This is a dict that supports legacy config names transparently."""
 
     # list of known/required keys
     REQUIRED = [
@@ -363,11 +386,12 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         return self.items()
 
 
-class BuildOptions(FrozenDictKnownKeys):
-    """Representation of a set of build options, acts like a dictionary."""
+# singleton metaclass: only one instance is created
+BaseBuildOptions = create_base_metaclass('BaseBuildOptions', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class BuildOptions(BaseBuildOptions):
+    """Representation of a set of build options, acts like a dictionary."""
 
     KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
@@ -386,7 +410,7 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, basestring):
+    if isinstance(sourcepath, string_type):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
@@ -419,9 +443,10 @@ def init_build_options(build_options=None, cmdline_options=None):
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.check_contrib,
                                       cmdline_options.check_style, cmdline_options.containerize,
                                       cmdline_options.dep_graph, cmdline_options.dry_run,
-                                      cmdline_options.dry_run_short, cmdline_options.extended_dry_run,
-                                      cmdline_options.dump_env_script, cmdline_options.missing_modules,
-                                      cmdline_options.new_pr, cmdline_options.preview_pr, cmdline_options.update_pr]
+                                      cmdline_options.dry_run_short, cmdline_options.dump_env_script,
+                                      cmdline_options.extended_dry_run, cmdline_options.fix_deprecated_easyconfigs,
+                                      cmdline_options.missing_modules, cmdline_options.new_pr,
+                                      cmdline_options.preview_pr, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
@@ -663,7 +688,7 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     filename = log_file_format(ec={'name': name, 'version': version}, date=date, timestamp=timestamp)
 
     if add_salt:
-        salt = ''.join(random.choice(string.letters) for i in range(5))
+        salt = ''.join(random.choice(ascii_letters) for i in range(5))
         filename_parts = filename.split('.')
         filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
 

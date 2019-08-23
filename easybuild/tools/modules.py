@@ -38,21 +38,19 @@ This python module implements the environment modules functionality:
 import os
 import re
 import shlex
-import subprocess
 from distutils.version import StrictVersion
-from subprocess import PIPE
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
-from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
+from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
+from easybuild.tools.py2vs3 import subprocess_popen_text
 from easybuild.tools.run import run_cmd
-from vsc.utils.missing import nub
+from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
@@ -168,7 +166,11 @@ class ModulesTool(object):
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = self.COMMAND
-        env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
+
+        if self.COMMAND_ENVIRONMENT:
+            env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
+        else:
+            env_cmd_path = None
 
         self.mod_paths = None
         if mod_paths is not None:
@@ -725,7 +727,8 @@ class ModulesTool(object):
         full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        proc = subprocess.Popen(cmd_list, stdout=PIPE, stderr=PIPE, env=environ)
+        proc = subprocess_popen_text(cmd_list, env=environ)
+
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
@@ -957,7 +960,7 @@ class ModulesTool(object):
 
             exts = []
             for modpath_ext in modpath_ext_regex.finditer(modtxt):
-                for key, raw_ext in modpath_ext.groupdict().iteritems():
+                for key, raw_ext in modpath_ext.groupdict().items():
                     if raw_ext is not None:
                         # need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
                         if key in ['tcl_prepend', 'tcl_use']:
@@ -1257,7 +1260,7 @@ class Lmod(ModulesTool):
             cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
             self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+            proc = subprocess_popen_text(cmd, env=os.environ)
             (stdout, stderr) = proc.communicate()
 
             if stderr:
@@ -1475,7 +1478,7 @@ def invalidate_module_caches_for(path):
 
     _log.debug("Invallidating module cache entries for path '%s'", path)
     for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
-        for key in cache.keys():
+        for key in list(cache.keys()):
             paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
             _log.debug("Paths for 'module %s' key '%s': %s", subcmd, key, paths_in_key)
             for path_in_key in paths_in_key:

@@ -18,7 +18,7 @@ homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
 
 # test toolchain specification
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
 # source tarball filename
 sources = [SOURCE_TAR_GZ]

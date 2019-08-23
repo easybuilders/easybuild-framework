@@ -60,7 +60,7 @@ class EnvironmentTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertEqual(os.getenv('FOO'), 'foobaz')
         self.assertEqual(os.environ['FOO'], 'foobaz')
-        self.assertEqual(txt, "  export FOO=\"foobaz\"\n")
+        self.assertEqual(txt, "  export FOO='foobaz'\n")
 
         # disabling verbose
         self.mock_stdout(True)

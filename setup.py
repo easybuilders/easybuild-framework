@@ -43,13 +43,14 @@ API_VERSION = str(VERSION).split('.')[0]
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+
 # log levels: 0 = WARN (default), 1 = INFO, 2 = DEBUG
 log.set_verbosity(1)
 
 try:
     from setuptools import setup
     log.info("Installing with setuptools.setup...")
-except ImportError, err:
+except ImportError as err:
     log.info("Failed to import setuptools.setup, so falling back to distutils.setup")
     from distutils.core import setup
 
@@ -69,13 +70,15 @@ def find_rel_test():
     os.chdir(current)
     return res
 
+
 easybuild_packages = [
-    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
+    "easybuild", "easybuild.base",
+    "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
     "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
     "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
     "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
-    "easybuild.tools.repository", "test.framework", "test",
+    "easybuild.tools.py2vs3", "easybuild.tools.repository", "test.framework", "test",
 ]
 
 setup(
@@ -90,7 +93,7 @@ implement support for installing particular (groups of) software packages.""",
     url="https://easybuilders.github.io/easybuild",
     packages=easybuild_packages,
     package_dir={'test.framework': 'test/framework'},
-    package_data={'test.framework': find_rel_test(),},
+    package_data={'test.framework': find_rel_test()},
     scripts=[
         'eb',
         # bash completion
@@ -114,22 +117,19 @@ implement support for installing particular (groups of) software packages.""",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",
     test_suite="test.framework.suite",
     zip_safe=False,
-    install_requires=[
-        'setuptools >= 0.6',
-        "vsc-install >= 0.9.19",
-        "vsc-base >= 2.5.8",
-    ],
-    extras_require = {
+    extras_require={
         'yeb': ["PyYAML >= 3.11"],
         'coloredlogs': [
             'coloredlogs',
             'humanfriendly',  # determine whether terminal supports ANSI color
         ],
     },
-    namespace_packages=['easybuild'],
 )

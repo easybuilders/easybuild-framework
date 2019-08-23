@@ -37,16 +37,13 @@ import os
 import random
 import re
 import socket
-import string
 import sys
 import tempfile
 import time
-import urllib2
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
@@ -54,8 +51,9 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
+from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
-from easybuild.tools.utilities import only_if_module_is_available
+from easybuild.tools.utilities import nub, only_if_module_is_available
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -69,10 +67,10 @@ except ImportError as err:
     HAVE_KEYRING = False
 
 try:
-    from vsc.utils.rest import RestClient
+    from easybuild.base.rest import RestClient
     HAVE_GITHUB_API = True
 except ImportError as err:
-    _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
+    _log.warning("Failed to import from 'easybuild.base.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
 try:
@@ -157,7 +155,7 @@ class Githubfs(object):
         else:
             try:
                 return githubobj['type'] == GITHUB_DIR_TYPE
-            except:
+            except Exception:
                 return False
 
     @staticmethod
@@ -165,7 +163,7 @@ class Githubfs(object):
         """Check if this path points to a file"""
         try:
             return githubobj['type'] == GITHUB_FILE_TYPE
-        except:
+        except Exception:
             return False
 
     def listdir(self, path):
@@ -553,7 +551,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     _log.debug("Cloning from %s", github_url)
 
     # salt to use for names of remotes/branches that are created
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
+    salt = ''.join(random.choice(ascii_letters) for _ in range(5))
 
     remote_name = 'pr_target_account_%s_%s' % (target_account, salt)
 
@@ -752,9 +750,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # checkout target branch
     if pr_branch is None:
         if ec_paths:
-            label = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+            label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
         else:
-            label = ''.join(random.choice(string.letters) for _ in range(10))
+            label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
 
     # create branch to commit to and push;
@@ -790,7 +788,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # push to GitHub
     github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
+    salt = ''.join(random.choice(ascii_letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (target_account, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -1325,7 +1323,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 status, data = pr_url.labels.post(body=labels)
                 if status == HTTP_STATUS_OK:
                     print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
-            except urllib2.HTTPError as err:
+            except HTTPError as err:
                 _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
@@ -1389,9 +1387,9 @@ def check_github():
     # check whether we're online; if not, half of the checks are going to fail...
     try:
         print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
-        urllib2.urlopen(GITHUB_URL, timeout=5)
+        urlopen(GITHUB_URL, timeout=5)
         print_msg("OK\n", log=_log, prefix=False)
-    except urllib2.URLError as err:
+    except URLError as err:
         print_msg("FAIL")
         raise EasyBuildError("checking status of GitHub integration must be done online")
 
@@ -1469,7 +1467,7 @@ def check_github():
     print_msg(msg, log=_log, prefix=False, newline=False)
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo, res, push_err = None, None, None
-    branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
+    branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
         remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master',
