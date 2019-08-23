@@ -518,6 +518,19 @@ class EasyConfig(object):
             raise EasyBuildError("You may have some typos in your easyconfig file: %s",
                                  ', '.join(["%s -> %s" % typo for typo in typos]))
 
+        # handle 'system' alias for 'dummy' toolchain;
+        # this is done to help deal with the deprecation of the 'dummy' toolchain in EasyBuild 4.x,
+        # since it allows EasyBuild 3.x to process easyconfigs meant for EasyBuild 4.x
+        # (which is important for features like "eb --install-latest-eb-release")
+        # without having to make the extensive changes made when effectively replacing the 'dummy' toolchain
+        # with an actual 'system' toolchain (see https://github.com/easybuilders/easybuild-framework/pull/2877);
+        if local_vars['toolchain']['name'] == 'system':
+            local_vars['toolchain']['name'] = DUMMY_TOOLCHAIN_NAME
+            self.log.info("Found 'system' toolchain name, replaced with 'dummy'")
+            if local_vars['toolchain']['version'] == 'system':
+                local_vars['toolchain']['version'] = DUMMY_TOOLCHAIN_VERSION
+                self.log.info("Found 'system' toolchain version, replaced with 'dummy'")
+
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config

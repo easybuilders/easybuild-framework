@@ -747,6 +747,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertTrue(re.search('GCC-4.9.2', txt))
 
+        # test using a search pattern that includes special characters like '+', '(', or ')' (should not crash)
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
+        # characters like ^, . or * are not touched, since these can be used as regex characters in queries
+        for opt in ['--search', '-S', '--search-short']:
+            for pattern in ['netCDF-C++', 'foo|bar', '^foo', 'foo.*bar']:
+                args = [opt, pattern, '--robot', test_easyconfigs_dir]
+                self.mock_stdout(True)
+                self.eb_main(args, raise_error=True, verbose=True, testing=False)
+                stdout = self.get_stdout()
+                self.mock_stdout(False)
+                # there shouldn't be any hits for any of these queries, so empty output...
+                self.assertEqual(stdout.strip(), '')
+
+        # some search patterns are simply invalid,
+        # if they include allowed special characters like '*' but are used incorrectly...
+        # a proper error is produced in that case (as opposed to a crash)
+        for opt in ['--search', '-S', '--search-short']:
+            for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
+                args = [opt, pattern, '--robot', test_easyconfigs_dir]
+                self.assertErrorRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
+
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
         args = ['--search-filename=^intel']
@@ -1053,6 +1074,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
+        self.allow_deprecated_behaviour()
+
         tmpdir = tempfile.mkdtemp()
         args = [
             # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
@@ -1161,6 +1185,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
+        self.allow_deprecated_behaviour()
+
         args = [
             # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
@@ -1172,16 +1199,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         try:
             self.mock_stdout(True)
+            self.mock_stderr(True)
             self.eb_main(args, do_build=True, raise_error=True, testing=False)
             stdout = self.get_stdout()
             self.mock_stdout(False)
+            self.mock_stderr(False)
 
             msg_regexs = [
                 re.compile(r"^== Build succeeded for 1 out of 1", re.M),
                 re.compile(r"^\*\*\* DRY RUN using 'ConfigureMake' easyblock", re.M),
                 re.compile(r"^== building and installing FFTW/3.3.4-gompi-2015a\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
-                re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
             ]
 
             for msg_regex in msg_regexs:
@@ -2619,7 +2648,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg_regexs = [
             re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
             re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
-            re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+            re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
             re.compile(r"^\(no ignored errors during dry run\)", re.M),
         ]
         ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
@@ -3355,7 +3384,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['toy-0.0.eb', '--force', '--stop=configure']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile("COMPLETED: Installation STOPPED successfully", re.M)
+        regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* sec\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_fetch(self):
@@ -3372,8 +3401,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
         patterns = [
-            "^== fetching files\.\.\.$",
-            "^== COMPLETED: Installation STOPPED successfully$",
+            r"^== fetching files\.\.\.$",
+            r"^== COMPLETED: Installation STOPPED successfully \(took .* sec\)$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -4044,6 +4073,37 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_tmp_logdir(self):
+        """Test use of --tmp-logdir."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        # purposely use a non-existing directory as log directory
+        tmp_logdir = os.path.join(self.test_prefix, 'tmp-logs')
+        self.assertFalse(os.path.exists(tmp_logdir))
+
+        # force passing logfile=None to main in eb_main
+        self.logfile = None
+
+        # check log message with --skip for existing module
+        args = [
+            toy_ec,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--force',
+            '--debug',
+            '--tmp-logdir=%s' % tmp_logdir,
+        ]
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        tmp_logs = os.listdir(tmp_logdir)
+        self.assertEqual(len(tmp_logs), 1)
+
+        logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
+        self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
 
 
 def suite():

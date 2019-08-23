@@ -81,7 +81,7 @@ class ToyBuildTest(EnhancedTestCase):
         full_version = ''.join([versionprefix, version, versionsuffix])
 
         # check for success
-        success = re.compile("COMPLETED: Installation ended successfully")
+        success = re.compile(r"COMPLETED: Installation ended successfully \(took .* sec\)")
         self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s" % outtxt)
 
         # if the module exists, it should be fine
@@ -2176,14 +2176,30 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod_txt = read_file(toy_mod_file)
 
         self.assertFalse(expected in toy_mod_txt, "Pattern '%s' should not be found in: %s" % (expected, toy_mod_txt))
-        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
-        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
         self.modtool.load(['toy/0.0'])
         loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
         self.assertTrue('toy/0.0' in loaded_mod_names)
         self.assertFalse('GCC/4.6.3' in loaded_mod_names)
         self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+
+        # also check relevant parts of "module help" and whatis bits (no '(default)' here!)
+        expected_descr_no_default = '\n'.join([
+            "Compatible modules",
+            "==================",
+            "This module is compatible with the following modules, one of each line is required:",
+            "* GCC/4.6.3, GCC/7.3.0-2.30",
+        ])
+        error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr_no_default, toy_mod_txt)
+        self.assertTrue(expected_descr_no_default in toy_mod_txt, error_msg_descr)
+
+        if get_module_syntax() == 'Lua':
+            expected_whatis_no_default = "whatis([==[Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30]==])"
+        else:
+            expected_whatis_no_default = "module-whatis {Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30}"
+
+        error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis_no_default, toy_mod_txt)
+        self.assertTrue(expected_whatis_no_default in toy_mod_txt, error_msg_whatis)
 
         # restore original environment to continue testing with a clean slate
         modify_env(os.environ, self.orig_environ, verbose=False)
@@ -2218,7 +2234,9 @@ class ToyBuildTest(EnhancedTestCase):
                 ])
 
             self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+            error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
             self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+            error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
             self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
 
             check_toy_load(depends_on=True)
@@ -2264,6 +2282,27 @@ class ToyBuildTest(EnhancedTestCase):
             perlbin_txt = read_file(perlbin_path)
             self.assertTrue(perl_shebang_regex.match(perlbin_txt),
                             "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+
+    def test_toy_system_toolchain_alias(self):
+        """Test use of 'system' toolchain alias."""
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        tc_regex = re.compile('^toolchain = .*', re.M)
+
+        test_tcs = [
+            "toolchain = {'name': 'system', 'version': 'system'}",
+            "toolchain = {'name': 'system', 'version': ''}",
+            "toolchain = SYSTEM",
+        ]
+
+        for tc in test_tcs:
+            test_ec_txt = tc_regex.sub(tc, toy_ec_txt)
+            write_file(test_ec, test_ec_txt)
+
+            self.test_toy_build(ec_file=test_ec)
+
 
 def suite():
     """ return all the tests in this file """
