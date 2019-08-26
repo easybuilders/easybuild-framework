@@ -6,6 +6,8 @@ jobs:
     strategy:
       matrix:
         python: [2.7, 3.5, 3.6, 3.7]
+        lmod_version: [6.5.1, 7.8.22, 8.0.9]
+        module_syntax: [Tcl, Lua]
     steps:
     - uses: actions/checkout@v1
     - name: set up Python
@@ -15,3 +17,12 @@ jobs:
         architecture: x64
     - name: test 'eb' command
       run: EB_PYTHON=python ./eb --show-system-info
+    - name: install dependencies
+      run:
+          export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh;
+          source $INSTALL_DEP lua-5.1.4.8 $HOME;
+          source $INSTALL_DEP Lmod-${{matrix.lmod_version}} $HOME
+    - name: easybuild-framework test suite
+      run:
+          export TEST_EASYBUILD_MODULE_SYNTAX=${{matrix.module_syntax}}
+          python -O -m test.framework.modules
