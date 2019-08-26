@@ -821,42 +821,44 @@ class EasyConfig(object):
 
         return res
 
+    def dep_is_filtered(self, dep, filter_deps_specs):
+        """Returns True if a dependency is filtered according to the filter_deps_specs"""
+        filter_dep = False
+        if dep['name'] in filter_deps_specs:
+            filter_spec = filter_deps_specs[dep['name']]
+
+            if filter_spec.get('always_filter', False):
+                filter_dep = True
+            else:
+                version = LooseVersion(dep['version'])
+                lower = LooseVersion(filter_spec['lower']) if filter_spec['lower'] else None
+                upper = LooseVersion(filter_spec['upper']) if filter_spec['upper'] else None
+
+                # assume dep is filtered before checking version range
+                filter_dep = True
+
+                # if version is lower than lower limit: no filtering
+                if lower:
+                    if version < lower or (filter_spec['excl_lower'] and version == lower):
+                        filter_dep = False
+
+                # if version is higher than upper limit: no filtering
+                if upper:
+                    if version > upper or (filter_spec['excl_upper'] and version == upper):
+                        filter_dep = False
+
+        return filter_dep
+
+
     def filter_deps(self, deps):
         """Filter dependencies according to 'filter-deps' configuration setting."""
 
         retained_deps = []
         filter_deps_specs = self.parse_filter_deps()
-
+        self.log.info("Filtering dependencies %s",str(deps))
         for dep in deps:
-            filter_dep = False
-
             # figure out whether this dependency should be filtered
-            if dep['name'] in filter_deps_specs:
-
-                filter_spec = filter_deps_specs[dep['name']]
-
-                if filter_spec.get('always_filter', False):
-                    filter_dep = True
-                else:
-                    version = LooseVersion(dep['version'])
-                    lower = LooseVersion(filter_spec['lower']) if filter_spec['lower'] else None
-                    upper = LooseVersion(filter_spec['upper']) if filter_spec['upper'] else None
-
-                    # assume dep is filtered before checking version range
-
-                    filter_dep = True
-
-                    # if version is lower than lower limit: no filtering
-                    if lower:
-                        if version < lower or (filter_spec['excl_lower'] and version == lower):
-                            filter_dep = False
-
-                    # if version is higher than upper limit: no filtering
-                    if upper:
-                        if version > upper or (filter_spec['excl_upper'] and version == upper):
-                            filter_dep = False
-
-            if filter_dep:
+            if self.dep_is_filtered(dep,filter_deps_specs):
                 self.log.info("filtered out dependency %s", dep)
             else:
                 retained_deps.append(dep)
@@ -1235,7 +1237,7 @@ class EasyConfig(object):
     def _finalize_dependencies(self):
         """Finalize dependency parameters, after initial parsing."""
 
-        filter_deps = build_option('filter_deps')
+        filter_deps_specs = self.parse_filter_deps()
 
         for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
@@ -1254,7 +1256,7 @@ class EasyConfig(object):
                 # reference to original dep dict, this is the one we should be updating
                 orig_dep = deps_ref[idx]
 
-                if filter_deps and orig_dep['name'] in filter_deps:
+                if self.dep_is_filtered(orig_dep,filter_deps_specs):
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
                     continue
 
