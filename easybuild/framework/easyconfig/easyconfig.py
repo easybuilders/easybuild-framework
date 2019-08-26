@@ -849,16 +849,14 @@ class EasyConfig(object):
 
         return filter_dep
 
-
     def filter_deps(self, deps):
         """Filter dependencies according to 'filter-deps' configuration setting."""
 
         retained_deps = []
         filter_deps_specs = self.parse_filter_deps()
-        self.log.info("Filtering dependencies %s",str(deps))
         for dep in deps:
             # figure out whether this dependency should be filtered
-            if self.dep_is_filtered(dep,filter_deps_specs):
+            if self.dep_is_filtered(dep, filter_deps_specs):
                 self.log.info("filtered out dependency %s", dep)
             else:
                 retained_deps.append(dep)
@@ -1256,7 +1254,7 @@ class EasyConfig(object):
                 # reference to original dep dict, this is the one we should be updating
                 orig_dep = deps_ref[idx]
 
-                if self.dep_is_filtered(orig_dep,filter_deps_specs):
+                if self.dep_is_filtered(orig_dep, filter_deps_specs):
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
                     continue
 
