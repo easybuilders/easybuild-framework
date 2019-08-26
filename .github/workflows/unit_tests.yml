@@ -5,8 +5,13 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7]
+        python: [2.7, 3.5, 3.6, 3.7]
     steps:
     - uses: actions/checkout@v1
+    - name: set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{matrix.python}}
+        architecture: x64
     - name: test 'eb' command
-      run: ./eb --show-system-info
+      run: EB_PYTHON=python ./eb --show-system-info
