@@ -1074,13 +1074,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
-        self.allow_deprecated_behaviour()
-
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
-            '--from-pr=1239',
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -1089,25 +1086,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--tmpdir=%s' % tmpdir,
         ]
         try:
-            # PR #1239 includes easyconfigs that use 'dummy' toolchain,
-            # so we need to allow triggering deprecated behaviour
-            self.allow_deprecated_behaviour()
-
-            self.mock_stderr(True)  # just to capture deprecation warning
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-            self.mock_stderr(False)
             modules = [
-                (tmpdir, 'FFTW/3.3.4-gompi-2015a'),
-                (tmpdir, 'foss/2015a'),
-                ('.*', 'GCC/4.9.2'),  # not included in PR
-                (tmpdir, 'gompi/2015a'),
-                (tmpdir, 'HPL/2.1-foss-2015a'),
-                (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
-                (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
-                (tmpdir, 'OpenBLAS/0.2.13-GCC-4.9.2-LAPACK-3.5.0'),
-                (tmpdir, 'OpenMPI/1.8.3-GCC-4.9.2'),
-                (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
-                (tmpdir, 'ScaLAPACK/2.0.2-gompi-2015a-OpenBLAS-0.2.13-LAPACK-3.5.0'),
+                (tmpdir, 'FFTW/3.3.8-gompi-2018b'),
+                (tmpdir, 'foss/2018b'),
+                ('.*', 'GCC/7.3.0-2.30'),  # not included in PR
+                (tmpdir, 'gompi/2018b'),
+                (tmpdir, 'HPL/2.2-foss-2018b'),
+                ('.*', 'hwloc/1.11.8-GCC-7.3.0-2.30'),
+                ('.*', 'OpenBLAS/0.3.1-GCC-7.3.0-2.30'),
+                ('.*', 'OpenMPI/3.1.1-GCC-7.3.0-2.30'),
+                (tmpdir, 'ScaLAPACK/2.0.2-gompi-2018b-OpenBLAS-0.3.1'),
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -1119,7 +1108,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr1239')
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr6424')
             regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError as err:
@@ -1147,10 +1136,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         args = [
             'toy-0.0.eb',
-            'gompi-2015a.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc and numactl)
+            'gompi-2018b.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc)
             'GCC-4.6.3.eb',
-            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
-            '--from-pr=1239',
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % test_ecs_path,
@@ -1159,20 +1148,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--tmpdir=%s' % tmpdir,
         ]
         try:
-            # PR #1239 includes easyconfigs that use 'dummy' toolchain,
-            # so we need to allow triggering deprecated behaviour
-            self.allow_deprecated_behaviour()
-
-            self.mock_stderr(True)  # just to capture deprecation warning
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-            self.mock_stderr(False)
             modules = [
                 (test_ecs_path, 'toy/0.0'),  # not included in PR
-                (test_ecs_path, 'GCC/4.9.2'),  # not included in PR, available locally
-                ('.*%s' % os.path.dirname(tmpdir), 'hwloc/1.10.0-GCC-4.9.2'),
-                ('.*%s' % os.path.dirname(tmpdir), 'numactl/2.0.10-GCC-4.9.2'),
-                ('.*%s' % os.path.dirname(tmpdir), 'OpenMPI/1.8.4-GCC-4.9.2'),
-                ('.*%s' % os.path.dirname(tmpdir), 'gompi/2015a'),
+                (test_ecs_path, 'GCC/7.3.0-2.30'),  # not included in PR, available locally
+                (test_ecs_path, 'hwloc/1.11.8-GCC-7.3.0-2.30'),
+                (test_ecs_path, 'OpenMPI/3.1.1-GCC-7.3.0-2.30'),
+                ('.*%s' % os.path.dirname(tmpdir), 'gompi/2018b'),
                 (test_ecs_path, 'GCC/4.6.3'),  # not included in PR, available locally
             ]
             for path_prefix, module in modules:
@@ -1197,20 +1179,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
-        self.allow_deprecated_behaviour()
-
         args = [
-            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
-            '--from-pr=1239',
-            'FFTW-3.3.4-gompi-2015a.eb',  # required ConfigureMake easyblock, which is available in test easyblocks
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
+            'FFTW-3.3.8-gompi-2018b.eb',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % self.test_prefix,
             '--extended-dry-run',
         ]
         try:
-            # PR #1239 includes easyconfigs that use 'dummy' toolchain,
+            # PR #6424 includes easyconfigs that use 'dummy' toolchain,
             # so we need to allow triggering deprecated behaviour
             self.allow_deprecated_behaviour()
 
@@ -1224,8 +1203,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             msg_regexs = [
                 re.compile(r"^== Build succeeded for 1 out of 1", re.M),
-                re.compile(r"^\*\*\* DRY RUN using 'ConfigureMake' easyblock", re.M),
-                re.compile(r"^== building and installing FFTW/3.3.4-gompi-2015a\.\.\.", re.M),
+                re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
+                re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
                 re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
             ]
