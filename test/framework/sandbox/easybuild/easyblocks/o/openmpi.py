@@ -29,5 +29,6 @@ Dummy easyblock for OpenMPI
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class EB_OpenMPI(EasyBlock):
     pass

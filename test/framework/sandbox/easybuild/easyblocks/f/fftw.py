@@ -29,5 +29,6 @@ Dummy easyblock for FFTW
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class EB_FFTW(EasyBlock):
     pass
