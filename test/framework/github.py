@@ -237,15 +237,12 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # PR for rename of ffmpeg to FFmpeg,
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
-        all_ecs_pr2481 = [
-            'FFmpeg-2.4-intel-2014.06.eb',
-            'FFmpeg-2.4-intel-2014b.eb',
-            'FFmpeg-2.8-intel-2015b.eb',
-            'OpenCV-2.4.9-intel-2014.06.eb',
-            'OpenCV-2.4.9-intel-2014b.eb',
-            'animation-2.4-intel-2015b-R-3.2.1.eb',
+        # PR for rename of arrow to Arrow,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007/files
+        all_ecs_pr8007 = [
+            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
+            'bat-0.3.3-fix-pyspark.patch',
+            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
         ]
         # PR where also files are patched in test/
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
@@ -273,7 +270,7 @@ class GithubTest(EnhancedTestCase):
             'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
         ]
 
-        for pr, all_ecs in [(2481, all_ecs_pr2481), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
+        for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
