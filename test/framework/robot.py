@@ -692,9 +692,6 @@ class RobotTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        # need to allow triggering deprecated behaviour because of old toolchain (< gompi/2016a)
-        self.allow_deprecated_behaviour()
-
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         test_ec = 'toy-0.0-deps.eb'
@@ -702,24 +699,24 @@ class RobotTest(EnhancedTestCase):
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
-        gompi_2015a_txt = '\n'.join([
+        gompi_2018b_txt = '\n'.join([
             "easyblock = 'Toolchain'",
             "name = 'gompi'",
-            "version = '2015a'",
+            "version = '2018b'",
             "versionsuffix = '-test'",
             "homepage = 'foo'",
             "description = 'bar'",
             "toolchain = SYSTEM",
         ])
-        write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
+        write_file(os.path.join(self.test_prefix, 'gompi-2018b-test.eb'), gompi_2018b_txt)
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
-            '--from-pr=1239',
-            'FFTW-3.3.4-gompi-2015a.eb',
-            'gompi-2015a-test.eb',  # relative path, available in robot search path
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
+            'FFTW-3.3.8-gompi-2018b.eb',
+            'gompi-2018b-test.eb',  # relative path, available in robot search path
             '--dry-run',
             '--robot',
             '--robot=%s' % self.test_prefix,
@@ -728,21 +725,21 @@ class RobotTest(EnhancedTestCase):
             '--tmpdir=%s' % self.test_prefix,
         ]
 
-        # need to allow deprecated because of hitting 'dummy' toolchain
-        self.allow_deprecated_behaviour()
-
         self.mock_stderr(True)
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
         self.mock_stderr(False)
+
+        # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
+        test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
 
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
-            (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
-            ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
-            ('.*/files_pr1239', 'gompi/2015a'),  # part of PR easyconfigs
-            (test_ecs_path, 'GCC/4.9.2'),  # dependency for PR easyconfigs, found in robot search path
+            (self.test_prefix, 'gompi/2018b-test'),  # specified easyconfig, found in robot search path
+            ('.*/files_pr6424', 'FFTW/3.3.8-gompi-2018b'),  # specified easyconfig
+            (test_ecs_path, 'gompi/2018b'),  # part of PR easyconfigs, found in robot search path
+            (test_ecs_path, 'GCC/7.3.0-2.30'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
