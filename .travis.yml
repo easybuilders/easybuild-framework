@@ -79,6 +79,7 @@ before_install:
 install:
     # install environment modules or Lmod
     - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
+    - cd $HOME  # avoid downloading into easybuild-framework dir
     - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
