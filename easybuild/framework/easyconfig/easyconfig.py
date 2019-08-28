@@ -677,7 +677,8 @@ class EasyConfig(object):
 
             msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
-            msg += "or try using --fix-deprecated-easyconfigs to do this automatically."
+            msg += "or try using --fix-deprecated-easyconfigs to do this automatically.\nFor more information, see "
+            msg += "https://easybuild.readthedocs.io/en/4.x/Easyconfig-files-local-variables.html ."
 
             # always log a warning if local variable that don't follow recommended naming scheme are found
             self.log.warning(msg)
