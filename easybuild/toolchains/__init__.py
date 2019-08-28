@@ -28,4 +28,5 @@ Declaration of toolchains namespace.
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+import os
+__path__ = __import__('pkgutil').extend_path([os.path.abspath(p) for p in __path__], __name__)
