@@ -1813,6 +1813,9 @@ class EasyBlock(object):
             checksum_issues.append(msg)
 
         for fn, checksum in zip(sources + patches, checksums):
+            if isinstance(checksum, dict):
+                checksum = checksum.get(fn)
+
             if not is_sha256_checksum(checksum):
                 msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
                 checksum_issues.append(msg)
