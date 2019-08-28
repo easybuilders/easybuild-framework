@@ -699,7 +699,7 @@ class RobotTest(EnhancedTestCase):
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
-        gompi_2015a_txt = '\n'.join([
+        gompi_2018b_txt = '\n'.join([
             "easyblock = 'Toolchain'",
             "name = 'gompi'",
             "version = '2018b'",
@@ -708,12 +708,12 @@ class RobotTest(EnhancedTestCase):
             "description = 'bar'",
             "toolchain = SYSTEM",
         ])
-        write_file(os.path.join(self.test_prefix, 'gompi-2018b-test.eb'), gompi_2015a_txt)
+        write_file(os.path.join(self.test_prefix, 'gompi-2018b-test.eb'), gompi_2018b_txt)
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
             '--from-pr=6424',
             'FFTW-3.3.8-gompi-2018b.eb',
             'gompi-2018b-test.eb',  # relative path, available in robot search path
