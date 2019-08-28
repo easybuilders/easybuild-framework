@@ -729,6 +729,9 @@ class RobotTest(EnhancedTestCase):
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
         self.mock_stderr(False)
 
+        # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
+        test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
+
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
