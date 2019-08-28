@@ -115,13 +115,4 @@ implement support for installing particular (groups of) software packages.""",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",
-    test_suite="test.framework.suite",
-    zip_safe=False,
-    extras_require={
-        'yeb': ["PyYAML >= 3.11"],
-        'coloredlogs': [
-            'coloredlogs',
-            'humanfriendly',  # determine whether terminal supports ANSI color
-        ],
-    },
 )
