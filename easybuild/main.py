@@ -331,8 +331,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
 
     # handle --check-contrib & --check-style options
-    if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
-        clean_exit(logfile, eb_tmpdir, testing)
+    if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib or new_update_preview_pr,
+                                options.check_style):
+        if not new_update_preview_pr:
+            clean_exit(logfile, eb_tmpdir, testing)
 
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
