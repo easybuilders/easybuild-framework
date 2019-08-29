@@ -72,7 +72,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, which
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
@@ -1422,9 +1422,18 @@ def parse_external_modules_metadata(cfgs):
 
     # use external modules metadata configuration files that are available by default, unless others are specified
     if not cfgs:
-        # we expect to find *external_modules_metadata.cfg files in etc/
-        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        cfgs = glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg'))
+        cfgs = []
+
+        # we expect to find *external_modules_metadata.cfg files in etc/ on same level as easybuild/framework
+        topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
+
+        # etc/ could also be located next to bin/
+        eb_cmd = which('eb')
+        if eb_cmd:
+            topdirs.append(os.path.dirname(os.path.dirname(eb_cmd)))
+
+        for topdir in topdirs:
+            cfgs.extend(glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg')))
 
         if cfgs:
             _log.info("Using default external modules metadata cfg files: %s", cfgs)

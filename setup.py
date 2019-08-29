@@ -33,6 +33,7 @@ or
 import glob
 import os
 from distutils import log
+from distutils.core import setup
 
 from easybuild.tools.version import VERSION
 
@@ -46,13 +47,6 @@ def read(fname):
 
 # log levels: 0 = WARN (default), 1 = INFO, 2 = DEBUG
 log.set_verbosity(1)
-
-try:
-    from setuptools import setup
-    log.info("Installing with setuptools.setup...")
-except ImportError as err:
-    log.info("Failed to import setuptools.setup, so falling back to distutils.setup")
-    from distutils.core import setup
 
 log.info("Installing version %s (API version %s)" % (VERSION, API_VERSION))
 
@@ -123,13 +117,4 @@ implement support for installing particular (groups of) software packages.""",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",
-    test_suite="test.framework.suite",
-    zip_safe=False,
-    extras_require={
-        'yeb': ["PyYAML >= 3.11"],
-        'coloredlogs': [
-            'coloredlogs',
-            'humanfriendly',  # determine whether terminal supports ANSI color
-        ],
-    },
 )
