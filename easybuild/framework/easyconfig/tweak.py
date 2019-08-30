@@ -1017,7 +1017,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
 
     # Determine the name of the modified easyconfig and dump it to target_dir
     if parsed_ec['versionsuffix'] in versonsuffix_mapping:
-        parsed_ec['versionsuffix'] = versonsuffix_mapping[parsed_ec['ec']['versionsuffix']]
+        parsed_ec['versionsuffix'] = versonsuffix_mapping[parsed_ec['versionsuffix']]
     ec_filename = '%s-%s.eb' % (parsed_ec['name'], det_full_ec_version(parsed_ec))
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
