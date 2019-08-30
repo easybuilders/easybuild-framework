@@ -113,7 +113,7 @@ class YebTest(EnhancedTestCase):
     def test_yeb_to_eb_dump(self):
         """Test parsing of .yeb easyconfig and dumping as .eb easyconfig."""
         if 'yaml' not in sys.modules:
-            print "Skipping test_parse_yeb (no PyYAML available)"
+            print("Skipping test_parse_yeb (no PyYAML available)")
             return
 
         build_options = {
