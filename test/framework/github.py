@@ -441,6 +441,7 @@ class GithubTest(EnhancedTestCase):
             'milestone': None,
             'number': '1234',
             'reviews': [],
+            'labels': [],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -514,6 +515,15 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['milestone'] = {'title': '3.3.1'}
         expected_stdout += "* milestone is set: OK (3.3.1)\n"
+        expected_warning = ''
+        run_check()
+
+        # at least one label must be set
+        expected_warning = "* labels are set: no labels found => not eligible for merging!"
+        run_check()
+
+        pr_data['labels'].append({'name': 'bug fix'})
+        expected_stdout += "* labels are set: OK (bug fix)\n"
 
         # all checks pass, PR is eligible for merging
         expected_warning = ''
