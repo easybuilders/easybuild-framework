@@ -947,7 +947,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     :return: Location of the modified easyconfig file
     """
     # Fully parse the original easyconfig
-    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
+    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]['ec']
 
     versonsuffix_mapping = {}
 
