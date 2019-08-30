@@ -636,10 +636,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     # compile regex, case-insensitive
     try:
         if case_sensitive:
-          query = re.compile(query, re.I)
+            query = re.compile(query, re.I)
         else:
-          # compile regex, case-insensitive
-          query = re.compile(query, re.I)
+            # compile regex, case-insensitive
+            query = re.compile(query, re.I)
     except re.error as err:
         raise EasyBuildError("Invalid search query: %s", err)
 
