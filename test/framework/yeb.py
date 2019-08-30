@@ -148,7 +148,6 @@ class YebTest(EnhancedTestCase):
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)
 
-            no_match = False
             for key in sorted(dumped_ec_eb.asdict()):
                 eb_val = ec_eb[key]
                 yeb_val = dumped_ec_eb[key]
