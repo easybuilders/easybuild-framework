@@ -31,12 +31,12 @@ import os
 import re
 import stat
 import sys
-from vsc.utils import fancylogger
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
+from easybuild.base import fancylogger
 from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which, write_file
@@ -92,7 +92,7 @@ class ModulesToolTest(EnhancedTestCase):
             bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
             self.assertTrue(False, 'BrokenMockModulesTool should fail')
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             err_msg = "command is not available"
             self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
 

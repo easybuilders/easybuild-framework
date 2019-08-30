@@ -213,7 +213,7 @@ class ParallelBuildTest(EnhancedTestCase):
         try:
             import gc3libs  # noqa (ignore unused import)
         except ImportError:
-            print "GC3Pie not available, skipping test"
+            print("GC3Pie not available, skipping test")
             return
 
         # put GC3Pie config in place to use local host and fork/exec
@@ -347,8 +347,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
             'ntasks': 3,
-            'ntasks-per-node': 3,
-            'output': '%x-%j.out',
+            'output': 'gzip-1.5-foss-2018a-%j.out',
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,
         }

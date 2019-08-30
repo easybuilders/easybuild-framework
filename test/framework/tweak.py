@@ -42,18 +42,34 @@ from easybuild.framework.easyconfig.tweak import find_potential_version_mappings
 from easybuild.framework.easyconfig.tweak import map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import change_dir, write_file
 
 
 class TweakTest(EnhancedTestCase):
     """Tests for tweak functionality."""
+
     def test_pick_version(self):
         """Test pick_version function."""
         # if required version is not available, the most recent version less than or equal should be returned
         self.assertEqual(('1.4', '1.0'), pick_version('1.4', ['0.5', '1.0', '1.5']))
 
         # if required version is available, that should be what's returned
+        self.assertEqual(('0.5', '0.5'), pick_version('0.5', ['0.5', '1.0', '1.5']))
         self.assertEqual(('1.0', '1.0'), pick_version('1.0', ['0.5', '1.0', '1.5']))
+        self.assertEqual(('1.5', '1.5'), pick_version('1.5', ['0.5', '1.0', '1.5']))
+
+        # if no required version is specified, most recent version is picked
+        self.assertEqual(('1.5', '1.5'), pick_version(None, ['0.5', '1.0', '1.5']))
+
+        # if only a single version is available, there's nothing much to choose from
+        self.assertEqual(('1.4', '0.5'), pick_version('1.4', ['0.5']))
+        self.assertEqual(('0.5', '0.5'), pick_version(None, ['0.5']))
+
+        # check correct ordering of versions (not alphabetical ordering!)
+        self.assertEqual(('1.12', '1.10'), pick_version('1.12', ['1.5', '1.20', '1.1', '1.50', '1.10', '1.9', '1.8']))
+
+        # if no older versions are available, oldest available version is returned
+        self.assertEqual(('0.8', '1.1'), pick_version('0.8', ['1.5', '1.1', '1.10', '1.8']))
 
     def test_find_matching_easyconfigs(self):
         """Test find_matching_easyconfigs function."""
@@ -113,14 +129,14 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(os.path.basename(ec_file), 'GCC-7.3.0-2.30.eb')
 
         # generate non-existing easyconfig
-        os.chdir(self.test_prefix)
+        change_dir(self.test_prefix)
         specs = {
             'name': 'GCC',
-            'version': '5.4.3',
+            'version': '4.9.0',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertTrue(generated)
-        self.assertEqual(os.path.basename(ec_file), 'GCC-5.4.3.eb')
+        self.assertEqual(os.path.basename(ec_file), 'GCC-4.9.0.eb')
 
     def test_tweak_one_version(self):
         """Test tweak_one function"""

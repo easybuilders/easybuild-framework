@@ -158,7 +158,7 @@ class IncludeTest(EnhancedTestCase):
         write_file(os.path.join(my_mns, '__init__.py'), "# dummy init, should not get included")
 
         my_mns_txt = '\n'.join([
-            "from easybuild.tools.module_naming_scheme import ModuleNamingScheme",
+            "from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme",
             "class MyMNS(ModuleNamingScheme):",
             "   pass",
         ])

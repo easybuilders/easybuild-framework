@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20190112.01'
+EB_BOOTSTRAP_VERSION = '20190523.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -173,19 +173,26 @@ def det_modules_path(install_path):
 def find_egg_dir_for(path, pkg):
     """Find full path of egg dir for given package."""
 
+    res = None
+
     for libdir in ['lib', 'lib64']:
         full_libpath = os.path.join(path, det_lib_path(libdir))
         eggdir_regex = re.compile('%s-[0-9a-z.]+-py[0-9.]+.egg' % pkg.replace('-', '_'))
-        subdirs = (os.path.exists(full_libpath) and os.listdir(full_libpath)) or []
+        subdirs = (os.path.exists(full_libpath) and sorted(os.listdir(full_libpath))) or []
         for subdir in subdirs:
             if eggdir_regex.match(subdir):
                 eggdir = os.path.join(full_libpath, subdir)
-                debug("Found egg dir for %s at %s" % (pkg, eggdir))
-                return eggdir
+                if res is None:
+                    debug("Found egg dir for %s at %s" % (pkg, eggdir))
+                    res = eggdir
+                else:
+                    debug("Found another egg dir for %s at %s (ignoring it)" % (pkg, eggdir))
 
     # no egg dir found
-    debug("Failed to determine egg dir path for %s in %s (subdirs: %s)" % (pkg, path, subdirs))
-    return None
+    if res is None:
+        debug("Failed to determine egg dir path for %s in %s (subdirs: %s)" % (pkg, path, subdirs))
+
+    return res
 
 
 def prep(path):
@@ -521,14 +528,18 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
 
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
         post_vsc_base = cmd[:]
-        post_vsc_base[-1] = VSC_BASE
+        post_vsc_base[-1] = VSC_BASE + '<2.9.0'
 
     if not print_debug:
         cmd.insert(0, '--quiet')
 
     # install vsc-install version prior to 0.11.4, where mock was introduced as a dependency
     # workaround for problem reported in https://github.com/easybuilders/easybuild-framework/issues/2712
-    run_easy_install(cmd[:-1] + [VSC_INSTALL + '<0.11.4'])
+    # also stick to vsc-base < 2.9.0 to avoid requiring 'future' Python package as dependency
+    for pkg in [VSC_INSTALL + '<0.11.4', VSC_BASE + '<2.9.0']:
+        precmd = cmd[:-1] + [pkg]
+        info("running pre-install command 'easy_install %s'" % (' '.join(precmd)))
+        run_easy_install(precmd)
 
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
     run_easy_install(cmd)
@@ -684,7 +695,8 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
             if res:
                 pkg_url_part = res.group(1)
             else:
-                error("Failed to determine PyPI package URL for %s: %s\n" % (pkg, pkg_simple))
+                error_msg = "Failed to determine PyPI package URL for %s using pattern '%s': %s\n"
+                error(error_msg % (pkg, pkg_url_part_regex.pattern, pkg_simple))
 
             pkg_url = 'https://pypi.python.org/' + pkg_url_part
             pkg_urls.append(pkg_url)
@@ -726,6 +738,11 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
             eb_args.append('--installpath=%s' % install_path)
         if sourcepath is not None:
             eb_args.append('--sourcepath=%s' % sourcepath)
+
+        # make sure EasyBuild can find EasyBuild-*.eb easyconfig file when it needs to;
+        # (for example when HierarchicalMNS is used as module naming scheme,
+        #  see https://github.com/easybuilders/easybuild-framework/issues/2393)
+        eb_args.append('--robot-paths=%s:' % tmpdir)
 
     # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
     if install_path is not None:

@@ -28,9 +28,7 @@ Implementation of a broken test module naming scheme.
 @author: Kenneth Hoste (Ghent University)
 """
 
-import os
-
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 
 UNKNOWN_KEY = 'nosucheasyconfigparameteravailable'

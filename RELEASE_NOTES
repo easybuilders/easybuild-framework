@@ -3,6 +3,139 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.9.4 (August 23rd 2019)
+-------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for specifying checksum via dict providing a filename-to-checksum mapping (#2946)
+  - enhance 'completed' message with how much time was needed for the installation (#2956)
+  - add support for specifying tuple of alternative checksums (#2958)
+  - support using 'system' as alias for 'dummy' toolchain + SYSTEM constant (#2960)
+  - ensure 'docurls' easyconfig parameter value is a list of string values, not a single string value (#2963)
+  - automatically enable --ignore-osdeps when using --check-contrib or --check-style (#2965)
+- various bug fixes, including:
+  - escape '+' in search queries + handle invalid search queries better (#2967)
+  - also consider extension patches when determining for which easyconfig a given patch file is intended in --new-pr/--update-pr (#2969)
+  - unset $CDPATH early on if it is defined (#2970)
+  - create specified temporary log directory if it doesn't exist yet in init_logging (#2972)
+  - don't indicate first multi_deps version as default in module help text when multi_deps_load_default=False (#2973)
+- other changes:
+  - deprecate toolchains older than gompi/2016a and foss/2016a (#2951)
+
+
+v3.9.3 (July 8th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add a URL whatis line to generated module files (#2933)
+- various bug fixes, including:
+  - stick to Ubuntu Trusty when testing with Python 2.6 in Travis (#2928)
+  - honor --tmp-logdir when determining location of temporary log file (#2937)
+
+
+v3.9.2 (June 9th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - enhance (experimental) support for generating Singularity container recipes/images (#2884, #2900, #2902, #2903, #2907, #2909, #2910, #2913, #2915)
+      - add support for specifying container configuration via --container-config (--container-base option has been removed)
+      - add support for providing custom template for container recipe via --container-template-recipe
+      - add support for 'sif' Singularity 3.x container image format
+      - add support for specifying non-image based Singularity bootstrap agents
+      - install default set of OS packages in container recipes starting from scratch
+      - configure Lmod and update Lmod spider cache in generated Singularity container recipes
+      - configure EasyBuild via environment variables (to allow overriding configuration settings via options to 'eb' command)
+      - also consider /tmp/easybuild/sources in source path (to allow seeding in sources in container build environment)
+      - updated documentation is available at https://easybuild.readthedocs.io/en/latest/Containers.html
+- various bug fixes, including:
+  - make sure that easyconfig file for EasyBuild version being bootstrapped is found in robot search path (#2899)
+  - remove interpreter options when fixing script shebang (#2905, #2906)
+  - fix crash on iterated installation when using Cray toolchains (#2914)
+  - disable checking of read/exec permissions when checking for availability of 'sudo' command (#2918)
+- other changes:
+  - stick to vsc-base<2.9.0 in bootstrap script to avoid requiring 'future' dependency (#2892)
+
+
+v3.9.1 (May 20th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add function to determine whether specified easyblock is generic or not (#2838)
+  - add support to apply_regex_substitutions function to skip creation of backup (#2844)
+  - add support for %(pymajver)s (& co) (#2850)
+  - add support for 'fix_python_shebang_for' and 'fix_perl_shebang_for' easyconfig parameters (#2878)
+  - add multi_deps information to generated module, help and whatis sections (#2882)
+  - add support for 'eb --missing' ('eb -M') (#2883)
+    - see also https://easybuild.readthedocs.io/en/latest/Using_the_EasyBuild_command_line.html#getting-an-overview-of-missing-installations-missing-m
+- various bug fixes, including:
+  - only call 'scontrol release' when there's at least one job submitted (#2834)
+  - fix small bug in find_eb_script + various minor issues with tests (related to environment in which tests are run) (#2835)
+  - list build dependencies *before* runtime dependencies, so dependencies listed via multi_deps are loaded first in toolchain environment (#2839)
+  - allow setting parallel to 0 or False to disable adding the -j argument (#2842)
+  - be more careful when using single quotes for Tcl syntax (#2847)
+  - append to existing .modulerc file rather than overwriting it (if --force is used) (#2848)
+  - correctly resolve template values used for extensions (#2852)
+  - update template values after updating iterative easyconfig parameters (#2854)
+  - add top-level directories of hierarchical module naming scheme to $MODULEPATH before loading dependencies (#2857)
+  - inject dependencies specified via multi_deps before normal build dependencies (#2861)
+  - include Python version(s) in PR titles auto-generated by --new-pr (#2863, #2880)
+  - update HierarchicalMNS for GCCcore toolchain (#2870)
+  - bump iteration index counter at the correct time (#2886)
+  - don't specify --ntasks-per-node when submitting Slurm jobs (#2887)
+  - fix order of easyconfig parameters in output generated by 'eb --avail-easyconfig-params --output-format rst' (#2888)
+- other changes:
+  - lower required version in Slurm job backend to 16.05 (#2833)
+  - add Lmod 8 to test suite (#2849)
+  - deprecate useless 'skip_lower' named argument in template_constant_dict, always define *lower templates (#2856)
+  - fix Python classifiers in setup.py, should be (only) Python 2.6 & 2.7 (#2876)
+
+
+v3.9.0 (April 12th 2019)
+------------------------
+
+feature release
+- various enhancements, including:
+  - add (pre)testopts easyconfig parameters (#2793)
+  - add support for multi_deps easyconfig parameter (#2741, #2810, #2811, #2812, #2813, #2825, #2826, #2827, #2828)
+- various bug fixes, including:
+  - fix argument name in close_pr (#2752)
+  - fix undefined variable 'prefix' in Compiler._set_compiler_vars (#2757)
+  - fix test account for GitHub-related tests (#2760)
+  - make sure read permissions are always set in permissions_step (#2770)
+  - make test for dep_graph function robust against changing order of lines in resulting dot file (#2772)
+  - fix problem with import_available_modules when running from easybuild-framework directory (#2786)
+  - prepend location of test easyblocks to $PYTHONPATH to test_generate_software_list, rather than append (#2788)
+  - use pid in backup name candidate to reduce risk of two processes colliding (#2796)
+  - automatically enable --ignore-osdeps when using --preview-pr (#2799)
+  - use temporary checkout of repository as robot path for --new-pr and --update-pr to determine locations for patch files (#2803)
+  - avoid relying on order in which keys are processed in to_dependency (#2804)
+  - fix yeb format to work with PyYAML 5 (#2809)
+  - fix typo in error message for use of unknown easyconfig parameter (#2817)
+  - enhance log_file_format to fix problem when %(name)s template value is used for log directory (#2818)
+  - iterate over subdirectories in order in find_egg_dir_for of bootstrap script, to ensure oldest vsc-install is picked (#2819)
+  - replace -Wl,--enable-new-dtags compiler option with -Wl,--disable-new-dtags in RPATH wrapper script (#2821)
+  - updated COMPILER_F77 for PGI >= 19.1 (#2823)
+  - added FFTW_STATIC_LIBS_MT to FFTW_MAP_CLASS, otherwise FFTW_STATIC_LIBS_MT are incorrectly defined (#2822)
+  - sort available version list when selecting/generating easyconfig (#2732)
+- other changes:
+  - use assertEqual rather than assertEquals (which is deprecated) (#2746)
+  - test with Tmod 4.1.4 (packaged in RHEL8) in Travis CI (#2747)
+  - replace deps by hidden deps instead of removing them from the lists (#2748)
+  - ensure non-zero exit code for all test subsuites (+ fix trivial style issues) (#2773)
+  - silence printed deprecation warnings for easyconfigs/toolchains while running (easyconfigs) test suite (#2781)
+  - avoid printing of messages/warnings in framework test suite (#2782)
+  - enable silent mode for --new-pr and --update-pr (#2802)
+  - update Travis config to reflect that PyYAML 5.x is no longer compatible with Python 2.6 (#2807)
+
+
 v3.8.1 (January 29th 2019)
 --------------------------
 

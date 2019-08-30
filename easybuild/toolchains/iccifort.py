@@ -29,10 +29,11 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 :author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
+import re
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
 class IccIfort(IntelIccIfort):
@@ -40,13 +41,20 @@ class IccIfort(IntelIccIfort):
     NAME = 'iccifort'
     # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
     # in particular in a hierarchical module naming scheme
-    SUBTOOLCHAIN = [GCCcore.NAME, DUMMY_TOOLCHAIN_NAME]
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
     OPTIONAL = False
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
+
+        # need to transform a version like '2016a' with something that is safe to compare with '2016.01'
+        # comparing subversions that include letters causes TypeErrors in Python 3
+        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
+        version = self.version.replace('a', '.01').replace('b', '.07')
+
         # iccifort toolchains older than iccifort/2016.1.150-* are deprecated
-        if LooseVersion(self.version) < LooseVersion('2016.1'):
+        # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
+        if re.match('^[0-9]', version) and LooseVersion(version) < LooseVersion('2016.1'):
             deprecated = True
         else:
             deprecated = False
