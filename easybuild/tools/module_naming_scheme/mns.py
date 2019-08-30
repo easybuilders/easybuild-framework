@@ -29,10 +29,13 @@ Module naming scheme API.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import Singleton
+
+
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
 
 class ModuleNamingScheme(object):
@@ -172,4 +175,3 @@ class ModuleNamingScheme(object):
         Software is already installed beforehand with one naming scheme, including development module.
         """
         return True
-

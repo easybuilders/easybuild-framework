@@ -30,10 +30,11 @@ Style tests for easyconfig files using pycodestyle.
 """
 import re
 import sys
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.py2vs3 import reload, string_type
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
@@ -158,7 +159,7 @@ def cmdline_easyconfigs_style_check(ecs):
         # if an EasyConfig instance is provided, just grab the corresponding file path
         if isinstance(ec, EasyConfig):
             path = ec.path
-        elif isinstance(ec, basestring):
+        elif isinstance(ec, string_type):
             path = ec
         else:
             raise EasyBuildError("Value of unknown type encountered in cmdline_easyconfigs_style_check: %s (type: %s)",

@@ -30,7 +30,7 @@ Implementation of a test module naming scheme.
 
 import os
 
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 
 class TestModuleNamingScheme(ModuleNamingScheme):

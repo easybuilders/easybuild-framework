@@ -33,8 +33,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 """
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import MODULECLASS_BASE
 
@@ -91,6 +90,10 @@ DEFAULT_CONFIG = {
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
+    'fix_perl_shebang_for': [None, "List of files for which Perl shebang should be fixed "
+                                   "to '#!/usr/bin/env perl' (glob patterns supported)", BUILD],
+    'fix_python_shebang_for': [None, "List of files for which Python shebang should be fixed "
+                                     "to '#!/usr/bin/env python' (glob patterns supported)", BUILD],
     'github_account': ['%(namelower)s', "GitHub account name to be used to resolve template values in source URLs",
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
@@ -102,6 +105,7 @@ DEFAULT_CONFIG = {
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
+    'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
@@ -114,6 +118,7 @@ DEFAULT_CONFIG = {
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
+    'testopts': ['', 'Extra options for test.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
     'unpack_options': ['', "Extra options for unpacking source", BUILD],
@@ -144,6 +149,8 @@ DEFAULT_CONFIG = {
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
+    'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
+    'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
@@ -191,6 +198,10 @@ DEFAULT_CONFIG = {
     'whatis': [None, "List of brief (one line) description entries for the software", MODULES],
 
     # OTHER easyconfig parameters
+    # 'block' must be a known easyconfig parameter in case strict local variable naming is enabled;
+    # see also retrieve_blocks_in_spec function
+    'block': [None, "List of other 'block' sections on which this block depends "
+                    "(only relevant in easyconfigs with subblocks)", OTHER],
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
     'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
                           "and will be archived in the next major release of EasyBuild", OTHER],
@@ -201,7 +212,7 @@ def sorted_categories():
     """
     returns the categories in the correct order
     """
-    categories = ALL_CATEGORIES.values()
+    categories = list(ALL_CATEGORIES.values())
     categories.sort(key=lambda c: c[0])
     return categories
 
@@ -209,7 +220,7 @@ def sorted_categories():
 def get_easyconfig_parameter_default(param):
     """Get default value for given easyconfig parameter."""
     if param not in DEFAULT_CONFIG:
-        raise EasyBuildError("Unkown easyconfig parameter: %s (known: %s)", param, sorted(DEFAULT_CONFIG.keys()))
+        raise EasyBuildError("Unknown easyconfig parameter: %s (known: %s)", param, sorted(DEFAULT_CONFIG.keys()))
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]

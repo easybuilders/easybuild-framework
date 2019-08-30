@@ -28,5 +28,5 @@ Declaration of toolchains namespace.
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+import os
+__path__ = __import__('pkgutil').extend_path([os.path.abspath(p) for p in __path__], __name__)
