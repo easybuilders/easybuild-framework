@@ -3094,15 +3094,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         expected_stderr = '\n'.join([
             "* approved review: MISSING => not eligible for merging!",
+            "* labels are set: no labels found => not eligible for merging!",
             '',
             "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
         ])
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
-        # full eligible merged PR
         args[1] = '4832'
 
+        # merged PR for Seurat-1.4.0-intel-2017a-R-3.4.0.eb is missing labels
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
@@ -3112,11 +3113,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* last test report is successful: OK",
             "* approved review: OK (by wpoely86)",
             "* milestone is set: OK (3.3.1)",
+        ])
+        expected_stderr = '\n'.join([
+            "* labels are set: no labels found => not eligible for merging!",
+            '',
+            "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
+        ])
+        self.assertEqual(stderr.strip(), expected_stderr)
+        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
+
+        # full eligible merged PR
+        args[1] = '5491'
+
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #5491 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* last test report is successful: OK",
+            "* approved review: OK (by verdurin)",
+            "* milestone is set: OK (3.5.0)",
+            "* labels are set: OK (update)",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #4832: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #4832",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #5491: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #5491",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
@@ -3125,7 +3148,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
             '--merge-pr',
-            '1206',
+            '1293',
             '--pr-target-repo=easybuild-easyblocks',
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3133,11 +3156,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #1293 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
-            "* approved review: OK (by migueldiascosta)",
-            "* milestone is set: OK (3.3.1)",
+            "* approved review: OK (by damianam)",
+            "* milestone is set: OK (3.5.0)",
+            "* labels are set: OK (bug fix)",
             '',
             "Review OK, merging pull request!",
         ])
