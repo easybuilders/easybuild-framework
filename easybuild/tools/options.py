@@ -1259,6 +1259,9 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     :param silent: stay silent (no printing)
     """
 
+    # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
+    install_fake_vsc()
+
     # parse EasyBuild configuration settings
     eb_go = parse_options(args=args)
     options = eb_go.options
@@ -1316,9 +1319,6 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
-
-    # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
-    install_fake_vsc()
 
     return eb_go, (build_specs, log, logfile, robot_path, search_query, tmpdir, try_to_generate, tweaked_ecs_paths)
 
