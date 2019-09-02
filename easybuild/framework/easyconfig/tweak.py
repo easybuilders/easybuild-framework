@@ -1012,8 +1012,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                         dep_changed = True
 
             if dep_changed:
-                orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
-                orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
+                _log.debug("Modified dependency %s of %s", dep['name'], ec_spec)
 
     # Determine the name of the modified easyconfig and dump it to target_dir
     if parsed_ec['versionsuffix'] in versonsuffix_mapping:
