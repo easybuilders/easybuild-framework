@@ -4103,6 +4103,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
         self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
 
+    def test_fake_vsc_include(self):
+        """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_mns = os.path.join(self.test_prefix, 'test_mns.py')
+        test_mns_txt = '\n'.join([
+            "import vsc",
+            "from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS",
+            "class TestMNS(EasyBuildMNS):",
+            "    pass",
+        ])
+        write_file(test_mns, test_mns_txt)
+
+        args = [
+            toy_ec,
+            '--dry-run',
+            '--include-module-naming-schemes=%s' % test_mns,
+        ]
+        self.mock_stderr(True)
+        self.assertErrorRegex(SystemExit, '1', self.eb_main, args, do_build=True, raise_error=True, verbose=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        regex = re.compile("ERROR: Detected import from 'vsc' namespace in .*/test_mns.py")
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
 
 def suite():
     """ returns all the testcases in this module """
