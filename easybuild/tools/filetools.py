@@ -1894,7 +1894,7 @@ def install_fake_vsc():
     """
     # note: install_fake_vsc is called before parsing configuration, so avoid using functions that use build_option,
     # like mkdir, write_file, ...
-    fake_vsc_path = os.path.join(tempfile.gettempdir(), 'fake_vsc')
+    fake_vsc_path = os.path.join(tempfile.mkdtemp(prefix='fake_vsc_'))
 
     fake_vsc_init = '\n'.join([
         'import sys',
@@ -1922,3 +1922,5 @@ def install_fake_vsc():
         fp.write(fake_vsc_init)
 
     sys.path.insert(0, fake_vsc_path)
+
+    return fake_vsc_path

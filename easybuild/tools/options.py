@@ -72,7 +72,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, which
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
@@ -1260,7 +1260,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     """
 
     # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
-    install_fake_vsc()
+    # this must be done early on, to catch imports from the vsc namespace in modules included via --include-*
+    fake_vsc_path = install_fake_vsc()
 
     # parse EasyBuild configuration settings
     eb_go = parse_options(args=args)
@@ -1319,6 +1320,13 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
+
+    # move directory containing fake vsc namespace into temporary directory used for this session
+    # (to ensure it gets cleaned up properly)
+    new_fake_vsc_path = os.path.join(tmpdir, os.path.basename(fake_vsc_path))
+    move_file(fake_vsc_path, new_fake_vsc_path, force_in_dry_run=True)
+    sys.path.remove(fake_vsc_path)
+    sys.path.insert(0, new_fake_vsc_path)
 
     return eb_go, (build_specs, log, logfile, robot_path, search_query, tmpdir, try_to_generate, tweaked_ecs_paths)
 
