@@ -90,5 +90,5 @@ then
     export FANCYLOGGER_IGNORE_MPI4PY=1
 fi
 
-verbose "$PYTHON -m easybuild.main $@"
+verbose "$PYTHON -m easybuild.main `echo \"$@\"`"
 $PYTHON -m easybuild.main "$@"
