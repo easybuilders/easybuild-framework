@@ -32,7 +32,9 @@ Support for Intel compilers (icc, ifort) as toolchain compilers.
 from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -104,20 +106,36 @@ class IntelIccIfort(Compiler):
 
         super(IntelIccIfort, self).__init__(*args, **kwargs)
 
+        # determine if 'iccifort' is defined as 'compiler' (and hence, not as 'toolchain')
+        # if so, change self.COMPILER_MODULE_NAME to only 'iccifort', as standalone compiler-only toolchain
+        tc_dict = self.as_dict()
+        # grab version from parsed easyconfig file for toolchain
+        eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
+        tc_ec = process_easyconfig(eb_file, parse_only=True)
+        if len(tc_ec) > 1:
+            self.log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
+            self.log.debug("Full list of toolchain specifications: %s" % tc_ec)
+        if tc_ec[0]['ec']['moduleclass'] == 'compiler':
+            self.COMPILER_MODULE_NAME = ['iccifort']
+            self.log.info("Intel COMPILER_MODULE_NAME set to: %s" % self.COMPILER_MODULE_NAME)
+
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
         super(IntelIccIfort, self)._set_compiler_vars()
 
-        if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
-            raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
-                                 self.COMPILER_MODULE_NAME)
+        if self.COMPILER_MODULE_NAME != ['iccifort']:
+            if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
+                raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
+                                     self.COMPILER_MODULE_NAME)
 
-        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)[0:2]
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
+            icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
 
-        if not ifort_version == icc_version:
-            raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
-                                 icc_version, ifort_version)
+            if not ifort_version == icc_version:
+                raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
+                                     icc_version, ifort_version)
+        else:
+            icc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
+        icc_root = self.get_software_root(self.COMPILER_MODULE_NAME)[0]
 
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
@@ -134,7 +152,7 @@ class IntelIccIfort(Compiler):
     def set_variables(self):
         """Set the variables."""
         # -fopenmp is not supported in old versions (11.x)
-        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
+        icc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
         if LooseVersion(icc_version) < LooseVersion('12'):
             self.options.options_map['openmp'] = 'openmp'
 
