@@ -1892,8 +1892,9 @@ def install_fake_vsc():
     (vsc-base & vsc-install were ingested into the EasyBuild framework for EasyBuild 4.0,
      see https://github.com/easybuilders/easybuild-framework/pull/2708)
     """
-    fake_vsc_path = os.path.join(tempfile.gettempdir(), 'fake_vsc')
-    mkdir(os.path.join(fake_vsc_path, 'vsc'), parents=True)
+    # note: install_fake_vsc is called before parsing configuration, so avoid using functions that use build_option,
+    # like mkdir, write_file, ...
+    fake_vsc_path = os.path.join(tempfile.mkdtemp(prefix='fake_vsc_'))
 
     fake_vsc_init = '\n'.join([
         'import sys',
@@ -1913,6 +1914,13 @@ def install_fake_vsc():
         'sys.stderr.write("The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n")',
         'sys.exit(1)',
     ])
-    write_file(os.path.join(fake_vsc_path, 'vsc', '__init__.py'), fake_vsc_init)
+
+    fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')
+    if not os.path.exists(os.path.dirname(fake_vsc_init_path)):
+        os.makedirs(os.path.dirname(fake_vsc_init_path))
+    with open(fake_vsc_init_path, 'w') as fp:
+        fp.write(fake_vsc_init)
 
     sys.path.insert(0, fake_vsc_path)
+
+    return fake_vsc_path
