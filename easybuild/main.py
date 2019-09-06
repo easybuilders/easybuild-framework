@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, st
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
@@ -133,7 +133,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
-            if os.stat(parent_dir).st_mode & 0200:
+            if os.stat(parent_dir).st_mode & 0o200:
                 write_file(test_report_fp, test_report_txt)
             else:
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
@@ -187,6 +187,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     """
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
@@ -293,6 +298,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+
+    if options.fix_deprecated_easyconfigs:
+        fix_deprecated_easyconfigs(determined_paths)
+        clean_exit(logfile, eb_tmpdir, testing)
+
     if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in determined_paths]
@@ -306,7 +316,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
-    _log.debug("Paths: %s" % paths)
+    _log.debug("Paths: %s", paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:

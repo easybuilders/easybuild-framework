@@ -8,7 +8,7 @@ homepage = 'http://gcc.gnu.org/'
 description = """The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
 as well as libraries for these languages (libstdc++, libgcj,...)."""
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
 sources = [
     '%s-%s.tar.gz' % (name.lower(), version),
@@ -25,7 +25,7 @@ source_urls = [
     'http://www.multiprecision.org/mpc/download',  # MPC official
 ]
 
-languages = ['c', 'c++', 'fortran', 'lto']
+# languages = ['c', 'c++', 'fortran', 'lto']
 
 # compiler class
 moduleclass = 'compiler'

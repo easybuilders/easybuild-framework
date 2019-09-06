@@ -33,7 +33,8 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils import fancylogger
+
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:
@@ -51,7 +52,7 @@ class StyleTest(EnhancedTestCase):
     def test_style_conformance(self):
         """Check the easyconfigs for style"""
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping style checks (no pycodestyle or pep8 available)"
+            print("Skipping style checks (no pycodestyle or pep8 available)")
             return
 
         # all available easyconfig files
@@ -66,7 +67,7 @@ class StyleTest(EnhancedTestCase):
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping trailing whitespace checks (no pycodestyle or pep8 available)"
+            print("Skipping trailing whitespace checks (no pycodestyle or pep8 available)")
             return
 
         lines = [
