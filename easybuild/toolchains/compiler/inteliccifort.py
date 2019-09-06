@@ -34,6 +34,7 @@ from distutils.version import LooseVersion
 import easybuild.tools.systemtools as systemtools
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -110,7 +111,10 @@ class IntelIccIfort(Compiler):
         # if so, change self.COMPILER_MODULE_NAME to only 'iccifort', as standalone compiler-only toolchain
         tc_dict = self.as_dict()
         # grab version from parsed easyconfig file for toolchain
-        eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
+        if build_option('robot_path', default=None):
+            eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
+        else:
+            eb_file = None
         if eb_file is not None:
             # eb_file is often None in tests
             tc_ec = process_easyconfig(eb_file, parse_only=True)
