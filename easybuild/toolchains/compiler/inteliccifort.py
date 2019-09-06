@@ -111,13 +111,15 @@ class IntelIccIfort(Compiler):
         tc_dict = self.as_dict()
         # grab version from parsed easyconfig file for toolchain
         eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
-        tc_ec = process_easyconfig(eb_file, parse_only=True)
-        if len(tc_ec) > 1:
-            self.log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
-            self.log.debug("Full list of toolchain specifications: %s" % tc_ec)
-        if tc_ec[0]['ec']['moduleclass'] == 'compiler':
-            self.COMPILER_MODULE_NAME = ['iccifort']
-            self.log.info("Intel COMPILER_MODULE_NAME set to: %s" % self.COMPILER_MODULE_NAME)
+        if eb_file is not None:
+            # eb_file is often None in tests
+            tc_ec = process_easyconfig(eb_file, parse_only=True)
+            if len(tc_ec) > 1:
+                self.log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
+                self.log.debug("Full list of toolchain specifications: %s" % tc_ec)
+            if tc_ec[0]['ec']['moduleclass'] == 'compiler':
+                self.COMPILER_MODULE_NAME = ['iccifort']
+                self.log.info("Intel COMPILER_MODULE_NAME set to: %s" % self.COMPILER_MODULE_NAME)
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""

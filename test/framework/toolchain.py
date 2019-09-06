@@ -1223,6 +1223,24 @@ class ToolchainTest(EnhancedTestCase):
         liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
         self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
 
+    def test_iccifort_standalone(self):
+        """Test if toolchain with iccifort but no icc and ifort is accepted."""
+        version = "2019.4.227-GCC-8.3.0"
+        iccifort_mod_txt = '\n'.join([
+            '#%Module',
+            "setenv EBROOTICCIFORT %s" % self.test_prefix,
+            "setenv EBVERSIONICCIFORT %s" % version,
+        ])
+        write_file(os.path.join(self.test_prefix, 'iccifort', version), iccifort_mod_txt)
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={'robot_path': [test_ecs_dir]})
+        tc = self.get_toolchain('iccifort', version=version)
+        tc.prepare()
+        self.assertEqual(tc.get_variable('CC'), 'icc')
+        self.assertEqual(tc.get_variable('FC'), 'ifort')
+
     def test_compiler_cache(self):
         """Test ccache"""
         topdir = os.path.dirname(os.path.abspath(__file__))

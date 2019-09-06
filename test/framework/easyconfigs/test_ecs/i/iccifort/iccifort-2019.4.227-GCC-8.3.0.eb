@@ -1,0 +1,14 @@
+# This is an easyconfig file for EasyBuild, see https://easybuilders.github.io/easybuild
+easyblock = "Toolchain"
+
+name = 'iccifort'
+version = '2019.4.227'
+versionsuffix = '-GCC-8.3.0'
+
+homepage = 'http://software.intel.com/en-us/intel-cluster-toolkit-compiler/'
+description = """Intel Cluster Toolkit Compiler Edition provides Intel C,C++ and fortran compilers,
+Intel MPI and Intel MKL"""
+
+toolchain = SYSTEM
+
+moduleclass = 'compiler'
