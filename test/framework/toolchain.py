@@ -1125,6 +1125,42 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
 
+    def test_standalone_iccifort(self):
+        """Test whether standalone installation of iccifort matches the iccifort toolchain definition."""
+
+        tc = self.get_toolchain('iccifort', version='2018.1.163')
+        tc.prepare()
+        self.assertEqual(tc.toolchain_dep_mods, ['icc/2018.1.163', 'ifort/2018.1.163'])
+        self.modtool.purge()
+
+        for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT']:
+            self.assertTrue(os.getenv(key) is None)
+
+        # install fake iccifort module with no dependencies
+        fake_iccifort = os.path.join(self.test_prefix, 'iccifort', '2018.1.163')
+        write_file(fake_iccifort, "#%Module")
+        self.modtool.use(self.test_prefix)
+
+        # toolchain verification fails because icc/ifort are not dependencies of iccifort modules,
+        # and corresponding environment variables are not set
+        error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
+
+        # make iccifort module set $EBROOT* and $EBVERSION* to pass toolchain verification
+        fake_iccifort_txt = '\n'.join([
+            "#%Module",
+            'setenv EBROOTICC "%s"' % self.test_prefix,
+            'setenv EBROOTIFORT "%s"' % self.test_prefix,
+            'setenv EBVERSIONICC "2018.1.163"',
+            'setenv EBVERSIONIFORT "2018.1.163"',
+        ])
+        write_file(fake_iccifort, fake_iccifort_txt)
+        # toolchain preparation (which includes verification) works fine now
+        tc.prepare()
+        # no dependencies found in iccifort module
+        self.assertEqual(tc.toolchain_dep_mods, [])
+
     def test_independence(self):
         """Test independency of toolchain instances."""
 
