@@ -1836,6 +1836,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
+        # This easyconfig contains a dependency of CMake for which no easyconfig exists. It should still
+        # succeed when called with --filter-deps=CMake=:2.8.10]
+        open(self.logfile, 'w').write('')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
+        args[0] = ec_file
+        args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        # dictionaries can be printed in any order
+        regexp = "filtered out dependency.*('name': 'CMake'.*'version': '2.8.10'|'version': '2.8.10'.*'name': 'CMake')"
+        self.assertTrue(re.search(regexp, outtxt))
+
+        # The test below fails without PR 2983
+        open(self.logfile, 'w').write('')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
+        args[0] = ec_file
+        args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
+        outtxt = self.eb_main(args + ['--minimal-toolchains'], do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search(regexp, outtxt))
+
     def test_hide_deps(self):
         """Test use of --hide-deps."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
