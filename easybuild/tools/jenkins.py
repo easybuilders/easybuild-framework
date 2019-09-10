@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,8 +32,8 @@ import os
 import xml.dom.minidom as xml
 
 from datetime import datetime
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
@@ -108,7 +108,7 @@ def write_to_xml(succes, failed, filename):
         output_file = open(filename, "w")
         root.writexml(output_file)
         output_file.close()
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", filename, err)
 
 
@@ -149,7 +149,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
             xml_file = xml_file[0]
             try:
                 dom = xml.parse(xml_file)
-            except IOError, err:
+            except IOError as err:
                 raise EasyBuildError("Failed to read/parse XML file %s: %s", xml_file, err)
             # only one should be present, we are just discarding the rest
             testcase = dom.getElementsByTagName("testcase")[0]
@@ -165,7 +165,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
         output_file = open(output_filename, "w")
         root.writexml(output_file, addindent="\t", newl="\n")
         output_file.close()
-    except IOError, err:
+    except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", output_filename, err)
 
-    print "Aggregate regtest results written to %s" % output_filename
+    print("Aggregate regtest results written to %s" % output_filename)

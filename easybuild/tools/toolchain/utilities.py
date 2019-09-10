@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,13 +36,12 @@ Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 import copy
 import re
 import sys
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, nub
 
 import easybuild.tools.toolchain
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import get_subclasses, import_available_modules, nub
 
 
 TC_CONST_PREFIX = 'TC_CONSTANT_'
@@ -75,7 +74,8 @@ def search_toolchain(name):
                 if hasattr(elem, '__module__'):
                     # exclude the toolchain class defined in that module
                     if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
-                        _log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
+                        elem_name = elem.__name__ if hasattr(elem, '__name__') else elem
+                        _log.debug("Adding %s to list of imported classes used for looking for constants", elem_name)
                         mod_classes.append(elem)
 
             # look for constants in modules of imported classes, and make them available

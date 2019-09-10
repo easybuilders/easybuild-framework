@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -56,6 +56,16 @@ class EB_toy(ExtensionEasyBlock):
         # insert new packages by building them with RPackage
         self.cfg['exts_defaultclass'] = "Toy_Extension"
         self.cfg['exts_filter'] = ("%(ext_name)s", "")
+
+    def run_all_steps(self, *args, **kwargs):
+        """
+        Tweak iterative easyconfig parameters.
+        """
+        if isinstance(self.cfg['buildopts'], list):
+            # inject list of values for prebuildopts, same length as buildopts
+            self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
+
+        return super(EB_toy, self).run_all_steps(*args, **kwargs)
 
     def configure_step(self, name=None):
         """Configure build of toy."""

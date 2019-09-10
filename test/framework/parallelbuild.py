@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,6 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.job.slurm as slurm
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
@@ -214,7 +213,7 @@ class ParallelBuildTest(EnhancedTestCase):
         try:
             import gc3libs  # noqa (ignore unused import)
         except ImportError:
-            print "GC3Pie not available, skipping test"
+            print("GC3Pie not available, skipping test")
             return
 
         # put GC3Pie config in place to use local host and fork/exec
@@ -348,8 +347,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
             'ntasks': 3,
-            'ntasks-per-node': 3,
-            'output': '%x-%j.out',
+            'output': 'gzip-1.5-foss-2018a-%j.out',
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,
         }
@@ -362,4 +360,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

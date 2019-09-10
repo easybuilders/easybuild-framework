@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,8 +31,8 @@ be used within an Easyconfig file.
 :author: Kenneth Hoste (Ghent University)
 """
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
+from easybuild.base import fancylogger
+from easybuild.tools.utilities import get_subclasses
 
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,15 +29,16 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import os
-from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
+import os
+import platform
+from distutils.version import LooseVersion
+
+from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.format.format import EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
-from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.utilities import INDENT_4SPACES, only_if_module_is_available, quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
@@ -47,6 +48,7 @@ YAML_DIR = r'%YAML'
 YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
 YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
+
 
 def yaml_join(loader, node):
     """
@@ -62,7 +64,10 @@ def yaml_join(loader, node):
 try:
     import yaml
     # register the tag handlers
-    yaml.add_constructor('!join', yaml_join)
+    if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
+        yaml.add_constructor('!join', yaml_join)
+    else:
+        yaml.add_constructor(u'!join', yaml_join, Loader=yaml.SafeLoader)
 except ImportError:
     pass
 
@@ -93,7 +98,10 @@ class FormatYeb(EasyConfigFormat):
         Process YAML file
         """
         txt = self._inject_constants_dict(txt)
-        self.parsed_yeb = yaml.load(txt)
+        if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
+            self.parsed_yeb = yaml.load(txt)
+        else:
+            self.parsed_yeb = yaml.load(txt, Loader=yaml.SafeLoader)
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
@@ -142,13 +150,14 @@ def is_yeb_format(filename, rawcontent):
                 isyeb = True
     return isyeb
 
+
 def quote_yaml_special_chars(val):
     """
     Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
     Single quotes inside the string are escaped by doubling them.
     (see: http://symfony.com/doc/current/components/yaml/yaml_format.html#strings)
     """
-    if isinstance(val, basestring):
+    if isinstance(val, string_type):
         if "'" in val or YAML_SPECIAL_CHARS.intersection(val):
             val = "'%s'" % val.replace("'", "''")
 

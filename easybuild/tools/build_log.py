@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,9 +38,9 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime
-from vsc.utils import fancylogger
-from vsc.utils.exceptions import LoggedException
 
+from easybuild.base import fancylogger
+from easybuild.base.exceptions import LoggedException
 from easybuild.tools.version import VERSION, this_is_easybuild
 
 
@@ -99,7 +99,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def caller_info(self):
         """Return string with caller info."""
-        (filepath, line, function_name) = self.findCaller()
+        # findCaller returns a 3-tupe in Python 2, a 4-tuple in Python 3 (stack info as extra element)
+        (filepath, line, function_name) = self.findCaller()[:3]
         filepath_dirs = filepath.split(os.path.sep)
 
         for dirName in copy(filepath_dirs):
@@ -121,7 +122,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, ver, max_ver=None, more_info=None, *args, **kwargs):
+    def deprecated(self, msg, ver, max_ver=None, more_info=None, silent=False, *args, **kwargs):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
@@ -130,12 +131,13 @@ class EasyBuildLog(fancylogger.FancyLogger):
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
         :param more_info: additional message with instructions where to get more information
+        :param silent: stay silent (don't *print* deprecation warnings, only log them)
         """
         # provide log_callback function that both logs a warning and prints to stderr
         def log_callback_warning_and_print(msg):
             """Log warning message, and also print it to stderr."""
             self.warning(msg)
-            sys.stderr.write('\nWARNING: ' + msg + '\n\n')
+            print_warning(msg, silent=silent)
 
         kwargs['log_callback'] = log_callback_warning_and_print
 
@@ -190,14 +192,21 @@ fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO, tmp_logdir=None):
     """Initialize logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
     else:
         if logfile is None:
+            # if logdir is specified but doesn't exist yet, create it first
+            if tmp_logdir and not os.path.exists(tmp_logdir):
+                try:
+                    os.makedirs(tmp_logdir)
+                except (IOError, OSError) as err:
+                    raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
+
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-', dir=tmp_logdir)
             os.close(fd)
 
         fancylogger.logToFile(logfile, max_bytes=0)

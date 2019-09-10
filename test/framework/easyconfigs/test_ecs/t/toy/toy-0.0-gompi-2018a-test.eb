@@ -17,6 +17,8 @@ checksums = [[
     ('md5', 'be662daa971a640e40be5c804d9d7d10'),
     ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
     ('size', 273),
+    {SOURCE_TAR_GZ: '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+     'bar.tgz': '33ac60685a3e29538db5094259ea85c15906cbd0f74368733f4111eab6187c8f'},
 ]]
 patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 

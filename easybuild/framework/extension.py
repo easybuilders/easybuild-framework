@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,8 +36,9 @@ The Extension class should serve as a base class for all extensions.
 import copy
 import os
 
+from easybuild.framework.easyconfig.easyconfig import resolve_template
+from easybuild.framework.easyconfig.templates import template_constant_dict
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, build_path
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_cmd
 
@@ -60,17 +61,22 @@ class Extension(object):
         self.ext = copy.deepcopy(ext)
         self.dry_run = self.master.dry_run
 
-        if not 'name' in self.ext:
+        if 'name' not in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
+
+        name, version = self.ext['name'], self.ext.get('version', None)
 
         # parent sanity check paths/commands are not relevant for extension
         self.cfg['sanity_check_commands'] = []
         self.cfg['sanity_check_paths'] = []
 
+        # construct dict with template values that can be used
+        self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
+
         # list of source/patch files: we use an empty list as default value like in EasyBlock
-        self.src = self.ext.get('src', [])
-        self.patches = self.ext.get('patches', [])
-        self.options = copy.deepcopy(self.ext.get('options', {}))
+        self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
+        self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
+        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
@@ -81,12 +87,12 @@ class Extension(object):
         # this allows to specify custom easyconfig parameters on a per-extension basis
         for key in self.options:
             if key in self.cfg:
-                self.cfg[key] = self.options[key]
+                self.cfg[key] = resolve_template(self.options[key], self.cfg.template_values)
                 self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, self.ext['name'], self.ext['version'], self.cfg[key])
+                               key, name, version, self.cfg[key])
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, self.ext['name'], self.ext['version'], self.options[key])
+                               key, name, version, self.options[key])
 
         self.sanity_check_fail_msgs = []
 

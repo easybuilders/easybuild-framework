@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,28 +33,15 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-import vsc.utils.generaloption
-
 import easybuild.framework
+import easybuild.tools.repository.filerepo
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
-from easybuild.tools.utilities import only_if_module_is_available
+from easybuild.tools.filetools import change_dir, mkdir, read_file, write_file
+from easybuild.tools.utilities import import_available_modules, only_if_module_is_available
 
 
 class GeneralTest(EnhancedTestCase):
     """Test for general aspects of EasyBuild framework."""
-
-    def test_vsc_location(self):
-        """Make sure location of imported vsc module is not the framework itself."""
-        # cfr. https://github.com/easybuilders/easybuild-framework/pull/1160
-        # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
-        framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
-        # vsc.utils.generaloption.__file__ provides location to <prefix>/vsc/utils/generaloption/__init__.py
-        generaloption_loc = os.path.abspath(vsc.utils.generaloption.__file__)
-        vsc_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(generaloption_loc))))
-        # make sure vsc is being imported from outside of framework
-        msg = "vsc-base is not provided by EasyBuild framework itself, found location: %s" % vsc_loc
-        self.assertFalse(os.path.samefile(framework_loc, vsc_loc), msg)
 
     def test_error_reporting(self):
         """Make sure error reporting is done correctly (no more log.error, log.exception)."""
@@ -68,11 +55,13 @@ class GeneralTest(EnhancedTestCase):
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):
-            for filename in [f for f in filenames if f.endswith('.py')]:
-                path = os.path.join(dirpath, filename)
-                txt = read_file(path)
-                for regex in log_method_regexes:
-                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+            # don't check Python modules in easybuild.base namespace (ingested vsc-base)
+            if not dirpath.endswith('easybuild/base'):
+                for filename in [f for f in filenames if f.endswith('.py')]:
+                    path = os.path.join(dirpath, filename)
+                    txt = read_file(path)
+                    for regex in log_method_regexes:
+                        self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
 
     def test_only_if_module_is_available(self):
         """Test only_if_module_is_available decorator."""
@@ -132,10 +121,43 @@ class GeneralTest(EnhancedTestCase):
                 for regex in docstring_regexes:
                     self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
 
+    def test_import_available_modules(self):
+        """Test for import_available_modules function."""
+
+        res = import_available_modules('easybuild.tools.repository')
+        self.assertEqual(len(res), 5)
+        # don't check all, since some required specific Python packages to be installed...
+        self.assertTrue(easybuild.tools.repository.filerepo in res)
+
+        # replicate situation where import_available_modules failed when running in directory where modules are located
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2659
+        #      and https://github.com/easybuilders/easybuild-framework/issues/2742
+        test123 = os.path.join(self.test_prefix, 'test123')
+        mkdir(test123)
+        write_file(os.path.join(test123, '__init__.py'), '')
+        write_file(os.path.join(test123, 'one.py'), '')
+        write_file(os.path.join(test123, 'two.py'), '')
+        write_file(os.path.join(test123, 'three.py'), '')
+
+        # this test relies on having an empty entry in sys.path (which represents the current working directory)
+        # may not be there (e.g. when testing with Python 3.7)
+        if '' not in sys.path:
+            sys.path.insert(0, '')
+
+        change_dir(self.test_prefix)
+        res = import_available_modules('test123')
+
+        import test123.one
+        import test123.two
+        import test123.three
+        self.assertEqual([test123.one, test123.three, test123.two], res)
+
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

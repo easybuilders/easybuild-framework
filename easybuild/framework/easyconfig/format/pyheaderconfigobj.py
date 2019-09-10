@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,11 +29,11 @@ The main easyconfig format class
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import copy
 import re
 import sys
 
-from vsc.utils import fancylogger
-
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
@@ -174,18 +174,26 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
     def parse_pyheader(self, pyheader):
         """Parse the python header, assign to docstring and cfg"""
-        global_vars, local_vars = self.pyheader_env()
-        self.log.debug("pyheader initial global_vars %s" % global_vars)
-        self.log.debug("pyheader initial local_vars %s" % local_vars)
-        self.log.debug("pyheader text being exec'ed: %s" % pyheader)
+        global_vars = self.pyheader_env()
+        self.log.debug("pyheader initial global_vars %s", global_vars)
+        self.log.debug("pyheader text being exec'ed: %s", pyheader)
 
         # check for use of deprecated magic easyconfigs variables
         for magic_var in build_easyconfig_variables_dict():
             if re.search(magic_var, pyheader, re.M):
                 _log.nosupport("Magic 'global' easyconfigs variable %s should no longer be used" % magic_var, '2.0')
 
+        # copy dictionary with constants that can be used in easyconfig files,
+        # use it as 'globals' dict in exec call so parsed easyconfig parameters are added to it
+        cfg = copy.deepcopy(global_vars)
+
         try:
-            exec(pyheader, global_vars, local_vars)
+            # cfg dict is used as globals dict;
+            # we should *not* pass a separate (empty) locals dict to exec,
+            # otherwise problems may occur when using Python 3 and
+            # parsing easyconfig files that use local variables in list comprehensions
+            # cfr. https://github.com/easybuilders/easybuild-framework/pull/2895
+            exec(pyheader, cfg)
         except Exception as err:  # pylint: disable=broad-except
             err_msg = str(err)
             exc_tb = sys.exc_info()[2]
@@ -193,19 +201,24 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
                 err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
             raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
 
-        self.log.debug("pyheader final global_vars %s" % global_vars)
-        self.log.debug("pyheader final local_vars %s" % local_vars)
+        self.log.debug("pyheader parsed cfg: %s", cfg)
 
-        if '__doc__' in local_vars:
-            self.docstring = local_vars.pop('__doc__')
+        # get rid of constants from parsed easyconfig file, they are not valid easyconfig parameters
+        for key in global_vars:
+            self.log.debug("Removing key '%s' from parsed cfg (constant, not an easyconfig parameter)", key)
+            del cfg[key]
+
+        self.log.debug("pyheader final parsed cfg: %s", cfg)
+
+        if '__doc__' in cfg:
+            self.docstring = cfg.pop('__doc__')
         else:
-            self.log.debug('No docstring found in local_vars')
+            self.log.debug('No docstring found in cfg')
 
-        self.pyheader_localvars = local_vars
+        self.pyheader_localvars = cfg
 
     def pyheader_env(self):
         """Create the global/local environment to use with eval/execfile"""
-        local_vars = {}
         global_vars = {}
 
         # all variables
@@ -227,7 +240,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             global_vars['__builtins__'] = builtins
             self.log.debug("Available builtins: %s" % global_vars['__builtins__'])
 
-        return global_vars, local_vars
+        return global_vars
 
     def _validate_pyheader(self):
         """
@@ -249,7 +262,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         for param in self.PYHEADER_MANDATORY:
             if param in self.PYHEADER_BLACKLIST:
                 continue
-            if not param in self.pyheader_localvars:
+            if param not in self.pyheader_localvars:
                 missing.append(param)
         if missing:
             raise EasyBuildError('mandatory parameters not provided in pyheader: %s', ', '.join(missing))
@@ -258,7 +271,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         """Parse the section block by trying to convert it into a ConfigObj instance"""
         try:
             self.configobj = ConfigObj(section.split('\n'))
-        except SyntaxError, err:
+        except SyntaxError as err:
             raise EasyBuildError('Failed to convert section text %s: %s', section, err)
 
         self.log.debug("Found ConfigObj instance %s" % self.configobj)

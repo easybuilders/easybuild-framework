@@ -1,5 +1,5 @@
 ##
-# Copyright 2016-2018 Ghent University
+# Copyright 2016-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,14 +33,15 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils import fancylogger
+
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:
-    import pycodestyle
+    import pycodestyle  # noqa
 except ImportError:
     try:
-        import pep8
+        import pep8  # noqa
     except ImportError:
         pass
 
@@ -51,7 +52,7 @@ class StyleTest(EnhancedTestCase):
     def test_style_conformance(self):
         """Check the easyconfigs for style"""
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping style checks (no pycodestyle or pep8 available)"
+            print("Skipping style checks (no pycodestyle or pep8 available)")
             return
 
         # all available easyconfig files
@@ -66,7 +67,7 @@ class StyleTest(EnhancedTestCase):
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping trailing whitespace checks (no pycodestyle or pep8 available)"
+            print("Skipping trailing whitespace checks (no pycodestyle or pep8 available)")
             return
 
         lines = [
@@ -102,4 +103,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

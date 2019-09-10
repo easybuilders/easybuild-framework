@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -33,10 +33,8 @@ from distutils.version import LooseVersion
 from time import gmtime, strftime
 import time
 
-from pkg_resources import get_distribution, DistributionNotFound
-from vsc.utils import fancylogger
-
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.base import fancylogger
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.utilities import only_if_module_is_available
@@ -98,15 +96,20 @@ class GC3Pie(JobBackend):
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
-        try:
-            pkg = get_distribution('gc3pie')
-        except DistributionNotFound as err:
-            raise EasyBuildError(
-                "Cannot load GC3Pie package: %s" % err)
 
-        if LooseVersion(pkg.version) < LooseVersion(self.REQ_VERSION):
-            raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
-                                 pkg.version, self.REQ_VERSION)
+        try:
+            from pkg_resources import get_distribution, DistributionNotFound
+            pkg = get_distribution('gc3pie')
+
+            if LooseVersion(pkg.version) < LooseVersion(self.REQ_VERSION):
+                raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
+                                     pkg.version, self.REQ_VERSION)
+
+        except ImportError:
+            print_warning("Failed to check required GC3Pie version (>= %s)", self.REQ_VERSION)
+
+        except DistributionNotFound as err:
+            raise EasyBuildError("Cannot load GC3Pie package: %s", err)
 
     def init(self):
         """
@@ -190,14 +193,14 @@ class GC3Pie(JobBackend):
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
             hours = max_walltime
         named_args['requested_walltime'] = hours * hr
 
         if cores:
             named_args['requested_cores'] = cores
         else:
-            self.log.warn("Number of cores to request not specified, falling back to whatever GC3Pie does by default")
+            self.log.warning("Number of cores to request not specified, falling back to GC3Pie default")
 
         return Application(['/bin/sh', '-c', script], **named_args)
 

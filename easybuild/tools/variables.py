@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,8 +31,8 @@ e.g., in compiling or linking
 """
 import copy
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
 
@@ -408,7 +408,11 @@ class ListOfLists(list):
         else:
             sep = self.SEPARATOR
 
-            txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
+            listoflists = self
+            if isinstance(self._first, AbsPathList):
+                # reverse list to mimic prepend_paths in module files
+                listoflists = reversed(self)
+            txt = str(sep).join([self.str_convert(x) for x in listoflists if self._str_ok(x)])
             self.log.devel("__str__: return %s (self: %s)", txt, self.__repr__())
             return txt
 

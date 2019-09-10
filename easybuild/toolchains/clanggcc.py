@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -30,11 +30,9 @@ EasyBuild support for Clang + GCC compiler toolchain.  Clang uses libstdc++.  GF
 
 :author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
-
-import os
 from easybuild.toolchains.compiler.clang import Clang
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
 TC_CONSTANT_CLANGGCC = "ClangGCC"
@@ -45,4 +43,4 @@ class ClangGcc(Clang, Gcc):
     NAME = 'ClangGCC'
     COMPILER_MODULE_NAME = ['Clang', 'GCC']
     COMPILER_FAMILY = TC_CONSTANT_CLANGGCC
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,11 +42,12 @@ import sys
 import tempfile
 import time
 from datetime import datetime
-from vsc.utils import fancylogger
 
-from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
+import easybuild.tools.asyncprocess as asyncprocess
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import trace_msg
 
 
@@ -80,7 +81,7 @@ def run_cmd_cache(func):
         # cache key is combination of command and input provided via stdin
         key = (cmd, kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
-        if isinstance(cmd, basestring) and key in cache:
+        if isinstance(cmd, string_type) and key in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
             return cache[key]
         else:
@@ -94,6 +95,32 @@ def run_cmd_cache(func):
     cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
+
+
+def get_output_from_process(proc, read_size=None, asynchronous=False):
+    """
+    Get output from running process (that was opened with subprocess.Popen).
+
+    :param proc: process to get output from
+    :param read_size: number of bytes of output to read (if None: read all output)
+    :param asynchronous: get output asynchronously
+    """
+
+    if asynchronous:
+        output = asyncprocess.recv_some(proc)
+    elif read_size:
+        output = proc.stdout.read(read_size)
+    else:
+        output = proc.stdout.read()
+
+    # need to be careful w.r.t. encoding since we want to obtain a string value,
+    # and the output may include non UTF-8 characters
+    # * in Python 2, .decode() returns a value of type 'unicode',
+    #   but we really want a regular 'str' value (which is also why we use 'ignore' for encoding errors)
+    # * in Python 3, .decode() returns a 'str' value when called on the 'bytes' value obtained from .read()
+    output = str(output.decode('ascii', 'ignore'))
+
+    return output
 
 
 @run_cmd_cache
@@ -117,7 +144,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     cwd = os.getcwd()
 
-    if isinstance(cmd, basestring):
+    if isinstance(cmd, string_type):
         cmd_msg = cmd.strip()
     elif isinstance(cmd, list):
         cmd_msg = ' '.join(cmd)
@@ -171,7 +198,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             os.chdir(path)
 
         _log.debug("run_cmd: running cmd %s (in %s)" % (cmd, os.getcwd()))
-    except OSError, err:
+    except OSError as err:
         _log.warning("Failed to change to %s: %s" % (path, err))
         _log.info("running cmd %s in non-existing directory, might fail!", cmd)
 
@@ -184,7 +211,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if isinstance(cmd, list):
             exec_cmd = None
             cmd.insert(0, '/usr/bin/env')
-        elif isinstance(cmd, basestring):
+        elif isinstance(cmd, string_type):
             cmd = '/usr/bin/env %s' % cmd
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
@@ -193,10 +220,10 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     try:
         proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
-        proc.stdin.write(inp)
+        proc.stdin.write(inp.encode())
     proc.stdin.close()
 
     # use small read size when streaming output, to make it stream more fluently
@@ -211,7 +238,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = proc.stdout.read(read_size)
+        output = get_output_from_process(proc, read_size=read_size)
         if cmd_log:
             cmd_log.write(output)
         if stream_output:
@@ -220,7 +247,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         ec = proc.poll()
 
     # read remaining data (all of it)
-    output = proc.stdout.read()
+    output = get_output_from_process(proc)
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -233,7 +260,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     try:
         os.chdir(cwd)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
@@ -293,7 +320,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             os.chdir(path)
 
         _log.debug("run_cmd_qa: running cmd %s (in %s)" % (cmd, os.getcwd()))
-    except OSError, err:
+    except OSError as err:
         _log.warning("Failed to change to %s: %s" % (path, err))
         _log.info("running cmd %s in non-existing directory, might fail!" % cmd)
 
@@ -324,7 +351,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
-        if isinstance(answers, basestring):
+        if isinstance(answers, string_type):
             answers = [answers]
         elif not isinstance(answers, list):
             raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",
@@ -365,11 +392,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
 
     try:
-        p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
-    except OSError, err:
+        proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
+                                  stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
+    except OSError as err:
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
-    ec = p.poll()
+    ec = proc.poll()
     stdout_err = ''
     old_len_out = -1
     hit_count = 0
@@ -378,12 +406,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
-            out = recv_some(p)
+            out = get_output_from_process(proc, asynchronous=True)
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out
-        # recv_some may throw Exception
-        except (IOError, Exception), err:
+        # recv_some used by get_output_from_process for getting asynchronous output may throw exception
+        except (IOError, Exception) as err:
             _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
             out = None
 
@@ -398,7 +426,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
                 _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
-                send_all(p, fa)
+                asyncprocess.send_all(proc, fa)
                 hit = True
                 break
         if not hit:
@@ -412,7 +440,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
                     _log.debug("run_cmd_qa answer %s std question %s out %s", fa, question.pattern, stdout_err[-50:])
-                    send_all(p, fa)
+                    asyncprocess.send_all(proc, fa)
                     hit = True
                     break
             if not hit:
@@ -434,8 +462,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if hit_count > maxhits:
             # explicitly kill the child process before exiting
             try:
-                os.killpg(p.pid, signal.SIGKILL)
-                os.kill(p.pid, signal.SIGKILL)
+                os.killpg(proc.pid, signal.SIGKILL)
+                os.kill(proc.pid, signal.SIGKILL)
             except OSError as err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
             _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
@@ -444,12 +472,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
-        ec = p.poll()
+        ec = proc.poll()
 
     # Process stopped. Read all remaining data
     try:
-        if p.stdout:
-            out = p.stdout.read()
+        if proc.stdout:
+            out = get_output_from_process(proc)
             stdout_err += out
             if cmd_log:
                 cmd_log.write(out)
@@ -462,7 +490,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     try:
         os.chdir(cwd)
-    except OSError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdout_err, ec, simple, log_all, log_ok, regexp)
@@ -500,7 +528,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         if check_ec:
             raise EasyBuildError('cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
         else:
-            _log.warn('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.warning('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
     elif not ec:
         if log_all:
             _log.info('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
@@ -515,7 +543,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
             if use_regexp:
                 raise EasyBuildError(message)
             else:
-                _log.warn(message)
+                _log.warning(message)
 
     if simple:
         if ec:

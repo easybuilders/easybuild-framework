@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,8 +31,8 @@ Support for including additional Python modules, for easyblocks, module naming s
 import os
 import re
 import sys
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import expand_glob_paths, read_file, symlink
 # these are imported just to we can reload them later
@@ -57,15 +57,13 @@ _log = fancylogger.getLogger('tools.include', fname=False)
 # body for __init__.py file in package directory, which takes care of making sure the package can be distributed
 # across multiple directories
 PKG_INIT_BODY = """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
 """
 
 # more extensive __init__.py specific to easybuild.easyblocks package;
 # this is required because of the way in which the easyblock Python modules are organised in the easybuild-easyblocks
 # repository, i.e. in first-letter subdirectories
 EASYBLOCKS_PKG_INIT_BODY = """
-import pkg_resources
 import pkgutil
 
 # extend path so Python finds our easyblocks in the subdirectories where they are located
@@ -75,8 +73,7 @@ for subdir in subdirs:
 
 del l, subdir, subdirs
 
-# extend path so Python knows this is not the only place to look for modules in this package
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
 """
 
 
@@ -88,7 +85,7 @@ def create_pkg(path, pkg_init_body=None):
         if not os.path.exists(path):
             os.makedirs(path)
 
-        # put __init__.py files in place, with required pkg_resources.declare_namespace statement
+        # put __init__.py files in place, with required pkgutil.extend_path statement
         # note: can't use write_file, since that required build options to be initialised
         with open(init_path, 'w') as handle:
             if pkg_init_body is None:
@@ -182,7 +179,7 @@ def include_easyblocks(tmpdir, paths):
     import easybuild.easyblocks.generic
 
     # hard inject location to included (generic) easyblocks into Python search path
-    # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
     new_path = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
     easybuild.easyblocks.__path__.insert(0, new_path)
     new_path = os.path.join(new_path, 'generic')
@@ -219,7 +216,7 @@ def include_module_naming_schemes(tmpdir, paths):
     sys.path.insert(0, mns_path)
 
     # hard inject location to included module naming schemes into Python search path
-    # only prepending to sys.path is not enough due to 'declare_namespace' in module_naming_scheme/__init__.py
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in module_naming_scheme/__init__.py
     new_path = os.path.join(mns_path, 'easybuild', 'tools', 'module_naming_scheme')
     easybuild.tools.module_naming_scheme.__path__.insert(0, new_path)
 
@@ -265,7 +262,7 @@ def include_toolchains(tmpdir, paths):
     sys.path.insert(0, toolchains_path)
 
     # reload toolchain modules and hard inject location to included toolchains into Python search path
-    # only prepending to sys.path is not enough due to 'declare_namespace' in toolchains/*/__init__.py
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in toolchains/*/__init__.py
     easybuild.toolchains.__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains'))
     for subpkg in toolchain_subpkgs:
         tcpkg = 'easybuild.toolchains.%s' % subpkg

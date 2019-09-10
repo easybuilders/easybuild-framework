@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,6 +27,7 @@ EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, OpenBLAS, 
 
 :author: Kenneth Hoste (Ghent University)
 """
+from distutils.version import LooseVersion
 
 from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.golf import Golf
@@ -39,3 +40,21 @@ class Foss(Gompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'foss'
     SUBTOOLCHAIN = [Gompi.NAME, Golf.NAME]
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        # need to transform a version like '2016a' with something that is safe to compare with '2000'
+        # comparing subversions that include letters causes TypeErrors in Python 3
+        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
+        version = self.version.replace('a', '.01').replace('b', '.07')
+
+        # foss toolchains older than foss/2016a are deprecated
+        # take into account that foss/2016.x is always < foss/2016a according to LooseVersion;
+        # foss/2016.01 & co are not deprecated yet...
+        foss_ver = LooseVersion(version)
+        if foss_ver < LooseVersion('2016.01'):
+            deprecated = True
+        else:
+            deprecated = False
+
+        return deprecated

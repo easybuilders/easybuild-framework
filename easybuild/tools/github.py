@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,22 +30,20 @@ Utility module for working with github
 :author: Toon Willems (Ghent University)
 """
 import base64
+import copy
 import getpass
 import glob
 import os
 import random
 import re
 import socket
-import string
 import sys
 import tempfile
 import time
-import urllib2
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
@@ -53,8 +51,9 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
+from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
-from easybuild.tools.utilities import only_if_module_is_available
+from easybuild.tools.utilities import nub, only_if_module_is_available
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -63,15 +62,15 @@ _log = fancylogger.getLogger('github', fname=False)
 try:
     import keyring
     HAVE_KEYRING = True
-except ImportError, err:
+except ImportError as err:
     _log.warning("Failed to import 'keyring' Python module: %s" % err)
     HAVE_KEYRING = False
 
 try:
-    from vsc.utils.rest import RestClient
+    from easybuild.base.rest import RestClient
     HAVE_GITHUB_API = True
-except ImportError, err:
-    _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
+except ImportError as err:
+    _log.warning("Failed to import from 'easybuild.base.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
 try:
@@ -156,7 +155,7 @@ class Githubfs(object):
         else:
             try:
                 return githubobj['type'] == GITHUB_DIR_TYPE
-            except:
+            except Exception:
                 return False
 
     @staticmethod
@@ -164,7 +163,7 @@ class Githubfs(object):
         """Check if this path points to a file"""
         try:
             return githubobj['type'] == GITHUB_FILE_TYPE
-        except:
+        except Exception:
             return False
 
     def listdir(self, path):
@@ -244,7 +243,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.get(**kwargs)
-    except socket.gaierror, err:
+    except socket.gaierror as err:
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
@@ -270,7 +269,7 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.put(**kwargs)
-    except socket.gaierror, err:
+    except socket.gaierror as err:
         _log.warning("Error occurred while performing put request: %s", err)
         status, data = 0, {'message': err}
 
@@ -487,7 +486,7 @@ def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCO
     if not isinstance(issue, int):
         try:
             issue = int(issue)
-        except ValueError, err:
+        except ValueError as err:
             raise EasyBuildError("Failed to parse specified pull request number '%s' as an int: %s; ", issue, err)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -552,7 +551,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     _log.debug("Cloning from %s", github_url)
 
     # salt to use for names of remotes/branches that are created
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
+    salt = ''.join(random.choice(ascii_letters) for _ in range(5))
 
     remote_name = 'pr_target_account_%s_%s' % (target_account, salt)
 
@@ -709,7 +708,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
-        patch_specs = det_patch_specs(paths['patch_files'], file_info)
+        patch_specs = det_patch_specs(paths['patch_files'], file_info, [target_dir])
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
@@ -751,9 +750,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # checkout target branch
     if pr_branch is None:
         if ec_paths:
-            label = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+            label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
         else:
-            label = ''.join(random.choice(string.letters) for _ in range(10))
+            label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
 
     # create branch to commit to and push;
@@ -789,7 +788,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # push to GitHub
     github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
+    salt = ''.join(random.choice(ascii_letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (target_account, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -821,7 +820,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
     res = False
-    for patch in ec['patches']:
+
+    patches = copy.copy(ec['patches'])
+
+    for ext in ec['exts_list']:
+        if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
+            ext_options = ext[2]
+            patches.extend(ext_options.get('patches', []))
+
+    for patch in patches:
         if isinstance(patch, (tuple, list)):
             patch = patch[0]
         if patch == patch_name:
@@ -831,7 +838,7 @@ def is_patch_for(patch_name, ec):
     return res
 
 
-def det_patch_specs(patch_paths, file_info):
+def det_patch_specs(patch_paths, file_info, ec_dirs):
     """ Determine software names for patch files """
     print_msg("determining software names for patch files...")
     patch_specs = []
@@ -849,9 +856,9 @@ def det_patch_specs(patch_paths, file_info):
             patch_specs.append((patch_path, soft_name))
         else:
             # fall back on scanning all eb files for patches
-            print "Matching easyconfig for %s not found on the first try:" % patch_path,
-            print "scanning all easyconfigs to determine where patch file belongs (this may take a while)..."
-            soft_name = find_software_name_for_patch(patch_file)
+            print("Matching easyconfig for %s not found on the first try:" % patch_path)
+            print("scanning all easyconfigs to determine where patch file belongs (this may take a while)...")
+            soft_name = find_software_name_for_patch(patch_file, ec_dirs)
             if soft_name:
                 patch_specs.append((patch_path, soft_name))
             else:
@@ -861,22 +868,22 @@ def det_patch_specs(patch_paths, file_info):
     return patch_specs
 
 
-def find_software_name_for_patch(patch_name):
+def find_software_name_for_patch(patch_name, ec_dirs):
     """
     Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
     :param patch_name: name of the patch file
+    :param ecs_dirs: list of directories to consider when looking for easyconfigs
     :return: name of the software that this patch file belongs to (if found)
     """
 
-    robot_paths = build_option('robot_path')
     soft_name = None
 
     all_ecs = []
-    for robot_path in robot_paths:
-        for (dirpath, _, filenames) in os.walk(robot_path):
+    for ec_dir in ec_dirs:
+        for (dirpath, _, filenames) in os.walk(ec_dir):
             for fn in filenames:
-                if fn != 'TEMPLATE.eb':
+                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
@@ -952,6 +959,7 @@ def check_pr_eligible_to_merge(pr_data):
                 elif 'FAILED' in comment:
                     res = not_eligible(msg_tmpl % 'FAILED')
                     test_report_found = True
+                    break
                 else:
                     print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
 
@@ -1058,7 +1066,7 @@ def reasons_for_closing(pr_data):
     return possible_reasons
 
 
-def close_pr(pr, motivation_msg):
+def close_pr(pr, motivation_msg=None):
     """
     Close specified pull request
 
@@ -1250,6 +1258,21 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 main_title = ', '.join(names_and_versions[:3] + ['...'])
 
             title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+            # if Python is listed as a dependency, then mention Python version(s) in PR title
+            pyver = []
+            for ec in file_info['ecs']:
+                # iterate over all dependencies (incl. build dependencies & multi-deps)
+                for dep in ec.dependencies():
+                    if dep['name'] == 'Python':
+                        # check whether Python is listed as a multi-dep if it's marked as a build dependency
+                        if dep['build_only'] and 'Python' not in ec['multi_deps']:
+                            continue
+                        else:
+                            pyver.append(dep['version'])
+            if pyver:
+                title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
+
         else:
             raise EasyBuildError("Don't know how to make a PR title for this PR. "
                                  "Please include a title (use --pr-title)")
@@ -1300,7 +1323,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 status, data = pr_url.labels.post(body=labels)
                 if status == HTTP_STATUS_OK:
                     print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
-            except urllib2.HTTPError as err:
+            except HTTPError as err:
                 _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
@@ -1364,9 +1387,9 @@ def check_github():
     # check whether we're online; if not, half of the checks are going to fail...
     try:
         print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
-        urllib2.urlopen(GITHUB_URL, timeout=5)
+        urlopen(GITHUB_URL, timeout=5)
         print_msg("OK\n", log=_log, prefix=False)
-    except urllib2.URLError as err:
+    except URLError as err:
         print_msg("FAIL")
         raise EasyBuildError("checking status of GitHub integration must be done online")
 
@@ -1444,7 +1467,7 @@ def check_github():
     print_msg(msg, log=_log, prefix=False, newline=False)
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo, res, push_err = None, None, None
-    branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
+    branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
         remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master',

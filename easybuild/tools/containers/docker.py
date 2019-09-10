@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,7 @@ from easybuild.tools.run import run_cmd
 
 
 DOCKER_TMPL_HEADER = """\
-FROM %(container_base)s
+FROM %(container_config)s
 LABEL maintainer=easybuild@lists.ugent.be
 """
 
@@ -103,23 +103,33 @@ class DockerContainer(ContainerGenerator):
     RECIPE_FILE_NAME = 'Dockerfile'
 
     def resolve_template(self):
-        return "\n\n".join([
-            DOCKER_TMPL_HEADER % {'container_base': self.container_base},
-            DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base],
-            DOCKER_INSTALL_EASYBUILD,
-            DOCKER_TMPL_FOOTER,
-        ])
+        """Return template container recipe."""
+
+        if self.container_template_recipe:
+            raise EasyBuildError("--container-template-recipe is not supported yet for Docker container images!")
+
+        if self.container_config:
+            return '\n\n'.join([
+                DOCKER_TMPL_HEADER % {'container_config': self.container_config},
+                DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_config],
+                DOCKER_INSTALL_EASYBUILD,
+                DOCKER_TMPL_FOOTER,
+            ])
+        else:
+            raise EasyBuildError("--container--config is required for Docker container images!")
 
     def resolve_template_data(self):
+        """Return template data for container recipe."""
+
         os_deps = det_os_deps(self.easyconfigs)
 
         ec = self.easyconfigs[-1]['ec']
 
         init_modulepath = os.path.join("/app/modules/all", *self.mns.det_init_modulepaths(ec))
 
-        mod_names = [ec['ec'].full_mod_name for ec in self.easyconfigs]
+        mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
 
-        eb_opts = [os.path.basename(ec['spec']) for ec in self.easyconfigs]
+        eb_opts = [os.path.basename(e['spec']) for e in self.easyconfigs]
 
         return {
             'os_deps': ' '.join(os_deps),
@@ -129,8 +139,9 @@ class DockerContainer(ContainerGenerator):
         }
 
     def validate(self):
-        if self.container_base not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
-            raise EasyBuildError("Unsupported container base image '%s'" % self.container_base)
+        """Perform validation of specified container configuration."""
+        if self.container_config not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
+            raise EasyBuildError("Unsupported container config '%s'" % self.container_config)
         super(DockerContainer, self).validate()
 
     def build_image(self, dockerfile):

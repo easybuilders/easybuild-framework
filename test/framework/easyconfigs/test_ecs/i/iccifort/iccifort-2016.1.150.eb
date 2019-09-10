@@ -1,0 +1,12 @@
+# should be EB_iccifort, but OK for testing purposes
+easyblock = 'EB_toy'
+
+name = 'iccifort'
+version = '2016.1.150'
+
+homepage = 'http://software.intel.com/en-us/intel-compilers/'
+description = "Intel C, C++ & Fortran compilers"
+
+toolchain = SYSTEM
+
+moduleclass = 'compiler'

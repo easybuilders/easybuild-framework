@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -179,6 +179,8 @@ class PackageTest(EnhancedTestCase):
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
+        init_config(build_options={'silent': True})
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
         test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
@@ -267,4 +269,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

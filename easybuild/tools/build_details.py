@@ -1,4 +1,4 @@
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -22,7 +22,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-All required to provide details of build environment 
+All required to provide details of build environment
 and allow for reproducable builds
 
 :author: Kenneth Hoste (Ghent University)
@@ -30,7 +30,7 @@ and allow for reproducable builds
 """
 import time
 from easybuild.tools.filetools import det_size
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
 

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,9 +32,10 @@ This describes the easyconfig version class. To be used in EasyBuild for anythin
 import operator as op
 import re
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -44,12 +45,14 @@ TOOLCHAIN_NAMES = {}
 
 class EasyVersion(LooseVersion):
     """Exact LooseVersion. No modifications needed (yet)"""
-    # TODO: replace all LooseVersion with EasyVersion in eb, after moving EasyVersion to easybuild/tools?
-    # TODO: is dummy some magic version? (ie do we need special attributes for dummy versions?)
 
     def __len__(self):
         """Determine length of this EasyVersion instance."""
         return len(self.version)
+
+    def __hash__(self):
+        """Return hash for this object."""
+        return hash(tuple(self.version))
 
 
 class VersionOperator(object):
@@ -94,7 +97,7 @@ class VersionOperator(object):
         self.regex = self.versop_regex()
 
         self.error_on_parse_failure = error_on_parse_failure
-        if not versop_str is None:
+        if versop_str is not None:
             self.set(versop_str)
 
     def parse_error(self, msg):
@@ -139,12 +142,19 @@ class VersionOperator(object):
         if not self:
             raise EasyBuildError('Not a valid %s. Not initialised yet?', self.__class__.__name__)
 
-        if isinstance(test_version, basestring):
+        if isinstance(test_version, string_type):
             test_version = self._convert(test_version)
         elif not isinstance(test_version, EasyVersion):
-            raise EasyBuildError("test: argument should be a basestring or EasyVersion (type %s)", type(test_version))
+            raise EasyBuildError("test: argument should be a string or EasyVersion (type %s)", type(test_version))
 
-        res = self.operator(test_version, self.version)
+        try:
+            res = self.operator(test_version, self.version)
+        except TypeError:
+            # fallback for case when string-value version (e.g. 'dummy') is compared with proper version
+            # this results in a TypeError in Python 3 (comparing 'str' with 'int'), but not in Python 2
+            # any comparison is meaningless in this case, so always returning True as result should be fine
+            res = True
+
         self.log.debug("result of testing expression '%s %s %s': %s",
                        test_version, self.REVERSE_OPERATOR_MAP[self.operator], self.version, res)
 
@@ -165,6 +175,10 @@ class VersionOperator(object):
         if self.suffix is not None:
             tmp.extend([self.SEPARATOR, self.suffix])
         return ''.join(map(str, tmp))
+
+    def __hash__(self):
+        """Return hash for this object."""
+        return hash((self.version, self.operator, self.suffix))
 
     def get_version_str(self):
         """Return string representation of version (ignores operator)."""
@@ -208,7 +222,7 @@ class VersionOperator(object):
             'sep': self.SEPARATOR,
             'ops': '|'.join(operators),
         }
-        reg_text_version = r"(?P<version_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % { 'sep': self.SEPARATOR }
+        reg_text_version = r"(?P<version_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % {'sep': self.SEPARATOR}
         reg_text_ext = r"(?:%(sep)s(?:suffix%(extsep)s(?P<suffix>[^%(sep)s]+)))?" % {
             'sep': self.SEPARATOR,
             'extsep': self.DICT_SEPARATOR,
@@ -231,7 +245,7 @@ class VersionOperator(object):
         else:
             try:
                 version = EasyVersion(version_str)
-            except (AttributeError, ValueError), err:
+            except (AttributeError, ValueError) as err:
                 self.parse_error('Failed to convert %s to an EasyVersion instance: %s' % (version_str, err))
 
         self.log.debug('converted string %s to version %s' % (version_str, version))
@@ -245,7 +259,8 @@ class VersionOperator(object):
                 operator = self.DEFAULT_UNDEFINED_VERSION_OPERATOR
             else:
                 operator = self.DEFAULT_UNDEFINED_OPERATOR
-            self.log.warning('_convert: operator_str None, set it to default operator (with version: %s) %s' % (operator, version))
+            self.log.warning("_convert: operator_str None, set it to default operator (with version: %s) %s",
+                             operator, version)
         elif operator_str in self.OPERATOR_MAP:
             operator = self.OPERATOR_MAP[operator_str]
         else:
@@ -270,7 +285,7 @@ class VersionOperator(object):
             versop_dict.update(res.groupdict())
             versop_dict['versop_str'] = versop_str
 
-        if not 'versop_str' in versop_dict:
+        if 'versop_str' not in versop_dict:
             raise EasyBuildError('Missing versop_str in versop_dict %s', versop_dict)
 
         version = self._convert(versop_dict['version_str'])
@@ -293,11 +308,11 @@ class VersionOperator(object):
     def test_overlap_and_conflict(self, versop_other):
         """
         Test if there is any overlap between this instance and versop_other, and if so, if there is a conflict or not.
-        
+
         Returns 2 booleans: has_overlap, is_conflict
-        
+
         :param versop_other: a VersionOperator instance
-        
+
         Examples:
             '> 3' and '> 3' : equal, and thus overlap (no conflict)
             '> 3' and '< 2' : no overlap
@@ -305,7 +320,7 @@ class VersionOperator(object):
             '> 3' and '== 3' : no overlap
             '>= 3' and '== 3' : overlap, and conflict (boundary 3 is ambigous)
             '> 3' and '>= 3' : overlap, no conflict ('> 3' is more strict then '>= 3')
-            
+
             # suffix
             '> 2 suffix:-x1' > '> 1 suffix:-x2': suffix not equal, conflict
         """
@@ -421,7 +436,7 @@ class VersionOperator(object):
         return is_gt
 
     def _gt_safe(self, version_gt_op, versop_other):
-        """Conflict free comparsion by version first, and if versions are equal, by operator. 
+        """Conflict free comparsion by version first, and if versions are equal, by operator.
             Suffix are not considered.
         """
         if len(self.ORDERED_OPERATORS) != len(self.OPERATOR_MAP):
@@ -457,7 +472,7 @@ class ToolchainVersionOperator(VersionOperator):
         self.tc_name = None
         self.tcversop_str = None  # the full string
 
-        if not tcversop_str is None:
+        if tcversop_str is not None:
             self.set(tcversop_str)
 
     def __str__(self):
@@ -465,13 +480,17 @@ class ToolchainVersionOperator(VersionOperator):
         version_str = super(ToolchainVersionOperator, self).__str__()
         return ''.join(map(str, [self.tc_name, self.SEPARATOR, version_str]))
 
+    def __hash__(self):
+        """Return hash for this object."""
+        return hash((self.tc_name, self.tcversop_str, self.version, self.operator, self.suffix))
+
     def _get_all_toolchain_names(self, search_string=''):
         """
         Initialise each search_toolchain request, save in module constant TOOLCHAIN_NAMES.
         :param search_string: passed to search_toolchain function.
         """
         global TOOLCHAIN_NAMES
-        if not search_string in TOOLCHAIN_NAMES:
+        if search_string not in TOOLCHAIN_NAMES:
             _, all_tcs = search_toolchain(search_string)
             self.log.debug('Found all toolchains for "%s" to %s' % (search_string, all_tcs))
             TOOLCHAIN_NAMES[search_string] = [x.NAME for x in all_tcs]
@@ -546,8 +565,8 @@ class ToolchainVersionOperator(VersionOperator):
 
     def test(self, name, version):
         """
-        Check if a toolchain with name name and version version would fit 
-            in this ToolchainVersionOperator 
+        Check if a toolchain with name name and version version would fit
+            in this ToolchainVersionOperator
         :param name: toolchain name
         :param version: a version string or EasyVersion instance
         """
@@ -590,7 +609,7 @@ class OrderedVersionOperators(object):
     """
     Ordered version operators. The ordering is defined such that one can test from left to right,
     and assume that the first matching version operator is the one that is the best match.
-        
+
     Example: '> 2', '> 3' should be ordered ['> 3', '> 2'], because for 4, both match, but 3 is considered more strict.
 
     Conflicting version operators are not allowed.
@@ -614,15 +633,15 @@ class OrderedVersionOperators(object):
         After add, versop_new is in the OrderedVersionOperators. If the same versop_new was already in it,
         it will update the data (if not None) (and not raise an error)
 
-        :param versop_new: VersionOperator instance (or will be converted into one if type basestring)
+        :param versop_new: VersionOperator instance (or will be converted into one if type string)
         :param data: additional data for supplied version operator to be stored
-        :param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
-                       instead of overriding the existing data with the new data (method used for updating is .update)    
+        :param update: if versop_new already exist and has data set, try to update the existing data with the new data;
+                       instead of overriding the existing data with the new data (method used for updating is .update)
         """
-        if isinstance(versop_new, basestring):
+        if isinstance(versop_new, string_type):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
-            raise EasyBuildError("add: argument must be a VersionOperator instance or basestring: %s; type %s",
+            raise EasyBuildError("add: argument must be a VersionOperator instance or string: %s; type %s",
                                  versop_new, type(versop_new))
 
         if versop_new in self.versops:
@@ -666,7 +685,7 @@ class OrderedVersionOperators(object):
         """Return the data for versop from datamap"""
         if not isinstance(versop, VersionOperator):
             raise EasyBuildError("get_data: argument must be a VersionOperator instance: %s; type %s",
-                                  versop, type(versop))
+                                 versop, type(versop))
 
         versop_str = str(versop)
         if versop_str in self.datamap:

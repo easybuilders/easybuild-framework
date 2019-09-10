@@ -1,5 +1,5 @@
 # #
-# Copyright 2018-2018 Ghent University
+# Copyright 2018-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,7 +36,7 @@ from unittest import TextTestRunner
 from test.framework.utilities import TestLoaderFiltered
 
 # deliberately *not* using EnhancedTestCase from test.framework.utilities to avoid automatic configuration via setUp
-from vsc.utils.testing import EnhancedTestCase
+from easybuild.base.testing import TestCase
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import BuildOptions
@@ -46,7 +46,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.run import run_cmd
 
 
-class EasyBuildLibTest(EnhancedTestCase):
+class EasyBuildLibTest(TestCase):
     """Test cases for using EasyBuild as a library."""
 
     def setUp(self):
@@ -54,7 +54,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         super(EasyBuildLibTest, self).setUp()
 
         # make sure BuildOptions instance is re-created
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.tmpdir = tempfile.mkdtemp()
 
@@ -68,7 +69,8 @@ class EasyBuildLibTest(EnhancedTestCase):
         """Utility function to set up EasyBuild configuration."""
 
         # wipe BuildOption singleton instance, so it gets re-created when set_up_configuration is called
-        del BuildOptions._instances[BuildOptions]
+        if BuildOptions in BuildOptions._instances:
+            del BuildOptions._instances[BuildOptions]
 
         self.assertFalse(BuildOptions in BuildOptions._instances)
         set_up_configuration(silent=True)
@@ -127,4 +129,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2018 Ghent University
+# Copyright 2011-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +28,7 @@ Module with useful functions for getting system information
 :author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
+import ctypes
 import fcntl
 import grp  # @UnresolvedImport
 import os
@@ -37,10 +38,10 @@ import re
 import struct
 import sys
 import termios
+from ctypes.util import find_library
 from socket import gethostname
-from vsc.utils import fancylogger
-from vsc.utils.affinity import sched_getaffinity
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd
@@ -118,9 +119,44 @@ ARM_CORTEX_IDS = {
     '0xd09': 'Cortex-A73',
 }
 
+# OS package handler name constants
+RPM = 'rpm'
+DPKG = 'dpkg'
+
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
+
+
+def sched_getaffinity():
+    """Determine list of available cores for current process."""
+    cpu_mask_t = ctypes.c_ulong
+    cpu_setsize = 1024
+    n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
+    n_mask_bits = cpu_setsize // n_cpu_bits
+
+    class cpu_set_t(ctypes.Structure):
+        """Class that implements the cpu_set_t struct."""
+        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
+
+    _libc_lib = find_library('c')
+    _libc = ctypes.cdll.LoadLibrary(_libc_lib)
+
+    pid = os.getpid()
+    cs = cpu_set_t()
+    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+    if ec == 0:
+        _log.debug("sched_getaffinity for pid %s successful", pid)
+    else:
+        raise EasyBuildError("sched_getaffinity failed for pid %s ec %s", pid, ec)
+
+    cpus = []
+    for bitmask in cs.bits:
+        for _ in range(n_cpu_bits):
+            cpus.append(bitmask & 1)
+            bitmask >>= 1
+
+    return cpus
 
 
 def get_avail_core_count():
@@ -132,7 +168,7 @@ def get_avail_core_count():
 
     if os_type == LINUX:
         # simple use available sched_getaffinity() function (yields a long, so cast it down to int)
-        core_cnt = int(sum(sched_getaffinity().cpus))
+        core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
         out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False)
@@ -167,14 +203,14 @@ def get_total_memory():
         meminfo = read_file(PROC_MEMINFO_FP)
         mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
         if mem_mo:
-            memtotal = int(mem_mo.group(1)) / 1024
+            memtotal = int(mem_mo.group(1)) // 1024
 
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
-            memtotal = int(out.strip()) / (1024**2)
+            memtotal = int(out.strip()) // (1024**2)
 
     if memtotal is None:
         memtotal = UNKNOWN
@@ -357,7 +393,7 @@ def get_cpu_speed():
         if is_readable(MAX_FREQ_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
             txt = read_file(MAX_FREQ_FP)
-            cpu_freq = float(txt) / 1000
+            cpu_freq = float(txt) // 1000
 
         # Linux without cpu scaling
         elif is_readable(PROC_CPUINFO_FP):
@@ -380,7 +416,7 @@ def get_cpu_speed():
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             # returns clock frequency in cycles/sec, but we want MHz
-            cpu_freq = float(out.strip()) / (1000 ** 2)
+            cpu_freq = float(out.strip()) // (1000 ** 2)
 
     else:
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
@@ -563,19 +599,33 @@ def check_os_dependency(dep):
     # - uses rpm -q and dpkg -s --> can be run as non-root!!
     # - fallback on which
     # - should be extended to files later?
-    found = None
+    found = False
     cmd = None
-    if which('rpm'):
-        cmd = "rpm -q %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                        stream_output=False)
+    os_to_pkg_cmd_map = {
+        'centos': RPM,
+        'debian': DPKG,
+        'redhat': RPM,
+        'ubuntu': DPKG,
+    }
+    pkg_cmd_flag = {
+        DPKG: '-s',
+        RPM: '-q',
+    }
+    os_name = get_os_name()
+    if os_name in os_to_pkg_cmd_map:
+        pkg_cmds = [os_to_pkg_cmd_map[os_name]]
+    else:
+        pkg_cmds = [RPM, DPKG]
 
-    if not found and which('dpkg'):
-        cmd = "dpkg -s %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                        stream_output=False)
+    for pkg_cmd in pkg_cmds:
+        if which(pkg_cmd):
+            cmd = ' '.join([pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep])
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False,
+                            force_in_dry_run=True, trace=False, stream_output=False)
+            if found:
+                break
 
-    if cmd is None:
+    if not found:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 
@@ -681,13 +731,13 @@ def use_group(group_name):
     """Use group with specified name."""
     try:
         group_id = grp.getgrnam(group_name).gr_gid
-    except KeyError, err:
+    except KeyError as err:
         raise EasyBuildError("Failed to get group ID for '%s', group does not exist (err: %s)", group_name, err)
 
     group = (group_name, group_id)
     try:
         os.setgid(group_id)
-    except OSError, err:
+    except OSError as err:
         err_msg = "Failed to use group %s: %s; " % (group, err)
         user = pwd.getpwuid(os.getuid()).pw_name
         grp_members = grp.getgrgid(group_id).gr_mem
@@ -704,13 +754,13 @@ def use_group(group_name):
 def det_parallelism(par=None, maxpar=None):
     """
     Determine level of parallelism that should be used.
-    Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) / 6)
+    Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) // 6)
     """
     if par is not None:
         if not isinstance(par, int):
             try:
                 par = int(par)
-            except ValueError, err:
+            except ValueError as err:
                 raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
     else:
         par = get_avail_core_count()
@@ -721,11 +771,11 @@ def det_parallelism(par=None, maxpar=None):
                 out = 2 ** 32 - 1
             maxuserproc = int(out)
             # assume 6 processes per build thread + 15 overhead
-            par_guess = int((maxuserproc - 15) / 6)
+            par_guess = int((maxuserproc - 15) // 6)
             if par_guess < par:
                 par = par_guess
                 _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
-        except ValueError, err:
+        except ValueError as err:
             raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
 
     if maxpar is not None and maxpar < par:

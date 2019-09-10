@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,14 +31,15 @@ The parser is format version aware
 """
 import os
 import re
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
 from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
 from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.py2vs3 import string_type
 
 
 # deprecated easyconfig parameters, and their replacements
@@ -157,11 +158,11 @@ class EasyConfigParser(object):
 
         try:
             self.rawcontent = self.get_fn[0](*self.get_fn[1])
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
-        if not isinstance(self.rawcontent, basestring):
-            msg = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
+        if not isinstance(self.rawcontent, string_type):
+            msg = 'rawcontent is not a string: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
 
     def _det_format_version(self):
@@ -207,7 +208,7 @@ class EasyConfigParser(object):
 
         try:
             self.set_fn[0](*self.set_fn[1])
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Failed to process content with %s: %s", self.set_fn, err)
 
     def set_specifications(self, specs):

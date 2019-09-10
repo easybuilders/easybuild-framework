@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2018 Ghent University
+# Copyright 2011-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,15 +28,4 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 :author: Jens Timmerman (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import pkg_resources
-
-# required for backward compatibility
-from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
-
-pkg_resources.declare_namespace(__name__)
-
-# suffix for devel module filename
-DEVEL_MODULE_SUFFIX = '-easybuild-devel'
-
-# general module class
-GENERAL_CLASS = 'all'
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2018 Ghent University
+# Copyright 2017-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,8 +30,8 @@ Hook support.
 import difflib
 import imp
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 
 
@@ -47,6 +47,7 @@ MODULE_STEP = 'module'
 PACKAGE_STEP = 'package'
 PATCH_STEP = 'patch'
 PERMISSIONS_STEP = 'permissions'
+POSTITER_STEP = 'postiter'
 POSTPROC_STEP = 'postproc'
 PREPARE_STEP = 'prepare'
 READY_STEP = 'ready'
@@ -120,7 +121,7 @@ def load_hooks(hooks_path):
 def verify_hooks(hooks):
     """Check whether list of obtained hooks only includes known hooks."""
     unknown_hooks = []
-    for key in hooks:
+    for key in sorted(hooks):
         if key not in KNOWN_HOOKS:
             unknown_hooks.append(key)
 

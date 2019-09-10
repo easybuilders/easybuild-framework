@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2018 Ghent University
+# Copyright 2011-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,10 +29,13 @@ Module naming scheme API.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import Singleton
+
+
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
 
 class ModuleNamingScheme(object):
@@ -172,4 +175,3 @@ class ModuleNamingScheme(object):
         Software is already installed beforehand with one naming scheme, including development module.
         """
         return True
-

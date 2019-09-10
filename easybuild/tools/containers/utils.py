@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,10 +29,12 @@
 """
 import operator
 import re
+from functools import reduce
 
 from distutils.version import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -45,7 +47,7 @@ def det_os_deps(easyconfigs):
     res = set()
     os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
     for os_dep in os_deps:
-        if isinstance(os_dep, basestring):
+        if isinstance(os_dep, string_type):
             res.add(os_dep)
         elif isinstance(os_dep, tuple):
             res.update(os_dep)
@@ -57,7 +59,13 @@ def check_tool(tool_name, min_tool_version=None):
     This function is a predicate check for the existence of tool_name on the system PATH.
     If min_tool_version is not None, it will check that the version has an equal or higher value.
     """
-    tool_path = which(tool_name)
+    if tool_name == 'sudo':
+        # disable checking of permissions for 'sudo' command,
+        # since read permissions may not be available for 'sudo' executable (e.g. on CentOS)
+        tool_path = which(tool_name, check_perms=False)
+    else:
+        tool_path = which(tool_name)
+
     if not tool_path:
         return False
 

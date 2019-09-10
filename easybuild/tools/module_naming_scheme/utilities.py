@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,13 +34,12 @@ Utility functions for implementating module naming schemes.
 """
 import os
 import string
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
-from easybuild.tools import module_naming_scheme
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules
+from easybuild.base import fancylogger
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 
@@ -48,14 +47,14 @@ _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 def det_full_ec_version(ec):
     """
     Determine exact install version, based on supplied easyconfig.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for system toolchains)
     """
 
     ecver = None
-    toolchain = ec.get('toolchain', {'name': DUMMY_TOOLCHAIN_NAME})
+    toolchain = ec.get('toolchain', {'name': SYSTEM_TOOLCHAIN_NAME})
 
     # determine main install version based on toolchain
-    if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
+    if is_system_toolchain(toolchain['name']):
         ecver = ec['version']
     else:
         ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
@@ -82,7 +81,7 @@ def avail_module_naming_schemes():
 def is_valid_module_name(mod_name):
     """Check whether the specified value is a valid module name."""
     # module name must be a string
-    if not isinstance(mod_name, basestring):
+    if not isinstance(mod_name, string_type):
         _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
         return False
     # module name must be relative path

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,8 +41,8 @@ import getpass
 import socket
 import tempfile
 import time
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
@@ -102,7 +102,7 @@ class HgRepository(FileRepository):
         try:
             client = hglib.clone(self.repo, self.wc)
             self.log.debug("repo %s cloned in %s" % (self.repo, self.wc))
-        except (HgCommandError, OSError), err:
+        except (HgCommandError, OSError) as err:
             # it might already have existed
             self.log.warning("Mercurial local repo initialization failed, it might already exist: %s" % err)
 
@@ -110,18 +110,18 @@ class HgRepository(FileRepository):
         try:
             self.log.debug("connection to mercurial repo in %s" % self.wc)
             self.client = hglib.open(self.wc)
-        except HgServerError, err:
+        except HgServerError as err:
             raise EasyBuildError("Could not connect to local mercurial repo: %s", err)
-        except (HgCapabilityError, HgResponseError), err:
+        except (HgCapabilityError, HgResponseError) as err:
             raise EasyBuildError("Server response: %s", err)
-        except (OSError, ValueError), err:
+        except (OSError, ValueError) as err:
             raise EasyBuildError("Could not create a local mercurial repo in wc %s: %s", self.wc, err)
 
         # try to get the remote data in the local repo
         try:
             self.client.pull()
             self.log.debug("pulled succesfully in %s" % self.wc)
-        except (HgCommandError, HgServerError, HgResponseError, OSError, ValueError), err:
+        except (HgCommandError, HgServerError, HgResponseError, OSError, ValueError) as err:
             raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
     def stage_file(self, path):
@@ -175,7 +175,7 @@ class HgRepository(FileRepository):
         try:
             self.client.commit('"%s"' % completemsg, user=user)
             self.log.debug("succesfull commit")
-        except (HgCommandError, HgServerError, HgResponseError, ValueError), err:
+        except (HgCommandError, HgServerError, HgResponseError, ValueError) as err:
             self.log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
         try:
             if self.client.push():
@@ -183,7 +183,7 @@ class HgRepository(FileRepository):
             else:
                 info = "nothing to push"
             self.log.debug("push info: %s " % info)
-        except (HgCommandError, HgServerError, HgResponseError, ValueError), err:
+        except (HgCommandError, HgServerError, HgResponseError, ValueError) as err:
             tup = (self.wc, self.repo, msg, err)
             self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % tup)
 
@@ -193,5 +193,5 @@ class HgRepository(FileRepository):
         """
         try:
             rmtree2(self.wc)
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

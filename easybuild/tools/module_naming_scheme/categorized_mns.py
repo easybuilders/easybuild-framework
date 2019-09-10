@@ -1,5 +1,5 @@
 ##
-# Copyright 2016-2018 Ghent University
+# Copyright 2016-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,7 +32,7 @@ Implementation of a categorized module naming scheme using module classes.
 import os
 import re
 
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 class CategorizedModuleNamingScheme(ModuleNamingScheme):

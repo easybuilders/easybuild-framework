@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,7 @@ import os
 import socket
 import tempfile
 import time
-from vsc.utils import fancylogger
+from easybuild.base import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
@@ -102,7 +102,7 @@ class GitRepository(FileRepository):
             client.clone(self.repo)
             reponame = os.listdir(self.wc)[0]
             self.log.debug("rep name is %s" % reponame)
-        except (git.GitCommandError, OSError), err:
+        except (git.GitCommandError, OSError) as err:
             # it might already have existed
             self.log.warning("Git local repo initialization failed, it might already exist: %s", err)
 
@@ -111,14 +111,14 @@ class GitRepository(FileRepository):
             self.wc = os.path.join(self.wc, reponame)
             self.log.debug("connectiong to git repo in %s" % self.wc)
             self.client = git.Git(self.wc)
-        except (git.GitCommandError, OSError), err:
+        except (git.GitCommandError, OSError) as err:
             raise EasyBuildError("Could not create a local git repo in wc %s: %s", self.wc, err)
 
         # try to get the remote data in the local repo
         try:
             res = self.client.pull()
             self.log.debug("pulled succesfully to %s in %s" % (res, self.wc))
-        except (git.GitCommandError, OSError), err:
+        except (git.GitCommandError, OSError) as err:
             raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
     def stage_file(self, path):
@@ -173,12 +173,12 @@ class GitRepository(FileRepository):
         try:
             self.client.commit('-am %s' % completemsg)
             self.log.debug("succesfull commit: %s", self.client.log('HEAD^!'))
-        except GitCommandError, err:
+        except GitCommandError as err:
             self.log.warning("Commit from working copy %s failed, empty commit? (msg: %s): %s", self.wc, msg, err)
         try:
             info = self.client.push()
             self.log.debug("push info: %s ", info)
-        except GitCommandError, err:
+        except GitCommandError as err:
             self.log.warning("Push from working copy %s to remote %s failed (msg: %s): %s",
                              self.wc, self.repo, msg, err)
 
@@ -189,5 +189,5 @@ class GitRepository(FileRepository):
         try:
             self.wc = os.path.dirname(self.wc)
             rmtree2(self.wc)
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

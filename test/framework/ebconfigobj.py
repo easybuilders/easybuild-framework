@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,20 +27,14 @@ Unit tests for easyconfig/format/format EBConfigObj
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
-import re
 import sys
 
 from easybuild.framework.easyconfig.format.format import EBConfigObj
-from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
 class TestEBConfigObj(EnhancedTestCase):
@@ -66,10 +60,10 @@ class TestEBConfigObj(EnhancedTestCase):
         data = [
             ('versions=1', {'version': '1'}),
             # == is usable
-            ('toolchains=%s == 1' % self.tc_first, {'toolchain':{'name': self.tc_first, 'version': '1'}}),
+            ('toolchains=%s == 1' % self.tc_first, {'toolchain': {'name': self.tc_first, 'version': '1'}}),
         ]
 
-        for val, res in  data:
+        for val, res in data:
             configobj_txt = ['[SUPPORTED]', val]
             co = ConfigObj(configobj_txt)
             cov = EBConfigObj(co)
@@ -88,7 +82,7 @@ class TestEBConfigObj(EnhancedTestCase):
             ('toolchains=%s > 1' % self.tc_first, {}),
         ]
 
-        for val, res in  data:
+        for val, res in data:
             configobj_txt = ['[SUPPORTED]', val]
             co = ConfigObj(configobj_txt)
             self.assertErrorRegex(EasyBuildError,
@@ -146,10 +140,7 @@ class TestEBConfigObj(EnhancedTestCase):
             '[> 1]',
             '[[< 2]]',  # although this makes sense, it's considered a conflict
         ]
-        for txt in [
-            txt_wrong_versions,
-            txt_conflict_nested_versions,
-            ]:
+        for txt in [txt_wrong_versions, txt_conflict_nested_versions]:
             co = ConfigObj(txt)
             cov = EBConfigObj(co)
             self.assertErrorRegex(EasyBuildError, r'conflict', cov.squash,
@@ -167,7 +158,7 @@ class TestEBConfigObj(EnhancedTestCase):
         txt = [
             '[SUPPORTED]',
             'versions = 1.0, 0.0, 1.1, 1.6, 2.1',
-            'toolchains = %s,%s' % (tc_section_first, tc_tmpl % tc_last),
+            'toolchains = %s,%s' % (tc_section_first, tc_section_last),
             '[DEFAULT]',
             'y=a',
             '[> 1.0]',
@@ -189,17 +180,17 @@ class TestEBConfigObj(EnhancedTestCase):
 
         # tests
         tests = [
-            (tc_last, '1.0', {'y':'a'}),
-            (tc_last, '1.1', {'y':'b', 'x':'1'}),
+            (tc_last, '1.0', {'y': 'a'}),
+            (tc_last, '1.1', {'y': 'b', 'x': '1'}),
             (tc_last, '1.5', {}),  # not a supported version
-            (tc_last, '1.6', {'y':'c', 'x':'2', 'z':'3'}),  # nested
-            (tc_last, '2.1', {'y':'d', 'x':'3', 'z':'3'}),  # values from most precise versop
+            (tc_last, '1.6', {'y': 'c', 'x': '2', 'z': '3'}),  # nested
+            (tc_last, '2.1', {'y': 'd', 'x': '3', 'z': '3'}),  # values from most precise versop
 
-            (tc_first, '1.0', {'y':'z1'}),  # toolchain section, not default
-            (tc_first, '1.1', {'y':'b', 'x':'1'}),  # the version section precedes the toolchain section
+            (tc_first, '1.0', {'y': 'z1'}),  # toolchain section, not default
+            (tc_first, '1.1', {'y': 'b', 'x': '1'}),  # the version section precedes the toolchain section
             (tc_first, '1.5', {}),  # not a supported version
-            (tc_first, '1.6', {'y':'z2', 'x':'2', 'z':'3'}),  # nested
-            (tc_first, '2.1', {'y':'d', 'x':'3', 'z':'3'}),  # values from most precise versop
+            (tc_first, '1.6', {'y': 'z2', 'x': '2', 'z': '3'}),  # nested
+            (tc_first, '2.1', {'y': 'd', 'x': '3', 'z': '3'}),  # values from most precise versop
         ]
         for tc, version, res in tests:
             co = ConfigObj(txt)
@@ -236,7 +227,7 @@ class TestEBConfigObj(EnhancedTestCase):
             ('3.0', {'versionprefix': 'production-', 'versionsuffix': '-mature'}),
         ]
 
-        for version, res in  data:
+        for version, res in data:
             # yes, redo this for each test, even if it's static text
             # some of the data is modified in place
             co = ConfigObj(txt)
@@ -268,7 +259,7 @@ class TestEBConfigObj(EnhancedTestCase):
 
         # default tc is cgoolf -> cgoolf > 0.0.0
         res = cov.get_specs_for(version='2.3.4', tcname=self.tc_first, tcversion='1.0.0')
-        self.assertEqual(res, {'foo':'bar'})
+        self.assertEqual(res, {'foo': 'bar'})
 
 
 def suite():
@@ -277,6 +268,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

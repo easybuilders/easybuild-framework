@@ -1,5 +1,6 @@
 # #
-# Copyright 2012-2018 Ghent University
+# -*- coding: utf-8 -*-
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,16 +35,18 @@ import os
 import re
 import signal
 import stat
+import subprocess
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug
+from easybuild.base.fancylogger import setLogLevelDebug
 
+import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
+from easybuild.tools.run import get_output_from_process, run_cmd, run_cmd_qa, parse_log_for_error
 
 
 class RunTest(EnhancedTestCase):
@@ -61,12 +64,89 @@ class RunTest(EnhancedTestCase):
         # restore log.experimental
         easybuild.tools.utilities._log.experimental = self.orig_experimental
 
+    def test_get_output_from_process(self):
+        """Test for get_output_from_process utility function."""
+
+        def get_proc(cmd, asynchronous=False):
+            if asynchronous:
+                proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
+                                          stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
+            else:
+                proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        stdin=subprocess.PIPE, close_fds=True, executable='/bin/bash')
+
+            return proc
+
+        # get all output at once
+        proc = get_proc("echo hello")
+        out = get_output_from_process(proc)
+        self.assertEqual(out, 'hello\n')
+
+        # first get 100 bytes, then get the rest all at once
+        proc = get_proc("echo hello")
+        out = get_output_from_process(proc, read_size=100)
+        self.assertEqual(out, 'hello\n')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, '')
+
+        # get output in small bits, keep trying to get output (which shouldn't fail)
+        proc = get_proc("echo hello")
+        out = get_output_from_process(proc, read_size=1)
+        self.assertEqual(out, 'h')
+        out = get_output_from_process(proc, read_size=3)
+        self.assertEqual(out, 'ell')
+        out = get_output_from_process(proc, read_size=2)
+        self.assertEqual(out, 'o\n')
+        out = get_output_from_process(proc, read_size=1)
+        self.assertEqual(out, '')
+        out = get_output_from_process(proc, read_size=10)
+        self.assertEqual(out, '')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, '')
+
+        # can also get output asynchronously (read_size is *ignored* in that case)
+        async_cmd = "echo hello; read reply; echo $reply"
+
+        proc = get_proc(async_cmd, asynchronous=True)
+        out = get_output_from_process(proc, asynchronous=True)
+        self.assertEqual(out, 'hello\n')
+        asyncprocess.send_all(proc, 'test123\n')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, 'test123\n')
+
+        proc = get_proc(async_cmd, asynchronous=True)
+        out = get_output_from_process(proc, asynchronous=True, read_size=1)
+        # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
+        self.assertEqual(out, 'hello\n')
+        asyncprocess.send_all(proc, 'test123\n')
+        out = get_output_from_process(proc, read_size=3)
+        self.assertEqual(out, 'tes')
+        out = get_output_from_process(proc, read_size=2)
+        self.assertEqual(out, 't1')
+        out = get_output_from_process(proc)
+        self.assertEqual(out, '23\n')
+
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
         (out, ec) = run_cmd("echo hello")
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+        self.assertEqual(type(out), str)
+
+        # test running command that emits non-UTF-8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018'
+        for text in [b"foo \xe2 bar", b"foo \u2018 bar"]:
+            test_file = os.path.join(self.test_prefix, 'foo.txt')
+            write_file(test_file, text)
+            cmd = "cat %s" % test_file
+
+            (out, ec) = run_cmd(cmd)
+            self.assertEqual(ec, 0)
+            self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+            self.assertEqual(type(out), str)
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
@@ -103,6 +183,16 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(regex.findall(read_file(logfile))), 1)
         write_file(logfile, '')
 
+        # Test that we can set the directory for the logfile
+        log_path = os.path.join(self.test_prefix, 'chicken')
+        os.mkdir(log_path)
+        logfile = None
+        init_logging(logfile, silent=True, tmp_logdir=log_path)
+        logfiles = os.listdir(log_path)
+        self.assertEqual(len(logfiles), 1)
+        self.assertTrue(logfiles[0].startswith("easybuild"))
+        self.assertTrue(logfiles[0].endswith("log"))
+
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
         # define signal handler to call in case run_cmd takes too long
@@ -138,6 +228,7 @@ class RunTest(EnhancedTestCase):
         """Test run_cmd with log_output enabled"""
         (out, ec) = run_cmd("seq 1 100", log_output=True)
         self.assertEqual(ec, 0)
+        self.assertEqual(type(out), str)
         self.assertTrue(out.startswith("1\n2\n"))
         self.assertTrue(out.endswith("99\n100\n"))
 
@@ -148,6 +239,20 @@ class RunTest(EnhancedTestCase):
         run_cmd_log_lines = run_cmd_log_txt.split('\n')
         self.assertEqual(run_cmd_log_lines[2:5], ['1', '2', '3'])
         self.assertEqual(run_cmd_log_lines[-4:-1], ['98', '99', '100'])
+
+        # test running command that emits non-UTF-8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018' (‘)
+        for text in [b"foo \xe2 bar", "foo ‘ bar"]:
+            test_file = os.path.join(self.test_prefix, 'foo.txt')
+            write_file(test_file, text)
+            cmd = "cat %s" % test_file
+
+            (out, ec) = run_cmd(cmd, log_output=True)
+            self.assertEqual(ec, 0)
+            self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+            self.assertEqual(type(out), str)
 
     def test_run_cmd_trace(self):
         """Test run_cmd under --trace"""
@@ -185,22 +290,37 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_qa(self):
         """Basic test for run_cmd_qa function."""
-        (out, ec) = run_cmd_qa("echo question; read x; echo $x", {'question': 'answer'})
+
+        cmd = "echo question; read x; echo $x"
+        qa = {'question': 'answer'}
+        (out, ec) = run_cmd_qa(cmd, qa)
         self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+        # test running command that emits non-UTF8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        write_file(test_file, b"foo \xe2 bar")
+        cmd += "; cat %s" % test_file
+
+        (out, ec) = run_cmd_qa(cmd, qa)
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith("question\nanswer\nfoo "))
+        self.assertTrue(out.endswith('bar'))
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
         (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'}, log_all=True)
         self.assertEqual(ec, 0)
-        self.assertEquals(out, "n: \n1\n2\n3\n4\n5\n")
+        self.assertEqual(out, "n: \n1\n2\n3\n4\n5\n")
 
         run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd_qa*.log'))
         self.assertEqual(len(run_cmd_logs), 1)
         run_cmd_log_txt = read_file(run_cmd_logs[0])
         extra_pref = "# output for interactive command: echo 'n: '; read n; seq 1 $n\n\n"
-        self.assertEquals(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
+        self.assertEqual(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
 
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
@@ -395,4 +515,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,11 +34,13 @@ from unittest import TextTestRunner
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, ensure_iterable_license_specs
-from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT
 from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
-from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_toolchain_dict
+from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_strings_and_tuples, to_toolchain_dict
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -169,12 +171,66 @@ class TypeCheckingTest(EnhancedTestCase):
         out = {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': [('lib', 'lib64', 'lib32')]}
         self.assertEqual(check_type_of_param_value('sanity_check_paths', inp, auto_convert=True), (True, out))
 
+    def test_check_type_of_param_value_checksums(self):
+        """Test check_type_of_param_value function for checksums."""
+
+        md5_checksum = 'fa618be8435447a017fd1bf2c7ae9224'
+        sha256_checksum1 = 'fa618be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265'
+        sha256_checksum2 = 'b5f9cb06105c1d2d30719db5ffb3ea67da60919fb68deaefa583deccd8813551'
+        sha256_checksum3 = '033be54514a03e255df75c5aee8f9e672f663f93abb723444caec8fe43437bde'
+
+        # valid values for 'checksums' easyconfig parameters
+        inputs = [
+            [],
+            # single checksum (one file)
+            [md5_checksum],
+            [sha256_checksum1],
+            # one checksum, for 3 files
+            [sha256_checksum1, sha256_checksum2, sha256_checksum3],
+            # one checksum of specific type (as 2-tuple)
+            [('md5', md5_checksum)],
+            [('sha256', sha256_checksum1)],
+            # alternative checksums for a single file (n-tuple)
+            [(sha256_checksum1, sha256_checksum2)],
+            [(sha256_checksum1, sha256_checksum2, sha256_checksum3)],
+            [(sha256_checksum1, sha256_checksum2, sha256_checksum3, md5_checksum)],
+            [(md5_checksum,)],
+            # multiple checksums of specific type, one for each file
+            [('md5', md5_checksum), ('sha256', sha256_checksum1)],
+            # checksum as dict (file to checksum mapping)
+            [{'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2}],
+            # list of checksums for a single file
+            [[md5_checksum]],
+            [[sha256_checksum1, sha256_checksum2, sha256_checksum3]],
+            # in the mix (3 files, each a different kind of checksum spec)...
+            [
+                sha256_checksum1,
+                ('md5', md5_checksum),
+                {'foo.txt': sha256_checksum2, 'bar.txt': sha256_checksum3},
+            ],
+            # each item can be a list of checksums for a single file, which can be of different types...
+            [
+                # two checksums for a single file, *both* should match
+                [sha256_checksum1, md5_checksum],
+                # three checksums for a single file, *all* should match
+                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum1}],
+                # single checksum for a single file
+                sha256_checksum1,
+                # filename-to-checksum mapping
+                {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2},
+                # 3 alternative checksums for a single file, one match is sufficient
+                (sha256_checksum1, sha256_checksum2, sha256_checksum3),
+            ]
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('checksums', inp), (True, inp))
+
     def test_convert_value_type(self):
         """Test convert_value_type function."""
         # to string
-        self.assertEqual(convert_value_type(100, basestring), '100')
+        self.assertEqual(convert_value_type(100, string_type), '100')
         self.assertEqual(convert_value_type((100,), str), '(100,)')
-        self.assertEqual(convert_value_type([100], basestring), '[100]')
+        self.assertEqual(convert_value_type([100], string_type), '[100]')
         self.assertEqual(convert_value_type(None, str), 'None')
 
         # to int/float
@@ -187,11 +243,18 @@ class TypeCheckingTest(EnhancedTestCase):
         # 1.6 can't be parsed as an int (yields "invalid literal for int() with base 10" error)
         self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '1.6', int)
 
+        # to list of strings
+        self.assertEqual(convert_value_type('foo', LIST_OF_STRINGS), ['foo'])
+        self.assertEqual(convert_value_type(('foo', 'bar'), LIST_OF_STRINGS), ['foo', 'bar'])
+        self.assertEqual(convert_value_type((), LIST_OF_STRINGS), [])
+
         # idempotency
-        self.assertEqual(convert_value_type('foo', basestring), 'foo')
+        self.assertEqual(convert_value_type('foo', string_type), 'foo')
         self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type(100, int), 100)
         self.assertEqual(convert_value_type(1.6, float), 1.6)
+        self.assertEqual(convert_value_type(['foo', 'bar'], LIST_OF_STRINGS), ['foo', 'bar'])
+        self.assertEqual(convert_value_type([], LIST_OF_STRINGS), [])
 
         # complex types
         dep = [{'GCC': '1.2.3', 'versionsuffix': 'foo'}]
@@ -257,18 +320,22 @@ class TypeCheckingTest(EnhancedTestCase):
         lib_dict.update({'versionsuffix': ''})
 
         # to_dependency doesn't touch values of non-dict type
-        self.assertEqual(to_dependency(('foo', '1.3')), ('foo','1.3'))
-        self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), ('foo', '1.3', '-suff', ('GCC','4.8.2')))
-        self.assertEqual(to_dependency('foo/1.3'), 'foo/1.3')
+        dep_specs = [
+            ('foo', '1.3'),
+            ('foo', '1.3', '-suff', ('GCC', '4.8.2')),
+            'foo/1.3',
+        ]
+        for dep_spec in dep_specs:
+            self.assertEqual(to_dependency(dep_spec), dep_spec)
 
-        self.assertEqual(to_dependency({'name':'fftw/3.3.4.2', 'external_module': True}),
-            {
-                'external_module': True,
-                'full_mod_name': 'fftw/3.3.4.2',
-                'name': None,
-                'short_mod_name': 'fftw/3.3.4.2',
-                'version': None,
-            })
+        expected = {
+            'external_module': True,
+            'full_mod_name': 'fftw/3.3.4.2',
+            'name': None,
+            'short_mod_name': 'fftw/3.3.4.2',
+            'version': None,
+        }
+        self.assertEqual(to_dependency({'name': 'fftw/3.3.4.2', 'external_module': True}), expected)
 
         foo_dict = {
             'name': 'foo',
@@ -293,10 +360,10 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # no name/version
         self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
-            to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+                              to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
         # too many values
-        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*",
-            to_dependency, {'lib': '1.2.8', 'foo':'1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+        dep_spec = {'lib': '1.2.8', 'foo': '1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'}
+        self.assertErrorRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
 
     def test_to_dependencies(self):
         """Test to_dependencies function."""
@@ -317,7 +384,7 @@ class TypeCheckingTest(EnhancedTestCase):
             'foo/1.2.3',
             ('foo', '1.2.3'),
             ('bar', '4.5.6', '-test'),
-            ('foobar', '1.3.5', '', ('GCC','4.7.2')),
+            ('foobar', '1.3.5', '', ('GCC', '4.7.2')),
             {'name': 'toy', 'version': '0.0'},
             {'name': 'toy', 'version': '0.0', 'versionsuffix': '-bleh'},
             {'name': 'toy', 'version': '0.0', 'toolchain': {'name': 'gompi', 'version': '2015a'}},
@@ -338,6 +405,14 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type({'one': 1}, list))
         self.assertFalse(is_value_of_type(1, str))
         self.assertFalse(is_value_of_type("foo", int))
+
+        # list of strings check
+        self.assertTrue(is_value_of_type([], LIST_OF_STRINGS))
+        self.assertTrue(is_value_of_type(['foo', 'bar'], LIST_OF_STRINGS))
+        self.assertTrue(is_value_of_type([''], LIST_OF_STRINGS))
+        self.assertFalse(is_value_of_type(123, LIST_OF_STRINGS))
+        self.assertFalse(is_value_of_type('foo', LIST_OF_STRINGS))
+        self.assertFalse(is_value_of_type(('foo', 'bar'), LIST_OF_STRINGS))
 
         # toolchain type check
         self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, TOOLCHAIN_DICT))
@@ -381,7 +456,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type(dependencies, DEPENDENCIES))
 
         # wrong keys (name/version is strictly required)
-        self.assertFalse(is_value_of_type([{'a':'b', 'c':'d'}], DEPENDENCIES))
+        self.assertFalse(is_value_of_type([{'a': 'b', 'c': 'd'}], DEPENDENCIES))
 
         # not a list
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a'}, DEPENDENCIES))
@@ -424,7 +499,7 @@ class TypeCheckingTest(EnhancedTestCase):
         """Test as_hashable function."""
         hashable_value = (
             ('one', (1,)),
-            ('two', (1,2)),
+            ('two', (1, 2)),
         )
         self.assertEqual(as_hashable({'one': [1], 'two': [1, 2]}), hashable_value)
 
@@ -498,6 +573,28 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # errors
         self.assertErrorRegex(EasyBuildError, "Don't know how to check element types .*", check_element_types, 1, [])
+
+    def test_to_list_of_strings(self):
+        """Test to_list_of_strings function."""
+        # no conversion if value type is already correct
+        self.assertEqual(to_list_of_strings([]), [])
+        self.assertEqual(to_list_of_strings(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings(['foo', 'bar', 'baz']), ['foo', 'bar', 'baz'])
+
+        # single string is converted to a single-element list
+        self.assertEqual(to_list_of_strings('foo'), ['foo'])
+        self.assertEqual(to_list_of_strings(''), [''])
+
+        # tuple of strings is converted to list of strings
+        self.assertEqual(to_list_of_strings(['foo', 'bar']), ['foo', 'bar'])
+        self.assertEqual(to_list_of_strings(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings(()), [])
+
+        # proper error reporting for other values
+        error_pattern = r"Don't know how to convert provided value to a list of strings: "
+        self.assertErrorRegex(EasyBuildError, error_pattern + '123', to_list_of_strings, 123)
+        self.assertErrorRegex(EasyBuildError, error_pattern + 'True', to_list_of_strings, True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, to_list_of_strings, [('foo', 'bar')])
 
     def test_to_list_of_strings_and_tuples(self):
         """Test to_list_of_strings_and_tuples function."""
@@ -587,10 +684,12 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42,))
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

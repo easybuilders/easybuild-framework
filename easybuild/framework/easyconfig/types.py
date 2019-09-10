@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,11 +29,13 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils import fancylogger
 from distutils.util import strtobool
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -268,7 +270,7 @@ def to_toolchain_dict(spec):
     :param spec: a comma-separated string with two or three values, or a 2/3-element list of strings, or a dict
     """
     # check if spec is a string or a list of two values; else, it can not be converted
-    if isinstance(spec, basestring):
+    if isinstance(spec, string_type):
         spec = spec.split(',')
 
     if isinstance(spec, (list, tuple)):
@@ -301,6 +303,27 @@ def to_name_version_dict(spec):
     _log.nosupport("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
 
 
+def to_list_of_strings(value):
+    """
+    Convert specified value to a list of strings, if possible.
+
+    Supported: single string value, tuple of string values.
+    """
+    res = None
+
+    # if value is already of correct type, we don't need to change anything
+    if isinstance(value, list) and all(isinstance(s, string_type) for s in value):
+        res = value
+    elif isinstance(value, string_type):
+        res = [value]
+    elif isinstance(value, tuple) and all(isinstance(s, string_type) for s in value):
+        res = list(value)
+    else:
+        raise EasyBuildError("Don't know how to convert provided value to a list of strings: %s", value)
+
+    return res
+
+
 def to_list_of_strings_and_tuples(spec):
     """
     Convert a 'list of lists and strings' to a 'list of tuples and strings'
@@ -316,7 +339,7 @@ def to_list_of_strings_and_tuples(spec):
         raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
 
     for elem in spec:
-        if isinstance(elem, (basestring, tuple)):
+        if isinstance(elem, (string_type, tuple)):
             str_tup_list.append(elem)
         elif isinstance(elem, list):
             str_tup_list.append(tuple(elem))
@@ -378,21 +401,25 @@ def to_dependency(dep):
                 raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
 
         else:
-            found_name_version = False
-            for key, value in dep.items():
-                if key in ['name', 'version', 'versionsuffix']:
-                    depspec[key] = str(value)
+            dep_keys = list(dep.keys())
+
+            # need to handle name/version keys first, to avoid relying on order in which keys are processed...
+            for key in ['name', 'version']:
+                if key in dep:
+                    depspec[key] = str(dep[key])
+                    dep_keys.remove(key)
+
+            for key in dep_keys:
+                if key == 'versionsuffix':
+                    depspec[key] = str(dep[key])
                 elif key == 'toolchain':
-                    depspec['toolchain'] = to_toolchain_dict(value)
-                elif not found_name_version:
-                    depspec.update({'name': key, 'version': str(value)})
+                    depspec['toolchain'] = to_toolchain_dict(dep[key])
+                elif not ('name' in depspec and 'version' in depspec):
+                    depspec.update({'name': key, 'version': str(dep[key])})
                 else:
-                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
+                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, dep[key])
 
-                if 'name' in depspec and 'version' in depspec:
-                    found_name_version = True
-
-            if not found_name_version:
+            if not ('name' in depspec and 'version' in depspec):
                 raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:
@@ -422,16 +449,22 @@ def to_checksums(checksums):
         # * a string (MD5 checksum)
         # * a tuple with 2 elements: checksum type + checksum value
         # * a list of checksums (i.e. multiple checksums for a single file)
-        if isinstance(checksum, basestring):
+        if isinstance(checksum, string_type):
             res.append(checksum)
         elif isinstance(checksum, (list, tuple)):
             # 2 elements + only string/int values => a checksum tuple
-            if len(checksum) == 2 and all(isinstance(x, (basestring, int)) for x in checksum):
+            if len(checksum) == 2 and all(isinstance(x, (string_type, int)) for x in checksum):
                 res.append(tuple(checksum))
             else:
                 res.append(to_checksums(checksum))
+        elif isinstance(checksum, dict):
+            validated_dict = {}
+            for key, value in checksum.items():
+                validated_dict[key] = to_checksums(value)
+            res.append(validated_dict)
 
     return res
+
 
 def ensure_iterable_license_specs(specs):
     """
@@ -442,9 +475,9 @@ def ensure_iterable_license_specs(specs):
     """
     if specs is None:
         license_specs = [None]
-    elif isinstance(specs, basestring):
+    elif isinstance(specs, string_type):
         license_specs = [specs]
-    elif isinstance(specs, (list, tuple)) and all(isinstance(x, basestring) for x in specs):
+    elif isinstance(specs, (list, tuple)) and all(isinstance(x, string_type) for x in specs):
         license_specs = list(specs)
     else:
         msg = "Unsupported type %s for easyconfig parameter 'license_file'! " % type(specs)
@@ -452,6 +485,7 @@ def ensure_iterable_license_specs(specs):
         raise EasyBuildError(msg)
 
     return license_specs
+
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 # specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
@@ -480,44 +514,60 @@ DEPENDENCY_DICT = (dict, as_hashable({
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
 
 TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
+LIST_OF_STRINGS = (list, as_hashable({'elem_types': [str]}))
 STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
+STRING_DICT = (dict, as_hashable(
+    {
+        'elem_types': [str],
+        'key_types': [str],
+    }
+))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
-        'files': [STRING_OR_TUPLE_LIST],
-        'dirs': [STRING_OR_TUPLE_LIST],
+        SANITY_CHECK_PATHS_FILES: [STRING_OR_TUPLE_LIST],
+        SANITY_CHECK_PATHS_DIRS: [STRING_OR_TUPLE_LIST],
     },
     'opt_keys': [],
-    'req_keys': ['files', 'dirs'],
+    'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }))
-CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
+# checksums is a list of checksums, one entry per file (source/patch)
+# each entry can be:
+# a single checksum value (string)
+# a single checksum value of a specified type (2-tuple, 1st element is checksum type, 2nd element is checksum)
+# a list of checksums (of different types, perhaps different formats), which should *all* be valid
+# a dictionary with a mapping from filename to checksum value
+CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
+CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
-                  STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
+                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
+EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'checksums': CHECKSUMS,
-    'name': basestring,
+    'docurls': LIST_OF_STRINGS,
+    'name': string_type,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
-    'version': basestring,
+    'version': string_type,
 }
 # add all dependency types as dependencies
 for dep in DEPENDENCY_PARAMETERS:
     PARAMETER_TYPES[dep] = DEPENDENCIES
 
 TYPE_CONVERSION_FUNCTIONS = {
-    basestring: str,
+    string_type: str,
     float: float,
     int: int,
     str: str,
     CHECKSUMS: to_checksums,
     DEPENDENCIES: to_dependencies,
+    LIST_OF_STRINGS: to_list_of_strings,
     TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
     STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,

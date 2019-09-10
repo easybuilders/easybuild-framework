@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,5 +28,4 @@ Declaration of toolchains.fft namespace.
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)

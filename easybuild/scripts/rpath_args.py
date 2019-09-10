@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2016-2018 Ghent University
+# Copyright 2016-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -98,12 +98,13 @@ while idx < len(args):
             cmd_args.append('-L%s' % lib_path)
 
     # replace --enable-new-dtags with --disable-new-dtags if it's used;
-    # --enable-new-dtags would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
-    # --enable-new-dtags is not removed but replaced to prevent issues when the linker flag is forwarded from the compiler 
-    # to the linker with an extra prefixed flag (either -Xlinker or -Wl,). In that case, the compiler would erroneously pass
-    # the next random argument to the linker.
-    elif arg == '--enable-new-dtags':
-        cmd_args.append('--disable-new-dtags');
+    # --enable-new-dtags would result in copying rpath to runpath,
+    # meaning that $LD_LIBRARY_PATH is taken into account again;
+    # --enable-new-dtags is not removed but replaced to prevent issues when linker flag is forwarded from the compiler
+    # to the linker with an extra prefixed flag (either -Xlinker or -Wl,).
+    # In that case, the compiler would erroneously pass the next random argument to the linker.
+    elif arg == flag_prefix + '--enable-new-dtags':
+        cmd_args.append(flag_prefix + '--disable-new-dtags')
     else:
         cmd_args.append(arg)
 
@@ -121,7 +122,7 @@ if not version_mode:
     ] + cmd_args
 
 # wrap all arguments into single quotes to avoid further bash expansion
-cmd_args = ["'%s'" % arg.replace("'", "''") for arg in cmd_args]
+cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
 
 # output: statement to define $CMD_ARGS and $RPATH_ARGS
 print("CMD_ARGS=(%s)" % ' '.join(cmd_args))

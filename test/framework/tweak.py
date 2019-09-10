@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,18 +40,34 @@ from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain
 from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies, map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import change_dir, write_file
 
 
 class TweakTest(EnhancedTestCase):
     """Tests for tweak functionality."""
+
     def test_pick_version(self):
         """Test pick_version function."""
         # if required version is not available, the most recent version less than or equal should be returned
         self.assertEqual(('1.4', '1.0'), pick_version('1.4', ['0.5', '1.0', '1.5']))
 
         # if required version is available, that should be what's returned
+        self.assertEqual(('0.5', '0.5'), pick_version('0.5', ['0.5', '1.0', '1.5']))
         self.assertEqual(('1.0', '1.0'), pick_version('1.0', ['0.5', '1.0', '1.5']))
+        self.assertEqual(('1.5', '1.5'), pick_version('1.5', ['0.5', '1.0', '1.5']))
+
+        # if no required version is specified, most recent version is picked
+        self.assertEqual(('1.5', '1.5'), pick_version(None, ['0.5', '1.0', '1.5']))
+
+        # if only a single version is available, there's nothing much to choose from
+        self.assertEqual(('1.4', '0.5'), pick_version('1.4', ['0.5']))
+        self.assertEqual(('0.5', '0.5'), pick_version(None, ['0.5']))
+
+        # check correct ordering of versions (not alphabetical ordering!)
+        self.assertEqual(('1.12', '1.10'), pick_version('1.12', ['1.5', '1.20', '1.1', '1.50', '1.10', '1.9', '1.8']))
+
+        # if no older versions are available, oldest available version is returned
+        self.assertEqual(('0.8', '1.1'), pick_version('0.8', ['1.5', '1.1', '1.10', '1.8']))
 
     def test_find_matching_easyconfigs(self):
         """Test find_matching_easyconfigs function."""
@@ -70,6 +86,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_obtain_ec_for(self):
         """Test obtain_ec_for function."""
+        init_config(build_options={'silent': True})
+
         test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         # find existing easyconfigs
         specs = {
@@ -109,14 +127,14 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(os.path.basename(ec_file), 'GCC-7.3.0-2.30.eb')
 
         # generate non-existing easyconfig
-        os.chdir(self.test_prefix)
+        change_dir(self.test_prefix)
         specs = {
             'name': 'GCC',
-            'version': '5.4.3',
+            'version': '4.9.0',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertTrue(generated)
-        self.assertEqual(os.path.basename(ec_file), 'GCC-5.4.3.eb')
+        self.assertEqual(os.path.basename(ec_file), 'GCC-4.9.0.eb')
 
     def test_tweak_one_version(self):
         """Test tweak_one function"""
@@ -144,8 +162,7 @@ class TweakTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
 
         # existing file does get overwritten when --force is used
-        build_options = {'force': True}
-        init_config(build_options=build_options)
+        init_config(build_options={'force': True, 'silent': True})
         write_file(tweaked_toy_ec, '')
         tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
@@ -187,8 +204,9 @@ class TweakTest(EnhancedTestCase):
         """Test matching a toolchain to lowest possible in a hierarchy"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
         foss_hierarchy = get_toolchain_hierarchy({'name': 'foss', 'version': '2018a'}, incl_capabilities=True)
@@ -247,8 +265,9 @@ class TweakTest(EnhancedTestCase):
         """Test mapping between two toolchain hierarchies"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
         foss_tc = {'name': 'foss', 'version': '2018a'}
@@ -290,8 +309,9 @@ class TweakTest(EnhancedTestCase):
         """Test mapping of easyconfig to target hierarchy"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
+            'silent': True,
+            'valid_module_classes': module_classes(),
         })
         get_toolchain_hierarchy.clear()
 
@@ -318,4 +338,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

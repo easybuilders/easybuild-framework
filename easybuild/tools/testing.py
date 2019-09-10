@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,6 +39,7 @@ import sys
 from datetime import datetime
 from time import gmtime, strftime
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
@@ -51,7 +52,6 @@ from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
-from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('testing', fname=False)
@@ -103,7 +103,7 @@ def regtest(easyconfig_paths, modtool, build_specs=None):
     for ecfile in ecfiles:
         try:
             easyconfigs.extend(process_easyconfig(ecfile, build_specs=build_specs))
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
     # skip easyconfigs for which a module is already available, unless forced

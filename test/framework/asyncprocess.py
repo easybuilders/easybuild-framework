@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,7 +28,6 @@ Unit tests for asyncprocess.py.
 @author: Toon Willems (Ghent University)
 """
 
-import os
 import sys
 import time
 from test.framework.utilities import EnhancedTestCase
@@ -50,24 +49,27 @@ class AsyncProcessTest(EnhancedTestCase):
         """ try echoing some text and see if it comes back out """
         p.send_all(self.shell, "echo hello\n")
         time.sleep(0.1)
-        self.assertEqual(p.recv_some(self.shell), "hello\n")
+        self.assertEqual(p.recv_some(self.shell), b'hello\n')
 
         p.send_all(self.shell, "echo hello world\n")
         time.sleep(0.1)
-        self.assertEqual(p.recv_some(self.shell), "hello world\n")
+        self.assertEqual(p.recv_some(self.shell), b'hello world\n')
 
         p.send_all(self.shell, "exit\n")
         time.sleep(0.1)
-        self.assertEqual("", p.recv_some(self.shell, e=0))
+        self.assertEqual(b'', p.recv_some(self.shell, e=0))
         self.assertRaises(Exception, p.recv_some, self.shell)
 
     def tearDown(self):
         """cleanup"""
         super(AsyncProcessTest, self).tearDown()
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([AsyncProcessTest()])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

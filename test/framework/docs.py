@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,7 @@ class DocsTest(EnhancedTestCase):
         gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
         modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
-            'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
+            'ConfigureMake': ['configopts', 'buildopts', 'installopts'],
         }
         doc_functions = ['build_step', 'configure_step', 'test_step']
 
@@ -136,7 +136,7 @@ class DocsTest(EnhancedTestCase):
             r'',
             r'homepage: http://gcc.gnu.org/',
             r'',
-            r'  \* GCC v4.6.3: dummy',
+            r'  \* GCC v4.6.3: system',
             r'',
             r'\* gzip',
             r'',
@@ -144,7 +144,7 @@ class DocsTest(EnhancedTestCase):
             r'',
             r'homepage: http://www.gzip.org/',
             r'',
-            r"  \* gzip v1.4: GCC/4.6.3, dummy",
+            r"  \* gzip v1.4: GCC/4.6.3, system",
             r"  \* gzip v1.5: foss/2018a, intel/2018a",
             '',
         ]))
@@ -197,11 +197,11 @@ class DocsTest(EnhancedTestCase):
             r'',
             r'\*homepage\*: http://gcc.gnu.org/',
             r'',
-            r'=========    =========',
-            r'version      toolchain',
-            r'=========    =========',
-            r'``4.6.3``    ``dummy``',
-            r'=========    =========',
+            r'=========    ==========',
+            r'version      toolchain ',
+            r'=========    ==========',
+            r'``4.6.3``    ``system``',
+            r'=========    ==========',
             r'',
             r'',
             r'\.\. _list_software_gzip_442:',
@@ -216,7 +216,7 @@ class DocsTest(EnhancedTestCase):
             r'=======    ===============================',
             r'version    toolchain                      ',
             r'=======    ===============================',
-            r'``1.4``    ``GCC/4.6.3``, ``dummy``       ',
+            r'``1.4``    ``GCC/4.6.3``, ``system``      ',
             r'``1.5``    ``foss/2018a``, ``intel/2018a``',
             r'=======    ===============================',
         ]))
@@ -225,17 +225,17 @@ class DocsTest(EnhancedTestCase):
 
         # GCC/4.6.3 is installed, no gzip module installed
         txt = list_software(output_format='txt', detailed=True, only_installed=True)
-        self.assertTrue(re.search('^\* GCC', txt, re.M))
-        self.assertTrue(re.search('^\s*\* GCC v4.6.3: dummy', txt, re.M))
-        self.assertFalse(re.search('^\* gzip', txt, re.M))
-        self.assertFalse(re.search('gzip v1\.', txt, re.M))
+        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
+        self.assertTrue(re.search(r'^\s*\* GCC v4.6.3: system', txt, re.M))
+        self.assertFalse(re.search(r'^\* gzip', txt, re.M))
+        self.assertFalse(re.search(r'gzip v1\.', txt, re.M))
 
         txt = list_software(output_format='rst', detailed=True, only_installed=True)
-        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
-        self.assertTrue(re.search('4\.6\.3.*dummy', txt, re.M))
-        self.assertFalse(re.search('^\*gzip\*', txt, re.M))
-        self.assertFalse(re.search('1\.4', txt, re.M))
-        self.assertFalse(re.search('1\.5', txt, re.M))
+        self.assertTrue(re.search(r'^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search(r'4\.6\.3.*system', txt, re.M))
+        self.assertFalse(re.search(r'^\*gzip\*', txt, re.M))
+        self.assertFalse(re.search(r'1\.4', txt, re.M))
+        self.assertFalse(re.search(r'1\.5', txt, re.M))
 
         # check for specific patterns in output for larger set of test easyconfigs
         build_options = {
@@ -252,10 +252,10 @@ class DocsTest(EnhancedTestCase):
             '',
             'homepage: https://easybuilders.github.io/easybuild',
             '',
-            "  * toy v0.0: dummy, gompi/2018a",
-            "  * toy v0.0 (versionsuffix: '-deps'): dummy",
-            "  * toy v0.0 (versionsuffix: '-iter'): dummy",
-            "  * toy v0.0 (versionsuffix: '-multiple'): dummy",
+            "  * toy v0.0: gompi/2018a, system",
+            "  * toy v0.0 (versionsuffix: '-deps'): system",
+            "  * toy v0.0 (versionsuffix: '-iter'): system",
+            "  * toy v0.0 (versionsuffix: '-multiple'): system",
             "  * toy v0.0 (versionsuffix: '-test'): gompi/2018a",
         ]
         txt = list_software(output_format='txt', detailed=True)
@@ -271,15 +271,15 @@ class DocsTest(EnhancedTestCase):
             '',
             '*homepage*: https://easybuilders.github.io/easybuild',
             '',
-            '=======    =============    ==========================',
-            'version    versionsuffix    toolchain                 ',
-            '=======    =============    ==========================',
-            '``0.0``                     ``dummy``, ``gompi/2018a``',
-            '``0.0``    ``-deps``        ``dummy``                 ',
-            '``0.0``    ``-iter``        ``dummy``                 ',
-            '``0.0``    ``-multiple``    ``dummy``                 ',
-            '``0.0``    ``-test``        ``gompi/2018a``           ',
-            '=======    =============    ==========================',
+            '=======    =============    ===========================',
+            'version    versionsuffix    toolchain                  ',
+            '=======    =============    ===========================',
+            '``0.0``                     ``gompi/2018a``, ``system``',
+            '``0.0``    ``-deps``        ``system``                 ',
+            '``0.0``    ``-iter``        ``system``                 ',
+            '``0.0``    ``-multiple``    ``system``                 ',
+            '``0.0``    ``-test``        ``gompi/2018a``            ',
+            '=======    =============    ===========================',
         ]
         txt = list_software(output_format='rst', detailed=True)
         lines = txt.split('\n')
@@ -291,8 +291,7 @@ def suite():
     """ returns all test cases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    # also check the setUp for debug
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

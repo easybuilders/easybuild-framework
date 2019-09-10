@@ -28,9 +28,9 @@ as easybuild. Optionally, you can specify a different github username.
 
 import re
 
-from vsc.utils import fancylogger
-from vsc.utils.generaloption import simple_option
-from vsc.utils.rest import RestClient
+from easybuild.base import fancylogger
+from easybuild.base.generaloption import simple_option
+from easybuild.base.rest import RestClient
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_EB_MAIN, fetch_github_token

@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,8 +48,8 @@ class LibSci(LinAlg):
 
     # no need to specify libraries, compiler driver takes care of linking the right libraries
     # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
-    BLAS_LIB = []
-    BLAS_LIB_MT = []
+    BLAS_LIB = ['']
+    BLAS_LIB_MT = ['']
     BLAS_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     LAPACK_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]

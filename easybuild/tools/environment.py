@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,11 +30,11 @@ Utility module for modifying os.environ
 """
 import copy
 import os
-from vsc.utils import fancylogger
-from vsc.utils.missing import shell_quote
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.utilities import shell_quote
 
 
 # take copy of original environemt, so we can restore (parts of) it later
@@ -58,7 +58,7 @@ def write_changes(filename):
             script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
 
         script.close()
-    except IOError, err:
+    except IOError as err:
         if script is not None:
             script.close()
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
@@ -143,7 +143,7 @@ def read_environment(env_vars, strict=False):
     result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
 
     if not len(env_vars) == len(result):
-        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
+        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result])
         msg = 'Following name/variable not found in environment: %s' % missing
         if strict:
             raise EasyBuildError(msg)
@@ -160,9 +160,9 @@ def modify_env(old, new, verbose=True):
     oldKeys = old.keys()
     newKeys = new.keys()
     for key in newKeys:
-        ## set them all. no smart checking for changed/identical values
+        # set them all. no smart checking for changed/identical values
         if key in oldKeys:
-            ## hmm, smart checking with debug logging
+            # hmm, smart checking with debug logging
             if not new[key] == old[key]:
                 _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
                 setvar(key, new[key], verbose=verbose)
@@ -171,7 +171,7 @@ def modify_env(old, new, verbose=True):
             setvar(key, new[key], verbose=verbose)
 
     for key in oldKeys:
-        if not key in newKeys:
+        if key not in newKeys:
             _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
             os.unsetenv(key)
             del os.environ[key]

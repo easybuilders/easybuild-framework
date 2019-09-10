@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -150,8 +150,6 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_mns(self):
         """Test include_module_naming_schemes()."""
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        test_mns = os.path.join(testdir, 'sandbox', 'easybuild', 'module_naming_scheme')
 
         my_mns = os.path.join(self.test_prefix, 'my_mns')
         mkdir(my_mns)
@@ -160,7 +158,7 @@ class IncludeTest(EnhancedTestCase):
         write_file(os.path.join(my_mns, '__init__.py'), "# dummy init, should not get included")
 
         my_mns_txt = '\n'.join([
-            "from easybuild.tools.module_naming_scheme import ModuleNamingScheme",
+            "from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme",
             "class MyMNS(ModuleNamingScheme):",
             "   pass",
         ])
@@ -253,5 +251,7 @@ def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

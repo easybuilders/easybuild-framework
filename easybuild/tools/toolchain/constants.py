@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -194,6 +194,7 @@ FFTW_MAP_CLASS = {
     ],
     CommaStaticLibs: [
         ('FFTW_STATIC_LIBS', 'Comma-separated list of static FFTW libraries'),
+        ('FFTW_STATIC_LIBS_MT', 'Comma-separated list of static multithreaded FFTW libraries'),
     ],
 }
 

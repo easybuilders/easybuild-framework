@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,6 +35,7 @@ from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_warning
+from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
@@ -84,7 +85,7 @@ class OpenMPI(Mpi):
                 env.setvar('TMPDIR', tmpdir)
                 warn_msg = "Long $TMPDIR path may cause problems with OpenMPI 2.x, using shorter path: %s" % tmpdir
                 self.log.warning(warn_msg)
-                print_warning(warn_msg)
+                print_warning(warn_msg, silent=build_option('silent'))
 
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands (depends on OpenMPI version) and add OMPI_* variables to set."""

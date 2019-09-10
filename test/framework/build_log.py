@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,10 +34,10 @@ import tempfile
 from datetime import datetime, timedelta
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, dry_run_msg, dry_run_warning
-from easybuild.tools.build_log import print_error, print_msg, print_warning, time_str_since
+from easybuild.base.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning
+from easybuild.tools.build_log import init_logging, print_error, print_msg, print_warning, stop_logging, time_str_since
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -105,10 +105,11 @@ class BuildLogTest(EnhancedTestCase):
         log.setLevelName('DEBUG')
         log.debug("123 debug")
         log.info("foobar info")
-        log.warn("justawarning")
+        log.warning("justawarning")
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
+        log.deprecated("thisisnotprinted", '1.0', max_ver='2.0', silent=True)
         log.error("kaput")
         log.error("err: %s", 'msg: %s')
         stderr = self.get_stderr()
@@ -138,6 +139,7 @@ class BuildLogTest(EnhancedTestCase):
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*" % root,
+            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*" % root,
             r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root,
             root + r".test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
             r"%s.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops" % root,
@@ -155,7 +157,7 @@ class BuildLogTest(EnhancedTestCase):
 
         # test formatting log messages by providing extra arguments
         logToFile(tmplog, enable=True)
-        log.warn("%s", "bleh"),
+        log.warning("%s", "bleh")
         log.info("%s+%s = %d", '4', '2', 42)
         args = ['this', 'is', 'just', 'a', 'test']
         log.debug("%s %s %s %s %s", *args)
@@ -370,6 +372,60 @@ class BuildLogTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "Unknown named arguments", dry_run_warning, 'foo', unknown_arg='bar')
 
+    def test_init_logging(self):
+        """Test init_logging function."""
+        # first, make very sure $TMPDIR is a subdir of self.test_prefix
+        tmpdir = os.getenv('TMPDIR')
+        self.assertTrue(tmpdir.startswith(self.test_prefix))
+
+        # use provided path for log file
+        tmp_logfile = os.path.join(self.test_prefix, 'test.log')
+        log, logfile = init_logging(tmp_logfile, silent=True)
+        self.assertEqual(logfile, tmp_logfile)
+        self.assertTrue(os.path.exists(logfile))
+        self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile)
+
+        # no log provided, so create one (should be file in $TMPDIR)
+        log, logfile = init_logging(None, silent=True)
+        self.assertTrue(os.path.exists(logfile))
+        self.assertEqual(os.path.dirname(logfile), tmpdir)
+        self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile)
+
+        # no problem with specifying a different directory to put log file in (even if it doesn't exist yet)
+        tmp_logdir = os.path.join(self.test_prefix, 'tmp_logs')
+        self.assertFalse(os.path.exists(tmp_logdir))
+
+        log, logfile = init_logging(None, silent=True, tmp_logdir=tmp_logdir)
+        self.assertEqual(os.path.dirname(logfile), tmp_logdir)
+        self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile)
+
+        # by default, path to tmp log file is printed
+        self.mock_stdout(True)
+        log, logfile = init_logging(None)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(os.path.exists(logfile))
+        self.assertEqual(os.path.dirname(logfile), tmpdir)
+        self.assertTrue(isinstance(log, EasyBuildLog))
+        self.assertTrue(stdout.startswith("== temporary log file in case of crash"))
+
+        stop_logging(logfile)
+
+        # logging to stdout implies no log file
+        self.mock_stdout(True)
+        log, logfile = init_logging(None, logtostdout=True)
+        self.mock_stdout(False)
+        self.assertEqual(logfile, None)
+        self.assertTrue(isinstance(log, EasyBuildLog))
+
+        stop_logging(logfile, logtostdout=True)
+
 
 def suite():
     """ returns all the testcases in this module """
@@ -377,4 +433,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

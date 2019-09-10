@@ -1,6 +1,6 @@
 ##
 # Copyright 2005 Josiah Carlson
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
@@ -106,8 +106,8 @@ class Popen(subprocess.Popen):
             return 0
 
         try:
-            written = os.write(self.stdin.fileno(), inp)
-        except OSError, why:
+            written = os.write(self.stdin.fileno(), inp.encode())
+        except OSError as why:
             if why[0] == errno.EPIPE: #broken pipe
                 return self._close('stdin')
             raise
@@ -160,13 +160,16 @@ def recv_some(p, t=.2, e=1, tr=5, stderr=0):
             y.append(r)
         else:
             time.sleep(max((x - time.time()) / tr, 0))
-    return ''.join(y)
+    return b''.join(y)
 
 def send_all(p, data):
     while len(data):
         sent = p.send(data)
         if sent is None:
             raise Exception(message)
-        data = buffer(data, sent)
 
-
+        try:
+            data = buffer(data, sent)
+        except NameError:
+            # in Python 3, buffer is (sort of) replaced by memoryview
+            data = memoryview(data[sent:].encode())

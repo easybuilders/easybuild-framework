@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,6 +27,26 @@ The toolchain module with the abstract Toolchain class.
 
 Creating a new toolchain should be as simple as possible.
 
+Toolchain terminology
+---------------------
+
+Toolchain: group of development related utilities (eg compiler) and libraries (eg MPI, linear algebra)
+    -> eg tc=Toolchain()
+
+
+Toolchain options : options passed to the toolchain through the easyconfig file
+    -> eg tc.options
+
+Options : all options passed to an executable
+    Flags: specific subset of options, typically involved with compilation
+        -> eg tc.variables.CFLAGS
+    LinkOptions: specific subset of options, typically involved with linking
+        -> eg tc.variables.LIBBLAS
+
+TooclchainVariables: list of environment variables that are set when the toolchain is initialised
+           and the toolchain options have been parsed.
+    -> eg tc.variables['X'] will be available as os.environ['X']
+
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
@@ -35,9 +55,8 @@ import os
 import stat
 import sys
 import tempfile
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -46,13 +65,20 @@ from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
 from easybuild.tools.systemtools import LINUX, get_os_type
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import trace_msg
+from easybuild.tools.utilities import nub, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
+
+# name/version for dummy toolchain
+# if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
+# NOTE: use of 'dummy' toolchain is deprecated, replaced by 'system' toolchain (which always loads dependencies)
+DUMMY_TOOLCHAIN_NAME = 'dummy'
+DUMMY_TOOLCHAIN_VERSION = 'dummy'
+
+SYSTEM_TOOLCHAIN_NAME = 'system'
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
@@ -73,6 +99,11 @@ TOOLCHAIN_CAPABILITIES = [
     TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
     TOOLCHAIN_CAPABILITY_MPI_FAMILY,
 ]
+
+
+def is_system_toolchain(tc_name):
+    """Return whether toolchain with specified name is a system toolchain or not."""
+    return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]
 
 
 class Toolchain(object):
@@ -129,6 +160,11 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0',
+                                silent=build_option('silent'))
+            self.name = SYSTEM_TOOLCHAIN_NAME
+
         if version is None:
             version = self.VERSION
         if version is None:
@@ -155,13 +191,17 @@ class Toolchain(object):
         self.mod_full_name = None
         self.mod_short_name = None
         self.init_modpaths = None
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if not self.is_system_toolchain():
             # sometimes no module naming scheme class instance can/will be provided, e.g. with --list-toolchains
             if self.mns is not None:
                 tc_dict = self.as_dict()
                 self.mod_full_name = self.mns.det_full_module_name(tc_dict)
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
+
+    def is_system_toolchain(self):
+        """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
+        return is_system_toolchain(self.name)
 
     def base_init(self):
         """Initialise missing class attributes (log, options, variables)."""
@@ -172,11 +212,15 @@ class Toolchain(object):
             self.options = self.OPTIONS_CLASS()
 
         if not hasattr(self, 'variables'):
-            self.variables = self.VARIABLES_CLASS()
-            if hasattr(self, 'LINKER_TOGGLE_START_STOP_GROUP'):
-                self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
-            if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
-                self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+            self.variables_init()
+
+    def variables_init(self):
+        """Initialise toolchain variables."""
+        self.variables = self.VARIABLES_CLASS()
+        if hasattr(self, 'LINKER_TOGGLE_START_STOP_GROUP'):
+            self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
+        if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
+            self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
 
     def _init_class_constants(self, class_constants):
         """Initialise class 'constants'."""
@@ -313,13 +357,13 @@ class Toolchain(object):
         return {
             'name': name,
             'version': version,
-            'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION},
+            'toolchain': {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''},
             'versionsuffix': '',
-            'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
             'hidden': self.hidden,
             'full_mod_name': self.mod_full_name,
             'short_mod_name': self.mod_short_name,
+            SYSTEM_TOOLCHAIN_NAME: True,
         }
 
     def det_short_module_name(self):
@@ -332,9 +376,9 @@ class Toolchain(object):
         """
         Verify if there exists a toolchain by this name and version
         """
-        # short-circuit to returning module name for this (non-dummy) toolchain
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.devel("_toolchain_exists: %s toolchain always exists, returning True", DUMMY_TOOLCHAIN_NAME)
+        # short-circuit to returning module name for this (non-system) toolchain
+        if self.is_system_toolchain():
+            self.log.devel("_toolchain_exists: system toolchain always exists, returning True")
             return True
         else:
             if self.mod_short_name is None:
@@ -355,16 +399,14 @@ class Toolchain(object):
 
     def get_dependency_version(self, dependency):
         """ Generate a version string for a dependency on a module using this toolchain """
-        # Add toolchain to version string
-        toolchain = ''
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        # add toolchain to version string (only for non-system toolchain)
+        if self.is_system_toolchain():
+            toolchain = ''
+        else:
             toolchain = '-%s-%s' % (self.name, self.version)
-        elif self.version != DUMMY_TOOLCHAIN_VERSION:
-            toolchain = '%s' % (self.version)
 
-        # Check if dependency is independent of toolchain
-        # TODO: assuming dummy here, what about version?
-        if DUMMY_TOOLCHAIN_NAME in dependency and dependency[DUMMY_TOOLCHAIN_NAME]:
+        # check if dependency is independent of toolchain (i.e. whether is was built with system compiler)
+        if SYSTEM_TOOLCHAIN_NAME in dependency and dependency[SYSTEM_TOOLCHAIN_NAME]:
             toolchain = ''
 
         suffix = dependency.get('versionsuffix', '')
@@ -594,13 +636,8 @@ class Toolchain(object):
         if not self._toolchain_exists() and not self.dry_run:
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            if self.version == DUMMY_TOOLCHAIN_VERSION:
-                self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
-                if self.dry_run:
-                    dry_run_msg("(no modules are loaded for a dummy-dummy toolchain)", silent=silent)
-            else:
-                self.log.info('prepare: toolchain dummy mode and loading dependencies')
+        if self.is_system_toolchain():
+                self.log.info("Loading dependencies using system toolchain...")
                 self._load_dependencies_modules(silent=silent)
         else:
             # load the toolchain and dependencies modules
@@ -674,7 +711,7 @@ class Toolchain(object):
     def compilers(self):
         """Return list of relevant compilers for this toolchain"""
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
+        if self.is_system_toolchain():
             c_comps = ['gcc', 'g++']
             fortran_comps = ['gfortran']
         else:
@@ -686,6 +723,10 @@ class Toolchain(object):
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
         return False
+
+    def reset(self):
+        """Reset this toolchain instance."""
+        self.variables_init()
 
     def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
                 rpath_filter_dirs=None, rpath_include_dirs=None):
@@ -716,7 +757,7 @@ class Toolchain(object):
         if loadmod:
             self._load_modules(silent=silent)
 
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if not self.is_system_toolchain():
 
             trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
 
@@ -805,7 +846,8 @@ class Toolchain(object):
         Check whether command at specified location already is an RPATH wrapper script rather than the actual command
         """
         in_rpath_wrappers_dir = os.path.basename(os.path.dirname(os.path.dirname(path))) == RPATH_WRAPPERS_SUBDIR
-        calls_rpath_args = 'rpath_args.py $CMD' in read_file(path)
+        # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
+        calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
         return in_rpath_wrappers_dir and calls_rpath_args
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
@@ -818,6 +860,13 @@ class Toolchain(object):
             self.log.info("Putting RPATH wrappers in place...")
         else:
             raise EasyBuildError("RPATH linking is currently only supported on Linux")
+
+        if rpath_filter_dirs is None:
+            rpath_filter_dirs = []
+
+        # always include filter for 'stubs' library directory,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
+        rpath_filter_dirs.append('.*/lib(64)?/stubs/?')
 
         # directory where all wrappers will be placed
         wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
@@ -833,7 +882,7 @@ class Toolchain(object):
         if rpath_filter is None:
             rpath_filter = ['/lib.*', '/usr.*']
             self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
-        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
+        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs])
         self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
 
         rpath_include = ','.join(rpath_include_dirs or [])
@@ -852,7 +901,10 @@ class Toolchain(object):
 
                 # determine location for this wrapper
                 # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
-                wrapper_dir = os.path.join(wrappers_dir, '%s_wrapper' % cmd)
+                # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
+                # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
+                wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
+                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,11 +31,9 @@ Abstract interface for submitting jobs and related utilities.
 
 from abc import ABCMeta, abstractmethod
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-
+from easybuild.base import fancylogger
 from easybuild.tools.config import get_job_backend
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 
 class JobBackend(object):

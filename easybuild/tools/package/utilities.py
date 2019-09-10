@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,19 +36,17 @@ import os
 import tempfile
 import pprint
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-from vsc.utils.patterns import Singleton
-
-from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
+from easybuild.base import fancylogger
+from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, Singleton
+from easybuild.tools.config import build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules
-_log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
+
+_log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
 
 
 def avail_package_naming_schemes():
@@ -113,7 +111,7 @@ def package_with_fpm(easyblock):
         cmdlist.append('--debug')
 
     deps = []
-    if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+    if not easyblock.toolchain.is_system_toolchain():
         toolchain_dict = easyblock.toolchain.as_dict()
         deps.extend([toolchain_dict])
 
@@ -131,8 +129,8 @@ def package_with_fpm(easyblock):
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_globs = [
-        os.path.join(log_path(), "*.log"),
-        os.path.join(log_path(), "*.md"),
+        os.path.join(log_path(ec=easyblock.cfg), "*.log"),
+        os.path.join(log_path(ec=easyblock.cfg), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
     for exclude_files_glob in exclude_files_globs:

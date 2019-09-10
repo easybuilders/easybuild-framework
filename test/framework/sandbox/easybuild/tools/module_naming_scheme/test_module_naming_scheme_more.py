@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,11 +29,9 @@ Implementation of a test module naming scheme.
 """
 
 import os
-from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.base import fancylogger
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 # prefer hashlib.sha1 (only in Python 2.5 and up) over sha.sha
 try:
@@ -67,7 +65,7 @@ class TestModuleNamingSchemeMore(ModuleNamingScheme):
                     res += '%s:%s,' % (item_key, ec[key][item_key])
             else:
                 res += str(ec[key])
-        ec_sha1 = sha1(res).hexdigest()
+        ec_sha1 = sha1(res.encode()).hexdigest()
         _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
         return os.path.join(ec['name'], ec_sha1)
 

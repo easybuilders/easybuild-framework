@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ import math
 import os
 import re
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
@@ -43,7 +44,6 @@ from easybuild.tools.config import build_option, get_repository, get_repositoryp
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
-from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
@@ -200,5 +200,5 @@ def prepare_easyconfig(ec):
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
-    except (OSError, EasyBuildError), err:
+    except (OSError, EasyBuildError) as err:
         raise EasyBuildError("An error occurred while preparing %s: %s", ec, err)

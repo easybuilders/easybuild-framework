@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,9 +28,7 @@ Implementation of a broken test module naming scheme.
 @author: Kenneth Hoste (Ghent University)
 """
 
-import os
-
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 
 UNKNOWN_KEY = 'nosucheasyconfigparameteravailable'
