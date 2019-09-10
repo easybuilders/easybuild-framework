@@ -1085,7 +1085,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'Core', ['Compiler/intel/2016.1.150'],
                                     ['Compiler/intel/2016.1.150'], ['Core']),
             'iccifort-2016.1.150.eb': ('iccifort/2016.1.150', 'Core', ['Compiler/intel/2016.1.150'],
-                                    ['Compiler/intel/2016.1.150'], ['Core']),
+                                       ['Compiler/intel/2016.1.150'], ['Core']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'], ['Core']),
