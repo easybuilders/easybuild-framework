@@ -72,7 +72,7 @@ def det_toolchain_element_details(tc, elem):
             break
     if tc_elem_details is None:
         # for compiler-only toolchains, toolchain and compilers are one-and-the-same
-        if tc_ec['name'] == elem:
+        if tc_ec['name'] == elem or tc_ec['moduleclass'] == 'compiler':
             tc_elem_details = tc_ec
         else:
             raise EasyBuildError("No toolchain element '%s' found for toolchain %s: %s", elem, tc.as_dict(), tc_ec)

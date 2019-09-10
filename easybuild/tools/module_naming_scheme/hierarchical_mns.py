@@ -115,8 +115,8 @@ class HierarchicalMNS(ModuleNamingScheme):
             if key in COMP_NAME_VERSION_TEMPLATES:
                 tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
                 tc_comp_ver = tc_comp_ver_tmpl % comp_versions
-                # make sure that icc/ifort versions match
-                if tc_comp_name == 'intel' and comp_versions['icc'] != comp_versions['ifort']:
+                # make sure that icc/ifort versions match (unless not existing as separate modules)
+                if tc_comp_name == 'intel' and comp_versions.get('icc') != comp_versions.get('ifort'):
                     raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
             else:
                 raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
