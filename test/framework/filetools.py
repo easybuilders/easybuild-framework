@@ -425,6 +425,23 @@ class FileToolsTest(EnhancedTestCase):
         ft.HAVE_REQUESTS = False
         self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
 
+        # replaceurlopen with function that raises HTTP error 403
+        def fake_urllib_open(*args, **kwargs):
+            from easybuild.tools.py2vs3 import StringIO
+            raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
+
+        ft.std_urllib.urlopen = fake_urllib_open
+
+        # if requests is available, file is downloaded
+        if ft.HAVE_REQUESTS:
+            res = ft.download_file(fn, url, target)
+            self.assertTrue(res and os.path.exists(res))
+            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+
+        # without requests being available, error is raised
+        ft.HAVE_REQUESTS = False
+        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
+
     def test_mkdir(self):
         """Test mkdir function."""
 
