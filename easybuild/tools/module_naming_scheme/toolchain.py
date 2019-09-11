@@ -27,8 +27,10 @@ Toolchain querying support for module naming schemes.
 
 :author: Kenneth Hoste (Ghent University)
 """
+import copy
+
 from easybuild.base import fancylogger
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
@@ -46,7 +48,7 @@ TOOLCHAIN_LAPACK = 'LAPACK'
 TOOLCHAIN_FFT = 'FFT'
 
 
-def det_toolchain_element_details(tc, elem):
+def det_toolchain_element_details(tc, elem, allow_missing=False):
     """
     Determine details of a particular toolchain element, for a given Toolchain instance.
     """
@@ -72,10 +74,13 @@ def det_toolchain_element_details(tc, elem):
             break
     if tc_elem_details is None:
         # for compiler-only toolchains, toolchain and compilers are one-and-the-same
-        if tc_ec['name'] == elem or tc_ec['moduleclass'] == 'compiler':
+        if tc_ec['name'] == elem:
             tc_elem_details = tc_ec
+        elif allow_missing:
+            tc_elem_details = None
         else:
             raise EasyBuildError("No toolchain element '%s' found for toolchain %s: %s", elem, tc.as_dict(), tc_ec)
+
     _toolchain_details_cache[key] = tc_elem_details
     _log.debug("Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict))
     return _toolchain_details_cache[key]
@@ -96,8 +101,24 @@ def det_toolchain_compilers(ec):
         raise EasyBuildError("No compiler found in toolchain %s: %s", ec.toolchain.as_dict(), tc_elems)
     elif tc_elems[TOOLCHAIN_COMPILER]:
         tc_comps = []
-        for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
-            tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
+
+        # first consider concatenation of list of compiler module names as a single toolchain element
+        # (for example ['icc', 'ifort'] -> 'iccifort'
+        combined_comp_elem = ''.join(tc_elems[TOOLCHAIN_COMPILER])
+        combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, combined_comp_elem, allow_missing=True)
+        if combined_comp_elem_details:
+            # make sure compiler details is a regular dict value
+            if isinstance(combined_comp_elem_details, EasyConfig):
+                combined_comp_elem_details = combined_comp_elem_details.asdict()
+            # add details for each compiler separately, using details from combo
+            for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
+                comp_elem_details = copy.copy(combined_comp_elem_details)
+                comp_elem_details['name'] = comp_elem
+                tc_comps.append(comp_elem_details)
+        else:
+            # consider individual compiler module names as fallback
+            for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
+                tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
     else:
         raise EasyBuildError("Empty list of compilers for %s toolchain definition: %s",
                              ec.toolchain.as_dict(), tc_elems)
