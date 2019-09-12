@@ -1086,6 +1086,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                     ['Compiler/intel/2016.1.150'], ['Core']),
             'iccifort-2019.4.243.eb': ('iccifort/2019.4.243', 'Core', ['Compiler/intel/2019.4.243'],
                                        ['Compiler/intel/2019.4.243'], ['Core']),
+            'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243',
+                                                 'MPI/intel/2019.4.243/impi/2019.4.243', [], [], ['Core']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'], ['Core']),
