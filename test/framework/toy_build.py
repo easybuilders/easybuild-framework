@@ -1921,7 +1921,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
 
-        software_path = os.path.join(self.test_installpath, 'software', 'Core')
+        software_path = os.path.join(self.test_installpath, 'software')
         modules_path = os.path.join(self.test_installpath, 'modules', 'all', 'Core')
 
         # install dirs for both installations should be there (using original software name)
