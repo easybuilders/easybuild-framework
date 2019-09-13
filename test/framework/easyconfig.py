@@ -2462,7 +2462,21 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, [None, ''])
 
+        # --add-dummy-to-minimal-toolchains is still supported, but deprecated
+        self.allow_deprecated_behaviour()
+        init_config(build_options={'add_system_to_minimal_toolchains': False, 'add_dummy_to_minimal_toolchains': True})
+        self.mock_stderr(True)
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(versions, [None, ''])
+        depr_msg = "WARNING: Deprecated functionality, will no longer work in v5.0: "
+        depr_msg += "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+        self.assertTrue(depr_msg in stderr)
+
         # and GCCcore if existing too
+        init_config(build_options={'add_system_to_minimal_toolchains': True})
         current_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
         cands = [{'name': 'GCCcore', 'version': '4.9.3'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)

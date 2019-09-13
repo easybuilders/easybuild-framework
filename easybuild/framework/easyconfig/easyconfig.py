@@ -228,7 +228,13 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
     # system toolchain: bottom of the hierarchy
     if is_system_toolchain(subtoolchain_name):
-        if build_option('add_system_to_minimal_toolchains') and not incl_capabilities:
+        add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
+        if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
+            depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+            _log.deprecated(depr_msg, '5.0')
+            add_system_to_minimal_toolchains = True
+
+        if add_system_to_minimal_toolchains and not incl_capabilities:
             subtoolchain_version = ''
     elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
