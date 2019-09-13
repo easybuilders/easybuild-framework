@@ -317,6 +317,9 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
+                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
+                                                None, 'store_true', False),
             'add-system-to-minimal-toolchains': ("Include system toolchain in minimal toolchain searches",
                                                  None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
