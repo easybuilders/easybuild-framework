@@ -4149,6 +4149,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile("ERROR: Detected import from 'vsc' namespace in .*/test_mns.py")
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
+    def test_installdir(self):
+        """Check naming scheme of installation directory."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+
+        # even with HierarchicalMNS the installation directory remains the same,
+        # due to --fixed-installdir-naming-scheme being enabled by default
+        args = ['--module-naming-scheme=HierarchicalMNS']
+        init_config(args=args)
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+
+        # things change when --disable-fixed-installdir-naming-scheme is used
+        init_config(args=args, build_options={'fixed_installdir_naming_scheme': False})
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
+
 
 def suite():
     """ returns all the testcases in this module """
