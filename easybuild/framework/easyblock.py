@@ -1181,22 +1181,6 @@ class EasyBlock(object):
                 modloadmsg += '\n'
             lines.append(self.module_generator.msg_on_load(modloadmsg))
 
-        if self.cfg['modtclfooter']:
-            if isinstance(self.module_generator, ModuleGeneratorTcl):
-                self.log.debug("Including Tcl footer in module: %s", self.cfg['modtclfooter'])
-                lines.extend([self.cfg['modtclfooter'], '\n'])
-            else:
-                self.log.warning("Not including footer in Tcl syntax in non-Tcl module file: %s",
-                                 self.cfg['modtclfooter'])
-
-        if self.cfg['modluafooter']:
-            if isinstance(self.module_generator, ModuleGeneratorLua):
-                self.log.debug("Including Lua footer in module: %s", self.cfg['modluafooter'])
-                lines.extend([self.cfg['modluafooter'], '\n'])
-            else:
-                self.log.warning("Not including footer in Lua syntax in non-Lua module file: %s",
-                                 self.cfg['modluafooter'])
-
         for (key, value) in self.cfg['modaliases'].items():
             lines.append(self.module_generator.set_alias(key, value))
 
@@ -1233,6 +1217,22 @@ class EasyBlock(object):
         if self.modules_footer is not None:
             self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
             footer.append(self.modules_footer)
+
+        if self.cfg['modtclfooter']:
+            if isinstance(self.module_generator, ModuleGeneratorTcl):
+                self.log.debug("Including Tcl footer in module: %s", self.cfg['modtclfooter'])
+                footer.extend([self.cfg['modtclfooter'], '\n'])
+            else:
+                self.log.warning("Not including footer in Tcl syntax in non-Tcl module file: %s",
+                                 self.cfg['modtclfooter'])
+
+        if self.cfg['modluafooter']:
+            if isinstance(self.module_generator, ModuleGeneratorLua):
+                self.log.debug("Including Lua footer in module: %s", self.cfg['modluafooter'])
+                footer.extend([self.cfg['modluafooter'], '\n'])
+            else:
+                self.log.warning("Not including footer in Lua syntax in non-Lua module file: %s",
+                                 self.cfg['modluafooter'])
 
         return ''.join(footer)
 
