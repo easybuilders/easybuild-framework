@@ -2887,9 +2887,9 @@ class EasyBlock(object):
         steps_part1 = [
             (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step], False),
             ready_step_spec(True),
+            prepare_step_spec,
             source_step_spec(True),
             patch_step_spec,
-            prepare_step_spec,
             configure_step_spec,
             build_step_spec,
             test_step_spec,
@@ -2901,9 +2901,9 @@ class EasyBlock(object):
         # not all parts of all steps need to be rerun (see e.g., ready, prepare)
         steps_part2 = [
             ready_step_spec(False),
+            prepare_step_spec,
             source_step_spec(False),
             patch_step_spec,
-            prepare_step_spec,
             configure_step_spec,
             build_step_spec,
             test_step_spec,
