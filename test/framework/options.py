@@ -2737,17 +2737,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config(args=['--module-naming-scheme=HierarchicalMNS'])
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
         # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
         build_options = {
-            'fixed_installdir_naming_scheme': True,
+            'fixed_installdir_naming_scheme': False,
             'valid_module_classes': module_classes(),
         }
         init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
 
     def _assert_regexs(self, regexs, txt, assert_true=True):
         """Helper function to assert presence/absence of list of regex patterns in a text"""
