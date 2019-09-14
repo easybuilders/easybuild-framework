@@ -1183,9 +1183,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
                 r'end',
-                r'io.stderr:write\("oh hai\!"\)',
                 r'setenv\("TOY", "toy-0.0"\)',
-                r'-- Built with EasyBuild version .*$',
+                r'-- Built with EasyBuild version .*',
+                r'io.stderr:write\("oh hai\!"\)$',
             ])
         elif get_module_syntax() == 'Tcl':
             mod_txt_regex_pattern = '\n'.join([
@@ -1220,9 +1220,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [
                 r'}',
-                r'puts stderr "oh hai\!"',
                 r'setenv	TOY		"toy-0.0"',
-                r'# Built with EasyBuild version .*$',
+                r'# Built with EasyBuild version .*',
+                r'puts stderr "oh hai\!"$',
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
