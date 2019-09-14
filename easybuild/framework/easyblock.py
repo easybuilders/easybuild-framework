@@ -1859,6 +1859,9 @@ class EasyBlock(object):
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
 
+        # guess directory to start configure/build/install process in, and move there
+        self.guess_start_dir()
+
     def patch_step(self, beginpath=None):
         """
         Apply the patches
@@ -1963,10 +1966,6 @@ class EasyBlock(object):
         if extra_modules:
             self.log.info("Loading extra modules: %s", extra_modules)
             self.modules_tool.load(extra_modules)
-
-        # guess directory to start configure/build/install process in, and move there
-        if start_dir:
-            self.guess_start_dir()
 
     def configure_step(self):
         """Configure build  (abstract method)."""

@@ -549,7 +549,7 @@ def dump_env_script(easyconfigs):
 
         # prepare build environment (in dry run mode)
         app.check_readiness_step()
-        app.prepare_step(start_dir=False)
+        app.prepare_step()
 
         # compose script
         ecfile = os.path.basename(ec.path)

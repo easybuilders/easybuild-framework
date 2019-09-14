@@ -185,7 +185,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        eb.prepare_step(start_dir=False)
+        eb.prepare_step()
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
