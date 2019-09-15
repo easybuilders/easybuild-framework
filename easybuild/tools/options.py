@@ -1308,6 +1308,9 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
     log.debug("Full robot path: %s" % robot_path)
 
+    if not robot_path:
+        print_warning("Robot search path is empty!")
+
     # configure & initialize build options
     config_options_dict = eb_go.get_options_by_section('config')
     build_options = {
