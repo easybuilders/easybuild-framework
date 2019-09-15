@@ -1240,13 +1240,27 @@ def parse_options(args=None, with_include=True):
         fancylogger.logToScreen(enable=True)
         fancylogger.setLogLevel('DEBUG')
 
+    if args is None:
+        args = sys.argv[1:]
+
+    # unroll arguments that correspond to a combo of single-letter options
+    # this is done to avoid interpreting -rD like "--robot D" instead of "--robot --dry-run"
+    eb_args = []
+    letters_regex = re.compile('^[a-zA-Z]+$')
+    for arg in args:
+        if len(arg) > 2 and arg.startswith('-') and letters_regex.match(arg[1:]):
+            for letter in arg[1:]:
+                eb_args.append('-' + letter)
+        else:
+            eb_args.append(arg)
+
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror,
+                                 go_args=eb_args, error_env_options=True, error_env_option_method=raise_easybuilderror,
                                  with_include=with_include)
     except Exception as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)

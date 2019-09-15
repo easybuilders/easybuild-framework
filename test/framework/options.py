@@ -2028,7 +2028,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(empty_file, '')
 
         error_pattern = "Argument passed to --robot is not an existing directory"
-        for robot in ['-rf', '--robot=foo', '--robot=%s' % empty_file]:
+        for robot in ['--robot=foo', '--robot=%s' % empty_file]:
             args = ['toy-0.0.eb', '--dry-run', robot]
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
@@ -2052,6 +2052,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = ['toy-0.0.eb', '--dry-run', robot]
             outtxt = self.eb_main(args, raise_error=True)
             self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # no problem with using combos of single-letter options with -r included, no matter the order
+        for arg in ['-Dr', '-rD', '-frkD', '-rfDk']:
+            args = ['toy-0.0.eb', arg]
+            outtxt = self.eb_main(args, raise_error=True)
+            self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # unknown options are still recognized, even when used in single-letter combo arguments
+        for arg in ['-DX', '-DrX', '-DXr', '-frkDX', '-XfrD']:
+            args = ['toy-0.0.eb', arg]
+            self.mock_stderr(True)
+            self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue("error: no such option: -X" in stderr)
 
     def test_missing_cfgfile(self):
         """Test behaviour when non-existing config file is specified."""
