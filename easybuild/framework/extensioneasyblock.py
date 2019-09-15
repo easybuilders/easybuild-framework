@@ -1,10 +1,10 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,14 +26,14 @@ implemented as an easyblock
 """
 import copy
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import apply_patch, extract_file
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.filetools import apply_patch, change_dir, extract_file
+from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
 
 _log = fancylogger.getLogger('extensioneasyblock', fname=False)
@@ -72,19 +72,24 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         self.is_extension = False
 
         if isinstance(args[0], EasyBlock):
+            # make sure that extra custom easyconfig parameters are known
+            extra_params = self.__class__.extra_options()
+            kwargs['extra_params'] = extra_params
+
             Extension.__init__(self, *args, **kwargs)
+
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
+            # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
+            # It should be specified for the extension specifically, or be empty (so it is auto-derived).
+            self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
+            self.module_generator = self.master.module_generator
             self.is_extension = True
             self.unpack_options = None
-
-            # make sure that extra custom easyconfig parameters are known
-            extra_params = self.__class__.extra_options()
-            self.cfg.extend_params(extra_params, overwrite=False)
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
@@ -98,6 +103,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
+
+            if self.start_dir and os.path.isdir(self.start_dir):
+                self.log.debug("Using start_dir: %s", self.start_dir)
+                change_dir(self.start_dir)
 
         # patch if needed
         if self.patches:
@@ -113,17 +122,36 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['exts_filter'] = exts_filter
         self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
 
-        fake_mod_data = None
-        if not (self.is_extension or self.dry_run):
-            # load fake module
-            fake_mod_data = self.load_fake_module(purge=True)
+        # for stand-alone installations that were done for multiple dependency versions (via multi_deps),
+        # we need to perform the extension sanity check for each of them, by loading the corresponding modules first
+        if self.cfg['multi_deps'] and not self.is_extension:
+            multi_deps = self.cfg.get_parsed_multi_deps()
+            lists_of_extra_modules = [[d['short_mod_name'] for d in deps] for deps in multi_deps]
+        else:
+            # make sure Extension sanity check step is run once, by using a single empty list of extra modules
+            lists_of_extra_modules = [[]]
 
-        # perform sanity check
-        sanity_check_ok = Extension.sanity_check_step(self)
+        for extra_modules in lists_of_extra_modules:
 
-        if fake_mod_data:
-            # unload fake module and clean up
-            self.clean_up_fake_module(fake_mod_data)
+            fake_mod_data = None
+
+            # only load fake module + extra modules for stand-alone installations (not for extensions),
+            # since for extension the necessary modules should already be loaded at this point
+            if not (self.is_extension or self.dry_run):
+                # load fake module
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
+
+                if extra_modules:
+                    info_msg = "Running extension sanity check with extra modules: %s" % ', '.join(extra_modules)
+                    self.log.info(info_msg)
+                    trace_msg(info_msg)
+
+            # perform extension sanity check
+            (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
+
+            if fake_mod_data:
+                # unload fake module and clean up
+                self.clean_up_fake_module(fake_mod_data)
 
         if custom_paths or custom_commands or not self.is_extension:
             super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,
@@ -131,21 +159,19 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                                                               extension=self.is_extension)
 
         # pass or fail sanity check
-        if not sanity_check_ok:
-            msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
-            if self.is_extension:
-                self.log.warning(msg)
-            else:
-                raise EasyBuildError(msg)
-            return False
+        if sanity_check_ok:
+            self.log.info("Sanity check for %s successful!", self.name)
         else:
-            self.log.info("Sanity check for %s successful!" % self.name)
-            return True
+            if not self.is_extension:
+                msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
+                raise EasyBuildError(msg)
+
+        return (sanity_check_ok, '; '.join(self.sanity_check_fail_msgs))
 
     def make_module_extra(self, extra=None):
         """Add custom entries to module."""
 
         txt = EasyBlock.make_module_extra(self)
-        if not extra is None:
+        if extra is not None:
             txt += extra
         return txt

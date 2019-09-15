@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,11 +34,10 @@ Generic support for dealing with repositories
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
-
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('repository', fname=False)
 
@@ -86,12 +85,34 @@ class Repository(object):
         """
         raise NotImplementedError
 
+    def stage_file(self, path):
+        """
+        Stage file at specified location in repository for commit
+
+        :param path: location of file to stage
+        """
+        raise NotImplementedError
+
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add easyconfig to repository.
-        cfg is the filename of the eb file
-        Stats contains some build stats, this should be a list of dictionaries.
-        previous is the list of previous buildstats
+        Add easyconfig to repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
+        """
+        raise NotImplementedError
+
+    def add_patch(self, patch):
+        """
+        Add patch file to repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
         """
         raise NotImplementedError
 
@@ -126,7 +147,7 @@ def avail_repositories(check_useable=True):
 
     class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
-    if not 'FileRepository' in class_dict:
+    if 'FileRepository' not in class_dict:
         raise EasyBuildError("avail_repositories: FileRepository missing from list of repositories")
 
     return class_dict
@@ -137,17 +158,17 @@ def init_repository(repository, repository_path):
     inited_repo = None
     if isinstance(repository, Repository):
         inited_repo = repository
-    elif isinstance(repository, basestring):
+    elif isinstance(repository, string_type):
         repo = avail_repositories().get(repository)
         try:
-            if isinstance(repository_path, basestring):
+            if isinstance(repository_path, string_type):
                 inited_repo = repo(repository_path)
             elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
                 inited_repo = repo(*repository_path)
             else:
                 raise EasyBuildError("repository_path should be a string or list/tuple of maximum 2 elements "
                                      "(current: %s, type %s)", repository_path, type(repository_path))
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("Failed to create a repository instance for %s (class %s) with args %s (msg: %s)",
                                  repository, repo.__name__, repository_path, err)
     else:

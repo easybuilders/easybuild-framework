@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2016 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,16 +30,18 @@ Unit tests for .yeb easyconfig format
 """
 import glob
 import os
+import platform
 import sys
+from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import read_file
 
 
 try:
@@ -65,12 +67,13 @@ class YebTest(EnhancedTestCase):
     def test_parse_yeb(self):
         """Test parsing of .yeb easyconfigs."""
         if 'yaml' not in sys.modules:
-            print "Skipping test_parse_yeb (no PyYAML available)"
+            print("Skipping test_parse_yeb (no PyYAML available)")
             return
 
         build_options = {
             'check_osdeps': False,
             'external_modules_metadata': {},
+            'silent': True,
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -84,10 +87,10 @@ class YebTest(EnhancedTestCase):
         test_files = [
             'bzip2-1.0.6-GCC-4.9.2',
             'gzip-1.6-GCC-4.9.2',
-            'goolf-1.4.10',
-            'ictce-4.1.13',
-            'SQLite-3.8.10.2-goolf-1.4.10',
-            'Python-2.7.10-ictce-4.1.13',
+            'foss-2018a',
+            'intel-2018a',
+            'SQLite-3.8.10.2-foss-2018a',
+            'Python-2.7.10-intel-2018a',
             'CrayCCE-5.1.29',
             'toy-0.0',
         ]
@@ -98,7 +101,6 @@ class YebTest(EnhancedTestCase):
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)
 
-            no_match = False
             for key in sorted(ec_yeb.asdict()):
                 eb_val = ec_eb[key]
                 yeb_val = ec_yeb[key]
@@ -123,12 +125,11 @@ class YebTest(EnhancedTestCase):
         self.assertFalse(is_yeb_format(test_eb, None))
         self.assertFalse(is_yeb_format(None, raw_eb))
 
-
     def test_join(self):
         """ Test yaml_join function """
         # skip test if yaml module was not loaded
         if 'yaml' not in sys.modules:
-            print "Skipping test_join (no PyYAML available)"
+            print("Skipping test_join (no PyYAML available)")
             return
 
         stream = [
@@ -142,28 +143,31 @@ class YebTest(EnhancedTestCase):
         ]
 
         # import here for testing yaml_join separately
-        from easybuild.framework.easyconfig.format.yeb import yaml_join
-        loaded = yaml.load('\n'.join(stream))
+        from easybuild.framework.easyconfig.format.yeb import yaml_join  # noqa
+        if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
+            loaded = yaml.load('\n'.join(stream))
+        else:
+            loaded = yaml.load(u'\n'.join(stream), Loader=yaml.SafeLoader)
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
-
 
     def test_bad_toolchain_format(self):
         """ Test alternate toolchain format name,version """
         if 'yaml' not in sys.modules:
-            print "Skipping test_parse_yeb (no PyYAML available)"
+            print("Skipping test_parse_yeb (no PyYAML available)")
             return
 
         # only test bad cases - the right ones are tested with the test files in test_parse_yeb
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
         expected = r'Can not convert list .* to toolchain dict. Expected 2 or 3 elements'
-        self.assertErrorRegex(EasyBuildError, expected, EasyConfig, os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
+        self.assertErrorRegex(EasyBuildError, expected, EasyConfig,
+                              os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
 
     def test_external_module_toolchain(self):
         """Test specifying external (build) dependencies in yaml format."""
         if 'yaml' not in sys.modules:
-            print "Skipping test_external_module_toolchain (no PyYAML available)"
+            print("Skipping test_external_module_toolchain (no PyYAML available)")
             return
 
         ecpath = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'yeb', 'CrayCCE-5.1.29.yeb')
@@ -184,9 +188,12 @@ class YebTest(EnhancedTestCase):
         self.assertEqual(ec.dependencies()[1]['full_mod_name'], 'fftw/3.3.4.0')
         self.assertEqual(ec.dependencies()[1]['external_module_metadata'], metadata)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(YebTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2016-2016 Ghent University
+# Copyright 2016-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -9,7 +9,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,10 +38,11 @@ import sys
 
 cmd = sys.argv[1]
 rpath_filter = sys.argv[2]
-args = sys.argv[3:]
+rpath_include = sys.argv[3]
+args = sys.argv[4:]
 
 # wheter or not to use -Wl to pass options to the linker
-if cmd in ['ld', 'ld.gold']:
+if cmd in ['ld', 'ld.gold', 'ld.bfd']:
     flag_prefix = ''
 else:
     flag_prefix = '-Wl,'
@@ -51,6 +52,11 @@ if rpath_filter:
     rpath_filter = re.compile('^%s$' % '|'.join(rpath_filter))
 else:
     rpath_filter = None
+
+if rpath_include:
+    rpath_include = rpath_include.split(',')
+else:
+    rpath_include = []
 
 version_mode = False
 cmd_args, cmd_args_rpath = [], []
@@ -91,9 +97,15 @@ while idx < len(args):
             # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
             cmd_args.append('-L%s' % lib_path)
 
-    # filter out --enable-new-dtags if it's used;
-    # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
-    elif arg != '--enable-new-dtags':
+    # replace --enable-new-dtags with --disable-new-dtags if it's used;
+    # --enable-new-dtags would result in copying rpath to runpath,
+    # meaning that $LD_LIBRARY_PATH is taken into account again;
+    # --enable-new-dtags is not removed but replaced to prevent issues when linker flag is forwarded from the compiler
+    # to the linker with an extra prefixed flag (either -Xlinker or -Wl,).
+    # In that case, the compiler would erroneously pass the next random argument to the linker.
+    elif arg == flag_prefix + '--enable-new-dtags':
+        cmd_args.append(flag_prefix + '--disable-new-dtags')
+    else:
         cmd_args.append(arg)
 
     idx += 1
@@ -101,19 +113,16 @@ while idx < len(args):
 # add -rpath flags in front
 cmd_args = cmd_args_rpath + cmd_args
 
+cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
+
 if not version_mode:
-    cmd_args = [
-        # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
-        # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
-        # see also https://linux.die.net/man/8/ld-linux;
-        flag_prefix + '-rpath=$ORIGIN/../lib',
-        flag_prefix + '-rpath=$ORIGIN/../lib64',
+    cmd_args = cmd_args_rpath + [
         # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
         flag_prefix + '--disable-new-dtags',
     ] + cmd_args
 
 # wrap all arguments into single quotes to avoid further bash expansion
-cmd_args = ["'%s'" % arg.replace("'", "''") for arg in cmd_args]
+cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
 
 # output: statement to define $CMD_ARGS and $RPATH_ARGS
 print("CMD_ARGS=(%s)" % ' '.join(cmd_args))

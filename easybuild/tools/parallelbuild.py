@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 import math
 import os
 import re
-import subprocess
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
@@ -44,7 +44,6 @@ from easybuild.tools.config import build_option, get_repository, get_repositoryp
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
-from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
@@ -134,12 +133,13 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
 
     # compose string with command line options, properly quoted and with '%' characters escaped
-    opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
+    opts_str = ' '.join(opts).replace('%', '%%')
 
     command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
+        return command
     else:
         return build_easyconfigs_in_parallel(command, ordered_ecs, prepare_first=prepare_first)
 
@@ -155,18 +155,6 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
 
     returns the job
     """
-    # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
-    easybuild_vars = {}
-    for name in os.environ:
-        if name.startswith("EASYBUILD"):
-            easybuild_vars[name] = os.environ[name]
-
-    for env_var in ["PYTHONPATH", "MODULEPATH"]:
-        if env_var in os.environ:
-            easybuild_vars[env_var] = os.environ[env_var]
-
-    _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
-
     # obtain unique name based on name/easyconfig version tuple
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
@@ -194,7 +182,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     if build_option('job_cores'):
         extra['cores'] = build_option('job_cores')
 
-    job = job_backend.make_job(command, name, easybuild_vars, **extra)
+    job = job_backend.make_job(command, name, **extra)
     job.module = easyconfig['ec'].full_mod_name
 
     return job
@@ -212,5 +200,5 @@ def prepare_easyconfig(ec):
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
-    except (OSError, EasyBuildError), err:
-        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)
+    except (OSError, EasyBuildError) as err:
+        raise EasyBuildError("An error occurred while preparing %s: %s", ec, err)

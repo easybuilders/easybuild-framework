@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,8 +32,10 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
+from easybuild.tools.include import is_software_specific_easyblock
 
 
 def up(path, cnt):
@@ -74,11 +76,16 @@ class IncludeTest(EnhancedTestCase):
         ])
         write_file(os.path.join(myeasyblocks, 'generic', 'mybar.py'), mybar_easyblock_txt)
 
+        # second myfoo easyblock, should get ignored...
+        myfoo_bis = os.path.join(self.test_prefix, 'myfoo.py')
+        write_file(myfoo_bis, '')
+
         # hijack $HOME to test expanding ~ in locations passed to include_easyblocks
         os.environ['HOME'] = myeasyblocks
 
-        # expand set of known easyblocks with our custom ones
-        glob_paths = [os.path.join('~', '*'), os.path.join(myeasyblocks, '*/*.py')]
+        # expand set of known easyblocks with our custom ones;
+        # myfoo easyblock is included twice, first path should have preference
+        glob_paths = [os.path.join('~', '*'), os.path.join(myeasyblocks, '*/*.py'), myfoo_bis]
         included_easyblocks_path = include_easyblocks(self.test_prefix, glob_paths)
 
         expected_paths = ['__init__.py', 'easyblocks/__init__.py', 'easyblocks/myfoo.py',
@@ -110,7 +117,7 @@ class IncludeTest(EnhancedTestCase):
         """Test whether easyblocks included via include_easyblocks() get prioroity over others."""
         test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
 
-        # make sure that test 'foo' easyblocks is there
+        # make sure that test 'foo' easyblock is there
         import easybuild.easyblocks.foo
         foo_path = os.path.dirname(os.path.dirname(easybuild.easyblocks.foo.__file__))
         self.assertTrue(os.path.samefile(foo_path, test_easyblocks))
@@ -143,8 +150,6 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_mns(self):
         """Test include_module_naming_schemes()."""
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        test_mns = os.path.join(testdir, 'sandbox', 'easybuild', 'module_naming_scheme')
 
         my_mns = os.path.join(self.test_prefix, 'my_mns')
         mkdir(my_mns)
@@ -153,14 +158,17 @@ class IncludeTest(EnhancedTestCase):
         write_file(os.path.join(my_mns, '__init__.py'), "# dummy init, should not get included")
 
         my_mns_txt = '\n'.join([
-            "from easybuild.tools.module_naming_scheme import ModuleNamingScheme",
+            "from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme",
             "class MyMNS(ModuleNamingScheme):",
             "   pass",
         ])
         write_file(os.path.join(my_mns, 'my_mns.py'), my_mns_txt)
 
+        my_mns_bis = os.path.join(self.test_prefix, 'my_mns.py')
+        write_file(my_mns_bis, '')
+
         # include custom MNS
-        included_mns_path = include_module_naming_schemes(self.test_prefix, [os.path.join(my_mns, '*.py')])
+        included_mns_path = include_module_naming_schemes(self.test_prefix, [os.path.join(my_mns, '*.py'), my_mns_bis])
 
         expected_paths = ['__init__.py', 'tools/__init__.py', 'tools/module_naming_scheme/__init__.py',
                           'tools/module_naming_scheme/my_mns.py']
@@ -202,8 +210,11 @@ class IncludeTest(EnhancedTestCase):
         ])
         write_file(os.path.join(my_toolchains, 'compiler', 'my_compiler.py'), my_compiler_txt)
 
-        # include custom MNS
-        glob_paths = [os.path.join(my_toolchains, '*.py'), os.path.join(my_toolchains, '*', '*.py')]
+        my_tc_bis = os.path.join(self.test_prefix, 'my_tc.py')
+        write_file(my_tc_bis, '')
+
+        # include custom toolchains
+        glob_paths = [os.path.join(my_toolchains, '*.py'), os.path.join(my_toolchains, '*', '*.py'), my_tc_bis]
         included_tcs_path = include_toolchains(self.test_prefix, glob_paths)
 
         expected_paths = ['__init__.py', 'toolchains/__init__.py', 'toolchains/compiler/__init__.py',
@@ -221,10 +232,26 @@ class IncludeTest(EnhancedTestCase):
         my_tc_real_py_path = os.path.realpath(os.path.join(os.path.dirname(my_tc_pyc_path), 'my_tc.py'))
         self.assertTrue(os.path.samefile(up(my_tc_real_py_path, 1), my_toolchains))
 
+    def test_is_software_specific_easyblock(self):
+        """Test is_software_specific_easyblock function."""
+
+        self.assertErrorRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
+
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyblocks = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 'g', 'gcc.py')))
+        self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 't', 'toy.py')))
+
+        self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'configuremake.py')))
+        self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'toolchain.py')))
+
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

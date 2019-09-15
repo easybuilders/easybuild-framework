@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -90,10 +90,11 @@ class LinAlg(Toolchain):
         ## TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()
-        self._set_blacs_variables()
-        self._set_scalapack_variables()
+        if getattr(self, 'MPI_MODULE_NAME', None):
+            self._set_blacs_variables()
+            self._set_scalapack_variables()
 
-        self.log.debug('set_variables: LinAlg variables %s' % self.variables)
+        self.log.devel('set_variables: LinAlg variables %s', self.variables)
 
         super(LinAlg, self).set_variables()
 
@@ -139,8 +140,8 @@ class LinAlg(Toolchain):
         """Set LAPACK related variables
             and LAPACK only, for (working) use BLAS+LAPACK
         """
-        self.log.debug("_set_lapack_variables: LAPACK_IS_BLAS %s LAPACK_REQUIRES %s" %
-                       (self.LAPACK_IS_BLAS, self.LAPACK_REQUIRES))
+        self.log.devel("_set_lapack_variables: LAPACK_IS_BLAS %s LAPACK_REQUIRES %s",
+                       self.LAPACK_IS_BLAS, self.LAPACK_REQUIRES)
         if self.LAPACK_IS_BLAS:
             self.variables.join('LIBLAPACK_ONLY', 'LIBBLAS')
             self.variables.join('LIBLAPACK_MT_ONLY', 'LIBBLAS_MT')

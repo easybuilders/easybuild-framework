@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,10 +33,10 @@ from distutils.version import LooseVersion
 import os
 import re
 import tempfile
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option
+from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -207,7 +207,7 @@ class PbsJob(object):
 
         try:
             self.pbsconn = self._server.connect_to_server()
-        except Exception, err:
+        except Exception as err:
             raise EasyBuildError("Failed to connect to the default pbs server: %s", err)
 
         # setup the resources requested
@@ -217,7 +217,7 @@ class PbsJob(object):
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
             hours = max_walltime
 
         if ppn is None:
@@ -227,7 +227,7 @@ class PbsJob(object):
         if cores is None:
             cores = max_cores
         if cores > max_cores:
-            self.log.warn("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
+            self.log.warning("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
             cores = max_cores
 
         # only allow cores and hours for now.
@@ -243,6 +243,22 @@ class PbsJob(object):
         self.deps = []
         # list of holds that are placed on this job
         self.holds = []
+
+        job_deps_type = build_option('job_deps_type')
+
+        # mark job dependencies with 'afterany' by default to retain backward compatibility for pbs_python job backend
+        if job_deps_type is None:
+            job_deps_type = JOB_DEPS_TYPE_ALWAYS_RUN
+            self.log.info("Using default job dependency type: %s", job_deps_type)
+        else:
+            self.log.info("Using specified job dependency type: %s", job_deps_type)
+
+        if job_deps_type == JOB_DEPS_TYPE_ABORT_ON_ERROR:
+            self.job_deps_type = 'afterok'
+        elif job_deps_type == JOB_DEPS_TYPE_ALWAYS_RUN:
+            self.job_deps_type = 'afterany'
+        else:
+            raise EasyBuildError("Unknown job dependency type specified: %s", job_deps_type)
 
     def __str__(self):
         """Return the job ID as a string."""
@@ -288,7 +304,7 @@ class PbsJob(object):
         if self.deps:
             deps_attributes = pbs.new_attropl(1)
             deps_attributes[0].name = pbs.ATTR_depend
-            deps_attributes[0].value = ",".join(["afterany:%s" % dep.jobid for dep in self.deps])
+            deps_attributes[0].value = ','.join([self.job_deps_type + ':' + dep.jobid for dep in self.deps])
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 

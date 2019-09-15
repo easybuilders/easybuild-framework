@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,21 +30,23 @@ This is the original pure python code, to be exec'ed rather then parsed
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import copy
 import os
 import re
 import tempfile
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, INDENT_4SPACES
-from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.framework.easyconfig.format.format import get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.utilities import quote_py_str
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 
 EB_FORMAT_EXTENSION = '.eb'
@@ -52,9 +54,10 @@ EB_FORMAT_EXTENSION = '.eb'
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
+REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
-    'sanity_check_paths': ['files', 'dirs'],
+    'sanity_check_paths': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }
 
 
@@ -70,7 +73,7 @@ def dump_dependency(dep, toolchain):
         # mininal spec: (name, version)
         tup = (dep['name'], dep['version'])
         if dep['toolchain'] != toolchain:
-            if dep['dummy']:
+            if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
@@ -140,6 +143,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # note: this does not take into account the parameter name + '=', only the value
         line_too_long = len(param_strval) + addlen > REFORMAT_THRESHOLD_LENGTH
         forced = param_name in REFORMAT_FORCED_PARAMS
+        list_of_lists_of_tuples_param = param_name in REFORMAT_LIST_OF_LISTS_OF_TUPLES
 
         if param_name in REFORMAT_SKIPPED_PARAMS:
             self.log.info("Skipping reformatting value for parameter '%s'", param_name)
@@ -170,9 +174,20 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item in param_val:
                         comment = self._get_item_comments(param_name, item).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
+                        # the tuples are really strings here that are constructed from the dependency dicts
+                        # so for a plain list of builddependencies param_val is a list of strings here;
+                        # and for iterated builddependencies it is a list of lists of strings
+                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, str) for x in item)
+                        if list_of_lists_of_tuples_param and is_list_of_lists_of_tuples:
+                            itemstr = '[' + (',\n ' + INDENT_4SPACES).join([
+                                self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
+                                for subitem in item]) + ']'
+                        else:
+                            itemstr = self._reformat_line(param_name, item, addlen=addlen)
+
                         res += item_tmpl % {
                             'comment': comment,
-                            'item': self._reformat_line(param_name, item, addlen=addlen)
+                            'item': itemstr
                         }
 
                 # end with closing character: ], ), }
@@ -180,7 +195,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         else:
             # dependencies are already dumped as strings, so they do not need to be quoted again
-            if isinstance(param_val, basestring) and param_name not in DEPENDENCY_PARAMETERS:
+            if isinstance(param_val, string_type) and param_name not in DEPENDENCY_PARAMETERS:
                 res = quote_py_str(param_val)
 
         return res
@@ -202,10 +217,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
-            new_val = to_template_str(val, templ_const, templ_val)
-            # avoid self-referencing templated parameter definitions
-            if not r'%(' + key in new_val:
-                val = new_val
+            val = to_template_str(key, val, templ_const, templ_val)
 
         if key in self.comments['inline']:
             res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
@@ -225,17 +237,24 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                val = copy.deepcopy(ecfg[key])
-                # include hidden deps back in list of (build)dependencies, they were filtered out via filter_hidden_deps
-                if key == 'dependencies':
-                    val.extend([d for d in ecfg['hiddendependencies'] if not d['build_only']])
-                elif key == 'builddependencies':
-                    val.extend([d for d in ecfg['hiddendependencies'] if d['build_only']])
-
+                val = ecfg[key]
                 if val != default_values[key]:
-                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
+                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them;
+                    # take into account that these parameters may be iterative (i.e. a list of lists of parsed deps)
                     if key in DEPENDENCY_PARAMETERS:
-                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                        if key in ecfg.iterate_options:
+                            if 'multi_deps' in ecfg:
+                                # the way that builddependencies are constructed with multi_deps
+                                # we just need to dump the first entry without the dependencies
+                                # that are listed in multi_deps
+                                valstr = [dump_dependency(d, ecfg['toolchain']) for d in val[0]
+                                          if d['name'] not in ecfg['multi_deps']]
+                            else:
+                                valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                        else:
+                            valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                    elif key == 'toolchain':
+                        valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
                         valstr = quote_py_str(ecfg[key])
 
@@ -287,9 +306,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Inline comments on items of iterable values are also extracted.
         """
         self.comments = {
-            'above' : {},  # comments for a particular parameter definition
-            'header' : [],  # header comment lines
-            'inline' : {},  # inline comments
+            'above': {},  # comments for a particular parameter definition
+            'header': [],  # header comment lines
+            'inline': {},  # inline comments
             'iter': {},  # (inline) comments on elements of iterable values
             'tail': [],
          }
@@ -297,7 +316,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         rawlines = rawtxt.split('\n')
 
         # extract header first
-        while rawlines[0].startswith('#'):
+        while rawlines and rawlines[0].startswith('#'):
             self.comments['header'].append(rawlines.pop(0))
 
         parsed_ec = self.get_config_dict()
@@ -334,7 +353,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # determine parameter value where the item value on this line is a part of
                     for key, val in parsed_ec.items():
                         item_val = re.sub(r',$', r'', rawline.rsplit('#', 1)[0].strip())
-                        if not isinstance(val, basestring) and item_val in str(val):
+                        if not isinstance(val, string_type) and item_val in str(val):
                             comment_key, comment_val = key, item_val
                             break
 
@@ -410,7 +429,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
 
             if 'dependencies' in block:
                 for dep in block['dependencies']:
-                    if not dep in [b['name'] for b in blocks]:
+                    if dep not in [b['name'] for b in blocks]:
                         raise EasyBuildError("Block %s depends on %s, but block was not found.", name, dep)
 
                     dep = [b for b in blocks if b['name'] == dep][0]

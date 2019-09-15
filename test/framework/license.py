@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.licenses import License, LicenseVeryRestrictive, what_licenses
+from easybuild.tools.py2vs3 import string_type
 
 
 class LicenseTest(EnhancedTestCase):
@@ -61,7 +62,7 @@ class LicenseTest(EnhancedTestCase):
         """Test format of available licenses."""
         lics = what_licenses()
         for lic in lics:
-            self.assertTrue(isinstance(lic, basestring))
+            self.assertTrue(isinstance(lic, string_type))
             self.assertTrue(lic.startswith('License'))
             self.assertTrue(issubclass(lics[lic], License))
 
@@ -72,6 +73,5 @@ def suite():
 
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

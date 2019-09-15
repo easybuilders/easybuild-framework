@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2011-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,10 +29,13 @@ Module naming scheme API.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import Singleton
+
+
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
 
 class ModuleNamingScheme(object):
@@ -143,7 +146,7 @@ class ModuleNamingScheme(object):
         """
         return []
 
-    def expand_toolchain_load(self):
+    def expand_toolchain_load(self, ec=None):
         """
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
@@ -164,3 +167,11 @@ class ModuleNamingScheme(object):
                        short_modname, name, modname_regex.pattern, res)
 
         return res
+
+    def det_make_devel_module(self):
+        """
+        Determine if a devel module should be generated.
+        Can be used to create a separate set of modules with a different naming scheme.
+        Software is already installed beforehand with one naming scheme, including development module.
+        """
+        return True

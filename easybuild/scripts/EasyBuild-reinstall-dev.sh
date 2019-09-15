@@ -3,7 +3,7 @@
 if [ $# -ne 1 ]
 then
     echo "Usage: source <script> <installation prefix>"
-    return 1
+    exit 1
 else
     PREFIX=$1
 
@@ -22,13 +22,13 @@ else
     do
         logfile=$PREFIX/EasyBuild-dev-install-${pkg}.log
         echo "installing easybuild-$pkg (output goes to $logfile)..."
-        easy_install --prefix=$PREFIX http://github.com/hpcugent/easybuild-${pkg}/archive/develop.tar.gz > $logfile 2>&1
+        easy_install --prefix=$PREFIX https://github.com/easybuilders/easybuild-${pkg}/archive/develop.tar.gz > $logfile 2>&1
         exit_code=$?
         if [ $exit_code -ne 0 ]
         then
             echo
             echo "ERROR: installation of easybuild-$pkg failed, see error messages in ${logfile}"
-            return $exit_code
+            exit $exit_code
         fi
     done
 
@@ -51,6 +51,6 @@ else
     if [ $ec -ne 0 ]
     then
         echo "ERROR: Sanity check failed."
-        return $ec
+        exit $ec
     fi
 fi

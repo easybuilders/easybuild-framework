@@ -1,5 +1,5 @@
 # #
-# Copyright 2014 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,13 +33,13 @@ import stat
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
+from easybuild.tools.options import parse_options
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, submit_jobs
 from easybuild.tools.robot import resolve_dependencies
 
@@ -61,6 +61,21 @@ override = no
 resourcedir = %(resourcedir)s
 time_cmd = %(time)s
 """
+
+
+MOCKED_SBATCH = """#!/bin/bash
+if [[ $1 == '--version' ]]; then
+    echo "slurm 17.0"
+else
+    echo "Submitted batch job $RANDOM"
+    echo "(submission args: $@)"
+fi
+"""
+
+MOCKED_SCONTROL = """#!/bin/bash
+    echo "(scontrol args: $@)"
+"""
+
 
 def mock(*args, **kwargs):
     """Function used for mocking several functions imported in parallelbuild module."""
@@ -120,12 +135,13 @@ class ParallelBuildTest(EnhancedTestCase):
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
-        self.assertEqual(len(jobs), 8)
-        regex = re.compile("echo '.*/gzip-1.5-goolf-1.4.10.eb'")
+        # only one job submitted since foss/2018a module is already available
+        self.assertEqual(len(jobs), 1)
+        regex = re.compile("echo '.*/gzip-1.5-foss-2018a.eb'")
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
@@ -143,14 +159,14 @@ class ParallelBuildTest(EnhancedTestCase):
         for job in jobs:
             self.assertEqual(job.cores, build_options['job_cores'])
 
-        # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
+        # no deps for GCC/4.6.3 (toolchain) and intel/2018a (test easyconfig with 'fake' deps)
         self.assertEqual(len(jobs[0].deps), 0)
         self.assertEqual(len(jobs[1].deps), 0)
 
-        # only dependency for toy/0.0-deps is ictce/4.1.13 (dep marked as external module is filtered out)
+        # only dependency for toy/0.0-deps is intel/2018a (dep marked as external module is filtered out)
         self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
         self.assertEqual(len(jobs[2].deps), 1)
-        self.assertTrue('ictce-4.1.13.eb' in jobs[2].deps[0].script)
+        self.assertTrue('intel-2018a.eb' in jobs[2].deps[0].script)
 
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
@@ -158,6 +174,31 @@ class ParallelBuildTest(EnhancedTestCase):
         regex = re.compile('toy-0.0-deps.eb\s* --hidden')
         self.assertTrue(regex.search(jobs[3].deps[0].script))
         self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
+
+        # also test use of --pre-create-installdir
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool)
+
+        # installation directory doesn't exist yet before submission
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        self.assertFalse(os.path.exists(toy_installdir))
+
+        jobs = submit_jobs(ordered_ecs, '', testing=False)
+        self.assertEqual(len(jobs), 1)
+
+        # software install dir is created (by default) as part of job submission process (fetch_step is run)
+        self.assertTrue(os.path.exists(toy_installdir))
+        remove_dir(toy_installdir)
+        remove_dir(os.path.dirname(toy_installdir))
+        self.assertFalse(os.path.exists(toy_installdir))
+
+        # installation directory does *not* get created when --pre-create-installdir is used
+        build_options['pre_create_installdir'] = False
+        init_config(args=['--job-backend=PbsPython'], build_options=build_options)
+
+        jobs = submit_jobs(ordered_ecs, '', testing=False)
+        self.assertEqual(len(jobs), 1)
+        self.assertFalse(os.path.exists(toy_installdir))
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
@@ -170,9 +211,9 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""
         try:
-            import gc3libs
+            import gc3libs  # noqa (ignore unused import)
         except ImportError:
-            print "GC3Pie not available, skipping test"
+            print("GC3Pie not available, skipping test")
             return
 
         # put GC3Pie config in place to use local host and fork/exec
@@ -206,7 +247,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'valid_module_classes': config.module_classes(),
             'validate': False,
         }
-        options = init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
+        init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
@@ -214,17 +255,110 @@ class ParallelBuildTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
-        jobs = build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
+        build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
 
         self.assertTrue(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0'))
         self.assertTrue(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy'))
+
+    def test_submit_jobs(self):
+        """Test submit_jobs"""
+        test_easyconfigs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            '--debug',
+            '--tmpdir', '/tmp',
+            '--optarch="GCC:O3 -mtune=generic;Intel:O3 -xHost"',
+            '--parallel=2',
+            '--try-toolchain=intel,2016a',  # should be excluded in job script
+            '--robot', self.test_prefix,  # should be excluded in job script
+            '--job',  # should be excluded in job script
+        ]
+        eb_go = parse_options(args=args)
+        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+
+        # these patterns must be found
+        regexs = [
+            ' --debug ',
+            # values got wrapped in single quotes (to avoid interpretation by shell)
+            " --tmpdir='/tmp' ",
+            " --parallel='2' ",
+            # (unparsed) optarch value got wrapped in single quotes, double quotes got stripped
+            " --optarch='GCC:O3 -mtune=generic;Intel:O3 -xHost' ",
+            # templates to be completed via build_easyconfigs_in_parallel -> create_job
+            ' eb %\(spec\)s ',
+            ' %\(add_opts\)s ',
+            ' --testoutput=%\(output_dir\)s',
+        ]
+        for regex in regexs:
+            regex = re.compile(regex)
+            self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
+
+        # these patterns should NOT be found, these options get filtered out
+        # (self.test_prefix was argument to --robot)
+        for regex in ['--job', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
+            regex = re.compile(regex)
+            self.assertFalse(regex.search(cmd), "Pattern '%s' *not* found in: %s" % (regex.pattern, cmd))
+
+    def test_build_easyconfigs_in_parallel_slurm(self):
+        """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""
+
+        # install mocked versions of 'sbatch' and 'scontrol' commands
+        sbatch = os.path.join(self.test_prefix, 'bin', 'sbatch')
+        write_file(sbatch, MOCKED_SBATCH)
+        adjust_permissions(sbatch, stat.S_IXUSR, add=True)
+
+        scontrol = os.path.join(self.test_prefix, 'bin', 'scontrol')
+        write_file(scontrol, MOCKED_SCONTROL)
+        adjust_permissions(scontrol, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        foss_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a.eb')
+
+        build_options = {
+            'external_modules_metadata': {},
+            'robot_path': os.path.join(topdir, 'easyconfigs', 'test_ecs'),
+            'valid_module_classes': config.module_classes(),
+            'validate': False,
+            'job_cores': 3,
+            'job_max_walltime': 5,
+            'force': True,
+        }
+        init_config(args=['--job-backend=Slurm'], build_options=build_options)
+
+        easyconfigs = process_easyconfig(test_ec) + process_easyconfig(foss_ec)
+        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
+        self.mock_stdout(True)
+        jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
+        self.mock_stdout(False)
+
+        # jobs are submitted for foss & gzip (listed easyconfigs)
+        self.assertEqual(len(jobs), 2)
+
+        # last job (gzip) has a dependency on second-to-last job (foss)
+        self.assertEqual(jobs[0].job_specs['job-name'], 'foss-2018a')
+
+        expected = {
+            'dependency': 'afterok:%s' % jobs[0].jobid,
+            'hold': True,
+            'job-name': 'gzip-1.5-foss-2018a',
+            'nodes': 1,
+            'ntasks': 3,
+            'output': 'gzip-1.5-foss-2018a-%j.out',
+            'time': 300,  # 60*5 (unit is minutes)
+            'wrap': "echo '%s'" % test_ec,
+        }
+        self.assertEqual(jobs[1].job_specs, expected)
 
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
-    TextTestRunner(verbosity=1).run(suite())
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))
