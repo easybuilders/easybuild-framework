@@ -2032,11 +2032,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = ['toy-0.0.eb', '--dry-run', robot]
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
-        regex = re.compile('module: toy/0.0')
+        toy_regex = re.compile('module: toy/0.0')
+
+        # works fine is directory exists
+        args = ['toy-0.0.eb', '-r', self.test_prefix, '--dry-run']
+        outtxt = self.eb_main(args, raise_error=True)
+        self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # no error when name of an easyconfig file is specified to --robot (even if it doesn't exist)
+        args = ['--dry-run', '--robot', 'toy-0.0.eb']
+        outtxt = self.eb_main(args, raise_error=True)
+        self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # different error when a non-existing easyconfig file is specified to --robot
+        args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
+        self.assertErrorRegex(EasyBuildError, "Can't find path", self.eb_main, args, raise_error=True)
+
         for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
             args = ['toy-0.0.eb', '--dry-run', robot]
             outtxt = self.eb_main(args, raise_error=True)
-            self.assertTrue(regex.search(outtxt), "Pattern '%s' not found in: %s" % (regex.pattern, outtxt))
+            self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
 
     def test_missing_cfgfile(self):
         """Test behaviour when non-existing config file is specified."""
