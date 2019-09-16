@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, A
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
@@ -257,7 +257,9 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     # figure out installation prefix, e.g. distutils install path for easyconfigs
     eb_path = which('eb')
     if eb_path is None:
-        _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+        warning_msg = "'eb' not found in $PATH, failed to determine installation prefix!"
+        _log.warning(warning_msg)
+        print_warning(warning_msg)
     else:
         # real location to 'eb' should be <install_prefix>/bin/eb
         eb_path = resolve_path(eb_path)
