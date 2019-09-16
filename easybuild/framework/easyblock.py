@@ -2950,10 +2950,10 @@ class EasyBlock(object):
         if os.path.exists(lockfile_name):
             if build_option('wait_on_lock'):
                 while os.path.exists(lockfile_name):
-                    print_msg("Lock file %s exists. Waiting 60 seconds." % lockfile_name)
+                    print_msg("Lock file %s exists. Waiting 60 seconds." % lockfile_name, silent=self.silent)
                     time.sleep(60)
             else:
-                print_msg("Build aborted. Lock file %s exists." % lockfile_name)
+                print_msg("Build aborted. Lock file %s exists." % lockfile_name, silent=self.silent)
                 return False
         else:
             try:
@@ -2976,7 +2976,7 @@ class EasyBlock(object):
             except StopException:
                 pass
             finally:
-                print_msg("Removing lock file %s" % lockfile_name)
+                print_msg("Removing lock file %s" % lockfile_name, silent=self.silent)
                 os.remove(lockfile_name)
 
         # return True for successfull build (or stopped build)
