@@ -1896,11 +1896,12 @@ class EasyBlock(object):
             if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
                 raise EasyBuildError("Applying patch %s failed", patch['name'])
 
-    def prepare_step(self, start_dir=True):
+    def prepare_step(self, start_dir=True, load_tc_deps_modules=True):
         """
         Pre-configure step. Set's up the builddir just before starting configure
 
         :param start_dir: guess start directory based on unpacked sources
+        :param load_tc_deps_modules: load modules for toolchain and dependencies in build environment
         """
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
@@ -1941,7 +1942,8 @@ class EasyBlock(object):
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
-                               rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
+                               loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
+                               rpath_include_dirs=self.rpath_include_dirs)
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
