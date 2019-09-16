@@ -1514,6 +1514,39 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(len(self.modtool.list()), 1)
         self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/6.4.0-2.28')
 
+    def test_prepare_step_load_tc_deps_modules(self):
+        """Test disabling loading of toolchain + dependencies in build environment."""
+
+        init_config(build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ompi_ec_file = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+        ec = process_easyconfig(ompi_ec_file, validate=False)[0]
+
+        mkdir(os.path.join(self.test_buildpath, 'OpenMPI', '2.1.2', 'GCC-6.4.0-2.28'), parents=True)
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+
+        # $EBROOTGCC and $EBROOTHWLOC must be set to set up build environment
+        os.environ['EBROOTGCC'] = self.test_prefix
+        os.environ['EBROOTHWLOC'] = self.test_prefix
+
+        # loaded of modules for toolchain + dependencies can be disabled via load_tc_deps_modules=False
+        eb.prepare_step(load_tc_deps_modules=False)
+        self.assertEqual(self.modtool.list(), [])
+
+        del os.environ['EBROOTGCC']
+        del os.environ['EBROOTHWLOC']
+
+        # modules for toolchain + dependencies are still loaded by default
+        eb.prepare_step()
+        loaded_modules = self.modtool.list()
+        self.assertEqual(len(loaded_modules), 2)
+        self.assertEqual(loaded_modules[0]['mod_name'], 'GCC/6.4.0-2.28')
+        self.assertTrue(os.environ['EBROOTGCC'])
+        self.assertEqual(loaded_modules[1]['mod_name'], 'hwloc/1.11.8-GCC-6.4.0-2.28')
+        self.assertTrue(os.environ['EBROOTHWLOC'])
+
     def test_prepare_step_hmns(self):
         """
         Check whether loading of already existing dependencies during prepare step works when HierarchicalMNS is used.

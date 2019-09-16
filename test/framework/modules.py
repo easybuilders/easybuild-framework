@@ -34,6 +34,7 @@ import os
 import re
 import tempfile
 import shutil
+import stat
 import sys
 from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -42,7 +43,7 @@ from unittest import TextTestRunner
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir, read_file, remove_file, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
@@ -1057,12 +1058,40 @@ class ModulesTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
     def test_NoModulesTool(self):
+        """Test use of NoModulesTool class."""
         nmt = NoModulesTool(testing=True)
         self.assertEqual(len(nmt.available()), 0)
         self.assertEqual(len(nmt.available(mod_names='foo')), 0)
         self.assertEqual(len(nmt.list()), 0)
         self.assertEqual(nmt.exist(['foo', 'bar']), [False, False])
         self.assertEqual(nmt.exist(['foo', 'bar'], r'^\s*\S*/%s.*:\s*$', skip_avail=False), [False, False])
+
+    def test_modulecmd_strip_source(self):
+        """Test stripping of 'source' command in output of 'modulecmd python load'."""
+
+        init_config(build_options={'allow_modules_tool_mismatch': True})
+
+        # install dummy modulecmd command that always produces a 'source command' in its output
+        modulecmd = os.path.join(self.test_prefix, 'modulecmd')
+        modulecmd_txt = '\n'.join([
+            '#!/bin/bash',
+            # if last argument (${!#})) is --version, print version
+            'if [ x"${!#}" == "x--version" ]; then',
+            '  echo 3.2.10',
+            # otherwise, echo Python commands: set $TEST123 and include a faulty 'source' command
+            'else',
+            '  echo "source /opt/cray/pe/modules/3.2.10.6/init/bash"',
+            "  echo \"os.environ['TEST123'] = 'test123'\"",
+            'fi',
+        ])
+        write_file(modulecmd, modulecmd_txt)
+        adjust_permissions(modulecmd, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
+
+        modtool = EnvironmentModulesC()
+        modtool.run_module('load', 'test123')
+        self.assertEqual(os.getenv('TEST123'), 'test123')
 
 
 def suite():
