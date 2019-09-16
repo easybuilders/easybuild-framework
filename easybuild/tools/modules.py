@@ -1080,6 +1080,29 @@ class EnvironmentModulesC(ModulesTool):
     MAX_VERSION = '3.99'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
+    def run_module(self, *args, **kwargs):
+        """
+        Run module command, tweak output that is exec'ed if necessary.
+        """
+        if isinstance(args[0], (list, tuple,)):
+            args = args[0]
+
+        # some versions of Cray's environment modules tool (3.2.10.x) include a "source */init/bash" command
+        # in the output of some "modulecmd python load" calls, which is not a valid Python command,
+        # which must be stripped out to avoid "invalid syntax" errors when evaluating the output
+        def tweak_stdout(txt):
+            """Tweak stdout before it's exec'ed as Python code."""
+            source_regex = re.compile("^source .*$", re.M)
+            return source_regex.sub('', txt)
+
+        tweak_stdout_fn = None
+        # for 'active' module (sub)commands that yield changes in environment, we need to tweak stdout before exec'ing
+        if args[0] in ['load', 'purge', 'swap', 'unload', 'use', 'unuse']:
+            tweak_stdout_fn = tweak_stdout
+        kwargs.update({'tweak_stdout': tweak_stdout_fn})
+
+        return super(EnvironmentModulesC, self).run_module(*args, **kwargs)
+
     def update(self):
         """Update after new modules were added."""
         pass
