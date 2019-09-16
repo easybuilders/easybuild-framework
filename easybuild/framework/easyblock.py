@@ -1107,7 +1107,7 @@ class EasyBlock(object):
             dep_stmts = loads
 
         # load first version listed in multi_deps as a default, if desired
-        if self.cfg['multi_deps_load_default']:
+        if not build_option("disable_multi_deps_load_default") and self.cfg['multi_deps_load_default']:
 
             # build map of dep name to list of module names corresponding to each version
             # first entry in multi_deps is list of first versions for each multi-dep

@@ -2168,6 +2168,20 @@ class ToyBuildTest(EnhancedTestCase):
 
         check_toy_load()
 
+        # this behaviour can be disabled via build option multi_deps_load_default=0
+        self.test_toy_build(ec_file=test_ec, extra_args="--disable-multi-deps-load-default")
+        toy_mod_txt = read_file(toy_mod_file)
+
+        self.assertFalse(expected in toy_mod_txt, "Pattern '%s' should not be found in: %s" % (expected, toy_mod_txt))
+        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
+
+        self.modtool.load(['toy/0.0'])
+        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+        self.assertTrue('toy/0.0' in loaded_mod_names)
+        self.assertFalse('GCC/4.6.3' in loaded_mod_names)
+        self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+
         # this behaviour can be disabled via "multi_dep_load_defaults = False"
         write_file(test_ec, test_ec_txt + "\nmulti_deps_load_default = False")
 
