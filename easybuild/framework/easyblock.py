@@ -2947,7 +2947,7 @@ class EasyBlock(object):
         lockpath = build_option('lockpath') or build_path()
         if not os.path.exists(lockpath):
             mkdir(lockpath)
-        lockfile_name = os.path.join(lockpath, ".%s.lock" % self.installdir.replace('/','_'))
+        lockfile_name = os.path.join(lockpath, ".%s.lock" % self.installdir.replace('/', '_'))
         if os.path.exists(lockfile_name):
             if build_option('wait_on_lock'):
                 while os.path.exists(lockfile_name):
