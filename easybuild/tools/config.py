@@ -221,6 +221,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_f90cache',
         'use_existing_modules',
         'set_default_module',
+        'wait_on_lock',
     ],
     True: [
         'cleanup_builddir',

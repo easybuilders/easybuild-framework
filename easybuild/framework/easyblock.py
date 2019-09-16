@@ -2943,20 +2943,41 @@ class EasyBlock(object):
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
-        try:
-            for (step_name, descr, step_methods, skippable) in steps:
-                if self._skip_step(step_name, skippable):
-                    print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
-                else:
-                    if self.dry_run:
-                        self.dry_run_msg("%s... [DRY RUN]\n", descr)
-                    else:
-                        print_msg("%s..." % descr, log=self.log, silent=self.silent)
-                    self.current_step = step_name
-                    self.run_step(step_name, step_methods)
 
-        except StopException:
-            pass
+        if not os.path.exists(build_path()):
+            mkdir(build_path())
+        lockfile_name = os.path.join(build_path(),".%s.lock" % self.installdir.replace('/','_') )
+        if os.path.exists(lockfile_name):
+            if build_options('wait_on_lock'):
+                while os.path.exists(lockfile_name):
+                    print_msg("Lock file %s exists. Waiting 60 seconds." % lockfile_name)
+                    time.sleep(60)
+            else:
+                print_msg("Build aborted. Lock file %s exists." % lockfile_name)
+                return False
+        else:
+            try:
+                # create a new lock file
+                print_msg("Creating lock file %s" % lockfile_name)
+                f = open(lockfile_name,"w+")
+                f.close()
+
+                for (step_name, descr, step_methods, skippable) in steps:
+                    if self._skip_step(step_name, skippable):
+                        print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
+                    else:
+                        if self.dry_run:
+                            self.dry_run_msg("%s... [DRY RUN]\n", descr)
+                        else:
+                            print_msg("%s..." % descr, log=self.log, silent=self.silent)
+                        self.current_step = step_name
+                        self.run_step(step_name, step_methods)
+
+            except StopException:
+                pass
+            finally:
+                print_msg("Removing lock file %s" % lockfile_name)
+                os.remove(lockfile_name)
 
         # return True for successfull build (or stopped build)
         return True
