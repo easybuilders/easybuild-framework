@@ -442,7 +442,7 @@ class EasyBuildOptions(GeneralOption):
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
             'wait-on-lock': ("Wait until lock file is removed when a lock if found",
-                                     None, 'store_true', False),
+                             None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
 

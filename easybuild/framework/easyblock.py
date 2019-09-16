@@ -2946,9 +2946,9 @@ class EasyBlock(object):
 
         if not os.path.exists(build_path()):
             mkdir(build_path())
-        lockfile_name = os.path.join(build_path(),".%s.lock" % self.installdir.replace('/','_') )
+        lockfile_name = os.path.join(build_path(), ".%s.lock" % self.installdir.replace('/','_'))
         if os.path.exists(lockfile_name):
-            if build_options('wait_on_lock'):
+            if build_option('wait_on_lock'):
                 while os.path.exists(lockfile_name):
                     print_msg("Lock file %s exists. Waiting 60 seconds." % lockfile_name)
                     time.sleep(60)
@@ -2959,7 +2959,7 @@ class EasyBlock(object):
             try:
                 # create a new lock file
                 print_msg("Creating lock file %s" % lockfile_name)
-                f = open(lockfile_name,"w+")
+                f = open(lockfile_name, "w+")
                 f.close()
 
                 for (step_name, descr, step_methods, skippable) in steps:
