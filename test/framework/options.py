@@ -2737,17 +2737,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config(args=['--module-naming-scheme=HierarchicalMNS'])
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
         # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
         build_options = {
-            'fixed_installdir_naming_scheme': True,
+            'fixed_installdir_naming_scheme': False,
             'valid_module_classes': module_classes(),
         }
         init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
 
     def _assert_regexs(self, regexs, txt, assert_true=True):
         """Helper function to assert presence/absence of list of regex patterns in a text"""
@@ -4148,6 +4148,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
         regex = re.compile("ERROR: Detected import from 'vsc' namespace in .*/test_mns.py")
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+    def test_installdir(self):
+        """Check naming scheme of installation directory."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+
+        # even with HierarchicalMNS the installation directory remains the same,
+        # due to --fixed-installdir-naming-scheme being enabled by default
+        args = ['--module-naming-scheme=HierarchicalMNS']
+        init_config(args=args)
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+
+        # things change when --disable-fixed-installdir-naming-scheme is used
+        init_config(args=args, build_options={'fixed_installdir_naming_scheme': False})
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
 
 
 def suite():
