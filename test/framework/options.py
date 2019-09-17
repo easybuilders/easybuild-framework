@@ -361,8 +361,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
                    passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
-        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
-                   passed_args=['--debug', "--robot-paths='/tmp/bar:/tmp/foo'"])
+        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=%s' % self.test_prefix],
+                   passed_args=['--debug', "--robot-paths='%s:/tmp/foo'" % self.test_prefix])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -877,16 +877,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
+        robot_decoy = os.path.join(self.test_prefix, 'robot_decoy')
+        mkdir(robot_decoy)
         for dry_run_arg in ['-D', '--dry-run-short']:
             open(self.logfile, 'w').write('')
             args = [
                 os.path.join(tmpdir, 'easybuild', 'easyconfigs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb'),
                 dry_run_arg,
                 # purposely specifying senseless dir, to test auto-inclusion of easyconfigs pkg path in robot path
-                '--robot=%s' % os.path.join(tmpdir, 'robot_decoy'),
+                '--robot=%s' % robot_decoy,
                 '--unittest-file=%s' % self.logfile,
             ]
-            outtxt = self.eb_main(args, logfile=dummylogfn)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
             info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
             self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
@@ -2019,6 +2021,52 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for ecfile in ecfiles:
             ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
+
+    def test_robot_path_check(self):
+        """Test path check for --robot"""
+        empty_file = os.path.join(self.test_prefix, 'empty')
+        write_file(empty_file, '')
+
+        error_pattern = "Argument passed to --robot is not an existing directory"
+        for robot in ['--robot=foo', '--robot=%s' % empty_file]:
+            args = ['toy-0.0.eb', '--dry-run', robot]
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        toy_regex = re.compile('module: toy/0.0')
+
+        # works fine is directory exists
+        args = ['toy-0.0.eb', '-r', self.test_prefix, '--dry-run']
+        outtxt = self.eb_main(args, raise_error=True)
+        self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # no error when name of an easyconfig file is specified to --robot (even if it doesn't exist)
+        args = ['--dry-run', '--robot', 'toy-0.0.eb']
+        outtxt = self.eb_main(args, raise_error=True)
+        self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # different error when a non-existing easyconfig file is specified to --robot
+        args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
+        self.assertErrorRegex(EasyBuildError, "Can't find path", self.eb_main, args, raise_error=True)
+
+        for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
+            args = ['toy-0.0.eb', '--dry-run', robot]
+            outtxt = self.eb_main(args, raise_error=True)
+            self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # no problem with using combos of single-letter options with -r included, no matter the order
+        for arg in ['-Dr', '-rD', '-frkD', '-rfDk']:
+            args = ['toy-0.0.eb', arg]
+            outtxt = self.eb_main(args, raise_error=True)
+            self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # unknown options are still recognized, even when used in single-letter combo arguments
+        for arg in ['-DX', '-DrX', '-DXr', '-frkDX', '-XfrD']:
+            args = ['toy-0.0.eb', arg]
+            self.mock_stderr(True)
+            self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue("error: no such option: -X" in stderr)
 
     def test_missing_cfgfile(self):
         """Test behaviour when non-existing config file is specified."""

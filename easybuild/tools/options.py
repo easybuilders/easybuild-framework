@@ -51,7 +51,9 @@ from easybuild.base.generaloption import GeneralOption
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
@@ -951,6 +953,24 @@ class EasyBuildOptions(GeneralOption):
             self.options.installpath = get_pretend_installpath()
 
         if self.options.robot is not None:
+            # if a single path is specified to --robot/-r, it must be an existing directory;
+            # this is required since an argument to --robot is optional,
+            # which makes it susceptible to 'eating' the following argument/option;
+            # for example: with 'eb -r foo', 'foo' must be an existing directory (or 'eb foo -r' should be used);
+            # when multiple directories are specified, we deliberately do not enforce that all of them exist;
+            # if a single argument is passed to --robot/-r that ends with '.eb' or '.yeb', we assume it's an easyconfig
+            if len(self.options.robot) == 1:
+                robot_arg = self.options.robot[0]
+                if not os.path.isdir(robot_arg):
+                    if robot_arg.endswith(EB_FORMAT_EXTENSION) or robot_arg.endswith(YEB_FORMAT_EXTENSION):
+                        info_msg = "Sole --robot argument %s is not an existing directory, "
+                        info_msg += "promoting it to a stand-alone argument since it looks like an easyconfig file name"
+                        self.log.info(info_msg, robot_arg)
+                        self.args.append(robot_arg)
+                        self.options.robot = []
+                    else:
+                        raise EasyBuildError("Argument passed to --robot is not an existing directory: %s", robot_arg)
+
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
             self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
@@ -1221,13 +1241,27 @@ def parse_options(args=None, with_include=True):
         fancylogger.logToScreen(enable=True)
         fancylogger.setLogLevel('DEBUG')
 
+    if args is None:
+        args = sys.argv[1:]
+
+    # unroll arguments that correspond to a combo of single-letter options
+    # this is done to avoid interpreting -rD like "--robot D" instead of "--robot -D"
+    eb_args = []
+    letters_regex = re.compile('^[a-zA-Z]+$')
+    for arg in args:
+        if len(arg) > 2 and arg.startswith('-') and letters_regex.match(arg[1:]):
+            for letter in arg[1:]:
+                eb_args.append('-' + letter)
+        else:
+            eb_args.append(arg)
+
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror,
+                                 go_args=eb_args, error_env_options=True, error_env_option_method=raise_easybuilderror,
                                  with_include=with_include)
     except Exception as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
