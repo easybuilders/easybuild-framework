@@ -2944,7 +2944,7 @@ class EasyBlock(object):
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
-        lockpath = build_option('lockpath') or os.path.join(install_path('software'),'.locks')
+        lockpath = build_option('lockpath') or os.path.join(install_path('software'), '.locks')
         if not os.path.exists(lockpath):
             mkdir(lockpath)
         lockfile_name = os.path.join(lockpath, ".%s.lock" % self.installdir.replace('/', '_'))
