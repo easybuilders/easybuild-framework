@@ -1024,6 +1024,13 @@ class FileToolsTest(EnhancedTestCase):
             for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
                 self.assertFalse(perms & bit)
 
+        # check error reporting when changing permissions fails
+        nosuchdir = os.path.join(self.test_prefix, 'nosuchdir')
+        err_msg = "Failed to chmod/chown several paths.*No such file or directory"
+        self.assertErrorRegex(EasyBuildError, err_msg, ft.adjust_permissions, nosuchdir, stat.S_IWOTH)
+        nosuchfile = os.path.join(self.test_prefix, 'nosuchfile')
+        self.assertErrorRegex(EasyBuildError, err_msg, ft.adjust_permissions, nosuchfile, stat.S_IWUSR, recursive=False)
+
         # restore original umask
         os.umask(orig_umask)
 
