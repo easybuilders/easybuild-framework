@@ -534,6 +534,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 
+        # first check default behaviour
         self.test_toy_build(ec_file=test_ec)
 
         toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
@@ -547,11 +548,17 @@ class ToyBuildTest(EnhancedTestCase):
 
         shutil.rmtree(self.test_installpath)
 
+        # check whether --read-only-installdir works as intended
         self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
         installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % toy_install_dir)
         installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+
+        # also log file copied into install dir should be read-only (not just the 'easybuild/' subdir itself)
+        log_path = glob.glob(os.path.join(toy_install_dir, 'easybuild', '*log'))[0]
+        log_perms = os.stat(log_path).st_mode & 0o777
+        self.assertEqual(log_perms, 0o444, "%s has read-only permissions" % log_path)
 
         toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
         self.assertEqual(toy_bin_perms, 0o555, "%s has read-only permissions" % toy_bin_perms)
@@ -559,12 +566,19 @@ class ToyBuildTest(EnhancedTestCase):
         adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
+        # also check --group-writable-installdir
         self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
         installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o775, "%s has group write permissions" % self.test_installpath)
 
         toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
         self.assertEqual(toy_bin_perms, 0o775, "%s has group write permissions" % toy_bin_perms)
+
+        # make sure --read-only-installdir is robust against not having the 'easybuild/' subdir after installation
+        # this happens when for example using ModuleRC easyblock (because no devel module is created)
+        test_ec_txt += "\nmake_module = False"
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'], verify=False, raise_error=True)
 
         # restore original umask
         os.umask(orig_umask)

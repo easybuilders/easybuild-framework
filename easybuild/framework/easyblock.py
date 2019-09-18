@@ -3075,7 +3075,12 @@ def build_and_install_one(ecdict, init_env):
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             if build_option('read_only_installdir'):
                 # temporarily re-enable write permissions for copying log/easyconfig to install dir
-                adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                if os.path.exists(new_log_dir):
+                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                else:
+                    adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
+                    mkdir(new_log_dir, parents=True)
+                    adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=False)
 
             # collect build stats
             _log.info("Collecting build stats...")
@@ -3125,7 +3130,7 @@ def build_and_install_one(ecdict, init_env):
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
-            adjust_permissions(new_log_dir, stat.S_IWUSR, add=False, recursive=False)
+            adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
 
     end_timestamp = datetime.now()
 
