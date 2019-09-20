@@ -645,7 +645,9 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     preinstallopts = ''
 
-    if distribute_egg_dir is not None:
+    eb_looseversion = LooseVersion(templates['version'])
+
+    if eb_looseversion < LooseVersion('4.0') and distribute_egg_dir is not None:
         # inject path to distribute installed in stage 0 into $PYTHONPATH via preinstallopts
         # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
         # this is required for the easy_install from stage 0 to work
@@ -656,14 +658,15 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
         preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s setuptools && " % sys.executable
 
-    # vsc-install is a runtime dependency for the EasyBuild unit test suite,
-    # and is easily picked up from stage1 rather than being actually installed, so force it
-    vsc_install = "'%s<0.11.4'" % VSC_INSTALL
-    if sourcepath:
-        vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
-        if len(vsc_install_tarball_paths) == 1:
-            vsc_install = vsc_install_tarball_paths[0]
-    preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
+    if eb_looseversion < LooseVersion('4.0'):
+        # vsc-install is a runtime dependency for the EasyBuild unit test suite,
+        # and is easily picked up from stage1 rather than being actually installed, so force it
+        vsc_install = "'%s<0.11.4'" % VSC_INSTALL
+        if sourcepath:
+            vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
+            if len(vsc_install_tarball_paths) == 1:
+                vsc_install = vsc_install_tarball_paths[0]
+        preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
 
     templates.update({
         'preinstallopts': preinstallopts,
@@ -672,6 +675,10 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     # determine PyPI URLs for individual packages
     pkg_urls = []
     for pkg in EASYBUILD_PACKAGES:
+
+        if eb_looseversion >= LooseVersion('4.0') and pkg in [VSC_INSTALL, VSC_BASE]:
+            continue
+
         # format of pkg entries in templates: "'<pkg_filename>',"
         pkg_filename = templates[pkg][1:-2]
 
@@ -701,9 +708,13 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
             pkg_url = 'https://pypi.python.org/' + pkg_url_part
             pkg_urls.append(pkg_url)
 
+    sources_tmpl = "%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
+    if eb_looseversion < LooseVersion('4.0'):
+        sources_tmpl = "%(vsc-install)s%(vsc-base)s" + sources_tmpl
+
     templates.update({
         'source_urls': '\n'.join(["'%s'," % pkg_url for pkg_url in pkg_urls]),
-        'sources': "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
+        'sources': sources_tmpl % templates,
         'pythonpath': distribute_egg_dir,
     })
 
