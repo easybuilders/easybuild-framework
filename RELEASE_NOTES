@@ -3,6 +3,65 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.0.0 (September 20th 2019)
+----------------------------
+
+feature release (incl. backwards-incompatible changes)
+
+A concise overview of major changes in EasyBuild v4.0 is available at https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html .
+
+- fixed compatibility with Python 3.5+ (#2708, #2713, #2714, #2719, #2721, #2723, #2729, #2743, #2744, #2751, #2756, #2759, #2761, #2762, #2765, #2766, #2767, #2768, #2774, #2775, #2778, #2780, #2785, #2787, #2789, #2791, #2792, #2794, #2800, #2801, #2805, #2806, #2895, #2932, #2982, #2992, #3007, #3011)
+  - supported Python versions: 2.6, 2.7, 3.5, 3.6, 3.7
+  - some functionality from the Python standard library should be imported from the new easybuild.tools.py2vs3 package
+  - see https://easybuild.readthedocs.io/en/latest/Python-2-3-compatibility.html & https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html for more information
+
+- ingested relevant code from vsc-base & vsc-install (#2708, #2713, #2714, #2763, #2790, #2993)
+  - vsc-base & vsc-install are no longer required as dependencies
+  - the functionality that was provided by these packages is now (mostly) available from the easybuild.base package
+  - any import statements from the 'vsc' namespace will result in an error
+  - see also https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#ingested-functionality-from-vsc-base-and-vsc-install and https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html
+
+- setuptools is longer required (neither for installing or using EasyBuild) (#2836, #2837, #2984, #2986, #2988)
+  - see also https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#no-more-required-python-packages
+  - this required moving some classes and constants, see https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html
+
+- the 'dummy' toolchain is deprecated and replaced by the 'system' toolchain (#2877, #3001)
+  - if 'dummy' is still used as a toolchain in easyconfig files, a warning will be printed
+  - use "toolchain = SYSTEM" instead
+  - for more information, see https://easybuild.readthedocs.io/en/latest/System_toolchain.html
+
+- a warning is printed when local variables in easyconfig file don't follow the recommended naming scheme (#2938, #2968)
+  - see also https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html
+
+- names of software installation directories are independent of module naming scheme by enabling --fixed-installdir-naming-scheme by default (#2999)
+  - see https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#fixed-installdir-naming-scheme-enabled-by-default for more information
+
+- various other small enhancements, including:
+  - use requests instead of urllib2 for 403 errors (#2695)
+  - use pip requirements file in Travis (#2874)
+  - add support for --fix-deprecated-easyconfigs (#2881, 2898, #2938)
+  - add -L$EBROOTIMKL/lib/intel64 to $LDFLAGS for MKL (#2930)
+  - handle dict-type checksums in check_checksums_for (#2974)
+  - allow that icc & ifort are not actual dependencies in iccifort toolchain module (#2995)
+  - define mapping for iccifort->intel for iccifort compiler-only toolchain for HMNS (#2996)
+  - also consider concatenation of compiler module names to determine details of toolchain compiler component (#2997)
+  - update metadata for Cray-provided external modules (#3013)
+- various bug fixes, including:
+  - update the PyPI trove classifiers in setup.py (#2875)
+  - reverse lists for $LDFLAGS and $CPPFLAGS (#2931)
+  - enhance/fix to_template_str function to do a better job at using template values in dumped easyconfigs (#2948)
+  - also take into account --filter-deps when finalizing parsed dependencies to fix problem with dependency filters using version ranges (#2983)
+  - fix broken --from-pr tests due to archiving of easyconfigs (#2985)
+  - fixes required to avoid breaking Cray support (#3008)
+  - fixes for --read-only-installdir: avoid crash with ModuleRC easyblock + also make log file in installdir read-only (#3012)
+- other changes:
+  - add check to ensure that --robot argument specifies an existing directory (#2086)
+  - remove old scripts that are no longer useful (+ minor fixes to others) (#2897)
+  - use 'command -v' to avoid requiring 'which' in 'eb' command (#2979)
+  - add modluafooter & modtclfooter at the end of the generated module file (#3003)
+  - print warning when 'eb' command is not found in $PATH and for empty robot search path (#3006)
+
+
 v3.9.4 (August 23rd 2019)
 -------------------------
 
