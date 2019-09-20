@@ -101,6 +101,7 @@ easybuild_installpath_modules = os.environ.get('EASYBUILD_INSTALLPATH_MODULES', 
 easybuild_subdir_modules = os.environ.get('EASYBUILD_SUBDIR_MODULES', 'modules')
 easybuild_suffix_modules_path = os.environ.get('EASYBUILD_SUFFIX_MODULES_PATH', 'all')
 
+
 #
 # Utility functions
 #
@@ -238,7 +239,6 @@ def prep(path):
         debug("$EASYBUILD_MODULE_SYNTAX set to %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
 
 
-
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
     global easybuild_modules_tool
@@ -325,12 +325,12 @@ def check_setuptools():
     # check setuptools version
     try:
         os.system(cmd_tmpl % "import setuptools; print setuptools.__version__")
-        setuptools_version = LooseVersion(open(outfile).read().strip())
-        debug("Found setuptools version %s" % setuptools_version)
+        setuptools_ver = LooseVersion(open(outfile).read().strip())
+        debug("Found setuptools version %s" % setuptools_ver)
 
-        min_setuptools_version = '0.6c11'
-        if setuptools_version < LooseVersion(min_setuptools_version):
-            debug("Minimal setuptools version %s not satisfied, found '%s'" % (min_setuptools_version, setuptools_version))
+        min_setuptools_ver = '0.6c11'
+        if setuptools_ver < LooseVersion(min_setuptools_ver):
+            debug("Minimal setuptools version %s not satisfied, found '%s'" % (min_setuptools_ver, setuptools_ver))
             res = False
     except Exception as err:
         debug("Failed to check setuptools version: %s" % err)
@@ -601,7 +601,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
                 error("Failed to determine version for easybuild-%s package from %s with %s" % tup)
 
     # figure out EasyBuild version via eb command line
-    # note: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
+    # note: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual pkgs
     pattern = "This is EasyBuild (?P<version>%(v)s) \(framework: %(v)s, easyblocks: %(v)s\)" % {'v': '[0-9.]*[a-z0-9]*'}
     version_re = re.compile(pattern)
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
@@ -713,7 +713,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         sources_tmpl = "%(vsc-install)s%(vsc-base)s" + sources_tmpl
 
     templates.update({
-        'source_urls': '\n'.join(["'%s'," % pkg_url for pkg_url in pkg_urls]),
+        'source_urls': '\n'.join(["'%s'," % x for x in pkg_urls]),
         'sources': sources_tmpl % templates,
         'pythonpath': distribute_egg_dir,
     })
@@ -934,8 +934,9 @@ def main():
     info("Set $EASYBUILD_MODULES_TOOL to '%s' to use the same modules tool as was used now." % modtool)
     print('')
     info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
-    info("To install software with EasyBuild to %s, make sure $EASYBUILD_INSTALLPATH is set accordingly." % install_path)
+    info("To install software with EasyBuild to %s, set $EASYBUILD_INSTALLPATH accordingly." % install_path)
     info("See http://easybuild.readthedocs.org/en/latest/Configuration.html for details on configuring EasyBuild.")
+
 
 # template easyconfig file for EasyBuild
 EASYBUILD_EASYCONFIG_TEMPLATE = """
