@@ -700,13 +700,13 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
             pkg_url_part_regex = re.compile('/(packages/[^#]+)/%s#' % pkg_filename)
             res = pkg_url_part_regex.search(pkg_simple)
             if res:
-                pkg_url_part = res.group(1)
+                pkg_url = 'https://pypi.python.org/' + res.group(1)
+                pkg_urls.append(pkg_url)
+            elif sourcepath:
+                info("Ignoring failure to determine source URL for '%s' (source tarballs are provided)" % pkg_filename)
             else:
                 error_msg = "Failed to determine PyPI package URL for %s using pattern '%s': %s\n"
                 error(error_msg % (pkg, pkg_url_part_regex.pattern, pkg_simple))
-
-            pkg_url = 'https://pypi.python.org/' + pkg_url_part
-            pkg_urls.append(pkg_url)
 
     sources_tmpl = "%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
     if eb_looseversion < LooseVersion('4.0'):
