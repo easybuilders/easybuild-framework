@@ -38,9 +38,9 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime
-from vsc.utils import fancylogger
-from vsc.utils.exceptions import LoggedException
 
+from easybuild.base import fancylogger
+from easybuild.base.exceptions import LoggedException
 from easybuild.tools.version import VERSION, this_is_easybuild
 
 
@@ -99,7 +99,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def caller_info(self):
         """Return string with caller info."""
-        (filepath, line, function_name) = self.findCaller()
+        # findCaller returns a 3-tupe in Python 2, a 4-tuple in Python 3 (stack info as extra element)
+        (filepath, line, function_name) = self.findCaller()[:3]
         filepath_dirs = filepath.split(os.path.sep)
 
         for dirName in copy(filepath_dirs):

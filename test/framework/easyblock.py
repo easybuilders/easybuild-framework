@@ -99,7 +99,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -216,7 +216,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -251,7 +251,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'moduleclass = "compiler"',
         ])
         self.writeEC()
@@ -307,7 +307,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -639,7 +639,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
 
         self.writeEC()
@@ -736,7 +736,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -773,7 +773,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'exts_list = ["ext1", "ext2"]',
             'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
             'exts_defaultclass = "DummyExtension"',
@@ -796,6 +796,12 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_step(self):
         """Test the make_module_step"""
+
+        # put dummy hidden modules in place for test123 dependency
+        test_mods = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(test_mods, 'test', '.1.2.3'), '#%Module')
+        self.modtool.use(test_mods)
+
         name = "pi"
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
@@ -808,17 +814,14 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = [('GCC', '6.4.0-2.28'), ('toy', '0.0-deps')]",
+            "toolchain = SYSTEM",
+            "dependencies = [('GCC', '6.4.0-2.28'), ('test', '1.2.3')]",
             "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
-            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
+            "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
-
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
 
         # test if module is generated correctly
         self.writeEC()
@@ -880,7 +883,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in [('toy', '0.0-deps')]:
+        for (name, ver) in [('test', '1.2.3')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -922,7 +925,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = SYSTEM",
         ])
         self.writeEC()
         stdoutorig = sys.stdout
@@ -970,7 +973,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = SYSTEM",
         ])
         self.writeEC()
 
@@ -1221,7 +1224,7 @@ class EasyBlockTest(EnhancedTestCase):
             res = None
             try:
                 res = eb.obtain_file(file_url)
-            except EasyBuildError, err:
+            except EasyBuildError as err:
                 # if this fails, it should be because there's no online access
                 download_fail_regex = re.compile('socket error')
                 self.assertTrue(download_fail_regex.search(str(err)))
@@ -1235,7 +1238,7 @@ class EasyBlockTest(EnhancedTestCase):
                 eb_regex = re.compile("EasyBuild: building software with ease")
                 self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))
             else:
-                print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
+                print("ignoring failure to download %s in test_obtain_file, testing offline?" % file_url)
 
         shutil.rmtree(tmpdir)
 
@@ -1262,7 +1265,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         try:
             eb.check_readiness_step()
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             err_regex = re.compile("Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
@@ -1490,7 +1493,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
 
-        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy'), parents=True)
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system'), parents=True)
         eb = EasyBlock(ec['ec'])
         eb.silent = True
         eb.prepare_step()
@@ -1510,6 +1513,39 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBVERSIONPYTHON'), '1.2.3')
         self.assertEqual(len(self.modtool.list()), 1)
         self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/6.4.0-2.28')
+
+    def test_prepare_step_load_tc_deps_modules(self):
+        """Test disabling loading of toolchain + dependencies in build environment."""
+
+        init_config(build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ompi_ec_file = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+        ec = process_easyconfig(ompi_ec_file, validate=False)[0]
+
+        mkdir(os.path.join(self.test_buildpath, 'OpenMPI', '2.1.2', 'GCC-6.4.0-2.28'), parents=True)
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+
+        # $EBROOTGCC and $EBROOTHWLOC must be set to set up build environment
+        os.environ['EBROOTGCC'] = self.test_prefix
+        os.environ['EBROOTHWLOC'] = self.test_prefix
+
+        # loaded of modules for toolchain + dependencies can be disabled via load_tc_deps_modules=False
+        eb.prepare_step(load_tc_deps_modules=False)
+        self.assertEqual(self.modtool.list(), [])
+
+        del os.environ['EBROOTGCC']
+        del os.environ['EBROOTHWLOC']
+
+        # modules for toolchain + dependencies are still loaded by default
+        eb.prepare_step()
+        loaded_modules = self.modtool.list()
+        self.assertEqual(len(loaded_modules), 2)
+        self.assertEqual(loaded_modules[0]['mod_name'], 'GCC/6.4.0-2.28')
+        self.assertTrue(os.environ['EBROOTGCC'])
+        self.assertEqual(loaded_modules[1]['mod_name'], 'hwloc/1.11.8-GCC-6.4.0-2.28')
+        self.assertTrue(os.environ['EBROOTHWLOC'])
 
     def test_prepare_step_hmns(self):
         """
@@ -1534,14 +1570,14 @@ class EasyBlockTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         regex = re.compile('^toolchain = .*', re.M)
-        test_ectxt = regex.sub("toolchain = {'name': 'dummy', 'version': ''}", read_file(toy_ec))
+        test_ectxt = regex.sub("toolchain = SYSTEM", read_file(toy_ec))
         test_ectxt += "\ndependencies = [('GCC', '6.4.0', '-2.28')]"
         write_file(test_ec, test_ectxt)
 
         test_ec = process_easyconfig(test_ec)[0]
         eb = EasyBlock(test_ec['ec'])
 
-        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-'), parents=True)
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system'), parents=True)
         eb.prepare_step()
 
         loaded_modules = self.modtool.list()
@@ -1650,7 +1686,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '1.0.2'",
             "homepage = 'https://example.com'",
             "description = '1st test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': ''}",
+            "toolchain = SYSTEM",
         ])
         write_file(ec1, ec1_txt)
 
@@ -1660,7 +1696,7 @@ class EasyBlockTest(EnhancedTestCase):
             "easyblock = 'Toolchain'",
             "name = 'two'",
             "version = '2.0'",
-            "toolchain = {'name': 'dummy', 'version': ''}",
+            "toolchain = SYSTEM",
             "homepage = 'https://example.com'",
             "description = '2nd test easyconfig'",
             "dependencies = [('one', '1.0')]",
@@ -1748,7 +1784,7 @@ class EasyBlockTest(EnhancedTestCase):
         for end, expected in test_cases:
             self.assertEqual(time2str(end - start), expected)
 
-        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <type 'int'>"
+        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
         self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
 
 

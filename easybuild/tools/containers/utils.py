@@ -29,10 +29,12 @@
 """
 import operator
 import re
+from functools import reduce
 
 from distutils.version import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -45,7 +47,7 @@ def det_os_deps(easyconfigs):
     res = set()
     os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
     for os_dep in os_deps:
-        if isinstance(os_dep, basestring):
+        if isinstance(os_dep, string_type):
             res.add(os_dep)
         elif isinstance(os_dep, tuple):
             res.update(os_dep)

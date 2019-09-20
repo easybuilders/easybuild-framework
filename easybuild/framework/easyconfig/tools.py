@@ -43,21 +43,21 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.py2vs3 import OrderedDict
+from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -201,6 +201,7 @@ def dep_graph(filename, specs):
         all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     dgr = digraph()
     dgr.add_nodes(all_nodes)
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
@@ -256,7 +257,9 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     # figure out installation prefix, e.g. distutils install path for easyconfigs
     eb_path = which('eb')
     if eb_path is None:
-        _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+        warning_msg = "'eb' not found in $PATH, failed to determine installation prefix!"
+        _log.warning(warning_msg)
+        print_warning(warning_msg)
     else:
         # real location to 'eb' should be <install_prefix>/bin/eb
         eb_path = resolve_path(eb_path)
@@ -440,7 +443,7 @@ def find_related_easyconfigs(path, ec):
     toolchain_name = ec['toolchain']['name']
     toolchain_name_pattern = r'-%s-\S+' % toolchain_name
     toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
-    if toolchain_name == DUMMY_TOOLCHAIN_NAME:
+    if is_system_toolchain(toolchain_name):
         toolchain_name_pattern = ''
         toolchain_pattern = ''
 

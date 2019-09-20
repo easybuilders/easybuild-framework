@@ -32,6 +32,7 @@ Toolchain compiler module, provides abstract class for compilers.
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -294,7 +295,7 @@ class Compiler(Toolchain):
                                 (--optarch and --optarch=GENERIC still override this value)
         """
         ec_optarch = self.options.get('optarch', False)
-        if isinstance(ec_optarch, basestring):
+        if isinstance(ec_optarch, string_type):
             if OPTARCH_MAP_CHAR in ec_optarch:
                 error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
                 error_msg += "the <compiler%sflags> syntax is not allowed. " % OPTARCH_MAP_CHAR
@@ -324,7 +325,7 @@ class Compiler(Toolchain):
         use_generic = False
         if optarch is not None:
             # optarch has been parsed as a simple string
-            if isinstance(optarch, basestring):
+            if isinstance(optarch, string_type):
                 if optarch == OPTARCH_GENERIC:
                     use_generic = True
             else:

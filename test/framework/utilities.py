@@ -36,11 +36,9 @@ import shutil
 import sys
 import tempfile
 import unittest
-from pkg_resources import fixup_namespace_packages
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
-from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
 
+from easybuild.base import fancylogger
+from easybuild.base.testing import TestCase
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
@@ -49,13 +47,13 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
+from easybuild.tools.py2vs3 import reload
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -81,7 +79,7 @@ for key in os.environ.keys():
         os.environ[newkey] = val
 
 
-class EnhancedTestCase(_EnhancedTestCase):
+class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
 
     def setUp(self):
@@ -145,20 +143,13 @@ class EnhancedTestCase(_EnhancedTestCase):
         # add sandbox to Python search path, update namespace packages
         sys.path.append(os.path.join(testdir, 'sandbox'))
 
-        # workaround for bug in recent setuptools version (19.4 and newer, atleast until 20.3.1)
-        # injecting <prefix>/easybuild is required to avoid a ValueError being thrown by fixup_namespace_packages
-        # cfr. https://bitbucket.org/pypa/setuptools/issues/520/fixup_namespace_packages-may-trigger
-        for path in sys.path[:]:
-            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                # keep track of 'easybuild' paths to inject into sys.path later
-                sys.path.append(os.path.join(path, 'easybuild'))
-
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
         # this relates to the other 'reload' statements below
         reload(easybuild)
 
-        # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
-        fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
+        # required to 'reset' easybuild.tools.module_naming_scheme namespace
+        reload(easybuild.tools)
+        reload(easybuild.tools.module_naming_scheme)
 
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
         for path in sys.path[:]:
@@ -167,15 +158,17 @@ class EnhancedTestCase(_EnhancedTestCase):
                     sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
-        # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
+        # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
+        easybuild.__path__.insert(0, os.path.join(testdir, 'sandbox', 'easybuild'))
         import easybuild.easyblocks
-        reload(easybuild.easyblocks)
         test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
         easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
+        reload(easybuild.easyblocks)
+
         import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
+        reload(easybuild.easyblocks.generic)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
@@ -281,7 +274,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         except Exception as err:
             myerr = err
             if verbose:
-                print "err: %s" % err
+                print("err: %s" % err)
 
         if logfile and os.path.exists(logfile):
             logtxt = read_file(logfile)
@@ -400,7 +393,7 @@ class TestLoaderFiltered(unittest.TestLoader):
 
             retained_tests = ', '.join(retained_test_names)
             tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
-            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+            print("Filtered %s tests using '%s', retained %d/%d tests: %s" % tup)
 
             test_cases = [test_case_class(t) for t in retained_test_names]
         else:
@@ -441,6 +434,7 @@ def init_config(args=None, build_options=None, with_include=True):
     default_build_options = {
         'extended_dry_run': False,
         'external_modules_metadata': ConfigObj(),
+        'local_var_naming_check': 'error',
         'suffix_modules_path': GENERAL_CLASS,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],

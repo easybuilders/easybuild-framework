@@ -51,6 +51,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -142,7 +143,7 @@ class ToyBuildTest(EnhancedTestCase):
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
                                   raise_error=raise_error, testing=testing)
-        except Exception, err:
+        except Exception as err:
             myerr = err
             if raise_error:
                 raise myerr
@@ -296,7 +297,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verify': False,
             'verbose': False,
         }
-        err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*global name 'run_cmd'"
+        err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*name 'run_cmd' is not defined"
         self.assertErrorRegex(EasyBuildError, err_regex, self.test_toy_build, **kwargs)
 
     def test_toy_build_formatv2(self):
@@ -315,7 +316,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
             '--software-version=0.0',
-            '--toolchain=dummy,dummy',
+            '--toolchain=system,system',
             '--experimental',
         ]
         outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
@@ -386,10 +387,10 @@ class ToyBuildTest(EnhancedTestCase):
                 '--force',
                 '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
                 '--software-version=%s' % version,
-                '--toolchain=dummy,dummy',
+                '--toolchain=system,system',
                 '--experimental',
             ]
-            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
             specs['version'] = version
 
@@ -438,7 +439,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         # set umask hard to verify default reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         # test specifying a non-existing group
         allargs = [toy_ec_file] + args + ['--group=thisgroupdoesnotexist']
@@ -451,14 +452,14 @@ class ToyBuildTest(EnhancedTestCase):
         curr_grp = grp.getgrgid(gid).gr_name
 
         for umask, cfg_group, ec_group, dir_perms, fil_perms, bin_perms in [
-            (None, None, None, 0755, 0644, 0755),  # default: inherit session umask
-            (None, None, curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in ec
-            (None, curr_grp, None, 0750, 0640, 0750),  # default umask, but with specified group in cfg
-            (None, 'notagrp', curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in both cfg and ec
-            ('000', None, None, 0777, 0666, 0777),  # stupid empty umask
-            ('032', None, None, 0745, 0644, 0745),  # no write/execute for group, no write for other
-            ('030', None, curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
-            ('077', None, None, 0700, 0600, 0700),  # no access for other/group
+            (None, None, None, 0o755, 0o644, 0o755),  # default: inherit session umask
+            (None, None, curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in ec
+            (None, curr_grp, None, 0o750, 0o640, 0o750),  # default umask, but with specified group in cfg
+            (None, 'notagrp', curr_grp, 0o750, 0o640, 0o750),  # default umask, but with specified group in cfg/ec
+            ('000', None, None, 0o777, 0o666, 0o777),  # stupid empty umask
+            ('032', None, None, 0o745, 0o644, 0o745),  # no write/execute for group, no write for other
+            ('030', None, curr_grp, 0o740, 0o640, 0o740),  # no write for group, with specified group
+            ('077', None, None, 0o700, 0o600, 0o700),  # no access for other/group
         ]:
             # empty the install directory, to ensure any created directories adher to the permissions
             shutil.rmtree(self.test_installpath)
@@ -488,9 +489,9 @@ class ToyBuildTest(EnhancedTestCase):
             # verify permissions
             paths_perms = [
                 # no write permissions for group/other, regardless of umask
-                (('software', 'toy', '0.0'), dir_perms & ~ 0022),
-                (('software', 'toy', '0.0', 'bin'), dir_perms & ~ 0022),
-                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms & ~ 0022),
+                (('software', 'toy', '0.0'), dir_perms & ~ 0o022),
+                (('software', 'toy', '0.0', 'bin'), dir_perms & ~ 0o022),
+                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms & ~ 0o022),
             ]
             # only software subdirs are chmod'ed for 'protected' installs, so don't check those if a group is specified
             if group is None:
@@ -509,7 +510,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             for path, correct_perms in paths_perms:
                 fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
-                perms = os.stat(fullpath).st_mode & 0777
+                perms = os.stat(fullpath).st_mode & 0o777
                 tup = (fullpath, oct(correct_perms), oct(perms), umask, cfg_group, ec_group)
                 msg = "Path %s has %s permissions: %s (umask: %s, group: %s - %s)" % tup
                 self.assertEqual(perms, correct_perms, msg)
@@ -523,7 +524,7 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_permissions_installdir(self):
         """Test --read-only-installdir and --group-write-installdir."""
         # set umask hard to verify default reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         test_ec_txt = read_file(toy_ec)
@@ -538,32 +539,32 @@ class ToyBuildTest(EnhancedTestCase):
         toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         toy_bin = os.path.join(toy_install_dir, 'bin', 'toy')
 
-        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % toy_install_dir)
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % toy_install_dir)
 
-        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
-        self.assertEqual(toy_bin_perms, 0755, "%s has default permissions" % toy_bin_perms)
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+        self.assertEqual(toy_bin_perms, 0o755, "%s has default permissions" % toy_bin_perms)
 
         shutil.rmtree(self.test_installpath)
 
         self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
-        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
-        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % toy_install_dir)
-        installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0777
-        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % toy_install_dir)
+        installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
 
-        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
-        self.assertEqual(toy_bin_perms, 0555, "%s has read-only permissions" % toy_bin_perms)
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+        self.assertEqual(toy_bin_perms, 0o555, "%s has read-only permissions" % toy_bin_perms)
 
         adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
         self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
-        installdir_perms = os.stat(toy_install_dir).st_mode & 0777
-        self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
+        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
+        self.assertEqual(installdir_perms, 0o775, "%s has group write permissions" % self.test_installpath)
 
-        toy_bin_perms = os.stat(toy_bin).st_mode & 0777
-        self.assertEqual(toy_bin_perms, 0775, "%s has group write permissions" % toy_bin_perms)
+        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+        self.assertEqual(toy_bin_perms, 0o775, "%s has group write permissions" % toy_bin_perms)
 
         # restore original umask
         os.umask(orig_umask)
@@ -627,7 +628,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         for group in [group_name, (group_name, "Hey, you're not in the '%s' group!" % group_name)]:
 
-            if isinstance(group, basestring):
+            if isinstance(group, string_type):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
@@ -794,9 +795,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
-        # test module path with dummy/dummy build
+        # test module path with system/system build
         extra_args = [
-            '--try-toolchain=dummy,dummy',
+            '--try-toolchain=system,system',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -811,9 +812,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(re.search("module load", modtxt))
         os.remove(toy_module_path)
 
-        # test module path with dummy/dummy build, pretend to be a compiler by setting moduleclass
+        # test module path with system/system build, pretend to be a compiler by setting moduleclass
         extra_args = [
-            '--try-toolchain=dummy,dummy',
+            '--try-toolchain=system,system',
             '--try-amend=moduleclass=compiler',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
@@ -969,7 +970,7 @@ class ToyBuildTest(EnhancedTestCase):
                                  "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
 
     def test_toy_advanced(self):
-        """Test toy build with extensions and non-dummy toolchain."""
+        """Test toy build with extensions and non-system toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
@@ -1182,9 +1183,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
                 r'end',
-                r'io.stderr:write\("oh hai\!"\)',
                 r'setenv\("TOY", "toy-0.0"\)',
-                r'-- Built with EasyBuild version .*$',
+                r'-- Built with EasyBuild version .*',
+                r'io.stderr:write\("oh hai\!"\)$',
             ])
         elif get_module_syntax() == 'Tcl':
             mod_txt_regex_pattern = '\n'.join([
@@ -1219,9 +1220,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [
                 r'}',
-                r'puts stderr "oh hai\!"',
                 r'setenv	TOY		"toy-0.0"',
-                r'# Built with EasyBuild version .*$',
+                r'# Built with EasyBuild version .*',
+                r'puts stderr "oh hai\!"$',
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
@@ -1779,7 +1780,7 @@ class ToyBuildTest(EnhancedTestCase):
         for path in paths:
 
             if path.endswith('.yeb') and 'yaml' not in sys.modules:
-                print "Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)"
+                print("Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)")
                 continue
 
             args = [
@@ -1920,7 +1921,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
 
-        software_path = os.path.join(self.test_installpath, 'software', 'Core')
+        software_path = os.path.join(self.test_installpath, 'software')
         modules_path = os.path.join(self.test_installpath, 'modules', 'all', 'Core')
 
         # install dirs for both installations should be there (using original software name)
@@ -1985,13 +1986,13 @@ class ToyBuildTest(EnhancedTestCase):
             "   print('start hook triggered')",
             '',
             "def parse_hook(ec):",
-            "   print ec.name, ec.version",
+            "   print('%s %s' % (ec.name, ec.version))",
             # print sources value to check that raw untemplated strings are exposed in parse_hook
-            "   print ec['sources']",
+            "   print(ec['sources'])",
             # try appending to postinstallcmd to see whether the modification is actually picked up
             # (required templating to be disabled before parse_hook is called)
             "   ec['postinstallcmds'].append('echo toy')",
-            "   print ec['postinstallcmds'][-1]",
+            "   print(ec['postinstallcmds'][-1])",
             '',
             "def pre_configure_hook(self):",
             "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
@@ -2010,7 +2011,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file])
+        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file], raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)

@@ -178,9 +178,9 @@ class HooksTest(EnhancedTestCase):
         write_file(test_broken_hooks_pymod, test_hooks_txt)
 
         error_msg_pattern = r"Found one or more unknown hooks:\n"
+        error_msg_pattern += r"\* install_hook \(did you mean 'pre_install_hook', or 'post_install_hook'\?\)\n"
         error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
-        error_msg_pattern += r"\* there_is_no_such_hook\n"
-        error_msg_pattern += r"\* install_hook \(did you mean 'pre_install_hook', or 'post_install_hook'\?\)\n\n"
+        error_msg_pattern += r"\* there_is_no_such_hook\n\n"
         error_msg_pattern += r"Run 'eb --avail-hooks' to get an overview of known hooks"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 

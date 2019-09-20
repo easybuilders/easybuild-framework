@@ -38,13 +38,13 @@ import shutil
 import stat
 import sys
 import tempfile
-import urllib2
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.multidiff import multidiff
+from easybuild.tools.py2vs3 import std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -62,13 +62,13 @@ class FileToolsTest(EnhancedTestCase):
         """Test setup."""
         super(FileToolsTest, self).setUp()
 
-        self.orig_filetools_urllib2_urlopen = ft.urllib2.urlopen
+        self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
 
     def tearDown(self):
         """Cleanup."""
         super(FileToolsTest, self).tearDown()
 
-        ft.urllib2.urlopen = self.orig_filetools_urllib2_urlopen
+        ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -342,9 +342,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
 
         # install broken proxy handler for opening local files
-        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
-        proxy_handler = urllib2.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
-        urllib2.install_opener(urllib2.build_opener(proxy_handler))
+        # this should make urlopen use this broken proxy for downloading from a file:// URL
+        proxy_handler = std_urllib.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        std_urllib.install_opener(std_urllib.build_opener(proxy_handler))
 
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
@@ -354,7 +354,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(target_location, '')
 
         # restore a working file handler, and retest download of local file
-        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
+        std_urllib.install_opener(std_urllib.build_opener(std_urllib.FileHandler()))
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
@@ -371,11 +371,11 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
         url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
-            urllib2.urlopen(url)
+            std_urllib.urlopen(url)
             res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
-        except urllib2.URLError:
-            print "Skipping timeout test in test_download_file (working offline)"
+        except std_urllib.URLError:
+            print("Skipping timeout test in test_download_file (working offline)")
 
         # also test behaviour of download_file under --dry-run
         build_options = {
@@ -407,13 +407,30 @@ class FileToolsTest(EnhancedTestCase):
         fn = 'README.rst'
         target = os.path.join(self.test_prefix, fn)
 
-        # replace urllib2.urlopen with function that raises SSL error
-        def fake_urllib2_open(*args, **kwargs):
+        # replaceurlopen with function that raises SSL error
+        def fake_urllib_open(*args, **kwargs):
             error_msg = "<urlopen error [Errno 1] _ssl.c:510: error:12345:"
             error_msg += "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
             raise IOError(error_msg)
 
-        ft.urllib2.urlopen = fake_urllib2_open
+        ft.std_urllib.urlopen = fake_urllib_open
+
+        # if requests is available, file is downloaded
+        if ft.HAVE_REQUESTS:
+            res = ft.download_file(fn, url, target)
+            self.assertTrue(res and os.path.exists(res))
+            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+
+        # without requests being available, error is raised
+        ft.HAVE_REQUESTS = False
+        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
+
+        # replaceurlopen with function that raises HTTP error 403
+        def fake_urllib_open(*args, **kwargs):
+            from easybuild.tools.py2vs3 import StringIO
+            raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
+
+        ft.std_urllib.urlopen = fake_urllib_open
 
         # if requests is available, file is downloaded
         if ft.HAVE_REQUESTS:
@@ -636,6 +653,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
 
+        # test use of 'mode' in read_file
+        self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
+
     def test_det_patched_files(self):
         """Test det_patched_files function."""
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
@@ -846,17 +866,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
-        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
 
-        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
-        expected = "7 %(endcol)s-%(endcol)s toolchain = {"
-        expected += "'name': '%(endcol)s%(red)sgo%(endcol)sm\x1b[0m%(red)spi%(endcol)s', "
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added line in green)
+        expected = "7 %(green)s+ toolchain = SYSTEM%(endcol)s"
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
         self.assertTrue(lines[7].startswith(expected))
-        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added chars in toolchain name/version, in green)
-        expected = "7 %(endcol)s+%(endcol)s toolchain = {"
-        expected += "'name': '%(endcol)s%(green)sdu%(endcol)sm\x1b[0m%(green)smy%(endcol)s', "
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line (removed line in red)
+        expected = "8 %(red)s- toolchain = {'name': 'gompi', 'version': '2018a'}%(endcol)s"
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
         self.assertTrue(lines[8].startswith(expected))
 
@@ -872,19 +890,14 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
-        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
 
-        # different toolchain in toy-0.0-gompi-2018a-test: '+' line with squigly line underneath to mark removed chars
-        expected = "7 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
+        # different toolchain in toy-0.0-gompi-2018a-test: '+' added line, '-' removed line
+        expected = "7 + toolchain = SYSTEM (1/2) toy"
         self.assertTrue(lines[7].startswith(expected))
-        expected = "  ?                       ^^ ^^ "
+        expected = "8 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
         self.assertTrue(lines[8].startswith(expected))
-        # different toolchain in toy-0.0-gompi-2018a-test: '-' line with squigly line underneath to mark added chars
-        expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
-        self.assertTrue(lines[9].startswith(expected))
-        expected = "  ?                       ^^ ^^ "
-        self.assertTrue(lines[10].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "29 + postinstallcmds = "
@@ -946,7 +959,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
         # set umask hard to run test reliably
-        orig_umask = os.umask(0022)
+        orig_umask = os.umask(0o022)
 
         # prep files/dirs/(broken) symlinks is test dir
 
@@ -1772,7 +1785,7 @@ class FileToolsTest(EnhancedTestCase):
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
-                print "Ignoring download error in test_get_source_tarball_from_git, working offline?"
+                print("Ignoring download error in test_get_source_tarball_from_git, working offline?")
             else:
                 raise err
 
@@ -1890,6 +1903,30 @@ class FileToolsTest(EnhancedTestCase):
             [],
         ]:
             self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
+
+    def test_fake_vsc(self):
+        """Test whether importing from 'vsc.*' namespace results in an error after calling install_fake_vsc."""
+
+        ft.install_fake_vsc()
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        try:
+            import vsc  # noqa
+            self.assertTrue(False, "'import vsc' results in an error")
+        except SystemExit:
+            pass
+
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stdout, '')
+
+        error_pattern = r"Detected import from 'vsc' namespace in .*test/framework/filetools.py \(line [0-9]+\)"
+        regex = re.compile(r"^\nERROR: %s" % error_pattern)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
 
 def suite():

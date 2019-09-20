@@ -32,8 +32,8 @@ be used within an Easyconfig file.
 """
 import os
 import platform
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version
 
 
