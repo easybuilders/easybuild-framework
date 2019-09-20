@@ -647,6 +647,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     eb_looseversion = LooseVersion(templates['version'])
 
+    # setuptools is no longer required for EasyBuild v4.0 & newer, so skip the setuptools stuff in that case
     if eb_looseversion < LooseVersion('4.0') and distribute_egg_dir is not None:
         # inject path to distribute installed in stage 0 into $PYTHONPATH via preinstallopts
         # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
@@ -658,6 +659,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
         preinstallopts += "%s -m easy_install -U --prefix %%(installdir)s setuptools && " % sys.executable
 
+    # vsc-install is no longer required for EasyBuild v4.0, so skip pre-installed vsc-install in that case
     if eb_looseversion < LooseVersion('4.0'):
         # vsc-install is a runtime dependency for the EasyBuild unit test suite,
         # and is easily picked up from stage1 rather than being actually installed, so force it
@@ -676,6 +678,8 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     pkg_urls = []
     for pkg in EASYBUILD_PACKAGES:
 
+        # vsc-base and vsc-install are not dependencies anymore for EasyBuild v4.0,
+        # so skip them here for recent EasyBuild versions
         if eb_looseversion >= LooseVersion('4.0') and pkg in [VSC_INSTALL, VSC_BASE]:
             continue
 
@@ -708,10 +712,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
                 error_msg = "Failed to determine PyPI package URL for %s using pattern '%s': %s\n"
                 error(error_msg % (pkg, pkg_url_part_regex.pattern, pkg_simple))
 
-    sources_tmpl = "%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
-    if eb_looseversion < LooseVersion('4.0'):
-        sources_tmpl = "%(vsc-install)s%(vsc-base)s" + sources_tmpl
-
+    sources_tmpl = "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
     templates.update({
         'source_urls': '\n'.join(["'%s'," % x for x in pkg_urls]),
         'sources': sources_tmpl % templates,
