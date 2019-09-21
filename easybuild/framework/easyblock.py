@@ -3332,7 +3332,13 @@ def inject_checksums(ecs, checksum_type):
     :param ecs: list of EasyConfig instances to inject checksums into corresponding files
     :param checksum_type: type of checksum to use
     """
+    def make_list_lines(values, indent_level):
+        """Make lines for list of values."""
+        line_indent = INDENT_4SPACES * indent_level
+        return [line_indent + "'%s'," % x for x in values]
+
     def make_checksum_lines(checksums, indent_level):
+        """Make lines for list of checksums."""
         line_indent = INDENT_4SPACES * indent_level
         checksum_lines = []
         for fn, checksum in checksums:
@@ -3466,8 +3472,15 @@ def inject_checksums(ecs, checksum_type):
 
                     for key, val in sorted(ext_options.items()):
                         if key != 'checksums' and val != exts_default_options.get(key):
-                            val = quote_str(val, prefer_single_quotes=True)
-                            exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
+                            strval = quote_str(val, prefer_single_quotes=True)
+                            line = "%s'%s': %s," % (INDENT_4SPACES * 2, key, strval)
+                            # fix long lines for list-type values (e.g. patches)
+                            if len(line) > MAX_LINE_LENGTH and isinstance(val, list):
+                                exts_list_lines.append("%s'%s': [" % (INDENT_4SPACES * 2, key))
+                                exts_list_lines.extend(make_list_lines(val, indent_level=3))
+                                exts_list_lines.append(INDENT_4SPACES * 2 + '],',)
+                            else:
+                                exts_list_lines.append(line)
 
                     # if any checksums were collected, inject them for this extension
                     if ext_checksums:
