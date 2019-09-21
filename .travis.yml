@@ -131,7 +131,7 @@ script:
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20190920.01 c7a48ab0e98787b564e7bb2e7c9fea60504dc9d1e53609f588ab9c4b7591cb94"
+    - EB_BOOTSTRAP_EXPECTED="20190921.01 2dc6b09e78fca7e2490022c62cd09df305e3d55b5aeecd2d140329858b895df3"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script (skip when testing with Python 3 for now, since latest EasyBuild release is not compatible with Python 3 yet)
     - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap; fi

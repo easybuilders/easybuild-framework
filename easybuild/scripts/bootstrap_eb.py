@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20190920.01'
+EB_BOOTSTRAP_VERSION = '20190921.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -712,7 +712,12 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
                 error_msg = "Failed to determine PyPI package URL for %s using pattern '%s': %s\n"
                 error(error_msg % (pkg, pkg_url_part_regex.pattern, pkg_simple))
 
-    sources_tmpl = "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
+    # vsc-base and vsc-install are no longer required for EasyBuild v4.0.0,
+    # so only include them in 'sources' for older versions
+    sources_tmpl = "%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
+    if eb_looseversion < LooseVersion('4.0'):
+        sources_tmpl = "%(vsc-install)s%(vsc-base)s" + sources_tmpl
+
     templates.update({
         'source_urls': '\n'.join(["'%s'," % x for x in pkg_urls]),
         'sources': sources_tmpl % templates,
