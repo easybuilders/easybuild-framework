@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20190921.01'
+EB_BOOTSTRAP_VERSION = '20190921.02'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -967,10 +967,9 @@ allow_system_deps = [('Python', SYS_PYTHON_VERSION)]
 
 preinstallopts = "%(preinstallopts)s"
 
-pyshortver = '.'.join(SYS_PYTHON_VERSION.split('.')[:2])
 sanity_check_paths = {
     'files': ['bin/eb'],
-    'dirs': [('lib/python%%s/site-packages' %% pyshortver, 'lib64/python%%s/site-packages' %% pyshortver)],
+    'dirs': ['lib'],
 }
 
 moduleclass = 'tools'
