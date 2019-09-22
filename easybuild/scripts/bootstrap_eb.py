@@ -54,7 +54,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20190921.02'
+EB_BOOTSTRAP_VERSION = '20190922.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -541,7 +541,13 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
         info("running pre-install command 'easy_install %s'" % (' '.join(precmd)))
         run_easy_install(precmd)
 
-    info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
+    info("installing EasyBuild with 'easy_install %s'\n" % (' '.join(cmd)))
+    syntax_error_note = '\n'.join([
+        "Note: a 'SyntaxError' may be reported for the easybuild/tools/py2vs3/py3.py module.",
+        "You can safely ignore this message, it will not affect the functionality of the EasyBuild installation.",
+        '',
+    ])
+    info(syntax_error_note)
     run_easy_install(cmd)
 
     if post_vsc_base:
