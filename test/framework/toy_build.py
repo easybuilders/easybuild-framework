@@ -2266,13 +2266,28 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = '\n'.join([
             toy_ec_txt,
             "postinstallcmds = ["
+            # hardcoded path to bin/python
             "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
+            # hardcoded path to bin/python3.6
             "   'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
+            # already OK, should remain the same
             "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
+            # space after #! + 'env python3'
+            "   'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
+            # 'env python3.6'
+            "   'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
+
+            # tests for perl shebang
+            # hardcoded path to bin/perl
             "   'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
+            # hardcoded path to bin/perl5
             "   'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
+            # already OK, should remain the same
             "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
+            # hardcoded perl with extra arguments
             "   'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
+            # space after #! + 'env perl5'
+            "   'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
             "]",
             "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py']",
             "fix_perl_shebang_for = 'bin/*.pl'",
@@ -2284,7 +2299,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no re.M, this should match at start of file!
         py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
-        for pybin in ['t1.py', 't2.py', 't3.py']:
+        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py']:
             pybin_path = os.path.join(toy_bindir, pybin)
             pybin_txt = read_file(pybin_path)
             self.assertTrue(py_shebang_regex.match(pybin_txt),
@@ -2292,7 +2307,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no re.M, this should match at start of file!
         perl_shebang_regex = re.compile(r'^#!/usr/bin/env perl\n# test$')
-        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl']:
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl']:
             perlbin_path = os.path.join(toy_bindir, perlbin)
             perlbin_txt = read_file(perlbin_path)
             self.assertTrue(perl_shebang_regex.match(perlbin_txt),
