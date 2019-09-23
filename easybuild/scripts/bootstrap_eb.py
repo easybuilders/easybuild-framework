@@ -49,7 +49,6 @@ import site
 import sys
 import tempfile
 import traceback
-import urllib2
 from distutils.version import LooseVersion
 from hashlib import md5
 
@@ -63,6 +62,15 @@ try:
     HAVE_ARGPARSE = True
 except ImportError:
     import optparse
+
+try:
+    # Python 3
+    from io import StringIO
+    from urllib.request import HTTPError, URLError, urlopen
+except ImportError:
+    # Python 2
+    from cStringIO import StringIO
+    from urllib2 import HTTPError, URLError, urlopen
 
 PYPI_SOURCE_URL = 'https://pypi.python.org/packages/source'
 
@@ -127,8 +135,6 @@ def error(msg, exit=True):
 
 def mock_stdout_stderr():
     """Mock stdout/stderr channels"""
-    # cStringIO is only available in Python 2
-    from cStringIO import StringIO
     orig_stdout, orig_stderr = sys.stdout, sys.stderr
     sys.stdout.flush()
     sys.stdout = StringIO()
@@ -698,8 +704,8 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         # determine download URL via PyPI's 'simple' API
         pkg_simple = None
         try:
-            pkg_simple = urllib2.urlopen('https://pypi.python.org/simple/%s' % pkg, timeout=10).read()
-        except (urllib2.URLError, urllib2.HTTPError) as err:
+            pkg_simple = urlopen('https://pypi.python.org/simple/%s' % pkg, timeout=10).read()
+        except (URLError, HTTPError) as err:
             # failing to figure out the package download URl may be OK when source tarballs are provided
             if sourcepath:
                 info("Ignoring failed attempt to determine '%s' download URL since source tarballs are provided" % pkg)
@@ -826,7 +832,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 def main():
     """Main script: bootstrap EasyBuild in stages."""
 
-    self_txt = open(__file__).read()
+    self_txt = open(__file__, ).read().encode('utf-8')
     info("EasyBuild bootstrap script (version %s, MD5: %s)" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
     info("Found Python %s\n" % '; '.join(sys.version.split('\n')))
 
@@ -903,6 +909,8 @@ def main():
     distribute_egg_dir = None
     if EASYBUILD_BOOTSTRAP_SKIP_STAGE0:
         info("Skipping stage 0, using local distribute/setuptools providing easy_install")
+    elif sys.version_info > (3, ):
+        info("Using Python 3, so skipping installation of distribute/setuptools")
     else:
         setuptools_loc = check_setuptools()
         if setuptools_loc:
@@ -982,143 +990,12 @@ moduleclass = 'tools'
 """
 
 # check Python version
-if sys.version_info[0] != 2 or sys.version_info[1] < 6:
+if (sys.version_info[0] == 2 and sys.version_info > (2, 6)) or sys.version_info < (3, 5):
     pyver = sys.version.split(' ')[0]
-    sys.stderr.write("ERROR: Incompatible Python version: %s (should be Python 2 >= 2.6)\n" % pyver)
-    sys.stderr.write("Please try again using 'python2 %s <prefix>'\n" % os.path.basename(__file__))
+    sys.stderr.write("ERROR: Incompatible Python version: %s (should be Python 2 >= 2.6 or Python 3 >= 3.5)\n" % pyver)
+    sys.stderr.write("Please try again using a different 'python*' command")
     sys.exit(1)
 
-# distribute_setup.py script (https://pypi.python.org/pypi/distribute)
-#
-# A compressed copy of a patched distribute_setup.py (version 0.6.49), generated like so:
-# >>> import base64
-# >>> import zlib
-# >>> base64.b64encode(zlib.compress(open("distribute_setup.py").read()))
-# compressed copy below is for setuptools 0.6c11, after applying patch:
-#
-# --- distribute_setup.py.orig	2013-07-05 03:50:13.000000000 +0200
-# +++ distribute_setup.py	2015-11-27 12:20:12.040032041 +0100
-# @@ -528,6 +528,8 @@
-#              log.warn("--user requires Python 2.6 or later")
-#              raise SystemExit(1)
-#          install_args.append('--user')
-# +    if options.prefix_install:
-# +        install_args.append('--prefix=%s' % options.prefix_install)
-#      return install_args
-#
-#  def _parse_args():
-# @@ -539,6 +541,8 @@
-#          '--user', dest='user_install', action='store_true', default=False,
-#          help='install in user site package (requires Python 2.6 or later)')
-#      parser.add_option(
-# +        '--prefix', dest='prefix_install', metavar="PATH", help='install in prefix')
-# +    parser.add_option(
-#          '--download-base', dest='download_base', metavar="URL",
-#          default=DEFAULT_URL,
-#          help='alternative URL from where to download the distribute package')
-# @@ -549,7 +553,7 @@
-#  def main(version=DEFAULT_VERSION):
-#      """Install or upgrade setuptools and EasyInstall"""
-#      options = _parse_args()
-# -    tarball = download_setuptools(download_base=options.download_base)
-# +    tarball = download_setuptools(version=version, download_base=options.download_base)
-#      return _install(tarball, _build_install_args(options))
-#
-#  if __name__ == '__main__':
-#
-DISTRIBUTE_SETUP_PY = """
-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
-7lwukTHLpfpLDH2GT+yCCf8D2cp1xw==
-
-""".decode("base64").decode("zlib")
 
 # run main function as body of script
 main()
