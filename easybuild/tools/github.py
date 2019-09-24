@@ -99,6 +99,7 @@ GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
+HTTP_STATUS_NO_CONTENT = 204
 KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
@@ -457,11 +458,13 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     return ec_files
 
 
-def create_gist(txt, fn, descr=None, github_user=None):
+def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     """Create a gist with the provided text."""
     if descr is None:
         descr = "(none)"
-    github_token = fetch_github_token(github_user)
+
+    if github_token is None:
+        github_token = fetch_github_token(github_user)
 
     body = {
         "description": descr,
@@ -475,10 +478,23 @@ def create_gist(txt, fn, descr=None, github_user=None):
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     status, data = g.gists.post(body=body)
 
-    if not status == HTTP_STATUS_CREATED:
+    if status != HTTP_STATUS_CREATED:
         raise EasyBuildError("Failed to create gist; status %s, data: %s", status, data)
 
     return data['html_url']
+
+
+def delete_gist(gist_id, github_user=None, github_token=None):
+    """Delete gist with specified ID."""
+
+    if github_token is None:
+        github_token = fetch_github_token(github_user)
+
+    gh = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+    status, data = gh.gists[gist_id].delete()
+
+    if status != HTTP_STATUS_NO_CONTENT:
+        raise EasyBuildError("Failed to delete gist with ID %s: status %s, data: %s", status, data)
 
 
 def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
@@ -1511,16 +1527,22 @@ def check_github():
 
     # test creating a gist
     print_msg("* creating gists...", log=_log, prefix=False, newline=False)
-    res = None
+    gist_url = None
     try:
-        res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user)
-    except Exception as err:
-        _log.warning("Exception occurred when trying to create gist: %s", err)
+        gist_url = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user,
+                               github_token=github_token)
+        gist_id = gist_url.split('/')[-1]
+        _log.info("Gist with ID %s successfully created, now deleting it again...", gist_id)
 
-    if res and re.match('https://gist.github.com/[0-9a-f]+$', res):
+        delete_gist(gist_id, github_user=github_user, github_token=github_token)
+        _log.info("Gist with ID %s deleted!", gist_id)
+    except Exception as err:
+        _log.warning("Exception occurred when trying to create & delete gist: %s", err)
+
+    if gist_url and re.match('https://gist.github.com/[0-9a-f]+$', gist_url):
         check_res = "OK"
     else:
-        check_res = "FAIL (res: %s)" % res
+        check_res = "FAIL (gist_url: %s)" % gist_url
         status['--upload-test-report'] = False
 
     print_msg(check_res, log=_log, prefix=False)

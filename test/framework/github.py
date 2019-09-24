@@ -606,6 +606,18 @@ class GithubTest(EnhancedTestCase):
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
 
+    def test_create_delete_gist(self):
+        """Test create_gist and delete_gist."""
+        if self.skip_github_tests:
+            print("Skipping test_restclient, no GitHub token available?")
+            return
+
+        test_txt = "This is just a test."
+
+        gist_url = gh.create_gist(test_txt, 'test.txt', github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
+        gist_id = gist_url.split('/')[-1]
+        gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
+
 
 def suite():
     """ returns all the testcases in this module """
