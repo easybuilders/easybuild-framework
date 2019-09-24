@@ -2158,6 +2158,7 @@ class EasyBlock(object):
     def fix_shebang(self):
         """Fix shebang lines for specified files."""
         for lang in ['perl', 'python']:
+            shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
                 if isinstance(fix_shebang_for, string_type):
@@ -2168,9 +2169,18 @@ class EasyBlock(object):
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
                                   lang, shebang, glob_pattern, paths)
-                    regex = r'^#!.*/%s[0-9.]*.*$' % lang
                     for path in paths:
-                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
+                        # check whether file should be patched by checking whether it has a shebang we want to tweak;
+                        # this also helps to skip binary files we may be hitting
+                        try:
+                            contents = read_file(path, mode='r')
+                            should_patch = shebang_regex.match(contents)
+                        except (TypeError, UnicodeDecodeError):
+                            should_patch = False
+
+                        if should_patch:
+                            contents = shebang_regex.sub(shebang, contents)
+                            write_file(path, contents)
 
     def post_install_step(self):
         """
