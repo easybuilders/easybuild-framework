@@ -3475,7 +3475,7 @@ def inject_checksums(ecs, checksum_type):
                             strval = quote_str(val, prefer_single_quotes=True)
                             line = "%s'%s': %s," % (INDENT_4SPACES * 2, key, strval)
                             # fix long lines for list-type values (e.g. patches)
-                            if len(line) > MAX_LINE_LENGTH and isinstance(val, list):
+                            if len(val) > 1 and isinstance(val, list):
                                 exts_list_lines.append("%s'%s': [" % (INDENT_4SPACES * 2, key))
                                 exts_list_lines.extend(make_list_lines(val, indent_level=3))
                                 exts_list_lines.append(INDENT_4SPACES * 2 + '],',)
