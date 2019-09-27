@@ -43,6 +43,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
@@ -2236,6 +2237,21 @@ class EasyConfigTest(EnhancedTestCase):
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
+        self.assertEqual(res, expected)
+
+        # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        orig_get_avail_core_count = st.get_avail_core_count
+        st.get_avail_core_count = lambda: 42
+
+        # also check template values after running check_readiness_step (which runs set_parallel)
+        eb = EasyBlock(ec)
+        eb.check_readiness_step()
+
+        st.get_avail_core_count = orig_get_avail_core_count
+
+        res = template_constant_dict(ec)
+        res.pop('arch')
+        expected['parallel'] = 42
         self.assertEqual(res, expected)
 
         ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
