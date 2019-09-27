@@ -39,6 +39,9 @@ exts_list = [
         ],
         'toy_ext_param': "mv anotherbar bar_bis",
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+        # set boolean value (different from default value) to trigger (now fixed) bug with --inject-checksums
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/3034
+        'keepsymlinks': True,
     }),
     ('barbar', '0.0'),
     (name, version, {
