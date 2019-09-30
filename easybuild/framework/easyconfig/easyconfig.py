@@ -1430,7 +1430,7 @@ class EasyConfig(object):
             for key in self.template_values:
                 try:
                     curr_val = self.template_values[key]
-                    new_val = curr_val % self.template_values
+                    new_val = str(curr_val) % self.template_values
                     if new_val != curr_val:
                         cont = True
                     self.template_values[key] = new_val
