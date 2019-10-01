@@ -11,7 +11,7 @@ jobs:
         module_syntax: [Lua, Tcl]
         # exclude some configuration for non-Lmod modules tool:
         # - don't test with Lua module syntax (only supported in Lmod)
-        # - don't test with Python 3.5 and 3.7 (2.7 and 3.7), to limit test configurations
+        # - don't test with Python 3.5 and 3.7 (only with 2.7 and 3.6), to limit test configurations
         exclude:
           - modules_tool: modules-tcl-1.147
             module_syntax: Lua
@@ -44,8 +44,9 @@ jobs:
     - name: install OS & Python packages
       run: |
         # for modules tool
-        sudo apt-get install lua5.1 liblua5.1-0-dev lua-filesystem lua-posix lua-filesystem tcl tcl-dev
-        sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.1/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.1/posix.so
+        sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
+        sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
         # for GitPython, python-hglib
         sudo apt-get install git mercurial
         # dep for GC3Pie
@@ -152,7 +153,7 @@ jobs:
               python easybuild/scripts/bootstrap_eb.py $PREFIX
               # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
               unset PYTHONPATH
-              # simply sanity check on bootstrapped EasyBuild module (skip when testing with Python 3, for now)
+              # simple sanity check on bootstrapped EasyBuild module (skip when testing with Python 3, for now)
               module use $PREFIX/modules/all
               module load EasyBuild
               eb --version
