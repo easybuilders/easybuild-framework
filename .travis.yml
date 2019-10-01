@@ -122,7 +122,7 @@ script:
     # run test suite
     - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
     # try and make sure output of running tests is clean (no printed messages/warnings)
-    - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|required Lmod as modules tool|GC3Pie not available, skipping test"
+    - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|requires Lmod as modules tool|GC3Pie not available, skipping test"
     # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
     - PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
     - test "x$PRINTED_MSG" = "x" || (echo "Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
