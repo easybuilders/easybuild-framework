@@ -3567,7 +3567,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:
-            print("Skipping test_debug_lmod, required Lmod as modules tool")
+            print("Skipping test_debug_lmod, requires Lmod as modules tool")
 
     def test_use_color(self):
         """Test use_color function."""
