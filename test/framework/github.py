@@ -223,7 +223,7 @@ class GithubTest(EnhancedTestCase):
             "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
             "[DRY RUN] Adding comment to testrepository issue #2: '" +
             "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
-            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
+            "[DRY RUN] Closed hpcugent/testrepository PR #2",
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
@@ -239,8 +239,8 @@ class GithubTest(EnhancedTestCase):
             "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
             "[DRY RUN] Adding comment to testrepository issue #2: '" +
             "@migueldiascosta, this PR is being closed for the following reason(s): %s" % retest_msg,
-            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
-            "[DRY RUN] Reopened hpcugent/testrepository pull request #2",
+            "[DRY RUN] Closed hpcugent/testrepository PR #2",
+            "[DRY RUN] Reopened hpcugent/testrepository PR #2",
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
