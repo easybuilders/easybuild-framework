@@ -107,7 +107,7 @@ VALID_CLOSE_PR_REASONS = {
     'archived': 'uses an archived toolchain',
     'inactive': 'no activity for > 6 months',
     'obsolete': 'obsoleted by more recent PRs',
-    'reopen': 'closing and reopening to trigger tests',
+    'retest': 'closing and reopening to trigger tests',
 }
 
 
@@ -1110,7 +1110,7 @@ def close_pr(pr, motivation_msg=None):
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    reopen = motivation_msg == VALID_CLOSE_PR_REASONS['reopen']
+    reopen = motivation_msg == VALID_CLOSE_PR_REASONS['retest']
 
     if not motivation_msg:
         print_msg("No reason or message specified, looking for possible reasons\n")
