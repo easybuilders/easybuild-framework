@@ -2562,8 +2562,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs = os.path.join(top_dir, 'easyconfigs')
         symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
 
+        # temporarily mock stderr to avoid printed warning (because 'eb' is not available via $PATH)
+        self.mock_stderr(True)
+
         # locations listed in 'robot_path' named argument are taken into account
         res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.mock_stderr(False)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
         # easyconfigs location can also be derived from location of 'eb'
@@ -2587,6 +2591,42 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # put mock 'eb' back in $PATH
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        # if $EB_SCRIPT_PATH is specified, this is picked up to determine location to easyconfigs
+        someprefix = os.path.join(self.test_prefix, 'someprefix')
+        test_easyconfigs_dir = os.path.join(someprefix, 'easybuild', 'easyconfigs')
+        mkdir(test_easyconfigs_dir, parents=True)
+
+        # put symlink in place, both original path and resolved path should be considered
+        symlinked_prefix = os.path.join(self.test_prefix, 'symlinked_prefix')
+        symlink(someprefix, symlinked_prefix)
+
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(symlinked_prefix, 'bin', 'eb')
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+
+        # 2nd to last path is original symlinked path
+        self.assertEqual(res[-2], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+        # last path is same path, but fully resolved
+        # (take into account that self.test_prefix itself can also be a symlink...)
+        self.assertTrue(os.path.samefile(test_easyconfigs_dir, res[-1]))
+
+        # wipe sys.path. then only paths found via $EB_SCRIPT_PATH are found
+        sys.path = []
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertEqual(len(res), 2)
+        self.assertEqual(res[0], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+        self.assertTrue(os.path.samefile(res[1], test_easyconfigs_dir))
+
+        # if $EB_SCRIPT_PATH is not defined, then paths determined via 'eb' found through $PATH are picked up
+        del os.environ['EB_SCRIPT_PATH']
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        expected = os.path.join(self.test_prefix, 'easybuild', 'easyconfigs')
+        self.assertTrue(os.path.samefile(res[-1], expected))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
