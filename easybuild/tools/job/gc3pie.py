@@ -30,6 +30,7 @@ Interface for submitting jobs via GC3Pie.
 :author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
+import os
 from time import gmtime, strftime
 import time
 
@@ -262,6 +263,13 @@ class GC3Pie(JobBackend):
         # final status report
         print_msg("Done processing jobs", log=self.log, silent=build_option('silent'))
         self._print_status_report()
+
+        # fail if at least one job has failed
+        stats = self._engine.counts(only=Application)
+        if stats['failed'] > 0:
+            raise EasyBuildError("Some build job failed.")
+        else:
+            return os.EX_OK
 
     def _print_status_report(self):
         """
