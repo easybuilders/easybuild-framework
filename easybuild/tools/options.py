@@ -1476,7 +1476,7 @@ def parse_external_modules_metadata(cfgs):
         topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
 
         # etc/ could also be located next to bin/
-        eb_cmd = which('eb')
+        eb_cmd = os.getenv('EB_SCRIPT_PATH') or which('eb')
         if eb_cmd:
             topdirs.append(os.path.dirname(os.path.dirname(eb_cmd)))
 

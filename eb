@@ -90,5 +90,7 @@ then
     export FANCYLOGGER_IGNORE_MPI4PY=1
 fi
 
+export EB_SCRIPT_PATH=$0
+
 verbose "$PYTHON -m easybuild.main `echo \"$@\"`"
 $PYTHON -m easybuild.main "$@"
