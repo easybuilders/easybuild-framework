@@ -63,8 +63,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file, remove_file
-from easybuild.tools.filetools import symlink, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
+from easybuild.tools.filetools import read_file, remove_file, symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -2599,6 +2599,7 @@ class EasyConfigTest(EnhancedTestCase):
         someprefix = os.path.join(self.test_prefix, 'someprefix')
         test_easyconfigs_dir = os.path.join(someprefix, 'easybuild', 'easyconfigs')
         mkdir(test_easyconfigs_dir, parents=True)
+        write_file(os.path.join(someprefix, 'bin', 'eb'), '')
 
         # put symlink in place, both original path and resolved path should be considered
         symlinked_prefix = os.path.join(self.test_prefix, 'symlinked_prefix')
@@ -2608,18 +2609,14 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
 
-        # 2nd to last path is original symlinked path
-        self.assertEqual(res[-2], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
-        # last path is same path, but fully resolved
-        # (take into account that self.test_prefix itself can also be a symlink...)
-        self.assertTrue(os.path.samefile(test_easyconfigs_dir, res[-1]))
+        # last path is symlinked path
+        self.assertEqual(res[-1], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
 
-        # wipe sys.path. then only paths found via $EB_SCRIPT_PATH are found
+        # wipe sys.path. then only path found via $EB_SCRIPT_PATH is found
         sys.path = []
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertEqual(len(res), 2)
+        self.assertEqual(len(res), 1)
         self.assertEqual(res[0], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
-        self.assertTrue(os.path.samefile(res[1], test_easyconfigs_dir))
 
         # if $EB_SCRIPT_PATH is not defined, then paths determined via 'eb' found through $PATH are picked up
         del os.environ['EB_SCRIPT_PATH']
@@ -2627,6 +2624,20 @@ class EasyConfigTest(EnhancedTestCase):
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         expected = os.path.join(self.test_prefix, 'easybuild', 'easyconfigs')
         self.assertTrue(os.path.samefile(res[-1], expected))
+
+        # also check with $EB_SCRIPT_PATH set to a symlink which doesn't allow
+        # directly deriving path to easybuild/easyconfigs dir, but resolved symlink does
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/2248
+        eb_symlink = os.path.join(self.test_prefix, 'eb')
+        symlink(os.path.join(someprefix, 'bin', 'eb'), eb_symlink)
+        os.environ['EB_SCRIPT_PATH'] = eb_symlink
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        # not an exact match (since it's a symlinked path in a deeper subdir),
+        # but fully resolved path to correct directory
+        self.assertTrue(os.path.exists(res[0]))
+        self.assertFalse(res[0] == os.path.join(someprefix, 'easybuild', 'easyconfigs'))
+        self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
