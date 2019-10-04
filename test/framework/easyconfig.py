@@ -2633,10 +2633,7 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['EB_SCRIPT_PATH'] = eb_symlink
 
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        # not an exact match (since it's a symlinked path in a deeper subdir),
-        # but fully resolved path to correct directory
         self.assertTrue(os.path.exists(res[0]))
-        self.assertFalse(res[0] == os.path.join(someprefix, 'easybuild', 'easyconfigs'))
         self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
 
     def test_is_generic_easyblock(self):
