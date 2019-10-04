@@ -255,23 +255,26 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report()
+            stats = self._engine.counts(only=Application)
+            self._print_status_report(stats)
 
             # Wait a few seconds...
             time.sleep(self.poll_interval)
 
         # final status report
         print_msg("Done processing jobs", log=self.log, silent=build_option('silent'))
-        self._print_status_report()
+        self._print_status_report(stats)
 
         # fail if at least one job has failed
-        stats = self._engine.counts(only=Application)
         if stats['failed'] > 0:
+            if not build_option('silent'):
+                print_msg("Failed jobs: %s" % (', '.join(self._list_failed_jobs)),
+                          log=self.log, silent=False)
             raise EasyBuildError("Some build job failed.")
         else:
             return os.EX_OK
 
-    def _print_status_report(self):
+    def _print_status_report(self, stats):
         """
         Print a job status report to STDOUT and the log file.
 
@@ -279,7 +282,16 @@ class GC3Pie(JobBackend):
         figures are extracted from the `counts()` method of the
         currently-running GC3Pie engine.
         """
-        stats = self._engine.counts(only=Application)
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
+
+    def _list_failed_jobs(self):
+        """
+        Return list of names of failed build jobs.
+        """
+        failed = []
+        for job in self._engine.iter_tasks(only_cls=Application):
+            if job.execution.returncode != 0:
+                failed.append(job.name)
+        return failed
