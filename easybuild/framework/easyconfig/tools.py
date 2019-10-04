@@ -287,8 +287,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
             if eb_path != resolved_eb_path:
                 install_prefix = os.path.dirname(os.path.dirname(resolved_eb_path))
                 path_list.append(install_prefix)
-                _log.info("Also considering installation prefix %s (via resolved path to 'eb' script)...",
-                           install_prefix)
+                _log.info("Also considering installation prefix %s (via resolved path to 'eb')...", install_prefix)
 
     # look for desired subdirs
     for path in path_list:
