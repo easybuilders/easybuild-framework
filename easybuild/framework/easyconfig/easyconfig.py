@@ -68,7 +68,7 @@ from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_s
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, string_type
-from easybuild.tools.systemtools import check_os_dependency
+from easybuild.tools.systemtools import check_os_dependency, get_cpu_architecture
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -1226,6 +1226,29 @@ class EasyConfig(object):
 
         return multi_deps
 
+    # new function/method
+    def find_dep_version_match(self, dep_version_candidates):
+        """Identify the correct version for this system from the choices provided"""
+        # figure out matches based on dict keys (after splitting on '=')
+        matches = []
+        my_arch = get_cpu_architecture()
+        for key, value in dep_version_candidates.items():
+            if '=' in key:
+                inner_key, inner_value = key.split('=', 1)
+                if inner_key == 'arch' and inner_value == my_arch:
+                    matches.append(value)
+
+        res = None
+        # if there's a single match, we can continue with the corresponding string version
+        if len(matches) == 1:
+            res = matches[0]
+        elif matches:
+            raise EasyBuildError("Multiple matches found for dep version using %s: %s", dep_version_candidates, matches)
+        else:
+            raise EasyBuildError("No matches for dep version using %s", dep_version_candidates)
+
+        return res
+
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
         """
@@ -1304,6 +1327,16 @@ class EasyConfig(object):
 
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        if isinstance(dependency['version'], basestring):
+            self.log.debug("Dependency version is already a string ('%s'), OK", dependency['version'])
+        elif isinstance(dependency['version'], dict):
+            # call out to a function that figures out which entries in the dict matches
+            selected_dep_version = self.find_dep_version_match(dependency['version'])
+            self.log.info("Dependency version selected from %s: %s", dependency['version'], selected_dep_version)
+            dependency['version'] = selected_dep_version
+        else:
+            raise EasyBuildError("Unknown value type for dependency version: %s", dependency['version'])
 
         if dependency['external_module']:
             # check whether the external module is hidden
