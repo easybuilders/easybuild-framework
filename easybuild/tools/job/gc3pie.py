@@ -268,7 +268,7 @@ class GC3Pie(JobBackend):
         # fail if at least one job has failed
         if stats['failed'] > 0:
             if not build_option('silent'):
-                print_msg("Failed jobs: %s" % (', '.join(self._list_failed_jobs)),
+                print_msg("Failed jobs: %s" % (', '.join(self._list_failed_jobs())),
                           log=self.log, silent=False)
             raise EasyBuildError("Some build job failed.")
         else:
@@ -282,7 +282,8 @@ class GC3Pie(JobBackend):
         figures are extracted from the `counts()` method of the
         currently-running GC3Pie engine.
         """
-        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
+        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats
+                            if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
 
