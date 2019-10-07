@@ -1330,6 +1330,8 @@ class EasyConfig(object):
 
         if isinstance(dependency['version'], basestring):
             self.log.debug("Dependency version is already a string ('%s'), OK", dependency['version'])
+        elif dependency['version'] is None:
+            self.log.debug("Dependency version is None, OK")
         elif isinstance(dependency['version'], dict):
             # call out to a function that figures out which entries in the dict matches
             selected_dep_version = self.find_dep_version_match(dependency['version'])
