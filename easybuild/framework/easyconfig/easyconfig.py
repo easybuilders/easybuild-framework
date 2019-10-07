@@ -1328,7 +1328,7 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
-        if isinstance(dependency['version'], basestring):
+        if isinstance(dependency['version'], string_type):
             self.log.debug("Dependency version is already a string ('%s'), OK", dependency['version'])
         elif dependency['version'] is None:
             self.log.debug("Dependency version is None, OK")
