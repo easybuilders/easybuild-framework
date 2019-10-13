@@ -75,8 +75,8 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, apply_reg
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_file, rmtree2
-from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
+from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -924,25 +924,19 @@ class EasyBlock(object):
         if os.path.exists(dir_name):
             self.log.info("Found old directory %s" % dir_name)
             if self.cfg['keeppreviousinstall']:
-                self.log.info("Keeping old directory %s (hopefully you know what you are doing)" % dir_name)
+                self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
-            elif clean:
-                try:
-                    rmtree2(dir_name)
-                    self.log.info("Removed old directory %s" % dir_name)
-                except OSError as err:
-                    raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
             elif build_option('module_only'):
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
+            elif clean:
+                remove_dir(dir_name)
+                self.log.info("Removed old directory %s", dir_name)
             else:
                 self.log.info("Moving existing directory %s out of the way...", dir_name)
-                try:
-                    timestamp = time.strftime("%Y%m%d-%H%M%S")
-                    backupdir = "%s.%s" % (dir_name, timestamp)
-                    shutil.move(dir_name, backupdir)
-                    self.log.info("Moved old directory %s to %s" % (dir_name, backupdir))
-                except OSError as err:
-                    raise EasyBuildError("Moving old directory to backup %s %s failed: %s", dir_name, backupdir, err)
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                backupdir = "%s.%s" % (dir_name, timestamp)
+                move_file(dir_name, backupdir)
+                self.log.info("Moved old directory %s to %s", dir_name, backupdir)
 
         if dontcreateinstalldir:
             olddir = dir_name
