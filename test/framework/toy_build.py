@@ -2359,11 +2359,11 @@ class ToyBuildTest(EnhancedTestCase):
             toy_modfile += '.lua'
             dummy_toy_mod_txt = 'local root = "%s"\n' % toy_installdir
         else:
-            dummy_toy_mod_txt = '\n'.join(
+            dummy_toy_mod_txt = '\n'.join([
                 "#%Module",
                 "set root %s" % toy_installdir,
                 '',
-            )
+            ])
         write_file(toy_modfile, dummy_toy_mod_txt)
 
         stdout, stderr = self.run_test_toy_build_with_output()
