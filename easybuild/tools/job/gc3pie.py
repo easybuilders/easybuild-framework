@@ -267,10 +267,8 @@ class GC3Pie(JobBackend):
 
         # fail if at least one job has failed
         if stats['failed'] > 0:
-            if not build_option('silent'):
-                print_msg("Failed jobs: %s" % (', '.join(self._list_failed_jobs())),
-                          log=self.log, silent=False)
-            raise EasyBuildError("Some build job failed.")
+            error_msg = "%d jobs failed: %s" % (stats['failed'], ', '.join(self._list_failed_jobs()))
+            raise EasyBuildError(error_msg)
         else:
             return os.EX_OK
 
