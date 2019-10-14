@@ -643,9 +643,6 @@ class EasyConfig(object):
         hooks = load_hooks(build_option('hooks'))
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
-        # determine version if multiple options
-        self.det_version(self)
-
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
@@ -1229,7 +1226,7 @@ class EasyConfig(object):
 
         return multi_deps
 
-    def det_version(self, ec):
+    def find_dep_version_match(self, ec):
         """Identify the correct version for this system from the choices provided. This overwrites ec['version']"""
         if isinstance(ec['version'], string_type):
             self.log.debug("Version is already a string ('%s'), OK", ec['version'])
@@ -1300,6 +1297,7 @@ class EasyConfig(object):
             # provides information on what this module represents (software name/version, install prefix, ...)
             'external_module_metadata': {},
         }
+
         if isinstance(dep, dict):
             dependency.update(dep)
 
@@ -1341,7 +1339,7 @@ class EasyConfig(object):
         elif dependency['version'] is None:
             self.log.debug("Dependency %s version is None, OK", dependency)
         elif isinstance(dependency['version'], dict):
-            self.det_version(dependency)
+            self.find_dep_version_match(dependency)
         else:
             raise EasyBuildError("Unknown value type for dependency version: %s", dependency['version'])
 
