@@ -1226,33 +1226,26 @@ class EasyConfig(object):
 
         return multi_deps
 
-    def find_dep_version_match(self, ec):
-        """Identify the correct version for this system from the choices provided. This overwrites ec['version']"""
-        if isinstance(ec['version'], string_type):
-            self.log.debug("Version is already a string ('%s'), OK", ec['version'])
+    def find_dep_version_match(self, dep):
+        """Identify the correct version for this system from the choices provided. This overwrites dep['version']"""
+        if isinstance(dep['version'], string_type):
+            self.log.debug("Version is already a string ('%s'), OK", dep['version'])
             return
-        elif ec['version'] is None:
-            self.log.debug("Version is None, OK", ec)
-        elif isinstance(ec['version'], dict):
+        elif dep['version'] is None:
+            self.log.debug("Version is None, OK", dep)
+        elif isinstance(dep['version'], dict):
             # figure out matches based on dict keys (after splitting on '=')
-            matches = []
-            my_arch = get_cpu_architecture()
-            for key, value in ec['version'].items():
-                if '=' in key:
-                    inner_key, inner_value = key.split('=', 1)
-                    if inner_key == 'arch' and inner_value == my_arch:
-                        matches.append(value)
-
-            # if there's a single match, we can continue with the corresponding string version
-            if len(matches) == 1:
-                self.log.info("Version selected from %s: %s", ec['version'], matches[0])
-                ec['version'] = matches[0]
-            elif matches:
-                raise EasyBuildError("Multiple matches found for version using %s: %s", ec['version'], matches)
-            else:
-                raise EasyBuildError("No matches for version using %s", ec['version'])
+            my_arch_key = 'arch=%s' % get_cpu_architecture()
+            has_arch_keys = [x for x in dep['version'].keys() if x.startswith('arch=')]
+            if has_arch_keys:
+                if my_arch_key in dep['version']:
+                    ver = dep['version'][my_arch_key]
+                    self.log.info("Version selected from %s: %s", dep['version'], ver)
+                    dep['version'] = ver
+                else:
+                    raise EasyBuildError("No matches for version using %s (looking for %s)", dep['version'], my_arch_key)
         else:
-            raise EasyBuildError("Unknown value type for version: %s", ec['version'])
+            raise EasyBuildError("Unknown value type for version: %s", dep['version'])
 
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
