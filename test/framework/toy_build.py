@@ -180,6 +180,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         return outtxt
 
+    def run_test_toy_build_with_output(self, *args, **kwargs):
+        """Run test_toy_build with specified arguments, catch stdout/stderr and return it."""
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(*args, **kwargs)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        return stdout, stderr
+
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
@@ -2334,7 +2347,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             self.test_toy_build(ec_file=test_ec)
 
-    def test_toy_remove_ghost_installdir(self):
+    def test_toy_ghost_installdir(self):
         """Test whether ghost installation directory is removed under --force."""
 
         toy_installdir = os.path.join(self.test_prefix, 'test123', 'toy', '0.0')
@@ -2344,24 +2357,33 @@ class ToyBuildTest(EnhancedTestCase):
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
-            toy_mod_txt = 'local root = "%s"\n' % toy_installdir
+            dummy_toy_mod_txt = 'local root = "%s"\n' % toy_installdir
         else:
-            toy_mod_txt = '\n'.join(
+            dummy_toy_mod_txt = '\n'.join(
                 "#%Module",
                 "set root %s" % toy_installdir,
                 '',
             )
-        write_file(toy_modfile, toy_mod_txt)
+        write_file(toy_modfile, dummy_toy_mod_txt)
 
-        self.mock_stdout(True)
-        self.test_toy_build()
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        stdout, stderr = self.run_test_toy_build_with_output()
 
-        self.assertFalse(os.path.exists(toy_installdir))
+        # by default, a warning is printed for ghost installation directories (but they're left untouched)
+        self.assertFalse(stdout)
+        regex = re.compile("WARNING: Likely ghost installation directory detected: %s" % toy_installdir)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertTrue(os.path.exists(toy_installdir))
+
+        # cleanup of ghost installation directories can be enable via --remove-ghost-install-dirs
+        write_file(toy_modfile, dummy_toy_mod_txt)
+        stdout, stderr = self.run_test_toy_build_with_output(extra_args=['--remove-ghost-install-dirs'])
+
+        self.assertFalse(stderr)
 
         regex = re.compile("^== Ghost installation directory %s removed" % toy_installdir)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertFalse(os.path.exists(toy_installdir))
 
 
 def suite():

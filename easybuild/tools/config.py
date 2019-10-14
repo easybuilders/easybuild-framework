@@ -227,6 +227,7 @@ BUILD_OPTIONS_CMDLINE = {
         'module_only',
         'package',
         'read_only_installdir',
+        'remove_ghost_install_dirs',
         'rebuild',
         'robot',
         'rpath',

@@ -405,6 +405,9 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
                                      None, 'store_true', False),
+            'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
+                                          "rather than just warning about them",
+                                          None, 'store_true', False),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),

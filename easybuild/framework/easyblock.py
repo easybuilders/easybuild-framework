@@ -1613,6 +1613,32 @@ class EasyBlock(object):
         self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
         self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
+
+    def remove_module_file(self):
+        """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
+
+        if os.path.exists(self.mod_filepath):
+            # if installation directory used by module file differs from the one used now,
+            # either clean it up to avoid leaving behind a ghost installation, or warn about it
+            # (see also https://github.com/easybuilders/easybuild-framework/issues/3026)
+            old_installdir = self.module_generator.det_installdir(self.mod_filepath)
+
+            if old_installdir is None:
+                warning_msg = "Failed to determine installation directory from module file %s" % self.mod_filepath
+                warning_msg += ", can't clean up potential ghost installation for %s %s" % (self.name, self.version)
+                print_warning(warning_msg)
+
+            elif os.path.exists(old_installdir) and not os.path.samefile(old_installdir, self.installdir):
+                if build_option('remove_ghost_install_dirs'):
+                    remove_dir(old_installdir)
+                    self.log.info("Ghost installation directory %s removed", old_installdir)
+                    print_msg("Ghost installation directory %s removed", old_installdir)
+                else:
+                    print_warning("Likely ghost installation directory detected: %s", old_installdir)
+
+            self.log.info("Removing existing module file %s", self.mod_filepath)
+            remove_file(self.mod_filepath)
+
     #
     # STEP FUNCTIONS
     #
@@ -1663,23 +1689,7 @@ class EasyBlock(object):
 
         # remove existing module file under --force (but only if --skip is not used)
         elif build_option('force') or build_option('rebuild'):
-            if os.path.exists(self.mod_filepath):
-
-                # if installation directory used by module file differs from the one used now,
-                # clean it up to avoid leaving behind a ghost installation
-                # (see also https://github.com/easybuilders/easybuild-framework/issues/3026)
-                old_installdir = self.module_generator.det_installdir(self.mod_filepath)
-                if old_installdir is None:
-                    warning_msg = "Failed to determine installation directory from module file %s" % self.mod_filepath
-                    warning_msg += ", can't clean up potential ghost installation for %s %s" % (self.name, self.version)
-                    print_warning(warning_msg)
-                elif os.path.exists(old_installdir) and not os.path.samefile(old_installdir, self.installdir):
-                    remove_dir(old_installdir)
-                    self.log.info("Ghost installation directory %s removed", old_installdir)
-                    print_msg("Ghost installation directory %s removed", old_installdir)
-
-                self.log.info("Removing existing module file %s", self.mod_filepath)
-                remove_file(self.mod_filepath)
+            self.remove_module_file()
 
     def fetch_step(self, skip_checksums=False):
         """Fetch source files and patches (incl. extensions)."""
