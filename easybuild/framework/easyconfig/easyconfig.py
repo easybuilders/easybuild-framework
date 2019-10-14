@@ -1243,7 +1243,7 @@ class EasyConfig(object):
                     self.log.info("Version selected from %s: %s", dep['version'], ver)
                     dep['version'] = ver
                 else:
-                    raise EasyBuildError("No matches for version using %s (looking for %s)", dep['version'], my_arch_key)
+                    raise EasyBuildError("No matches for version in %s (looking for %s)", dep['version'], my_arch_key)
         else:
             raise EasyBuildError("Unknown value type for version: %s", dep['version'])
 
