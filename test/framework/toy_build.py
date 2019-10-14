@@ -2334,6 +2334,35 @@ class ToyBuildTest(EnhancedTestCase):
 
             self.test_toy_build(ec_file=test_ec)
 
+    def test_toy_remove_ghost_installdir(self):
+        """Test whether ghost installation directory is removed under --force."""
+
+        toy_installdir = os.path.join(self.test_prefix, 'test123', 'toy', '0.0')
+        mkdir(toy_installdir, parents=True)
+        write_file(os.path.join(toy_installdir, 'bin', 'toy'), "#!/bin/bash\necho hello")
+
+        toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_modfile += '.lua'
+            toy_mod_txt = 'local root = "%s"\n' % toy_installdir
+        else:
+            toy_mod_txt = '\n'.join(
+                "#%Module",
+                "set root %s" % toy_installdir,
+                '',
+            )
+        write_file(toy_modfile, toy_mod_txt)
+
+        self.mock_stdout(True)
+        self.test_toy_build()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(toy_installdir))
+
+        regex = re.compile("^== Ghost installation directory %s removed" % toy_installdir)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ return all the tests in this file """
