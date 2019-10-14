@@ -643,6 +643,9 @@ class EasyConfig(object):
         hooks = load_hooks(build_option('hooks'))
         run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
+        # determine version if multiple options
+        self.det_version(self)
+
         # parse dependency specifications
         # it's important that templating is still disabled at this stage!
         self.log.info("Parsing dependency specifications...")
@@ -1226,28 +1229,33 @@ class EasyConfig(object):
 
         return multi_deps
 
-    # new function/method
-    def find_dep_version_match(self, dep_version_candidates):
-        """Identify the correct version for this system from the choices provided"""
-        # figure out matches based on dict keys (after splitting on '=')
-        matches = []
-        my_arch = get_cpu_architecture()
-        for key, value in dep_version_candidates.items():
-            if '=' in key:
-                inner_key, inner_value = key.split('=', 1)
-                if inner_key == 'arch' and inner_value == my_arch:
-                    matches.append(value)
+    def det_version(self, ec):
+        """Identify the correct version for this system from the choices provided. This overwrites ec['version']"""
+        if isinstance(ec['version'], string_type):
+            self.log.debug("Version is already a string ('%s'), OK", ec['version'])
+            return
+        elif ec['version'] is None:
+            self.log.debug("Version is None, OK", ec)
+        elif isinstance(ec['version'], dict):
+            # figure out matches based on dict keys (after splitting on '=')
+            matches = []
+            my_arch = get_cpu_architecture()
+            for key, value in ec['version'].items():
+                if '=' in key:
+                    inner_key, inner_value = key.split('=', 1)
+                    if inner_key == 'arch' and inner_value == my_arch:
+                        matches.append(value)
 
-        res = None
-        # if there's a single match, we can continue with the corresponding string version
-        if len(matches) == 1:
-            res = matches[0]
-        elif matches:
-            raise EasyBuildError("Multiple matches found for dep version using %s: %s", dep_version_candidates, matches)
+            # if there's a single match, we can continue with the corresponding string version
+            if len(matches) == 1:
+                self.log.info("Version selected from %s: %s", ec['version'], matches[0])
+                ec['version'] = matches[0]
+            elif matches:
+                raise EasyBuildError("Multiple matches found for version using %s: %s", ec['version'], matches)
+            else:
+                raise EasyBuildError("No matches for version using %s", ec['version'])
         else:
-            raise EasyBuildError("No matches for dep version using %s", dep_version_candidates)
-
-        return res
+            raise EasyBuildError("Unknown value type for version: %s", ec['version'])
 
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
@@ -1333,10 +1341,7 @@ class EasyConfig(object):
         elif dependency['version'] is None:
             self.log.debug("Dependency %s version is None, OK", dependency)
         elif isinstance(dependency['version'], dict):
-            # call out to a function that figures out which entries in the dict matches
-            selected_dep_version = self.find_dep_version_match(dependency['version'])
-            self.log.info("Dependency version selected from %s: %s", dependency['version'], selected_dep_version)
-            dependency['version'] = selected_dep_version
+            self.det_version(dependency)
         else:
             raise EasyBuildError("Unknown value type for dependency version: %s", dependency['version'])
 
