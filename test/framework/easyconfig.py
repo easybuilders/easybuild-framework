@@ -3136,6 +3136,27 @@ class EasyConfigTest(EnhancedTestCase):
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
+    def test_arch_specific_version(self):
+        """Tests that the correct version is chosen for this architecture"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+        version_str = "{'arch=%s': '%s', 'arch=Foo': 'bar'}" % (my_arch, expected_version)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = %s" % version_str,
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+        ])
+        write_file(test_ec, test_ectxt)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec.version, expected_version)
+
 
 def suite():
     """ returns all the testcases in this module """
