@@ -3,6 +3,31 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.0.1 (October 16th 2019)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add 'parallel' to list of config templates (#3036)
+  - add GitHub Actions workflow to run easybuild-framework test suite (#3039)
+  - add 'retest' as a reason to --close-pr, to close/re-open PRs to trigger re-test in Travis (#3040)
+  - add support for --remove-ghost-install-dirs, and warn about (potential) ghost install dirs by default when --force/--rebuild is used (#3050)
+- various bug fixes, including:
+  - update bootstrap script to support installing EasyBuild v4.0 (#3017)
+  - fix broken test_download_repo due to archiving of easyconfigs (#3019)
+  - sync develop with master after fixing broken test (cfr. #3019) (#3023)
+  - avoid that --inject-checksums introduces list of patches for extensions as a single long line (fixes #2734) (#3025)
+  - enhance regex in fix_shebang method to fix more Python/Perl shebangs + avoid patching binary files (#3029)
+  - delete test gist that is created by --check-github (#3031)
+  - fix traceback with --inject-checksums for extensions that set a boolean easyconfig parameter (#3034)
+  - disable templates when defining easyconfig parameters in EasyConfig.set_keys() (#3037)
+  - avoid setting GC3Pie's max_in_flight to None if --job-max-jobs is not specified (#3038)
+  - fix use of obtain_file method for extensions (#3042)
+  - error out if some GC3Pie job failed (#3044)
+  - define $EB_SCRIPT_PATH in 'eb' wrapper script, and consider it before location of 'eb' determined via $PATH in get_paths_for function (#3046)
+
+
 v4.0.0 (September 20th 2019)
 ----------------------------
 
