@@ -1198,6 +1198,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # only with depth=0, only direct dependencies are returned
         self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
 
+    def test_det_installdir(self):
+        """Test det_installdir method."""
+
+        # first create a module file we can test with
+        modtxt = self.modgen.MODULE_SHEBANG
+        if modtxt:
+            modtxt += '\n'
+
+        modtxt += self.modgen.get_description()
+
+        test_modfile = os.path.join(self.test_prefix, 'test' + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(test_modfile, modtxt)
+
+        expected = self.modgen.app.installdir
+
+        self.assertEqual(self.modgen.det_installdir(test_modfile), expected)
+
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""

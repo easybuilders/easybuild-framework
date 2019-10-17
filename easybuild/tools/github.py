@@ -99,6 +99,7 @@ GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
+HTTP_STATUS_NO_CONTENT = 204
 KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
@@ -106,6 +107,7 @@ VALID_CLOSE_PR_REASONS = {
     'archived': 'uses an archived toolchain',
     'inactive': 'no activity for > 6 months',
     'obsolete': 'obsoleted by more recent PRs',
+    'retest': 'closing and reopening to trigger tests',
 }
 
 
@@ -457,11 +459,13 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     return ec_files
 
 
-def create_gist(txt, fn, descr=None, github_user=None):
+def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     """Create a gist with the provided text."""
     if descr is None:
         descr = "(none)"
-    github_token = fetch_github_token(github_user)
+
+    if github_token is None:
+        github_token = fetch_github_token(github_user)
 
     body = {
         "description": descr,
@@ -475,10 +479,23 @@ def create_gist(txt, fn, descr=None, github_user=None):
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     status, data = g.gists.post(body=body)
 
-    if not status == HTTP_STATUS_CREATED:
+    if status != HTTP_STATUS_CREATED:
         raise EasyBuildError("Failed to create gist; status %s, data: %s", status, data)
 
     return data['html_url']
+
+
+def delete_gist(gist_id, github_user=None, github_token=None):
+    """Delete gist with specified ID."""
+
+    if github_token is None:
+        github_token = fetch_github_token(github_user)
+
+    gh = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+    status, data = gh.gists[gist_id].delete()
+
+    if status != HTTP_STATUS_NO_CONTENT:
+        raise EasyBuildError("Failed to delete gist with ID %s: status %s, data: %s", status, data)
 
 
 def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
@@ -652,7 +669,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if paths['easyconfigs']:
         for path in paths['easyconfigs']:
             if not os.path.exists(path):
-                    non_existing_paths.append(path)
+                non_existing_paths.append(path)
             else:
                 ec_paths.append(path)
 
@@ -1093,6 +1110,8 @@ def close_pr(pr, motivation_msg=None):
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
+    reopen = motivation_msg == VALID_CLOSE_PR_REASONS['retest']
+
     if not motivation_msg:
         print_msg("No reason or message specified, looking for possible reasons\n")
         possible_reasons = reasons_for_closing(pr_data)
@@ -1104,15 +1123,18 @@ def close_pr(pr, motivation_msg=None):
             motivation_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in possible_reasons])
             print_msg("\nNo reason specified but found possible reasons: %s.\n" % motivation_msg, prefix=False)
 
-    msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], motivation_msg)
-    msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
-    msg += "For more information on our policy w.r.t. closing PRs, see "
-    msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html"
-    msg += "#why-a-pull-request-may-be-closed-by-a-maintainer"
+    msg = "@%s, this PR is being closed for the following reason(s): %s." % (pr_data['user']['login'], motivation_msg)
+    if not reopen:
+        msg += "\nPlease don't hesitate to reopen this PR or add a comment if you feel this contribution is still "
+        msg += "relevant.\nFor more information on our policy w.r.t. closing PRs, see "
+        msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html"
+        msg += "#why-a-pull-request-may-be-closed-by-a-maintainer"
     post_comment_in_issue(pr, msg, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
     if dry_run:
-        print_msg("[DRY RUN] Closed %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
+        print_msg("[DRY RUN] Closed %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
+        if reopen:
+            print_msg("[DRY RUN] Reopened %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
     else:
         github_token = fetch_github_token(github_user)
         if github_token is None:
@@ -1123,6 +1145,11 @@ def close_pr(pr, motivation_msg=None):
         status, data = pull_url.post(body=body)
         if not status == HTTP_STATUS_OK:
             raise EasyBuildError("Failed to close PR #%s; status %s, data: %s", pr, status, data)
+        if reopen:
+            body = {'state': 'open'}
+            status, data = pull_url.post(body=body)
+            if not status == HTTP_STATUS_OK:
+                raise EasyBuildError("Failed to reopen PR #%s; status %s, data: %s", pr, status, data)
 
 
 def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
@@ -1511,16 +1538,22 @@ def check_github():
 
     # test creating a gist
     print_msg("* creating gists...", log=_log, prefix=False, newline=False)
-    res = None
+    gist_url = None
     try:
-        res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user)
-    except Exception as err:
-        _log.warning("Exception occurred when trying to create gist: %s", err)
+        gist_url = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user,
+                               github_token=github_token)
+        gist_id = gist_url.split('/')[-1]
+        _log.info("Gist with ID %s successfully created, now deleting it again...", gist_id)
 
-    if res and re.match('https://gist.github.com/[0-9a-f]+$', res):
+        delete_gist(gist_id, github_user=github_user, github_token=github_token)
+        _log.info("Gist with ID %s deleted!", gist_id)
+    except Exception as err:
+        _log.warning("Exception occurred when trying to create & delete gist: %s", err)
+
+    if gist_url and re.match('https://gist.github.com/[0-9a-f]+$', gist_url):
         check_res = "OK"
     else:
-        check_res = "FAIL (res: %s)" % res
+        check_res = "FAIL (gist_url: %s)" % gist_url
         status['--upload-test-report'] = False
 
     print_msg(check_res, log=_log, prefix=False)

@@ -75,8 +75,8 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, apply_reg
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_file, rmtree2
-from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
+from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -924,25 +924,19 @@ class EasyBlock(object):
         if os.path.exists(dir_name):
             self.log.info("Found old directory %s" % dir_name)
             if self.cfg['keeppreviousinstall']:
-                self.log.info("Keeping old directory %s (hopefully you know what you are doing)" % dir_name)
+                self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
-            elif clean:
-                try:
-                    rmtree2(dir_name)
-                    self.log.info("Removed old directory %s" % dir_name)
-                except OSError as err:
-                    raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
             elif build_option('module_only'):
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
+            elif clean:
+                remove_dir(dir_name)
+                self.log.info("Removed old directory %s", dir_name)
             else:
                 self.log.info("Moving existing directory %s out of the way...", dir_name)
-                try:
-                    timestamp = time.strftime("%Y%m%d-%H%M%S")
-                    backupdir = "%s.%s" % (dir_name, timestamp)
-                    shutil.move(dir_name, backupdir)
-                    self.log.info("Moved old directory %s to %s" % (dir_name, backupdir))
-                except OSError as err:
-                    raise EasyBuildError("Moving old directory to backup %s %s failed: %s", dir_name, backupdir, err)
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                backupdir = "%s.%s" % (dir_name, timestamp)
+                move_file(dir_name, backupdir)
+                self.log.info("Moved old directory %s to %s", dir_name, backupdir)
 
         if dontcreateinstalldir:
             olddir = dir_name
@@ -1619,6 +1613,31 @@ class EasyBlock(object):
         self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
         self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
+    def remove_module_file(self):
+        """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
+
+        if os.path.exists(self.mod_filepath):
+            # if installation directory used by module file differs from the one used now,
+            # either clean it up to avoid leaving behind a ghost installation, or warn about it
+            # (see also https://github.com/easybuilders/easybuild-framework/issues/3026)
+            old_installdir = self.module_generator.det_installdir(self.mod_filepath)
+
+            if old_installdir is None:
+                warning_msg = "Failed to determine installation directory from module file %s" % self.mod_filepath
+                warning_msg += ", can't clean up potential ghost installation for %s %s" % (self.name, self.version)
+                print_warning(warning_msg)
+
+            elif os.path.exists(old_installdir) and not os.path.samefile(old_installdir, self.installdir):
+                if build_option('remove_ghost_install_dirs'):
+                    remove_dir(old_installdir)
+                    self.log.info("Ghost installation directory %s removed", old_installdir)
+                    print_msg("Ghost installation directory %s removed", old_installdir)
+                else:
+                    print_warning("Likely ghost installation directory detected: %s", old_installdir)
+
+            self.log.info("Removing existing module file %s", self.mod_filepath)
+            remove_file(self.mod_filepath)
+
     #
     # STEP FUNCTIONS
     #
@@ -1669,9 +1688,7 @@ class EasyBlock(object):
 
         # remove existing module file under --force (but only if --skip is not used)
         elif build_option('force') or build_option('rebuild'):
-            if os.path.exists(self.mod_filepath):
-                self.log.info("Removing existing module file %s", self.mod_filepath)
-                remove_file(self.mod_filepath)
+            self.remove_module_file()
 
     def fetch_step(self, skip_checksums=False):
         """Fetch source files and patches (incl. extensions)."""
@@ -2158,6 +2175,7 @@ class EasyBlock(object):
     def fix_shebang(self):
         """Fix shebang lines for specified files."""
         for lang in ['perl', 'python']:
+            shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
                 if isinstance(fix_shebang_for, string_type):
@@ -2168,9 +2186,18 @@ class EasyBlock(object):
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
                                   lang, shebang, glob_pattern, paths)
-                    regex = r'^#!.*/%s[0-9.]*.*$' % lang
                     for path in paths:
-                        apply_regex_substitutions(path, [(regex, shebang)], backup=False)
+                        # check whether file should be patched by checking whether it has a shebang we want to tweak;
+                        # this also helps to skip binary files we may be hitting
+                        try:
+                            contents = read_file(path, mode='r')
+                            should_patch = shebang_regex.match(contents)
+                        except (TypeError, UnicodeDecodeError):
+                            should_patch = False
+
+                        if should_patch:
+                            contents = shebang_regex.sub(shebang, contents)
+                            write_file(path, contents)
 
     def post_install_step(self):
         """
@@ -3075,7 +3102,12 @@ def build_and_install_one(ecdict, init_env):
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             if build_option('read_only_installdir'):
                 # temporarily re-enable write permissions for copying log/easyconfig to install dir
-                adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                if os.path.exists(new_log_dir):
+                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                else:
+                    adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
+                    mkdir(new_log_dir, parents=True)
+                    adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=False)
 
             # collect build stats
             _log.info("Collecting build stats...")
@@ -3125,7 +3157,7 @@ def build_and_install_one(ecdict, init_env):
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
-            adjust_permissions(new_log_dir, stat.S_IWUSR, add=False, recursive=False)
+            adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
 
     end_timestamp = datetime.now()
 
@@ -3327,7 +3359,13 @@ def inject_checksums(ecs, checksum_type):
     :param ecs: list of EasyConfig instances to inject checksums into corresponding files
     :param checksum_type: type of checksum to use
     """
+    def make_list_lines(values, indent_level):
+        """Make lines for list of values."""
+        line_indent = INDENT_4SPACES * indent_level
+        return [line_indent + "'%s'," % x for x in values]
+
     def make_checksum_lines(checksums, indent_level):
+        """Make lines for list of checksums."""
         line_indent = INDENT_4SPACES * indent_level
         checksum_lines = []
         for fn, checksum in checksums:
@@ -3461,8 +3499,15 @@ def inject_checksums(ecs, checksum_type):
 
                     for key, val in sorted(ext_options.items()):
                         if key != 'checksums' and val != exts_default_options.get(key):
-                            val = quote_str(val, prefer_single_quotes=True)
-                            exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
+                            strval = quote_str(val, prefer_single_quotes=True)
+                            line = "%s'%s': %s," % (INDENT_4SPACES * 2, key, strval)
+                            # fix long lines for list-type values (e.g. patches)
+                            if isinstance(val, list) and len(val) > 1:
+                                exts_list_lines.append("%s'%s': [" % (INDENT_4SPACES * 2, key))
+                                exts_list_lines.extend(make_list_lines(val, indent_level=3))
+                                exts_list_lines.append(INDENT_4SPACES * 2 + '],',)
+                            else:
+                                exts_list_lines.append(line)
 
                     # if any checksums were collected, inject them for this extension
                     if ext_checksums:

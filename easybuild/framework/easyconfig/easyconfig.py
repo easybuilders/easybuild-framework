@@ -571,13 +571,20 @@ class EasyConfig(object):
 
         :param params: a dict value with names/values of easyconfig parameters to set
         """
-        for key in params:
+        # disable templating when setting easyconfig parameters
+        # required to avoid problems with values that need more parsing to be done (e.g. dependencies)
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
+        for key in sorted(params.keys()):
             # validations are skipped, just set in the config
             if key in self._config.keys():
                 self[key] = params[key]
                 self.log.info("setting easyconfig parameter %s: value %s (type: %s)", key, self[key], type(self[key]))
             else:
                 raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
+
+        self.enable_templating = prev_enable_templating
 
     def parse(self):
         """
@@ -1423,7 +1430,7 @@ class EasyConfig(object):
             for key in self.template_values:
                 try:
                     curr_val = self.template_values[key]
-                    new_val = curr_val % self.template_values
+                    new_val = str(curr_val) % self.template_values
                     if new_val != curr_val:
                         cont = True
                     self.template_values[key] = new_val

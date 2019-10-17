@@ -180,6 +180,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         return outtxt
 
+    def run_test_toy_build_with_output(self, *args, **kwargs):
+        """Run test_toy_build with specified arguments, catch stdout/stderr and return it."""
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(*args, **kwargs)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        return stdout, stderr
+
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
@@ -534,6 +547,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 
+        # first check default behaviour
         self.test_toy_build(ec_file=test_ec)
 
         toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
@@ -547,11 +561,17 @@ class ToyBuildTest(EnhancedTestCase):
 
         shutil.rmtree(self.test_installpath)
 
+        # check whether --read-only-installdir works as intended
         self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
         installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % toy_install_dir)
         installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+
+        # also log file copied into install dir should be read-only (not just the 'easybuild/' subdir itself)
+        log_path = glob.glob(os.path.join(toy_install_dir, 'easybuild', '*log'))[0]
+        log_perms = os.stat(log_path).st_mode & 0o777
+        self.assertEqual(log_perms, 0o444, "%s has read-only permissions" % log_path)
 
         toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
         self.assertEqual(toy_bin_perms, 0o555, "%s has read-only permissions" % toy_bin_perms)
@@ -559,12 +579,19 @@ class ToyBuildTest(EnhancedTestCase):
         adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
+        # also check --group-writable-installdir
         self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
         installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o775, "%s has group write permissions" % self.test_installpath)
 
         toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
         self.assertEqual(toy_bin_perms, 0o775, "%s has group write permissions" % toy_bin_perms)
+
+        # make sure --read-only-installdir is robust against not having the 'easybuild/' subdir after installation
+        # this happens when for example using ModuleRC easyblock (because no devel module is created)
+        test_ec_txt += "\nmake_module = False"
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'], verify=False, raise_error=True)
 
         # restore original umask
         os.umask(orig_umask)
@@ -2252,15 +2279,31 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = '\n'.join([
             toy_ec_txt,
             "postinstallcmds = ["
+            # hardcoded path to bin/python
             "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
+            # hardcoded path to bin/python3.6
             "   'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
+            # already OK, should remain the same
             "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
+            # space after #! + 'env python3'
+            "   'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
+            # 'env python3.6'
+            "   'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
+
+            # tests for perl shebang
+            # hardcoded path to bin/perl
             "   'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
+            # hardcoded path to bin/perl5
             "   'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
+            # already OK, should remain the same
             "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
+            # hardcoded perl with extra arguments
             "   'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
+            # space after #! + 'env perl5'
+            "   'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
+
             "]",
-            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py']",
+            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py', 'bin/toy']",
             "fix_perl_shebang_for = 'bin/*.pl'",
         ])
         write_file(test_ec, test_ec_txt)
@@ -2270,7 +2313,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no re.M, this should match at start of file!
         py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
-        for pybin in ['t1.py', 't2.py', 't3.py']:
+        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py']:
             pybin_path = os.path.join(toy_bindir, pybin)
             pybin_txt = read_file(pybin_path)
             self.assertTrue(py_shebang_regex.match(pybin_txt),
@@ -2278,7 +2321,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no re.M, this should match at start of file!
         perl_shebang_regex = re.compile(r'^#!/usr/bin/env perl\n# test$')
-        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl']:
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl']:
             perlbin_path = os.path.join(toy_bindir, perlbin)
             perlbin_txt = read_file(perlbin_path)
             self.assertTrue(perl_shebang_regex.match(perlbin_txt),
@@ -2303,6 +2346,44 @@ class ToyBuildTest(EnhancedTestCase):
             write_file(test_ec, test_ec_txt)
 
             self.test_toy_build(ec_file=test_ec)
+
+    def test_toy_ghost_installdir(self):
+        """Test whether ghost installation directory is removed under --force."""
+
+        toy_installdir = os.path.join(self.test_prefix, 'test123', 'toy', '0.0')
+        mkdir(toy_installdir, parents=True)
+        write_file(os.path.join(toy_installdir, 'bin', 'toy'), "#!/bin/bash\necho hello")
+
+        toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_modfile += '.lua'
+            dummy_toy_mod_txt = 'local root = "%s"\n' % toy_installdir
+        else:
+            dummy_toy_mod_txt = '\n'.join([
+                "#%Module",
+                "set root %s" % toy_installdir,
+                '',
+            ])
+        write_file(toy_modfile, dummy_toy_mod_txt)
+
+        stdout, stderr = self.run_test_toy_build_with_output()
+
+        # by default, a warning is printed for ghost installation directories (but they're left untouched)
+        self.assertFalse(stdout)
+        regex = re.compile("WARNING: Likely ghost installation directory detected: %s" % toy_installdir)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertTrue(os.path.exists(toy_installdir))
+
+        # cleanup of ghost installation directories can be enable via --remove-ghost-install-dirs
+        write_file(toy_modfile, dummy_toy_mod_txt)
+        stdout, stderr = self.run_test_toy_build_with_output(extra_args=['--remove-ghost-install-dirs'])
+
+        self.assertFalse(stderr)
+
+        regex = re.compile("^== Ghost installation directory %s removed" % toy_installdir)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertFalse(os.path.exists(toy_installdir))
 
 
 def suite():

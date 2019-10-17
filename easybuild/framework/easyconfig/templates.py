@@ -58,6 +58,7 @@ TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
+    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',

@@ -833,8 +833,8 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp + '.1', 'evenmoarbar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
 
-        logs = sorted([f for f in os.listdir(self.test_prefix) if 'log' in f])
-        self.assertEqual(len(logs), 7)
+        logs = sorted([f for f in os.listdir(self.test_prefix) if '.log' in f])
+        self.assertEqual(len(logs), 7, "Found exactly 7 log files: %d (%s)" % (len(logs), logs))
         self.assertEqual(len([x for x in logs if x.startswith('eb-test-')]), 1)
         self.assertEqual(len([x for x in logs if x.startswith('foo')]), 2)
         self.assertEqual(len([x for x in logs if x.startswith('bar')]), 4)
@@ -1023,6 +1023,13 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(perms & bit)
             for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
                 self.assertFalse(perms & bit)
+
+        # check error reporting when changing permissions fails
+        nosuchdir = os.path.join(self.test_prefix, 'nosuchdir')
+        err_msg = "Failed to chmod/chown several paths.*No such file or directory"
+        self.assertErrorRegex(EasyBuildError, err_msg, ft.adjust_permissions, nosuchdir, stat.S_IWOTH)
+        nosuchfile = os.path.join(self.test_prefix, 'nosuchfile')
+        self.assertErrorRegex(EasyBuildError, err_msg, ft.adjust_permissions, nosuchfile, stat.S_IWUSR, recursive=False)
 
         # restore original umask
         os.umask(orig_umask)

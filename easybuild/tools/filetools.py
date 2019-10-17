@@ -703,7 +703,7 @@ def find_eb_script(script_name):
         prev_script_loc = script_loc
 
         # fallback mechanism: check in location relative to location of 'eb'
-        eb_path = which('eb')
+        eb_path = os.getenv('EB_SCRIPT_PATH') or which('eb')
         if eb_path is None:
             _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
         else:
@@ -1164,8 +1164,8 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
 
     failed_paths = []
     fail_cnt = 0
+    err_msg = None
     for path in allpaths:
-
         try:
             # don't change permissions if path is a symlink, since we're not checking where the symlink points to
             # this is done because of security concerns (symlink may point out of installation directory)
@@ -1201,9 +1201,10 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 fail_cnt += 1
             else:
                 failed_paths.append(path)
+                err_msg = err
 
     if failed_paths:
-        raise EasyBuildError("Failed to chmod/chown several paths: %s (last error: %s)", failed_paths, err)
+        raise EasyBuildError("Failed to chmod/chown several paths: %s (last error: %s)", failed_paths, err_msg)
 
     # we ignore some errors, but if there are to many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))

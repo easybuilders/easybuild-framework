@@ -3567,7 +3567,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:
-            print("Skipping test_debug_lmod, required Lmod as modules tool")
+            print("Skipping test_debug_lmod, requires Lmod as modules tool")
 
     def test_use_color(self):
         """Test use_color function."""
@@ -3899,6 +3899,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         bar_tar_gz_sha256 = 'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'
         bar_patch = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
         bar_patch_sha256 = '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'
+        bar_patch_bis = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
+        bar_patch_bis_sha256 = 'd0bf102f9c5878445178c5f49b7cd7546e704c33fe2060c7354b7e473cfeb52b'
         patterns = [
             "^== injecting sha256 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
@@ -3909,6 +3911,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^== injecting sha256 checksums for extensions in test\.eb\.\.\.$",
             "^==  \* bar-0\.0\.tar\.gz: %s$" % bar_tar_gz_sha256,
             "^==  \* %s: %s$" % (bar_patch, bar_patch_sha256),
+            "^==  \* %s: %s$" % (bar_patch_bis, bar_patch_bis_sha256),
             "^==  \* barbar-0\.0\.tar\.gz: a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c$",
         ]
         for pattern in patterns:
@@ -3928,9 +3931,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile("^[ ]*'%s',  # bar-0.0.tar.gz$" % bar_tar_gz_sha256, re.M)
         self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
 
-        # no single-line checksum entry for bar*.patch, since line would be > 120 chars
-        regex = re.compile("^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256), re.M)
-        self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
+        # no single-line checksum entry for bar patches, since line would be > 120 chars
+        bar_patch_patterns = [
+            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256),
+            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch_bis, bar_patch_bis_sha256),
+        ]
+        for pattern in bar_patch_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
+
+        # no single-line entry for bar patches themselves, since line would be too long
+        bar_patch_patterns = [
+            r"^[ ]*'%s',$" % bar_patch,
+            r"^[ ]*'%s',$" % bar_patch_bis,
+        ]
+        for pattern in bar_patch_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
 
         # name/version of toy should NOT be hardcoded in exts_list, 'name'/'version' parameters should be used
         self.assertTrue('    (name, version, {' in ec_txt)
@@ -3956,11 +3973,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'checksums': [
                 bar_tar_gz_sha256,
                 bar_patch_sha256,
+                bar_patch_bis_sha256,
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
-            'patches': [bar_patch],
+            'patches': [bar_patch, bar_patch_bis],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+            'keepsymlinks': True,
         }))
         self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
             'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
