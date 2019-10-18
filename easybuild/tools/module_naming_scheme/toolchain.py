@@ -116,6 +116,20 @@ def det_toolchain_compilers(ec):
                 comp_elem_details['name'] = comp_elem
                 tc_comps.append(comp_elem_details)
         else:
+            if 'icc' in tc_elems[TOOLCHAIN_COMPILER] and 'ifort' in tc_elems[TOOLCHAIN_COMPILER]:
+                combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, 'iccifort', allow_missing=True)
+                if combined_comp_elem_details:
+                    if isinstance(combined_comp_elem_details, EasyConfig):
+                        combined_comp_elem_details = combined_comp_elem_details.asdict()
+                    # add details for each compiler separately, using details from combo
+                    for comp_elem in ['icc', 'ifort']:
+                        comp_elem_details = copy.copy(combined_comp_elem_details)
+                        comp_elem_details['name'] = comp_elem
+                        tc_comps.append(comp_elem_details)
+                        tc_elems[TOOLCHAIN_COMPILER].remove(comp_elem)
+
+                    # Fall through and handle the remaining compiler elements
+
             # consider individual compiler module names as fallback
             for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
                 tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
