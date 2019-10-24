@@ -135,7 +135,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput='%%(output_dir)s'" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
