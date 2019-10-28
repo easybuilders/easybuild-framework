@@ -3,6 +3,122 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.0.1 (October 15th 2019)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add 'parallel' to list of config templates (#3036)
+  - add GitHub Actions workflow to run easybuild-framework test suite (#3039)
+  - add 'retest' as a reason to --close-pr, to close/re-open PRs to trigger re-test in Travis (#3040)
+  - define $EB_SCRIPT_PATH in 'eb' wrapper script, and consider it before location of 'eb' determined via $PATH in get_paths_for function (#3046)
+  - add support for --remove-ghost-install-dirs configuration option, and warn about (potential) ghost install dirs by default when --force/--rebuild is used (#3050)
+- various bug fixes, including:
+  - update bootstrap script to support installing EasyBuild v4.0 (#3017)
+  - fix broken test_download_repo due to archiving of easyconfigs (#3019, #3023)
+  - avoid that --inject-checksums introduces list of patches for extensions as a single long line (#3025, #3034)
+  - enhance regex in fix_shebang method to fix more Python/Perl shebangs + avoid patching binary files (#3029)
+  - delete test gist that is created by --check-github (#3031)
+  - disable templates when defining easyconfig parameters in EasyConfig.set_keys() (#3037)
+  - avoid setting GC3Pie's max_in_flight to None if --job-max-jobs is not specified (#3038)
+  - fix use of obtain_file method for extensions (#3042)
+  - error out if some GC3Pie job failed (#3044)
+
+
+v4.0.0 (September 20th 2019)
+----------------------------
+
+feature release (incl. backwards-incompatible changes)
+
+A concise overview of major changes in EasyBuild v4.0 is available at https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html .
+
+- fixed compatibility with Python 3.5+ (#2708, #2713, #2714, #2719, #2721, #2723, #2729, #2743, #2744, #2751, #2756, #2759, #2761, #2762, #2765, #2766, #2767, #2768, #2774, #2775, #2778, #2780, #2785, #2787, #2789, #2791, #2792, #2794, #2800, #2801, #2805, #2806, #2895, #2932, #2982, #2992, #3007, #3011)
+  - supported Python versions: 2.6, 2.7, 3.5, 3.6, 3.7
+  - some functionality from the Python standard library should be imported from the new easybuild.tools.py2vs3 package
+  - see https://easybuild.readthedocs.io/en/latest/Python-2-3-compatibility.html & https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html for more information
+
+- ingested relevant code from vsc-base & vsc-install (#2708, #2713, #2714, #2763, #2790, #2993)
+  - vsc-base & vsc-install are no longer required as dependencies
+  - the functionality that was provided by these packages is now (mostly) available from the easybuild.base package
+  - any import statements from the 'vsc' namespace will result in an error
+  - see also https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#ingested-functionality-from-vsc-base-and-vsc-install and https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html
+
+- setuptools is longer required (neither for installing or using EasyBuild) (#2836, #2837, #2984, #2986, #2988)
+  - see also https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#no-more-required-python-packages
+  - this required moving some classes and constants, see https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html
+
+- the 'dummy' toolchain is deprecated and replaced by the 'system' toolchain (#2877, #3001)
+  - if 'dummy' is still used as a toolchain in easyconfig files, a warning will be printed
+  - use "toolchain = SYSTEM" instead
+  - for more information, see https://easybuild.readthedocs.io/en/latest/System_toolchain.html
+
+- a warning is printed when local variables in easyconfig file don't follow the recommended naming scheme (#2938, #2968)
+  - see also https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html
+
+- names of software installation directories are independent of module naming scheme by enabling --fixed-installdir-naming-scheme by default (#2999)
+  - see https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#fixed-installdir-naming-scheme-enabled-by-default for more information
+
+- various other small enhancements, including:
+  - use requests instead of urllib2 for 403 errors (#2695)
+  - use pip requirements file in Travis (#2874)
+  - add support for --fix-deprecated-easyconfigs (#2881, 2898, #2938)
+  - add -L$EBROOTIMKL/lib/intel64 to $LDFLAGS for MKL (#2930)
+  - handle dict-type checksums in check_checksums_for (#2974)
+  - allow that icc & ifort are not actual dependencies in iccifort toolchain module (#2995)
+  - define mapping for iccifort->intel for iccifort compiler-only toolchain for HMNS (#2996)
+  - also consider concatenation of compiler module names to determine details of toolchain compiler component (#2997)
+  - update metadata for Cray-provided external modules (#3013)
+- various bug fixes, including:
+  - update the PyPI trove classifiers in setup.py (#2875)
+  - reverse lists for $LDFLAGS and $CPPFLAGS (#2931)
+  - enhance/fix to_template_str function to do a better job at using template values in dumped easyconfigs (#2948)
+  - also take into account --filter-deps when finalizing parsed dependencies to fix problem with dependency filters using version ranges (#2983)
+  - fix broken --from-pr tests due to archiving of easyconfigs (#2985)
+  - fixes required to avoid breaking Cray support (#3008)
+  - fixes for --read-only-installdir: avoid crash with ModuleRC easyblock + also make log file in installdir read-only (#3012)
+- other changes:
+  - add check to ensure that --robot argument specifies an existing directory (#2086)
+  - remove old scripts that are no longer useful (+ minor fixes to others) (#2897)
+  - use 'command -v' to avoid requiring 'which' in 'eb' command (#2979)
+  - add modluafooter & modtclfooter at the end of the generated module file (#3003)
+  - print warning when 'eb' command is not found in $PATH and for empty robot search path (#3006)
+
+
+v3.9.4 (August 23rd 2019)
+-------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for specifying checksum via dict providing a filename-to-checksum mapping (#2946)
+  - enhance 'completed' message with how much time was needed for the installation (#2956)
+  - add support for specifying tuple of alternative checksums (#2958)
+  - support using 'system' as alias for 'dummy' toolchain + SYSTEM constant (#2960)
+  - ensure 'docurls' easyconfig parameter value is a list of string values, not a single string value (#2963)
+  - automatically enable --ignore-osdeps when using --check-contrib or --check-style (#2965)
+- various bug fixes, including:
+  - escape '+' in search queries + handle invalid search queries better (#2967)
+  - also consider extension patches when determining for which easyconfig a given patch file is intended in --new-pr/--update-pr (#2969)
+  - unset $CDPATH early on if it is defined (#2970)
+  - create specified temporary log directory if it doesn't exist yet in init_logging (#2972)
+  - don't indicate first multi_deps version as default in module help text when multi_deps_load_default=False (#2973)
+- other changes:
+  - deprecate toolchains older than gompi/2016a and foss/2016a (#2951)
+
+
+v3.9.3 (July 8th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add a URL whatis line to generated module files (#2933)
+- various bug fixes, including:
+  - stick to Ubuntu Trusty when testing with Python 2.6 in Travis (#2928)
+  - honor --tmp-logdir when determining location of temporary log file (#2937)
+
+
 v3.9.2 (June 9th 2019)
 ----------------------
 

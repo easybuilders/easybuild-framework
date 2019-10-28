@@ -3,22 +3,22 @@ easyblock = 'ConfigureMake'
 name = 'OpenBLAS'
 version = '0.2.8'
 
-lapackver = '3.4.2'
-versionsuffix = '-LAPACK-%s' % lapackver
+local_lapackver = '3.4.2'
+versionsuffix = '-LAPACK-%s' % local_lapackver
 
 homepage = 'http://xianyi.github.com/OpenBLAS/'
 description = """OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 BSD version."""
 
 toolchain = {'name': 'GCC', 'version': '4.8.2'}
 
-lapack_src = 'lapack-%s.tgz' % lapackver
-large_src = 'large.tgz'
-timing_src = 'timing.tgz'
+local_lapack_src = 'lapack-%s.tgz' % local_lapackver
+local_large_src = 'large.tgz'
+local_timing_src = 'timing.tgz'
 sources = [
     'v%(version)s.tar.gz',
-    lapack_src,
-    large_src,
-    timing_src,
+    local_lapack_src,
+    local_large_src,
+    local_timing_src,
 ]
 source_urls = [
     # order matters, trying to download the LAPACK tarball from GitHub causes trouble
@@ -29,16 +29,16 @@ source_urls = [
 
 patches = [
     # 'OpenBLAS-%s_Makefile-LAPACK-sources.patch' % version,
-    (lapack_src, '.'),  # copy LAPACK tarball to unpacked OpenBLAS dir
-    (large_src, '.'),
-    (timing_src, '.'),
+    (local_lapack_src, '.'),  # copy LAPACK tarball to unpacked OpenBLAS dir
+    (local_large_src, '.'),
+    (local_timing_src, '.'),
 ]
 
 skipsteps = ['configure']
 
-threading = 'USE_THREAD=1'
-buildopts = 'BINARY=64 ' + threading + ' CC="$CC" FC="$F77"'
-installopts = threading + " PREFIX=%(installdir)s"
+local_threading = 'USE_THREAD=1'
+buildopts = 'BINARY=64 ' + local_threading + ' CC="$CC" FC="$F77"'
+installopts = local_threading + " PREFIX=%(installdir)s"
 
 # extensive testing can be enabled by uncommenting the line below
 #runtest = 'PATH=.:$PATH lapack-timing'

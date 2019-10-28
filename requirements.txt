@@ -1,0 +1,48 @@
+# keyring is required to provide GitHub token to EasyBuild;
+# keyring v5.7.1 is last version to be compatible with py2.6;
+# for recent versions of keyring, keyrings.alt must be installed too
+keyring==5.7.1; python_version < '2.7'
+keyring<=9.1; python_version >= '2.7'
+keyrings.alt; python_version >= '2.7'
+
+# GitPython 2.x may no longer be compatible with py2.6
+GitPython<2.0; python_version < '2.7'
+GitPython; python_version >= '2.7'
+
+# pydot (dep for python-graph-dot) 1.2.0 and more recent doesn't work with Python 2.6
+pydot==1.1.0; python_version < '2.7'
+pydot; python_version >= '2.7'
+
+# pycparser 2.19 (dep for paramiko) doesn't work with Python 2.6
+pycparser<2.19; python_version < '2.7'
+
+# idna 2.8 (dep for paramiko) & more recent doesn't work with Python 2.6
+idna<2.8; python_version < '2.7'
+
+# paramiko 2.4.0 (dep for GC3Pie) & more recent doesn't work with Python 2.6
+paramiko<2.4.0; python_version < '2.7'
+
+# SQLAlchemy 1.2.0 (dep for GC3Pie) & more recent doesn't work with Python 2.6
+SQLAlchemy<1.2.0; python_version < '2.7'
+
+# python 2.0 (dep for GC3Pie) & more recent doesn't work with Python 2.6
+python-daemon<2.0; python_version < '2.7'
+
+# autopep8 1.3.4 is last one to support Python 2.6
+autopep8<1.3.5; python_version < '2.7'
+autopep8; python_version >= '2.7'
+
+# PyYAML 5.x no longer supports Python 2.6
+PyYAML<5.0; python_version < '2.7'
+PyYAML; python_version >= '2.7'
+
+# optional Python packages for EasyBuild
+
+# flake8 is a superset of pycodestyle
+pycodestyle; python_version < '2.7'
+flake8; python_version >= '2.7'
+
+GC3Pie
+python-graph-dot
+python-hglib
+requests

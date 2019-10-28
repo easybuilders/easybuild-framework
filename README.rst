@@ -18,13 +18,6 @@ https://github.com/easybuilders/easybuild-framework.
 
 Related Python packages:
 
-* **vsc-base**
-
-  * dependency for EasyBuild framework
-  * provides ``generaloption`` (support for command line interface) & ``fancylogger`` (logging support)
-  * GitHub repository: https://github.com/hpcugent/vsc-base
-  * package on PyPi: https://pypi.python.org/pypi/vsc-base
-
 * **easybuild-easyblocks**
 
   * a collection of easyblocks that implement support for building and installing (groups of) software packages

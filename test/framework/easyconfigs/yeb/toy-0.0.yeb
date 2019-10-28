@@ -7,7 +7,7 @@ version: 0.0
 homepage: 'https://easybuilders.github.io/easybuild'
 description: "Toy C program, 100% toy."
 
-toolchain: dummy, dummy
+toolchain: system, system
 
 sources: 
     - *SOURCE_TAR_GZ

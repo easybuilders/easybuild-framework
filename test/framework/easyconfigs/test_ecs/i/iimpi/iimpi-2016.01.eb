@@ -6,14 +6,14 @@ version = '2016.01'
 homepage = 'http://software.intel.com/en-us/intel-cluster-toolkit-compiler/'
 description = """Intel C/C++ and Fortran compilers, alongside Intel MPI."""
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
-compver = '2016.1.150-GCC-4.9.3-2.25'
+local_compver = '2016.1.150-GCC-4.9.3-2.25'
 
 dependencies = [
-    ('icc', compver),
-    ('ifort', compver),
-    ('impi', '5.1.2.150', '', ('iccifort', compver)),
+    ('icc', local_compver),
+    ('ifort', local_compver),
+    ('impi', '5.1.2.150', '', ('iccifort', local_compver)),
 ]
 
 moduleclass = 'toolchain'

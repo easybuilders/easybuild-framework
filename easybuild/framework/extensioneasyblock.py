@@ -26,8 +26,8 @@ implemented as an easyblock
 """
 import copy
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
@@ -88,6 +88,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
             self.module_generator = self.master.module_generator
+            self.robot_path = self.master.robot_path
             self.is_extension = True
             self.unpack_options = None
         else:

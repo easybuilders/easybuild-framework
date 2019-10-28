@@ -39,14 +39,14 @@ import re
 import tempfile
 from distutils.version import LooseVersion
 from textwrap import wrap
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.utilities import get_subclasses, quote_str
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -96,7 +96,7 @@ def dependencies_for(mod_name, modtool, depth=None):
     mods = loadregex.findall(modtxt)
 
     if depth is None or depth > 0:
-        if depth > 0:
+        if depth and depth > 0:
             depth = depth - 1
         # recursively determine dependencies for these dependency modules, until depth is non-positive
         moddeps = [dependencies_for(mod, modtool, depth=depth) for mod in mods]
@@ -327,10 +327,24 @@ class ModuleGenerator(object):
 
         :param mod_names: (list of) module name(s) to check load status for
         """
-        if isinstance(mod_names, basestring):
+        if isinstance(mod_names, string_type):
             res = self.IS_LOADED_TEMPLATE % mod_names
         else:
             res = [self.IS_LOADED_TEMPLATE % m for m in mod_names]
+
+        return res
+
+    def det_installdir(self, modfile):
+        """
+        Determine installation directory used by given module file
+        """
+        res = None
+
+        modtxt = read_file(modfile)
+        root_regex = re.compile(self.INSTALLDIR_REGEX, re.M)
+        match = root_regex.search(modtxt)
+        if match:
+            res = match.group('installdir')
 
         return res
 
@@ -578,7 +592,8 @@ class ModuleGenerator(object):
                         for dep in deplist:
                             if dep['name'] == key and dep['version'] == vlist[idx]:
                                 modname = dep['short_mod_name']
-                                if idx == 0:
+                                # indicate which version is loaded by default (unless that's disabled)
+                                if idx == 0 and self.app.cfg['multi_deps_load_default']:
                                     modname += ' (default)'
                                 mod_list.append(modname)
                 txt += ', '.join(mod_list)
@@ -606,7 +621,8 @@ class ModuleGenerator(object):
             # default: include 'whatis' statements with description, homepage, and extensions (if any)
             whatis = [
                 "Description: %s" % self.app.cfg['description'],
-                "Homepage: %s" % self.app.cfg['homepage']
+                "Homepage: %s" % self.app.cfg['homepage'],
+                "URL: %s" % self.app.cfg['homepage'],
             ]
 
             multi_deps = self._generate_multi_deps_list()
@@ -629,6 +645,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
+    INSTALLDIR_REGEX = r"^set root\s+(?P<installdir>.*)"
     LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
@@ -662,7 +679,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, basestring):
+        if isinstance(conditions, string_type):
             conditions = [conditions]
 
         if cond_or:
@@ -838,7 +855,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, basestring):
+        if isinstance(paths, string_type):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", paths, update_type, key)
             paths = [paths]
 
@@ -975,6 +992,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
+    INSTALLDIR_REGEX = r'^local root\s+=\s+"(?P<installdir>.*)"'
     LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
@@ -1044,7 +1062,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, basestring):
+        if isinstance(conditions, string_type):
             conditions = [conditions]
 
         if cond_or:
@@ -1244,7 +1262,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, basestring):
+        if isinstance(paths, string_type):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", update_type, paths, key)
             paths = [paths]
 
