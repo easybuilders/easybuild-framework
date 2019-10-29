@@ -556,6 +556,7 @@ def init_repo(path, repo_name, silent=False):
         raise EasyBuildError("Failed to init git repo at %s: %s", repo_path, err)
 
     _log.debug("temporary git working directory ready at %s", repo_path)
+
     return repo
 
 
