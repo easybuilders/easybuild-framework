@@ -102,7 +102,7 @@ def det_toolchain_compilers(ec):
     elif tc_elems[TOOLCHAIN_COMPILER]:
         tc_comps = []
 
-        tc_comp_elems = tc_elems[TOOLCHAIN_COMPILER]
+        tc_comp_elems = copy.copy(tc_elems[TOOLCHAIN_COMPILER])
 
         # for toolchains including icc & ifort (like iccifortcuda), always consider iccifort first
         if 'icc' in tc_comp_elems and 'ifort' in tc_comp_elems:
