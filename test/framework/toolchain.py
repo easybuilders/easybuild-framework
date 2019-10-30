@@ -1166,7 +1166,7 @@ class ToolchainTest(EnhancedTestCase):
 
         tc = self.get_toolchain('iccifortcuda', version='2019a')
         tc.prepare()
-        self.assertEqual(tc.toolchain_dep_mods, ['icc/2019.1.144', 'ifort/2019.1.144', 'CUDA/10.1.105'])
+        self.assertEqual(tc.toolchain_dep_mods, ['icc/2018.1.163', 'ifort/2018.1.163', 'CUDA/9.1.85'])
         self.modtool.purge()
 
         for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT', 'EBROOTCUDA', 'EBVERSIONCUDA']:
@@ -1189,9 +1189,9 @@ class ToolchainTest(EnhancedTestCase):
             'setenv EBROOTICC "%s"' % self.test_prefix,
             'setenv EBROOTIFORT "%s"' % self.test_prefix,
             'setenv EBROOTCUDA "%s"' % self.test_prefix,
-            'setenv EBVERSIONICC "2019.1.144"',
-            'setenv EBVERSIONIFORT "2019.1.144"',
-            'setenv EBVERSIONCUDA "10.1.105"',
+            'setenv EBVERSIONICC "2018.1.163"',
+            'setenv EBVERSIONIFORT "2018.1.163"',
+            'setenv EBVERSIONCUDA "9.1.85"',
         ])
         write_file(fake_iccifortcuda, fake_iccifortcuda_txt)
         # toolchain preparation (which includes verification) works fine now
