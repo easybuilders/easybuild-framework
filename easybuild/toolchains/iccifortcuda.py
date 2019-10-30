@@ -38,3 +38,8 @@ class IccIfortCUDA(IccIfort, Cuda):
 
     COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME + Cuda.COMPILER_CUDA_MODULE_NAME
     SUBTOOLCHAIN = IccIfort.NAME
+
+    def is_dep_in_toolchain_module(self, name):
+        """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
+        res = super(IccIfortCUDA, self).is_dep_in_toolchain_module(name)
+        return res
