@@ -2879,6 +2879,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
+        # add unstaged file to git working dir, to check on later
+        unstaged_file = os.path.join('easybuild-easyconfigs', 'easybuild', 'easyconfigs', 'test.eb')
+        write_file(os.path.join(git_working_dir, unstaged_file), 'test123')
+
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
@@ -2889,6 +2893,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
         self.mock_stdout(False)
+
+        # check whether unstaged file in git working dir was copied (it shouldn't)
+        res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
+        res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
+        if len(res) == 1:
+            unstaged_file_full = os.path.join(res[0], unstaged_file)
+            self.assertFalse(os.path.exists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0]))
+        else:
+            self.assertTrue(False, "Found copy of easybuild-easyconfigs working copy")
 
         # add required commit message, try again
         args.append('--pr-commit-msg=just a test')
