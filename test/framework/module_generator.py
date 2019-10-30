@@ -1198,32 +1198,34 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # only with depth=0, only direct dependencies are returned
         self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
 
-        # also test on module file that includes depends_on statements
-        test_modfile = os.path.join(self.test_prefix, 'test', '1.2.3')
+        # Lmod 7.6+ is required to use depends-on
+        if self.modtool.supports_depends_on:
+            # also test on module file that includes depends_on statements
+            test_modfile = os.path.join(self.test_prefix, 'test', '1.2.3')
 
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            test_modtxt = '\n'.join([
-                'depends_on("GCC/6.4.0-2.28")',
-                'depends_on("OpenMPI/2.1.2-GCC-6.4.0-2.28")',
-            ])
-            test_modfile += '.lua'
-        else:
-            test_modtxt = '\n'.join([
-                '#%Module',
-                "depends-on GCC/6.4.0-2.28",
-                "depends-on OpenMPI/2.1.2-GCC-6.4.0-2.28",
-            ])
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+                test_modtxt = '\n'.join([
+                    'depends_on("GCC/6.4.0-2.28")',
+                    'depends_on("OpenMPI/2.1.2-GCC-6.4.0-2.28")',
+                ])
+                test_modfile += '.lua'
+            else:
+                test_modtxt = '\n'.join([
+                    '#%Module',
+                    "depends-on GCC/6.4.0-2.28",
+                    "depends-on OpenMPI/2.1.2-GCC-6.4.0-2.28",
+                ])
 
-        write_file(test_modfile, test_modtxt)
+            write_file(test_modfile, test_modtxt)
 
-        self.modtool.use(self.test_prefix)
+            self.modtool.use(self.test_prefix)
 
-        expected = [
-            'GCC/6.4.0-2.28',
-            'OpenMPI/2.1.2-GCC-6.4.0-2.28',
-            'hwloc/1.11.8-GCC-6.4.0-2.28',  # recursive dep, via OpenMPI
-        ]
-        self.assertEqual(dependencies_for('test/1.2.3', self.modtool), expected)
+            expected = [
+                'GCC/6.4.0-2.28',
+                'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'hwloc/1.11.8-GCC-6.4.0-2.28',  # recursive dep, via OpenMPI
+            ]
+            self.assertEqual(dependencies_for('test/1.2.3', self.modtool), expected)
 
     def test_det_installdir(self):
         """Test det_installdir method."""
