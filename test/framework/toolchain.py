@@ -1161,6 +1161,44 @@ class ToolchainTest(EnhancedTestCase):
         # no dependencies found in iccifort module
         self.assertEqual(tc.toolchain_dep_mods, [])
 
+    def test_standalone_iccifortcuda(self):
+        """Test whether standalone installation of iccifortcuda matches the iccifortcuda toolchain definition."""
+
+        tc = self.get_toolchain('iccifortcuda', version='2019a')
+        tc.prepare()
+        self.assertEqual(tc.toolchain_dep_mods, ['icc/2019.1.144', 'ifort/2019.1.144', 'CUDA/10.1.105'])
+        self.modtool.purge()
+
+        for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT', 'EBROOTCUDA', 'EBVERSIONCUDA']:
+            self.assertTrue(os.getenv(key) is None)
+
+        # install fake iccifortcuda module with no dependencies
+        fake_iccifortcuda = os.path.join(self.test_prefix, 'iccifortcuda', '2019a')
+        write_file(fake_iccifortcuda, "#%Module")
+        self.modtool.use(self.test_prefix)
+
+        # toolchain verification fails because icc/ifort are not dependencies of iccifort modules,
+        # and corresponding environment variables are not set
+        error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
+
+        # make iccifort module set $EBROOT* and $EBVERSION* to pass toolchain verification
+        fake_iccifortcuda_txt = '\n'.join([
+            "#%Module",
+            'setenv EBROOTICC "%s"' % self.test_prefix,
+            'setenv EBROOTIFORT "%s"' % self.test_prefix,
+            'setenv EBROOTCUDA "%s"' % self.test_prefix,
+            'setenv EBVERSIONICC "2019.1.144"',
+            'setenv EBVERSIONIFORT "2019.1.144"',
+            'setenv EBVERSIONCUDA "10.1.105"',
+        ])
+        write_file(fake_iccifortcuda, fake_iccifortcuda_txt)
+        # toolchain preparation (which includes verification) works fine now
+        tc.prepare()
+        # no dependencies found in iccifortcuda module
+        self.assertEqual(tc.toolchain_dep_mods, [])
+
     def test_independence(self):
         """Test independency of toolchain instances."""
 
