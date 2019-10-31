@@ -32,7 +32,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import apply_patch, change_dir, extract_file, weld_paths
+from easybuild.tools.filetools import apply_patch, change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
 
