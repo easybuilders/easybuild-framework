@@ -544,11 +544,12 @@ class EasyBlock(object):
 
                                 if not skip_checksums:
                                     for patch in ext_patches:
+                                        patch = patch['path']
                                         # report both MD5 and SHA256 checksums,
                                         # since both are valid default checksum types
                                         for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                            checksum = compute_checksum(patch['path'], checksum_type=checksum_type)
-                                            self.log.info("%s checksum for %s: %s", checksum_type, patch['path'], checksum)
+                                            checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                            self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
 
                                     # verify checksum (if provided)
                                     self.log.debug('Verifying checksums for extension patches...')
