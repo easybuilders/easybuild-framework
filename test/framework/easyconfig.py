@@ -3158,6 +3158,27 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         self.assertEqual(ec.dependencies()[0]['version'], expected_version)
 
+    def test_unexpected_version_keys_caught(self):
+        """Tests that unexpected keys in a version dictionary are caught"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+        dep_str = "[('foo', {'bar=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '0.2'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "dependencies = %s" % dep_str,
+        ])
+        write_file(test_ec, test_ectxt)
+
+        self.assertRaises(EasyBuildError, EasyConfig, test_ec)
+
 
 def suite():
     """ returns all the testcases in this module """

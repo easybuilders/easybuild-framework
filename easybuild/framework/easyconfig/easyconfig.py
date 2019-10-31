@@ -1236,8 +1236,11 @@ class EasyConfig(object):
         elif isinstance(dep['version'], dict):
             # figure out matches based on dict keys (after splitting on '=')
             my_arch_key = 'arch=%s' % get_cpu_architecture()
-            has_arch_keys = [x for x in dep['version'].keys() if x.startswith('arch=')]
-            if has_arch_keys:
+            arch_keys = [x for x in dep['version'].keys() if x.startswith('arch=')]
+            other_keys = [x for x in dep['version'].keys() if '=' in x and x not in arch_keys]
+            if other_keys:
+                raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+            if arch_keys:
                 if my_arch_key in dep['version']:
                     ver = dep['version'][my_arch_key]
                     self.log.info("Version selected from %s: %s", dep['version'], ver)
