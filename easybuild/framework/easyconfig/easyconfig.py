@@ -1227,12 +1227,13 @@ class EasyConfig(object):
         return multi_deps
 
     def find_dep_version_match(self, dep):
-        """Identify the correct version for this system from the choices provided. This overwrites dep['version']"""
+        """Identify the correct version for this system from the choices provided. This returns the version to use."""
         if isinstance(dep['version'], string_type):
             self.log.debug("Version is already a string ('%s'), OK", dep['version'])
-            return
+            return dep['version']
         elif dep['version'] is None:
             self.log.debug("Version is None, OK", dep)
+            return None
         elif isinstance(dep['version'], dict):
             # figure out matches based on dict keys (after splitting on '=')
             my_arch_key = 'arch=%s' % get_cpu_architecture()
@@ -1244,11 +1245,11 @@ class EasyConfig(object):
                 if my_arch_key in dep['version']:
                     ver = dep['version'][my_arch_key]
                     self.log.info("Version selected from %s: %s", dep['version'], ver)
-                    dep['version'] = ver
+                    return ver
                 else:
                     raise EasyBuildError("No matches for version in %s (looking for %s)", dep['version'], my_arch_key)
-        else:
-            raise EasyBuildError("Unknown value type for version: %s", dep['version'])
+
+        raise EasyBuildError("Unknown value type for version: %s", dep['version'])
 
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
@@ -1330,7 +1331,8 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
-        self.find_dep_version_match(dependency)
+        # Find the version to use on this system
+        dependency['version'] = self.find_dep_version_match(dependency)
 
         if dependency['external_module']:
             # check whether the external module is hidden
