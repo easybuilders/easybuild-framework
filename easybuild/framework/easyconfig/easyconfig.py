@@ -1330,14 +1330,7 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
-        if isinstance(dependency['version'], string_type):
-            self.log.debug("Dependency version is already a string ('%s'), OK", dependency['version'])
-        elif dependency['version'] is None:
-            self.log.debug("Dependency %s version is None, OK", dependency)
-        elif isinstance(dependency['version'], dict):
-            self.find_dep_version_match(dependency)
-        else:
-            raise EasyBuildError("Unknown value type for dependency version: %s", dependency['version'])
+        self.find_dep_version_match(dependency)
 
         if dependency['external_module']:
             # check whether the external module is hidden
