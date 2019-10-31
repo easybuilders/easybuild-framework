@@ -30,6 +30,7 @@ EasyBuild support for a iccifort+CUDA compiler toolchain.
 
 from easybuild.toolchains.compiler.cuda import Cuda
 from easybuild.toolchains.iccifort import IccIfort
+from easybuild.tools.modules import get_software_root, get_software_version
 
 
 class IccIfortCUDA(IccIfort, Cuda):
@@ -41,5 +42,19 @@ class IccIfortCUDA(IccIfort, Cuda):
 
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        res = super(IccIfortCUDA, self).is_dep_in_toolchain_module(name)
+        # icc & ifort do not need to be actual dependencies in iccifort module,
+        # since they could also be installed together in a single directory.
+        # Let IccIfort check that.
+        res = IccIfort.is_dep_in_toolchain_module(self, name)
+
+        # Also check for CUDA since this is IccIfortCUDA toolchain
+        # as long as the corresponding $EBROOT* and $EBVERSION* environment variables are defined, it should be OK
+        if not res:
+            if name in 'CUDA':
+                self.log.info("Checking whether %s is a toolchain component even though it is not a dependency", name)
+                root = get_software_root(name)
+                version = get_software_version(name)
+                self.log.info("%s installation prefix: %s; version: %s", name, root, version)
+                if root and version:
+                    res = True
         return res
