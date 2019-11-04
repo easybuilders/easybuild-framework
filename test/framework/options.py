@@ -3900,6 +3900,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
+        # make sure software install directory is *not* created (see bug issue #3064)
+        self.assertFalse(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy')))
+
         # SHA256 is default type of checksums used
         self.assertTrue("injecting sha256 checksums in" in stdout)
         self.assertEqual(stderr, '')
