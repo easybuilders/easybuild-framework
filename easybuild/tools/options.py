@@ -989,6 +989,10 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
+        # imply --disable-pre-create-installdir with --inject-checksums
+        if self.options.inject_checksums:
+            self.options.pre_create_installdir = False
+
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
