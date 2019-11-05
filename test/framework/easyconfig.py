@@ -3163,21 +3163,22 @@ class EasyConfigTest(EnhancedTestCase):
 
         my_arch = st.get_cpu_architecture()
         expected_version = '1.2.3'
-        dep_str = "[('foo', {'bar=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version)
 
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ectxt = '\n'.join([
-            "easyblock = 'ConfigureMake'",
-            "name = 'test'",
-            "version = '0.2'",
-            "homepage = 'https://example.com'",
-            "description = 'test'",
-            "toolchain = SYSTEM",
-            "dependencies = %s" % dep_str,
-        ])
-        write_file(test_ec, test_ectxt)
+        for dep_str in ("[('foo', {'bar=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version),
+                        "[('foo', {'blah': 'bar'})]"):
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+            test_ectxt = '\n'.join([
+                "easyblock = 'ConfigureMake'",
+                "name = 'test'",
+                "version = '0.2'",
+                "homepage = 'https://example.com'",
+                "description = 'test'",
+                "toolchain = SYSTEM",
+                "dependencies = %s" % dep_str,
+            ])
+            write_file(test_ec, test_ectxt)
 
-        self.assertRaises(EasyBuildError, EasyConfig, test_ec)
+            self.assertRaises(EasyBuildError, EasyConfig, test_ec)
 
 
 def suite():

@@ -1238,13 +1238,13 @@ class EasyConfig(object):
             # figure out matches based on dict keys (after splitting on '=')
             my_arch_key = 'arch=%s' % get_cpu_architecture()
             arch_keys = [x for x in dep['version'].keys() if x.startswith('arch=')]
-            other_keys = [x for x in dep['version'].keys() if '=' in x and x not in arch_keys]
+            other_keys = [x for x in dep['version'].keys() if x not in arch_keys]
             if other_keys:
                 raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
             if arch_keys:
                 if my_arch_key in dep['version']:
                     ver = dep['version'][my_arch_key]
-                    self.log.info("Version selected from %s: %s", dep['version'], ver)
+                    self.log.info("Version selected from %s using key %s: %s", dep['version'], my_arch_key, ver)
                     return ver
                 else:
                     raise EasyBuildError("No matches for version in %s (looking for %s)", dep['version'], my_arch_key)
