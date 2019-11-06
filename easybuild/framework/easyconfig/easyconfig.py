@@ -530,12 +530,15 @@ class EasyConfig(object):
                 self.mandatory.append(key)
         self.log.debug("Updated list of mandatory easyconfig parameters: %s", self.mandatory)
 
-    def copy(self):
+    def copy(self, validate=None):
         """
         Return a copy of this EasyConfig instance.
         """
+        if validate is None:
+            validate = self.validation
+
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
+        ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
         # since rawtxt is defined, self.path may not get inherited, make sure it does

@@ -451,6 +451,12 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.fetch_step()
 
+        # inject OS dependency that can not be fullfilled,
+        # to check whether OS deps are validated again for each extension (they shouldn't be);
+        # we need to tweak the contents of the easyconfig file via cfg.rawtxt, since that's what is used to re-parse
+        # the easyconfig file for the extension
+        eb.cfg.rawtxt += "\nosdependencies = ['this_os_dep_does_not_exist']"
+
         # run extensions step to install 'toy' extension
         eb.extensions_step()
 
