@@ -104,18 +104,26 @@ def det_toolchain_compilers(ec):
 
         tc_comp_elems = copy.copy(tc_elems[TOOLCHAIN_COMPILER])
 
-        # for toolchains including icc & ifort (like iccifortcuda), always consider iccifort first
-        if 'icc' in tc_comp_elems and 'ifort' in tc_comp_elems:
-            combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, 'iccifort', allow_missing=True)
-            if combined_comp_elem_details:
-                if isinstance(combined_comp_elem_details, EasyConfig):
-                    combined_comp_elem_details = combined_comp_elem_details.asdict()
-                # add details for each compiler separately, using details from combo
-                for comp_elem in ['icc', 'ifort']:
-                    comp_elem_details = copy.copy(combined_comp_elem_details)
-                    comp_elem_details['name'] = comp_elem
-                    tc_comps.append(comp_elem_details)
-                    tc_comp_elems.remove(comp_elem)
+        # First consider a concatenation of list of compiler module names as a single toolchain element
+        combined_comp_elem = ''.join(tc_comp_elems)
+        elem_list = tc_comp_elems
+        combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, combined_comp_elem, allow_missing=True)
+
+        if not combined_comp_elem_details:
+            # for toolchains including icc & ifort (like iccifortcuda), always consider iccifort
+            if 'icc' in tc_comp_elems and 'ifort' in tc_comp_elems:
+                combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, 'iccifort', allow_missing=True)
+                elem_list = ['icc', 'ifort']
+
+        if combined_comp_elem_details:
+            if isinstance(combined_comp_elem_details, EasyConfig):
+                combined_comp_elem_details = combined_comp_elem_details.asdict()
+            # add details for each compiler separately, using details from combo
+            for comp_elem in elem_list:
+                comp_elem_details = copy.copy(combined_comp_elem_details)
+                comp_elem_details['name'] = comp_elem
+                tc_comps.append(comp_elem_details)
+                tc_comp_elems.remove(comp_elem)
 
         # consider any remaining individual compiler module names
         for comp_elem in tc_comp_elems:
