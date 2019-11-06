@@ -602,7 +602,6 @@ def check_os_dependency(dep):
     found = False
     cmd = None
     os_to_pkg_cmd_map = {
-        'centos': RPM,
         'debian': DPKG,
         'redhat': RPM,
         'ubuntu': DPKG,
@@ -612,6 +611,11 @@ def check_os_dependency(dep):
         RPM: '-q',
     }
     os_name = get_os_name()
+
+    rh_based_os = any(os_name.startswith(x) for x in ['centos', 'redhat', 'rhel', 'sl'])
+    if rh_based_os:
+        os_name = 'redhat'
+
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:
