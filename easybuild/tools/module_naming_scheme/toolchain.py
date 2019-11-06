@@ -106,7 +106,7 @@ def det_toolchain_compilers(ec):
 
         # First consider a concatenation of list of compiler module names as a single toolchain element
         combined_comp_elem = ''.join(tc_comp_elems)
-        elem_list = tc_comp_elems
+        elem_list = copy.copy(tc_comp_elems)
         combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, combined_comp_elem, allow_missing=True)
 
         if not combined_comp_elem_details:
