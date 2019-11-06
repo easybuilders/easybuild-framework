@@ -50,7 +50,7 @@ class IccIfortCUDA(IccIfort, Cuda):
         # Also check for CUDA since this is IccIfortCUDA toolchain
         # as long as the corresponding $EBROOT* and $EBVERSION* environment variables are defined, it should be OK
         if not res:
-            if name in 'CUDA':
+            if name == 'CUDA':
                 self.log.info("Checking whether %s is a toolchain component even though it is not a dependency", name)
                 root = get_software_root(name)
                 version = get_software_version(name)
