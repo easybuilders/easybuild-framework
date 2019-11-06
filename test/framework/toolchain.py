@@ -1183,7 +1183,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
-        # make iccifort module set $EBROOT* and $EBVERSION* to pass toolchain verification
+        # make iccifortcuda module set $EBROOT* and $EBVERSION* to pass toolchain verification
         fake_iccifortcuda_txt = '\n'.join([
             "#%Module",
             'setenv EBROOTICC "%s"' % self.test_prefix,
