@@ -39,22 +39,3 @@ class IccIfortCUDA(IccIfort, Cuda):
 
     COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME + Cuda.COMPILER_CUDA_MODULE_NAME
     SUBTOOLCHAIN = IccIfort.NAME
-
-    def is_dep_in_toolchain_module(self, name):
-        """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        # icc & ifort do not need to be actual dependencies in iccifort module,
-        # since they could also be installed together in a single directory.
-        # Let IccIfort check that.
-        res = IccIfort.is_dep_in_toolchain_module(self, name)
-
-        # Also check for CUDA since this is IccIfortCUDA toolchain
-        # as long as the corresponding $EBROOT* and $EBVERSION* environment variables are defined, it should be OK
-        if not res:
-            if name == 'CUDA':
-                self.log.info("Checking whether %s is a toolchain component even though it is not a dependency", name)
-                root = get_software_root(name)
-                version = get_software_version(name)
-                self.log.info("%s installation prefix: %s; version: %s", name, root, version)
-                if root and version:
-                    res = True
-        return res
