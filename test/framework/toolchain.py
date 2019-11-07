@@ -1164,7 +1164,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_standalone_iccifortcuda(self):
         """Test whether standalone installation of iccifortcuda matches the iccifortcuda toolchain definition."""
 
-        tc = self.get_toolchain('iccifortcuda', version='2019a')
+        tc = self.get_toolchain('iccifortcuda', version='2018b')
         tc.prepare()
         self.assertEqual(tc.toolchain_dep_mods, ['icc/2018.1.163', 'ifort/2018.1.163', 'CUDA/9.1.85'])
         self.modtool.purge()
@@ -1173,31 +1173,22 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(os.getenv(key) is None)
 
         # install fake iccifortcuda module with no dependencies
-        fake_iccifortcuda = os.path.join(self.test_prefix, 'iccifortcuda', '2019a')
+        fake_iccifortcuda = os.path.join(self.test_prefix, 'iccifortcuda', '2018b')
         write_file(fake_iccifortcuda, "#%Module")
         self.modtool.use(self.test_prefix)
 
-        # toolchain verification fails because icc/ifort are not dependencies of iccifort modules,
+        # toolchain verification fails because icc/ifort are not dependencies of iccifortcuda modules,
         # and corresponding environment variables are not set
         error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
         self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
-        # make iccifortcuda module set $EBROOT* and $EBVERSION* to pass toolchain verification
-        fake_iccifortcuda_txt = '\n'.join([
-            "#%Module",
-            'setenv EBROOTICC "%s"' % self.test_prefix,
-            'setenv EBROOTIFORT "%s"' % self.test_prefix,
-            'setenv EBROOTCUDA "%s"' % self.test_prefix,
-            'setenv EBVERSIONICC "2018.1.163"',
-            'setenv EBVERSIONIFORT "2018.1.163"',
-            'setenv EBVERSIONCUDA "9.1.85"',
-        ])
-        write_file(fake_iccifortcuda, fake_iccifortcuda_txt)
+        # Verify that it works loading a module that contains a combined iccifort module
+        tc = self.get_toolchain('iccifortcuda', version='2019a')
         # toolchain preparation (which includes verification) works fine now
         tc.prepare()
-        # no dependencies found in iccifortcuda module
-        self.assertEqual(tc.toolchain_dep_mods, [])
+        # dependencies found in iccifortcuda module
+        self.assertEqual(tc.toolchain_dep_mods, ['iccifort/2019.5.281', 'CUDA/9.1.85'])
 
     def test_independence(self):
         """Test independency of toolchain instances."""
