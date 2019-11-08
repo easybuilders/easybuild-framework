@@ -1896,7 +1896,7 @@ class EasyBlock(object):
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
             self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                            srcind, level, srcpathsuffix, copy)
+                           srcind, level, srcpathsuffix, copy)
 
             if beginpath is None:
                 try:
