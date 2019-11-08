@@ -463,7 +463,10 @@ class EasyConfigTest(EnhancedTestCase):
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        patches = []
+        for patch in toy_ext.patches:
+            patches.append(patch['path'])
+        self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
