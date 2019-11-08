@@ -1132,6 +1132,33 @@ class ToyBuildTest(EnhancedTestCase):
         archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
 
+    def test_toy_extension_patches(self):
+        """Test install toy that includes extensions with patches."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        # create file that we'll copy via 'patches'
+        write_file(os.path.join(self.test_prefix, 'test.txt'), 'test123')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "buildopts": " && ls -l test.txt",',
+            '       "patches": [',
+            '           "bar-0.0_fix-silly-typo-in-printf-statement.patch",',  # normal patch
+            '           ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0),',  # patch with patch level
+            '           ("test.txt", "."),',  # file to copy to build dir (not a real patch file)
+            '       ],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec)
+
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
         self.test_toy_tweaked()
