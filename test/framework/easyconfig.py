@@ -1972,6 +1972,13 @@ class EasyConfigTest(EnhancedTestCase):
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
 
+    def test_ActiveMNS_singleton(self):
+        """Make sure ActiveMNS is a singleton class."""
+
+        mns1 = ActiveMNS()
+        mns2 = ActiveMNS()
+        self.assertEqual(id(mns1), id(mns2))
+
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
         build_options = {

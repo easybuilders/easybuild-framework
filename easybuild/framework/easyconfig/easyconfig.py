@@ -67,7 +67,7 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, string_type
+from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -2212,10 +2212,12 @@ def fix_deprecated_easyconfigs(paths):
     print_msg("\nAll done! Fixed %d easyconfigs (out of %d found).\n", fixed_cnt, cnt, prefix=False)
 
 
-class ActiveMNS(object):
-    """Wrapper class for active module naming scheme."""
+# singleton metaclass: only one instance is created
+BaseActiveMNS = create_base_metaclass('BaseActiveMNS', Singleton, object)
 
-    __metaclass__ = Singleton
+
+class ActiveMNS(BaseActiveMNS):
+    """Wrapper class for active module naming scheme."""
 
     def __init__(self, *args, **kwargs):
         """Initialize logger."""
