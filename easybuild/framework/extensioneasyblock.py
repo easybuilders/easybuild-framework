@@ -110,7 +110,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 change_dir(self.start_dir)
 
         # patch if needed
-        EasyBlock.patch_step(self, beginpath=self.ext_dir, extension=True)
+        EasyBlock.patch_step(self, beginpath=self.ext_dir)
 
     def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None):
         """

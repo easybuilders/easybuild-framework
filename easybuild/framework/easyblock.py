@@ -1878,7 +1878,7 @@ class EasyBlock(object):
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
 
-    def patch_step(self, beginpath=None, extension=False):
+    def patch_step(self, beginpath=None):
         """
         Apply the patches
         """
@@ -1886,9 +1886,8 @@ class EasyBlock(object):
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
-            if not extension:
-                # patch source at specified index (first source if not specified)
-                srcind = patch.get('source', 0)
+            # patch source at specified index (first source if not specified)
+            srcind = patch.get('source', 0)
             # if patch level is specified, use that (otherwise let apply_patch derive patch level)
             level = patch.get('level', None)
             # determine suffix of source path to apply patch in (if any)
@@ -1896,9 +1895,8 @@ class EasyBlock(object):
             # determine whether 'patch' file should be copied rather than applied
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
-            if not extension:
-                self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                               srcind, level, srcpathsuffix, copy)
+            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
+                            srcind, level, srcpathsuffix, copy)
 
             if beginpath is None:
                 try:
