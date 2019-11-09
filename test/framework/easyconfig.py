@@ -3200,6 +3200,50 @@ class EasyConfigTest(EnhancedTestCase):
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
+    def test_arch_specific_dependency(self):
+        """Tests that the correct version is chosen for this architecture"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+        dep_str = "[('foo', {'arch=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '0.2'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "dependencies = %s" % dep_str,
+        ])
+        write_file(test_ec, test_ectxt)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec.dependencies()[0]['version'], expected_version)
+
+    def test_unexpected_version_keys_caught(self):
+        """Tests that unexpected keys in a version dictionary are caught"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+
+        for dep_str in ("[('foo', {'bar=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version),
+                        "[('foo', {'blah': 'bar'})]"):
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+            test_ectxt = '\n'.join([
+                "easyblock = 'ConfigureMake'",
+                "name = 'test'",
+                "version = '0.2'",
+                "homepage = 'https://example.com'",
+                "description = 'test'",
+                "toolchain = SYSTEM",
+                "dependencies = %s" % dep_str,
+            ])
+            write_file(test_ec, test_ectxt)
+
+            self.assertRaises(EasyBuildError, EasyConfig, test_ec)
+
 
 def suite():
     """ returns all the testcases in this module """

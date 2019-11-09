@@ -68,7 +68,7 @@ from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_s
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
-from easybuild.tools.systemtools import check_os_dependency
+from easybuild.tools.systemtools import check_os_dependency, get_cpu_architecture
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -1229,6 +1229,31 @@ class EasyConfig(object):
 
         return multi_deps
 
+    def find_dep_version_match(self, dep_version):
+        """Identify the correct version for this system from the choices provided. This returns the version to use."""
+        if isinstance(dep_version, string_type):
+            self.log.debug("Version is already a string ('%s'), OK", dep_version)
+            return dep_version
+        elif dep_version is None:
+            self.log.debug("Version is None, OK")
+            return None
+        elif isinstance(dep_version, dict):
+            # figure out matches based on dict keys (after splitting on '=')
+            my_arch_key = 'arch=%s' % get_cpu_architecture()
+            arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+            other_keys = [x for x in dep_version.keys() if x not in arch_keys]
+            if other_keys:
+                raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+            if arch_keys:
+                if my_arch_key in dep_version:
+                    ver = dep_version[my_arch_key]
+                    self.log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, ver)
+                    return ver
+                else:
+                    raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+
+        raise EasyBuildError("Unknown value type for version: %s", dep_version)
+
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
         """
@@ -1272,6 +1297,7 @@ class EasyConfig(object):
             # provides information on what this module represents (software name/version, install prefix, ...)
             'external_module_metadata': {},
         }
+
         if isinstance(dep, dict):
             dependency.update(dep)
 
@@ -1307,6 +1333,9 @@ class EasyConfig(object):
 
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        # Find the version to use on this system
+        dependency['version'] = self.find_dep_version_match(dependency['version'])
 
         if dependency['external_module']:
             # check whether the external module is hidden
