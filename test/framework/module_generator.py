@@ -1198,6 +1198,52 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # only with depth=0, only direct dependencies are returned
         self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
 
+        # Lmod 7.6+ is required to use depends-on
+        if self.modtool.supports_depends_on:
+            # also test on module file that includes depends_on statements
+            test_modfile = os.path.join(self.test_prefix, 'test', '1.2.3')
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+                test_modtxt = '\n'.join([
+                    'depends_on("GCC/6.4.0-2.28")',
+                    'depends_on("OpenMPI/2.1.2-GCC-6.4.0-2.28")',
+                ])
+                test_modfile += '.lua'
+            else:
+                test_modtxt = '\n'.join([
+                    '#%Module',
+                    "depends-on GCC/6.4.0-2.28",
+                    "depends-on OpenMPI/2.1.2-GCC-6.4.0-2.28",
+                ])
+
+            write_file(test_modfile, test_modtxt)
+
+            self.modtool.use(self.test_prefix)
+
+            expected = [
+                'GCC/6.4.0-2.28',
+                'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'hwloc/1.11.8-GCC-6.4.0-2.28',  # recursive dep, via OpenMPI
+            ]
+            self.assertEqual(dependencies_for('test/1.2.3', self.modtool), expected)
+
+    def test_det_installdir(self):
+        """Test det_installdir method."""
+
+        # first create a module file we can test with
+        modtxt = self.modgen.MODULE_SHEBANG
+        if modtxt:
+            modtxt += '\n'
+
+        modtxt += self.modgen.get_description()
+
+        test_modfile = os.path.join(self.test_prefix, 'test' + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(test_modfile, modtxt)
+
+        expected = self.modgen.app.installdir
+
+        self.assertEqual(self.modgen.det_installdir(test_modfile), expected)
+
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""

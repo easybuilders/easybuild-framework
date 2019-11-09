@@ -405,6 +405,9 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
                                      None, 'store_true', False),
+            'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
+                                          "rather than just warning about them",
+                                          None, 'store_true', False),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
@@ -986,6 +989,10 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
+        # imply --disable-pre-create-installdir with --inject-checksums
+        if self.options.inject_checksums:
+            self.options.pre_create_installdir = False
+
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
@@ -1476,7 +1483,7 @@ def parse_external_modules_metadata(cfgs):
         topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
 
         # etc/ could also be located next to bin/
-        eb_cmd = which('eb')
+        eb_cmd = os.getenv('EB_SCRIPT_PATH') or which('eb')
         if eb_cmd:
             topdirs.append(os.path.dirname(os.path.dirname(eb_cmd)))
 

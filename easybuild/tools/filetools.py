@@ -703,7 +703,7 @@ def find_eb_script(script_name):
         prev_script_loc = script_loc
 
         # fallback mechanism: check in location relative to location of 'eb'
-        eb_path = which('eb')
+        eb_path = os.getenv('EB_SCRIPT_PATH') or which('eb')
         if eb_path is None:
             _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
         else:

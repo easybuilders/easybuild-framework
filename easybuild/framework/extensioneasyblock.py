@@ -32,7 +32,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import apply_patch, change_dir, extract_file
+from easybuild.tools.filetools import change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
 
@@ -88,6 +88,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
             self.module_generator = self.master.module_generator
+            self.robot_path = self.master.robot_path
             self.is_extension = True
             self.unpack_options = None
         else:
@@ -109,10 +110,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 change_dir(self.start_dir)
 
         # patch if needed
-        if self.patches:
-            for patchfile in self.patches:
-                if not apply_patch(patchfile, self.ext_dir):
-                    raise EasyBuildError("Applying patch %s failed", patchfile)
+        EasyBlock.patch_step(self, beginpath=self.ext_dir)
 
     def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None):
         """

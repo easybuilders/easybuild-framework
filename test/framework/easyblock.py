@@ -1242,6 +1242,24 @@ class EasyBlockTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
+    def test_obtain_file_extension(self):
+        """Test use of obtain_file method on an extension."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = process_easyconfig(toy_ec_file)[0]
+        toy_eb = EasyBlock(toy_ec['ec'])
+
+        toy_eb.fetch_step()
+
+        test_ext = toy_eb.exts[-1]
+        test_ext_src_fn = os.path.basename(test_ext['src'])
+
+        ext = ExtensionEasyBlock(toy_eb, test_ext)
+        ext_src_path = ext.obtain_file(test_ext_src_fn)
+        self.assertEqual(os.path.basename(ext_src_path), 'toy-0.0.tar.gz')
+        self.assertTrue(os.path.exists(ext_src_path))
+
     def test_check_readiness(self):
         """Test check_readiness method."""
         init_config(build_options={'validate': False, 'silent': True})

@@ -180,6 +180,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         return outtxt
 
+    def run_test_toy_build_with_output(self, *args, **kwargs):
+        """Run test_toy_build with specified arguments, catch stdout/stderr and return it."""
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(*args, **kwargs)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        return stdout, stderr
+
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
@@ -1118,6 +1131,33 @@ class ToyBuildTest(EnhancedTestCase):
 
         archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
+
+    def test_toy_extension_patches(self):
+        """Test install toy that includes extensions with patches."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        # create file that we'll copy via 'patches'
+        write_file(os.path.join(self.test_prefix, 'test.txt'), 'test123')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "buildopts": " && ls -l test.txt",',
+            '       "patches": [',
+            '           "bar-0.0_fix-silly-typo-in-printf-statement.patch",',  # normal patch
+            '           ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0),',  # patch with patch level
+            '           ("test.txt", "."),',  # file to copy to build dir (not a real patch file)
+            '       ],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec)
 
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
@@ -2333,6 +2373,44 @@ class ToyBuildTest(EnhancedTestCase):
             write_file(test_ec, test_ec_txt)
 
             self.test_toy_build(ec_file=test_ec)
+
+    def test_toy_ghost_installdir(self):
+        """Test whether ghost installation directory is removed under --force."""
+
+        toy_installdir = os.path.join(self.test_prefix, 'test123', 'toy', '0.0')
+        mkdir(toy_installdir, parents=True)
+        write_file(os.path.join(toy_installdir, 'bin', 'toy'), "#!/bin/bash\necho hello")
+
+        toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_modfile += '.lua'
+            dummy_toy_mod_txt = 'local root = "%s"\n' % toy_installdir
+        else:
+            dummy_toy_mod_txt = '\n'.join([
+                "#%Module",
+                "set root %s" % toy_installdir,
+                '',
+            ])
+        write_file(toy_modfile, dummy_toy_mod_txt)
+
+        stdout, stderr = self.run_test_toy_build_with_output()
+
+        # by default, a warning is printed for ghost installation directories (but they're left untouched)
+        self.assertFalse(stdout)
+        regex = re.compile("WARNING: Likely ghost installation directory detected: %s" % toy_installdir)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertTrue(os.path.exists(toy_installdir))
+
+        # cleanup of ghost installation directories can be enable via --remove-ghost-install-dirs
+        write_file(toy_modfile, dummy_toy_mod_txt)
+        stdout, stderr = self.run_test_toy_build_with_output(extra_args=['--remove-ghost-install-dirs'])
+
+        self.assertFalse(stderr)
+
+        regex = re.compile("^== Ghost installation directory %s removed" % toy_installdir)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertFalse(os.path.exists(toy_installdir))
 
 
 def suite():

@@ -334,6 +334,20 @@ class ModuleGenerator(object):
 
         return res
 
+    def det_installdir(self, modfile):
+        """
+        Determine installation directory used by given module file
+        """
+        res = None
+
+        modtxt = read_file(modfile)
+        root_regex = re.compile(self.INSTALLDIR_REGEX, re.M)
+        match = root_regex.search(modtxt)
+        if match:
+            res = match.group('installdir')
+
+        return res
+
     # From this point on just not implemented methods
 
     def check_group(self, group, error_msg=None):
@@ -621,7 +635,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
     MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
-    LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
+    INSTALLDIR_REGEX = r"^set root\s+(?P<installdir>.*)"
+    LOAD_REGEX = r"^\s*(?:module\s+load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
@@ -963,6 +978,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
+    INSTALLDIR_REGEX = r'^local root\s+=\s+"(?P<installdir>.*)"'
     LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'

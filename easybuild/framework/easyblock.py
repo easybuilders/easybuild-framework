@@ -75,8 +75,8 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, apply_reg
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_file, rmtree2
-from easybuild.tools.filetools import verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
+from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -453,8 +453,8 @@ class EasyBlock(object):
                 raise EasyBuildError('No file found for patch %s', patch_spec)
 
         if extension:
-            self.log.info("Fetched extension patches: %s" % patches)
-            return [patch['path'] for patch in patches]
+            self.log.info("Fetched extension patches: %s", patches)
+            return patches
         else:
             self.log.info("Added patches: %s" % self.patches)
 
@@ -544,6 +544,7 @@ class EasyBlock(object):
 
                                 if not skip_checksums:
                                     for patch in ext_patches:
+                                        patch = patch['path']
                                         # report both MD5 and SHA256 checksums,
                                         # since both are valid default checksum types
                                         for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
@@ -553,6 +554,7 @@ class EasyBlock(object):
                                     # verify checksum (if provided)
                                     self.log.debug('Verifying checksums for extension patches...')
                                     for idx, patch in enumerate(ext_patches):
+                                        patch = patch['path']
                                         checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
                                         if verify_checksum(patch, checksum):
                                             self.log.info('Checksum for extension patch %s verified', patch)
@@ -924,25 +926,19 @@ class EasyBlock(object):
         if os.path.exists(dir_name):
             self.log.info("Found old directory %s" % dir_name)
             if self.cfg['keeppreviousinstall']:
-                self.log.info("Keeping old directory %s (hopefully you know what you are doing)" % dir_name)
+                self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
-            elif clean:
-                try:
-                    rmtree2(dir_name)
-                    self.log.info("Removed old directory %s" % dir_name)
-                except OSError as err:
-                    raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
             elif build_option('module_only'):
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
+            elif clean:
+                remove_dir(dir_name)
+                self.log.info("Removed old directory %s", dir_name)
             else:
                 self.log.info("Moving existing directory %s out of the way...", dir_name)
-                try:
-                    timestamp = time.strftime("%Y%m%d-%H%M%S")
-                    backupdir = "%s.%s" % (dir_name, timestamp)
-                    shutil.move(dir_name, backupdir)
-                    self.log.info("Moved old directory %s to %s" % (dir_name, backupdir))
-                except OSError as err:
-                    raise EasyBuildError("Moving old directory to backup %s %s failed: %s", dir_name, backupdir, err)
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                backupdir = "%s.%s" % (dir_name, timestamp)
+                move_file(dir_name, backupdir)
+                self.log.info("Moved old directory %s to %s", dir_name, backupdir)
 
         if dontcreateinstalldir:
             olddir = dir_name
@@ -1619,6 +1615,31 @@ class EasyBlock(object):
         self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
         self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
+    def remove_module_file(self):
+        """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
+
+        if os.path.exists(self.mod_filepath):
+            # if installation directory used by module file differs from the one used now,
+            # either clean it up to avoid leaving behind a ghost installation, or warn about it
+            # (see also https://github.com/easybuilders/easybuild-framework/issues/3026)
+            old_installdir = self.module_generator.det_installdir(self.mod_filepath)
+
+            if old_installdir is None:
+                warning_msg = "Failed to determine installation directory from module file %s" % self.mod_filepath
+                warning_msg += ", can't clean up potential ghost installation for %s %s" % (self.name, self.version)
+                print_warning(warning_msg)
+
+            elif os.path.exists(old_installdir) and not os.path.samefile(old_installdir, self.installdir):
+                if build_option('remove_ghost_install_dirs'):
+                    remove_dir(old_installdir)
+                    self.log.info("Ghost installation directory %s removed", old_installdir)
+                    print_msg("Ghost installation directory %s removed", old_installdir)
+                else:
+                    print_warning("Likely ghost installation directory detected: %s", old_installdir)
+
+            self.log.info("Removing existing module file %s", self.mod_filepath)
+            remove_file(self.mod_filepath)
+
     #
     # STEP FUNCTIONS
     #
@@ -1669,9 +1690,7 @@ class EasyBlock(object):
 
         # remove existing module file under --force (but only if --skip is not used)
         elif build_option('force') or build_option('rebuild'):
-            if os.path.exists(self.mod_filepath):
-                self.log.info("Removing existing module file %s", self.mod_filepath)
-                remove_file(self.mod_filepath)
+            self.remove_module_file()
 
     def fetch_step(self, skip_checksums=False):
         """Fetch source files and patches (incl. extensions)."""
@@ -3467,8 +3486,8 @@ def inject_checksums(ecs, checksum_type):
                         print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
                         ext_checksums.append((src_fn, checksum))
                     for ext_patch in ext.get('patches', []):
-                        patch_fn = os.path.basename(ext_patch)
-                        checksum = compute_checksum(ext_patch, checksum_type)
+                        patch_fn = os.path.basename(ext_patch['path'])
+                        checksum = compute_checksum(ext_patch['path'], checksum_type)
                         print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
                         ext_checksums.append((patch_fn, checksum))
 

@@ -57,7 +57,7 @@ class Extension(object):
         """
         self.master = mself
         self.log = self.master.log
-        self.cfg = self.master.cfg.copy()
+        self.cfg = self.master.cfg.copy(validate=False)
         self.ext = copy.deepcopy(ext)
         self.dry_run = self.master.dry_run
 

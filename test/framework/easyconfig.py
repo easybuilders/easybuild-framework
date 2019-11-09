@@ -451,13 +451,22 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.fetch_step()
 
+        # inject OS dependency that can not be fullfilled,
+        # to check whether OS deps are validated again for each extension (they shouldn't be);
+        # we need to tweak the contents of the easyconfig file via cfg.rawtxt, since that's what is used to re-parse
+        # the easyconfig file for the extension
+        eb.cfg.rawtxt += "\nosdependencies = ['this_os_dep_does_not_exist']"
+
         # run extensions step to install 'toy' extension
         eb.extensions_step()
 
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        patches = []
+        for patch in toy_ext.patches:
+            patches.append(patch['path'])
+        self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
@@ -1966,6 +1975,13 @@ class EasyConfigTest(EnhancedTestCase):
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
 
+    def test_ActiveMNS_singleton(self):
+        """Make sure ActiveMNS is a singleton class."""
+
+        mns1 = ActiveMNS()
+        mns2 = ActiveMNS()
+        self.assertEqual(id(mns1), id(mns2))
+
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
         build_options = {
@@ -2562,8 +2578,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs = os.path.join(top_dir, 'easyconfigs')
         symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
 
+        # temporarily mock stderr to avoid printed warning (because 'eb' is not available via $PATH)
+        self.mock_stderr(True)
+
         # locations listed in 'robot_path' named argument are taken into account
         res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.mock_stderr(False)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
         # easyconfigs location can also be derived from location of 'eb'
@@ -2587,6 +2607,50 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # put mock 'eb' back in $PATH
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        # if $EB_SCRIPT_PATH is specified, this is picked up to determine location to easyconfigs
+        someprefix = os.path.join(self.test_prefix, 'someprefix')
+        test_easyconfigs_dir = os.path.join(someprefix, 'easybuild', 'easyconfigs')
+        mkdir(test_easyconfigs_dir, parents=True)
+        write_file(os.path.join(someprefix, 'bin', 'eb'), '')
+
+        # put symlink in place, both original path and resolved path should be considered
+        symlinked_prefix = os.path.join(self.test_prefix, 'symlinked_prefix')
+        symlink(someprefix, symlinked_prefix)
+
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(symlinked_prefix, 'bin', 'eb')
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+
+        # last path is symlinked path
+        self.assertEqual(res[-1], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+
+        # wipe sys.path. then only path found via $EB_SCRIPT_PATH is found
+        sys.path = []
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+
+        # if $EB_SCRIPT_PATH is not defined, then paths determined via 'eb' found through $PATH are picked up
+        del os.environ['EB_SCRIPT_PATH']
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        expected = os.path.join(self.test_prefix, 'easybuild', 'easyconfigs')
+        self.assertTrue(os.path.samefile(res[-1], expected))
+
+        # also check with $EB_SCRIPT_PATH set to a symlink which doesn't allow
+        # directly deriving path to easybuild/easyconfigs dir, but resolved symlink does
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/2248
+        eb_symlink = os.path.join(self.test_prefix, 'eb')
+        symlink(os.path.join(someprefix, 'bin', 'eb'), eb_symlink)
+        os.environ['EB_SCRIPT_PATH'] = eb_symlink
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.exists(res[0]))
+        self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""

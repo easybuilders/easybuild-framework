@@ -41,6 +41,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -222,7 +223,24 @@ class GithubTest(EnhancedTestCase):
             "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
             "[DRY RUN] Adding comment to testrepository issue #2: '" +
             "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
-            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
+            "[DRY RUN] Closed hpcugent/testrepository PR #2",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
+        retest_msg = VALID_CLOSE_PR_REASONS['retest']
+
+        self.mock_stdout(True)
+        gh.close_pr(2, motivation_msg=retest_msg)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "[DRY RUN] Adding comment to testrepository issue #2: '" +
+            "@migueldiascosta, this PR is being closed for the following reason(s): %s" % retest_msg,
+            "[DRY RUN] Closed hpcugent/testrepository PR #2",
+            "[DRY RUN] Reopened hpcugent/testrepository PR #2",
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))

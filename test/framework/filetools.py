@@ -833,8 +833,8 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp + '.1', 'evenmoarbar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
 
-        logs = sorted([f for f in os.listdir(self.test_prefix) if 'log' in f])
-        self.assertEqual(len(logs), 7)
+        logs = sorted([f for f in os.listdir(self.test_prefix) if '.log' in f])
+        self.assertEqual(len(logs), 7, "Found exactly 7 log files: %d (%s)" % (len(logs), logs))
         self.assertEqual(len([x for x in logs if x.startswith('eb-test-')]), 1)
         self.assertEqual(len([x for x in logs if x.startswith('foo')]), 2)
         self.assertEqual(len([x for x in logs if x.startswith('bar')]), 4)

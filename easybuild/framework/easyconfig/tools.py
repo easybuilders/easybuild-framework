@@ -255,17 +255,39 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     path_list.extend(sys.path)
 
     # figure out installation prefix, e.g. distutils install path for easyconfigs
-    eb_path = which('eb')
+
+    # prefer using path specified in $EB_SCRIPT_PATH (if defined), which is set by 'eb' wrapper script
+    eb_path = os.getenv('EB_SCRIPT_PATH')
+    if eb_path is None:
+        # try to determine location of 'eb' script via $PATH, as fallback mechanism
+        eb_path = which('eb')
+        _log.info("Location to 'eb' script (found via $PATH): %s", eb_path)
+    else:
+        _log.info("Found location to 'eb' script via $EB_SCRIPT_PATH: %s", eb_path)
+
     if eb_path is None:
         warning_msg = "'eb' not found in $PATH, failed to determine installation prefix!"
         _log.warning(warning_msg)
         print_warning(warning_msg)
     else:
-        # real location to 'eb' should be <install_prefix>/bin/eb
-        eb_path = resolve_path(eb_path)
+        # eb_path is location to 'eb' wrapper script, e.g. <install_prefix>/bin/eb
+        # so installation prefix is usually two levels up
         install_prefix = os.path.dirname(os.path.dirname(eb_path))
-        path_list.append(install_prefix)
-        _log.debug("Also considering installation prefix %s..." % install_prefix)
+
+        # only consider resolved path to 'eb' script if desired subdir is not found relative to 'eb' script location
+        if os.path.exists(os.path.join(install_prefix, 'easybuild', subdir)):
+            path_list.append(install_prefix)
+            _log.info("Also considering installation prefix %s (determined via path to 'eb' script)...", install_prefix)
+        else:
+            _log.info("Not considering %s (no easybuild/%s subdir found)", install_prefix, subdir)
+
+            # also consider fully resolved location to 'eb' wrapper
+            # see https://github.com/easybuilders/easybuild-framework/pull/2248
+            resolved_eb_path = resolve_path(eb_path)
+            if eb_path != resolved_eb_path:
+                install_prefix = os.path.dirname(os.path.dirname(resolved_eb_path))
+                path_list.append(install_prefix)
+                _log.info("Also considering installation prefix %s (via resolved path to 'eb')...", install_prefix)
 
     # look for desired subdirs
     for path in path_list:
