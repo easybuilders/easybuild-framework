@@ -1,15 +1,13 @@
 language: python
-python: 2.6
-dist: trusty
+python: 2.7
+dist: xenial
 env:
   matrix:
     # purposely specifying slowest builds first, to gain time overall
-    - LMOD_VERSION=6.5.1
-    - LMOD_VERSION=6.5.1 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - LMOD_VERSION=7.8.22
     - LMOD_VERSION=7.8.22 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - LMOD_VERSION=8.0.9
-    - LMOD_VERSION=8.0.9 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - LMOD_VERSION=8.2.3
+    - LMOD_VERSION=8.2.3 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
@@ -19,44 +17,29 @@ matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
   include:
-    # also test default configuration with Python 2.7
-    - python: 2.7
-      env: LMOD_VERSION=6.6.3
-      dist: xenial
+    # also test default configuration with Python 2.6
+    - python: 2.6
+      env: LMOD_VERSION=7.8.22
+      dist: trusty
     # also test with Python 3.6
     - python: 3.6
-      env: LMOD_VERSION=6.6.3
-      dist: xenial
-    - python: 3.6
-      env: LMOD_VERSION=6.5.1 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
-    - python: 3.6
       env: LMOD_VERSION=7.8.22
-      dist: xenial
     - python: 3.6
       env: LMOD_VERSION=7.8.22 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
     - python: 3.6
-      env: LMOD_VERSION=8.0.9
-      dist: xenial
+      env: LMOD_VERSION=8.2.3
     - python: 3.6
-      env: LMOD_VERSION=8.0.9 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
+      env: LMOD_VERSION=8.2.3 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - python: 3.6
       env: ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
     - python: 3.6
       env: ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
     - python: 3.6
       env: ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
-      dist: xenial
     # also test most common configuration with Python 3.5 and 3.7
     - python: 3.5
       env: LMOD_VERSION=7.8.22
-      dist: xenial
     - python: 3.7
-      dist: xenial
       env: LMOD_VERSION=7.8.22
 addons:
   apt:
