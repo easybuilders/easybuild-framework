@@ -55,7 +55,7 @@ try:
     HAVE_DISTRO = True
 except ImportError as err:
     _log.debug("Failed to import 'distro' Python module: %s", err)
-    HAVE_DISTRO  = False
+    HAVE_DISTRO = False
 
 
 # Architecture constants
