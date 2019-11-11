@@ -213,7 +213,7 @@ class ModulesTool(object):
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
-        if self.COMMAND in MODULE_VERSION_CACHE:
+        if self.cmd in MODULE_VERSION_CACHE:
             self.version = MODULE_VERSION_CACHE[self.cmd]
             self.log.debug("Found cached version for %s command %s: %s", self.NAME, self.COMMAND, self.version)
             return
