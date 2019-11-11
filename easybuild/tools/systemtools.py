@@ -49,6 +49,15 @@ from easybuild.tools.run import run_cmd
 
 _log = fancylogger.getLogger('systemtools', fname=False)
 
+
+try:
+    import distro
+    HAVE_DISTRO = True
+except ImportError as err:
+    _log.debug("Failed to import 'distro' Python module: %s", err)
+    HAVE_DISTRO  = False
+
+
 # Architecture constants
 AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
@@ -531,9 +540,21 @@ def get_os_name():
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
     'red hat enterprise linux server', 'SL' (Scientific Linux), 'opensuse', ...
     """
-    # platform.linux_distribution is more useful, but only available since Python 2.6
-    # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-    os_name = platform.linux_distribution()[0].strip().lower()
+    os_name = None
+
+    # platform.linux_distribution was removed in Python 3.8,
+    # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
+    if hasattr(platform, 'linux_distribution'):
+        # platform.linux_distribution is more useful, but only available since Python 2.6
+        # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
+        os_name = platform.linux_distribution()[0].strip().lower()
+    elif HAVE_DISTRO:
+        # distro package is the recommended alternative to platform.linux_distribution,
+        # see https://pypi.org/project/distro
+        os_name = distro.name()
+    else:
+        # no easy way to determine name of Linux distribution
+        os_name = None
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
