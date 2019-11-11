@@ -3544,6 +3544,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         err_msg = "Different length for lists of names/versions in metadata for external module"
         self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
+        # if path to non-existing file is used, an error is reported
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        error_pattern = "Specified path for file with external modules metadata does not exist"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, [doesnotexist])
+
+        # glob pattern can be used to specify file locations to parse_external_modules_metadata
+        cfg1 = os.path.join(self.test_prefix, 'cfg_one.ini')
+        write_file(cfg1, '\n'.join(['[one/1.0]', 'name = one', 'version = 1.0']))
+        cfg2 = os.path.join(self.test_prefix, 'cfg_two.ini')
+        write_file(cfg2, '\n'.join([
+            '[two/2.0]', 'name = two', 'version = 2.0',
+            '[two/2.1]', 'name = two', 'version = 2.1',
+        ]))
+        cfg3 = os.path.join(self.test_prefix, 'cfg3.ini')
+        write_file(cfg3, '\n'.join(['[three/3.0]', 'name = three', 'version = 3.0']))
+        cfg4 = os.path.join(self.test_prefix, 'cfg_more.ini')
+        write_file(cfg4, '\n'.join(['[one/1.2.3]', 'name = one', 'version = 1.2.3', 'prefix = /one/1.2.3/']))
+
+        metadata = parse_external_modules_metadata([os.path.join(self.test_prefix, 'cfg*.ini')])
+
+        self.assertEqual(sorted(metadata.keys()), ['one/1.0', 'one/1.2.3', 'three/3.0', 'two/2.0', 'two/2.1'])
+        self.assertEqual(metadata['one/1.0'], {'name': ['one'], 'version': ['1.0']})
+        self.assertEqual(metadata['one/1.2.3'], {'name': ['one'], 'version': ['1.2.3'], 'prefix': '/one/1.2.3/'})
+        self.assertEqual(metadata['two/2.0'], {'name': ['two'], 'version': ['2.0']})
+        self.assertEqual(metadata['two/2.1'], {'name': ['two'], 'version': ['2.1']})
+        self.assertEqual(metadata['three/3.0'], {'name': ['three'], 'version': ['3.0']})
+
     def test_zip_logs(self):
         """Test use of --zip-logs"""
 

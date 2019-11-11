@@ -1471,14 +1471,25 @@ def parse_external_modules_metadata(cfgs):
     """
     Parse metadata for external modules.
 
-    :param cfgs: list of config files providing metadata for external modules
+    :param cfgs: list of (glob patterns for) paths to config files providing metadata for external modules
     :return: parsed metadata for external modules
     """
+    if cfgs is None:
+        cfgs = []
+
+    # expand glob patterns, and report error for faulty paths
+    paths = []
+    for cfg in cfgs:
+        res = glob.glob(cfg)
+        if res:
+            paths.extend(res)
+        else:
+            # if there are no matches, we report an error to avoid silently ignores faulty paths
+            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+    cfgs = paths
 
     # use external modules metadata configuration files that are available by default, unless others are specified
     if not cfgs:
-        cfgs = []
-
         # we expect to find *external_modules_metadata.cfg files in etc/ on same level as easybuild/framework
         topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
 
@@ -1502,14 +1513,11 @@ def parse_external_modules_metadata(cfgs):
 
     parsed_metadata = ConfigObj()
     for cfg in cfgs:
-        if os.path.isfile(cfg):
-            _log.debug("Parsing %s with external modules metadata", cfg)
-            try:
-                parsed_metadata.merge(ConfigObj(cfg))
-            except ConfigObjError as err:
-                raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
-        else:
-            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+        _log.debug("Parsing %s with external modules metadata", cfg)
+        try:
+            parsed_metadata.merge(ConfigObj(cfg))
+        except ConfigObjError as err:
+            raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
 
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():
