@@ -571,7 +571,15 @@ def get_os_name():
 
 def get_os_version():
     """Determine system version."""
-    os_version = platform.dist()[1]
+
+    # platform.dist was removed in Python 3.8
+    if hasattr(platform, 'dist'):
+        os_version = platform.dist()[1]
+    elif HAVE_DISTRO:
+        os_version = distro.version()
+    else:
+        os_version = None
+
     if os_version:
         if get_os_name() in ["suse", "SLES"]:
 
