@@ -93,7 +93,8 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_system_info
+from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
+from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -1302,6 +1303,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
     """
+    check_python_version()
 
     # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
     # this must be done early on, to catch imports from the vsc namespace in modules included via --include-*
