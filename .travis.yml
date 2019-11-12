@@ -58,6 +58,9 @@ matrix:
     - python: 3.7
       dist: xenial
       env: LMOD_VERSION=7.8.22
+    - python: 3.8
+      dist: xenial
+      env: LMOD_VERSION=7.8.22
 addons:
   apt:
     packages:
