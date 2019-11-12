@@ -449,8 +449,8 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
-            'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
-                                          'strlist', 'store', None),
+            'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
+                                          "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
