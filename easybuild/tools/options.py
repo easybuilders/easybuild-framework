@@ -412,6 +412,7 @@ class EasyBuildOptions(GeneralOption):
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),

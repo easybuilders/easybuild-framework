@@ -435,6 +435,7 @@ def init_config(args=None, build_options=None, with_include=True):
         'extended_dry_run': False,
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
+        'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
