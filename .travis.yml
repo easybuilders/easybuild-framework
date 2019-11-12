@@ -23,7 +23,7 @@ matrix:
       dist: trusty
     # single configuration to test with Lmod 6 and Python 2.7
     - python: 2.7
-      env: LMOD_VERSION=6.5.1
+      env: LMOD_VERSION=6.5.1 EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Lmod6
     # also test with Python 3.6
     - python: 3.6
       env: LMOD_VERSION=7.8.22

@@ -262,7 +262,13 @@ class ModulesTool(object):
                 if StrictVersion(self.version) < StrictVersion(self.DEPR_VERSION):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
-                    self.log.deprecated(depr_msg, '5.0')
+
+                    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+
+                    if self.version.startswith('6') and 'Lmod6' in silence_deprecation_warnings:
+                        self.log.warning(depr_msg)
+                    else:
+                        self.log.deprecated(depr_msg, '5.0')
 
             if self.MAX_VERSION is not None:
                 self.log.debug("Maximum allowed %s version defined: %s", self.NAME, self.MAX_VERSION)
