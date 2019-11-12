@@ -43,6 +43,7 @@ from socket import gethostname
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd
 
@@ -831,3 +832,35 @@ def det_terminal_size():
             height, width = 25, 80
 
     return height, width
+
+
+def check_python_version():
+    """Check currently used Python version."""
+    python_maj_ver = sys.version_info[0]
+    python_min_ver = sys.version_info[1]
+    python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
+    _log.info("Found Python version %s", python_ver)
+
+    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+
+    if python_maj_ver == 2:
+        if python_min_ver < 6:
+            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
+        elif python_min_ver == 6:
+            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
+            if 'Python26' in silence_deprecation_warnings:
+                _log.warning(depr_msg)
+            else:
+                _log.deprecated(depr_msg, '5.0')
+        else:
+            _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
+
+    elif python_maj_ver == 3:
+        if python_min_ver < 5:
+            raise EasyBuildError("Python 3.5 or higher is required when using Python 3, found Python %s", python_ver)
+        else:
+            _log.info("Running EasyBuild with Python 3 (version %s)", python_ver)
+    else:
+        raise EasyBuildError("EasyBuild is not compatible (yet) with Python %s", python_ver)
+
+    return (python_maj_ver, python_min_ver)
