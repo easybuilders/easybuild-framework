@@ -31,7 +31,7 @@ Unit tests for systemtools.py
 import re
 import sys
 
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
@@ -773,6 +773,8 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_check_python_version(self):
         """Test check_python_version function."""
+
+        init_config(build_options={'silence_deprecation_warnings': []})
 
         def mock_python_ver(py_maj_ver, py_min_ver):
             """Helper function to mock a particular Python version."""

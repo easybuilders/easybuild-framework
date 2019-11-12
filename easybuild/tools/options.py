@@ -1304,7 +1304,6 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
     """
-    check_python_version()
 
     # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
     # this must be done early on, to catch imports from the vsc namespace in modules included via --include-*
@@ -1370,6 +1369,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
+
+    check_python_version()
 
     # move directory containing fake vsc namespace into temporary directory used for this session
     # (to ensure it gets cleaned up properly)

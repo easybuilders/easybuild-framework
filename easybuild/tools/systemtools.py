@@ -43,6 +43,7 @@ from socket import gethostname
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd
 
@@ -840,11 +841,17 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
+    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+
     if python_maj_ver == 2:
         if python_min_ver < 6:
             raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
         elif python_min_ver == 6:
-            _log.deprecated("Running EasyBuild with Python 2.6 is deprecated", '5.0')
+            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
+            if 'Python26' in silence_deprecation_warnings:
+                _log.warning(depr_msg)
+            else:
+                _log.deprecated(depr_msg, '5.0')
         else:
             _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
 
