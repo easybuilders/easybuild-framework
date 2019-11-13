@@ -1523,8 +1523,16 @@ def parse_external_modules_metadata(cfgs):
         except ConfigObjError as err:
             raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
 
+    known_metadata_keys = ['name', 'prefix', 'version']
+    unknown_keys = {}
+
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():
+        # make sure only known keys are used
+        for key in entry.keys():
+            if key not in known_metadata_keys:
+                unknown_keys.setdefault(mod, []).append(key)
+
         for key in ['name', 'version']:
             if isinstance(entry.get(key), string_type):
                 entry[key] = [entry[key]]
@@ -1536,6 +1544,12 @@ def parse_external_modules_metadata(cfgs):
         if names is not None and versions is not None and len(names) != len(versions):
             raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
                                  "names: %s; versions: %s", mod, names, versions)
+
+    if unknown_keys:
+        error_msg = "Found metadata entries with unknown keys:"
+        for mod in sorted(unknown_keys.keys()):
+            error_msg += "\n* %s: %s" % (mod, ', '.join(sorted(unknown_keys[mod])))
+        raise EasyBuildError(error_msg)
 
     _log.debug("External modules metadata: %s", parsed_metadata)
     return parsed_metadata
