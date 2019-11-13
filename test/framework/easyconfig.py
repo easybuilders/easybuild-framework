@@ -357,6 +357,19 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['mandatory_key'], 'value')
         self.assertTrue(ec.is_mandatory_param('mandatory_key'))
 
+        # check whether mandatory key is retained in dumped easyconfig file, even if it's set to the default value
+        ec['mandatory_key'] = 'default'
+        test_ecfile = os.path.join(self.test_prefix, 'test_dump_mandatory.eb')
+        ec.dump(test_ecfile)
+
+        regex = re.compile("^mandatory_key = 'default'$", re.M)
+        ectxt = read_file(test_ecfile)
+        self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        # parsing again should work fine (if mandatory easyconfig parameters are indeed retained)
+        ec = EasyConfig(test_ecfile, extra_options=extra_vars)
+        self.assertEqual(ec['mandatory_key'], 'default')
+
     def test_exts_list(self):
         """Test handling of list of extensions."""
         topdir = os.path.dirname(os.path.abspath(__file__))
