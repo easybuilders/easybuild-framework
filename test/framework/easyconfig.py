@@ -148,13 +148,18 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
 
-        eb = EasyConfig(self.eb_file)
+        ec = EasyConfig(self.eb_file)
 
-        self.assertEqual(eb['name'], "pi")
-        self.assertEqual(eb['version'], "3.14")
-        self.assertEqual(eb['homepage'], "http://example.com")
-        self.assertEqual(eb['toolchain'], {"name": "system", "version": "system"})
-        self.assertEqual(eb['description'], "test easyconfig")
+        self.assertEqual(ec['name'], "pi")
+        self.assertEqual(ec['version'], "3.14")
+        self.assertEqual(ec['homepage'], "http://example.com")
+        self.assertEqual(ec['toolchain'], {"name": "system", "version": "system"})
+        self.assertEqual(ec['description'], "test easyconfig")
+
+        for key in ['name', 'version', 'homepage', 'toolchain', 'description']:
+            self.assertTrue(ec.is_mandatory_param(key))
+        for key in ['buildopts', 'dependencies', 'easyblock', 'sources']:
+            self.assertFalse(ec.is_mandatory_param(key))
 
     def test_validation(self):
         """ test other validations beside mandatory parameters """
@@ -318,24 +323,26 @@ class EasyConfigTest(EnhancedTestCase):
 
         extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
-        self.assertEqual(eb['custom_key'], 'default')
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
+        self.assertEqual(ec['custom_key'], 'default')
 
-        eb['custom_key'] = "not so default"
-        self.assertEqual(eb['custom_key'], 'not so default')
+        self.assertFalse(ec.is_mandatory_param('custom_key'))
+
+        ec['custom_key'] = "not so default"
+        self.assertEqual(ec['custom_key'], 'not so default')
 
         self.contents += "\ncustom_key = 'test'"
 
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
-        self.assertEqual(eb['custom_key'], 'test')
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
+        self.assertEqual(ec['custom_key'], 'test')
 
-        eb['custom_key'] = "not so default"
-        self.assertEqual(eb['custom_key'], 'not so default')
+        ec['custom_key'] = "not so default"
+        self.assertEqual(ec['custom_key'], 'not so default')
 
         # test if extra toolchain options are being passed
-        self.assertEqual(eb.toolchain.options['static'], True)
+        self.assertEqual(ec.toolchain.options['static'], True)
 
         # test extra mandatory parameters
         extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
@@ -345,9 +352,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += '\nmandatory_key = "value"'
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
 
-        self.assertEqual(eb['mandatory_key'], 'value')
+        self.assertEqual(ec['mandatory_key'], 'value')
+        self.assertTrue(ec.is_mandatory_param('mandatory_key'))
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
