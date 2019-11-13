@@ -36,6 +36,7 @@ Documentation-related functionality
 """
 import copy
 import inspect
+import sys
 import os
 from distutils.version import LooseVersion
 
@@ -56,6 +57,7 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
 from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
@@ -702,6 +704,60 @@ def list_software_txt(software, detailed=False):
             lines.append('')
 
     return '\n'.join(lines)
+
+
+def gather_reverse_dependencies():
+    """
+    Gather reverse dependencies from installed modules.
+
+    :return: dictionary with reverse dependencies
+    """
+
+    dependencies = {}
+    reverse_dependencies = {}
+
+    modtool = modules_tool()
+
+    available_modules = modtool.available()
+
+    for idx, mod_name in enumerate(available_modules):
+
+        mod_deps = dependencies_for(mod_name, modtool, alldeps=dependencies, full_module_names=True)
+
+        for dep_mod_name in mod_deps:
+            reverse_dependencies.setdefault(dep_mod_name, []).append(mod_name)
+
+        sys.stdout.write('\r%s of %s modules checked' % (idx+1, len(available_modules)))
+        sys.stdout.flush()
+
+    sys.stdout.write('\n')
+
+    return reverse_dependencies
+
+
+def list_reverse_dependencies(mod_names, output_format=FORMAT_TXT):
+    """
+    Show reverse dependencies of installed software
+
+    :param output_format: output format to use
+    :return: multi-line string presenting requested info
+    """
+
+    all_reverse_deps = gather_reverse_dependencies()
+
+    if mod_names == ['all']:
+        output_mod_names = all_reverse_deps.keys()
+    else:
+        output_mod_names = []
+        for mod_name in mod_names:
+            for full_mod_name in all_reverse_deps:
+                if full_mod_name.startswith(mod_name):
+                    output_mod_names.append(full_mod_name)
+
+    if not output_mod_names:
+        return "No reverse dependencies found for %s" % ', '.join(mod_names)
+    else:
+        return '\n'.join(["%s: %s" % (m, all_reverse_deps[m]) for m in sorted(output_mod_names)])
 
 
 def list_toolchains(output_format=FORMAT_TXT):

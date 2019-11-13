@@ -85,21 +85,30 @@ def module_load_regex(modfilepath):
     return re.compile(regex, re.M)
 
 
-def dependencies_for(mod_name, modtool, depth=None):
+def dependencies_for(mod_name, modtool, depth=None, alldeps=None, full_module_names=False):
     """
     Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+    :param alldeps: optional dictionary with already determined dependencies
     :param depth: recursion depth (default is None, which corresponds to infinite recursion depth)
+    :param full_module_names: use $MODULEPATH to build filepath instead of get_value_from_modulefile
     """
-    mod_filepath = modtool.modulefile_path(mod_name)
+
+    if alldeps is None:
+        alldeps = {}
+
+    mod_filepath = modtool.modulefile_path(mod_name, full_module_names=full_module_names)
     modtxt = read_file(mod_filepath)
     loadregex = module_load_regex(mod_filepath)
-    mods = loadregex.findall(modtxt)
+    alldeps.setdefault(mod_name, [])
+    newdeps = [dep for dep in loadregex.findall(modtxt) if dep not in alldeps[mod_name]]
+    alldeps[mod_name].extend(newdeps)
 
     if depth is None or depth > 0:
         if depth and depth > 0:
             depth = depth - 1
         # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, modtool, depth=depth) for mod in mods]
+        moddeps = [dependencies_for(mod, modtool, depth=depth, alldeps=alldeps, full_module_names=full_module_names)
+                   for mod in newdeps]
     else:
         # ignore any deeper dependencies
         moddeps = []
@@ -107,10 +116,10 @@ def dependencies_for(mod_name, modtool, depth=None):
     # add dependencies of dependency modules only if they're not there yet
     for moddepdeps in moddeps:
         for dep in moddepdeps:
-            if dep not in mods:
-                mods.append(dep)
+            if dep not in alldeps[mod_name]:
+                alldeps[mod_name].append(dep)
 
-    return mods
+    return alldeps[mod_name]
 
 
 class ModuleGenerator(object):
