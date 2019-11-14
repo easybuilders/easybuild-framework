@@ -33,6 +33,7 @@ from distutils.version import LooseVersion
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.tools.toolchain.variables import FlagList
+from easybuild.tools.modules import get_software_root
 
 
 TC_CONSTANT_CUDA = "CUDA"
@@ -76,7 +77,7 @@ class Cuda(Compiler):
     def _set_compiler_vars(self):
         """Set the compiler variables"""
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
-        root = self.get_software_root('CUDAcore')
+        root = get_software_root('CUDAcore')
         if not root:
             root = self.get_software_root('CUDA')
         self.variables.append_subdirs("LDFLAGS", root[0], subdirs=["lib64", "lib"])
