@@ -1514,6 +1514,10 @@ class EasyConfig(object):
 
         return value
 
+    def is_mandatory_param(self, key):
+        """Check whether specified easyconfig parameter is mandatory."""
+        return key in self.mandatory
+
     def get_ref(self, key):
         """
         Obtain reference to original/untemplated value of specified easyconfig parameter

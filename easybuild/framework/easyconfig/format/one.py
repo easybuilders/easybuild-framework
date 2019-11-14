@@ -286,7 +286,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # print other easyconfig parameters at the end
         keys_to_ignore = printed_keys + LAST_PARAMS
         for key in default_values:
-            if key not in keys_to_ignore and ecfg[key] != default_values[key]:
+            mandatory = ecfg.is_mandatory_param(key)
+            non_default_value = ecfg[key] != default_values[key]
+            if key not in keys_to_ignore and (mandatory or non_default_value):
                 dump.extend(self._find_param_with_comments(key, quote_py_str(ecfg[key]), templ_const, templ_val))
         dump.append('')
 
