@@ -28,6 +28,7 @@ Toy build unit test
 @author: Kenneth Hoste (Ghent University)
 @author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+import copy
 import glob
 import grp
 import os
@@ -1287,6 +1288,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_external_dependencies(self):
         """Test specifying external (build) dependencies."""
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         ectxt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb'))
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
@@ -1303,7 +1305,11 @@ class ToyBuildTest(EnhancedTestCase):
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
-        self.reset_modulepath([modulepath, os.path.join(self.test_installpath, 'modules', 'all')])
+        installed_test_modules = os.path.join(self.test_installpath, 'modules', 'all')
+        self.reset_modulepath([modulepath, installed_test_modules])
+
+        start_env = copy.deepcopy(os.environ)
+
         self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
         self.modtool.load(['toy/0.0-external-deps'])
@@ -1311,18 +1317,23 @@ class ToyBuildTest(EnhancedTestCase):
         mods = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'toy/0.0-external-deps']
         self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
-        # check behaviour when a non-existing external (build) dependency is included
-        err_msg = "Missing modules for dependencies marked as external modules:"
+        # restore original environment (to undo 'module load' done above)
+        modify_env(os.environ, start_env, verbose=False)
 
+        # check behaviour when a non-existing external (build) dependency is included
         extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
         extraectxt += "\nversionsuffix = '-external-deps-broken1'"
         write_file(toy_ec, ectxt + extraectxt)
+
+        err_msg = r"Module command \\'module load nosuchbuilddep/0.0.0\\' failed"
         self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
                               raise_error=True, verbose=False)
 
         extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
         extraectxt += "\nversionsuffix = '-external-deps-broken2'"
         write_file(toy_ec, ectxt + extraectxt)
+
+        err_msg = r"Module command \\'module load nosuchmodule/1.2.3\\' failed"
         self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
                               raise_error=True, verbose=False)
 
