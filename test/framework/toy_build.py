@@ -1325,7 +1325,11 @@ class ToyBuildTest(EnhancedTestCase):
         extraectxt += "\nversionsuffix = '-external-deps-broken1'"
         write_file(toy_ec, ectxt + extraectxt)
 
-        err_msg = r"Module command \\'module load nosuchbuilddep/0.0.0\\' failed"
+        if isinstance(self.modtool, Lmod):
+            err_msg = r"Module command \\'module load nosuchbuilddep/0.0.0\\' failed"
+        else:
+            err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
+
         self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
                               raise_error=True, verbose=False)
 
@@ -1333,7 +1337,11 @@ class ToyBuildTest(EnhancedTestCase):
         extraectxt += "\nversionsuffix = '-external-deps-broken2'"
         write_file(toy_ec, ectxt + extraectxt)
 
-        err_msg = r"Module command \\'module load nosuchmodule/1.2.3\\' failed"
+        if isinstance(self.modtool, Lmod):
+            err_msg = r"Module command \\'module load nosuchmodule/1.2.3\\' failed"
+        else:
+            err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
+
         self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
                               raise_error=True, verbose=False)
 
