@@ -750,7 +750,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         provide_list = self._generate_provides_list()
         if isinstance(self.modules_tool, Lmod) and LooseVersion(self.modules_tool.version) >= LooseVersion('8.2') and \
            provide_list:
-            lines.append("extensions %s" % provide_list)
+            lines.extend(['', 'extensions %s' % provide_list])
 
         whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
         txt += '\n'.join([''] + lines + ['']) % {
@@ -1127,7 +1127,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         provide_list = self._generate_provides_list()
         if LooseVersion(self.modules_tool.version) >= LooseVersion('8.2') and provide_list:
-            lines.append("extensions(%s)" % provide_list)
+            lines.extend(['', 'extensions(%s)' % provide_list])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
