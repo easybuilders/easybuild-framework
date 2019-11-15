@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         python: [2.7, 3.5, 3.6, 3.7]
-        modules_tool: [Lmod-6.6.3, Lmod-7.8.22, Lmod-8.1.14, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
+        modules_tool: [Lmod-6.6.3, Lmod-7.8.22, Lmod-8.2.4, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
         module_syntax: [Lua, Tcl]
         # exclude some configuration for non-Lmod modules tool:
         # - don't test with Lua module syntax (only supported in Lmod)
