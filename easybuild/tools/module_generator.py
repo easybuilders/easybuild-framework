@@ -1137,7 +1137,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         if provide_list:
             provide_list_mod = 'extensions(%s)' % ', '.join(['"%s"' % x for x in provide_list])
-            self.conditional_statement(self.check_version("8.2.0"), provide_list_mod)
+            lines.extend(['', self.conditional_statement(self.check_version("8.2.0"), provide_list_mod)])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
