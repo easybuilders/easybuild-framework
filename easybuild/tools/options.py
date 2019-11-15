@@ -93,7 +93,8 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_system_info
+from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
+from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -412,6 +413,7 @@ class EasyBuildOptions(GeneralOption):
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
@@ -449,8 +451,8 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
-            'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
-                                          'strlist', 'store', None),
+            'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
+                                          "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
@@ -989,6 +991,10 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
+        # imply --disable-pre-create-installdir with --inject-checksums
+        if self.options.inject_checksums:
+            self.options.pre_create_installdir = False
+
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
@@ -1364,6 +1370,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
 
+    check_python_version()
+
     # move directory containing fake vsc namespace into temporary directory used for this session
     # (to ensure it gets cleaned up properly)
     new_fake_vsc_path = os.path.join(tmpdir, os.path.basename(fake_vsc_path))
@@ -1467,14 +1475,25 @@ def parse_external_modules_metadata(cfgs):
     """
     Parse metadata for external modules.
 
-    :param cfgs: list of config files providing metadata for external modules
+    :param cfgs: list of (glob patterns for) paths to config files providing metadata for external modules
     :return: parsed metadata for external modules
     """
+    if cfgs is None:
+        cfgs = []
+
+    # expand glob patterns, and report error for faulty paths
+    paths = []
+    for cfg in cfgs:
+        res = glob.glob(cfg)
+        if res:
+            paths.extend(res)
+        else:
+            # if there are no matches, we report an error to avoid silently ignores faulty paths
+            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+    cfgs = paths
 
     # use external modules metadata configuration files that are available by default, unless others are specified
     if not cfgs:
-        cfgs = []
-
         # we expect to find *external_modules_metadata.cfg files in etc/ on same level as easybuild/framework
         topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
 
@@ -1498,14 +1517,11 @@ def parse_external_modules_metadata(cfgs):
 
     parsed_metadata = ConfigObj()
     for cfg in cfgs:
-        if os.path.isfile(cfg):
-            _log.debug("Parsing %s with external modules metadata", cfg)
-            try:
-                parsed_metadata.merge(ConfigObj(cfg))
-            except ConfigObjError as err:
-                raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
-        else:
-            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+        _log.debug("Parsing %s with external modules metadata", cfg)
+        try:
+            parsed_metadata.merge(ConfigObj(cfg))
+        except ConfigObjError as err:
+            raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
 
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():

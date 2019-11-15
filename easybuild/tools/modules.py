@@ -130,6 +130,8 @@ _log = fancylogger.getLogger('modules', fname=False)
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
+    # name of this modules tool (used in log/warning/error messages)
+    NAME = None
     # position and optionname
     TERSE_OPTION = (0, '--terse')
     # module command to use
@@ -143,6 +145,8 @@ class ModulesTool(object):
     VERSION_OPTION = '--version'
     # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
     REQ_VERSION = None
+    # deprecated version limit (support for versions below this version is deprecated)
+    DEPR_VERSION = None
     # maximum version allowed (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
     MAX_VERSION = None
     # the regexp, should have a "version" group (multiline search)
@@ -159,7 +163,7 @@ class ModulesTool(object):
         # this can/should be set to True during testing
         self.testing = testing
 
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        self.log = fancylogger.getLogger(self.NAME, fname=False)
 
         # DEPRECATED!
         self._modules = []
@@ -178,19 +182,20 @@ class ModulesTool(object):
 
         # only use command path in environment variable if command in not available in $PATH
         if which(self.cmd) is None and env_cmd_path is not None:
-            self.log.debug('Set command via environment variable %s: %s', self.COMMAND_ENVIRONMENT, self.cmd)
+            self.log.debug("Set %s command via environment variable %s: %s",
+                           self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
             self.cmd = env_cmd_path
 
         # check whether paths obtained via $PATH and $LMOD_CMD are different
         elif which(self.cmd) != env_cmd_path:
-            self.log.debug("Different paths found for module command '%s' via which/$PATH and $%s: %s vs %s",
-                           self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
+            self.log.debug("Different paths found for %s command '%s' via which/$PATH and $%s: %s vs %s",
+                           self.NAME, self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
 
         # make sure the module command was found
         if self.cmd is None:
-            raise EasyBuildError("No command set.")
+            raise EasyBuildError("No command set for %s", self.NAME)
         else:
-            self.log.debug('Using command %s' % self.cmd)
+            self.log.debug('Using %s command %s', self.NAME, self.cmd)
 
         # version of modules tool
         self.version = None
@@ -205,13 +210,13 @@ class ModulesTool(object):
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
-        return (self.__class__.__name__, self.cmd, self.version)
+        return (self.NAME, self.cmd, self.version)
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
-        if self.COMMAND in MODULE_VERSION_CACHE:
-            self.version = MODULE_VERSION_CACHE[self.COMMAND]
-            self.log.debug("Found cached version for %s: %s", self.COMMAND, self.version)
+        if self.cmd in MODULE_VERSION_CACHE:
+            self.version = MODULE_VERSION_CACHE[self.cmd]
+            self.log.debug("Found cached version for %s command %s: %s", self.NAME, self.COMMAND, self.version)
             return
 
         if self.VERSION_REGEXP is None:
@@ -224,7 +229,7 @@ class ModulesTool(object):
             res = ver_re.search(txt)
             if res:
                 self.version = res.group('version')
-                self.log.info("Found version %s" % self.version)
+                self.log.info("Found %s version %s", self.NAME, self.version)
 
                 # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
                 # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
@@ -234,47 +239,59 @@ class ModulesTool(object):
 
                 self.log.info("Converted actual version to '%s'" % self.version)
             else:
-                raise EasyBuildError("Failed to determine version from option '%s' output: %s",
-                                     self.VERSION_OPTION, txt)
+                raise EasyBuildError("Failed to determine %s version from option '%s' output: %s",
+                                     self.NAME, self.VERSION_OPTION, txt)
         except (OSError) as err:
-            raise EasyBuildError("Failed to check version: %s", err)
+            raise EasyBuildError("Failed to check %s version: %s", self.NAME, err)
 
         if self.REQ_VERSION is None and self.MAX_VERSION is None:
             self.log.debug("No version requirement defined.")
 
         elif build_option('modules_tool_version_check'):
-            self.log.debug("Checking whether modules tool version '%s' meets requirements", self.version)
+            self.log.debug("Checking whether %s version %s meets requirements", self.NAME, self.version)
 
             if self.REQ_VERSION is not None:
-                self.log.debug("Required minimum version defined.")
+                self.log.debug("Required minimum %s version defined: %s", self.NAME, self.REQ_VERSION)
                 if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
                     raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
-                                         self.__class__.__name__, self.REQ_VERSION, self.version)
+                                         self.NAME, self.REQ_VERSION, self.version)
                 else:
-                    self.log.debug('Version %s matches requirement >= %s', self.version, self.REQ_VERSION)
+                    self.log.debug('%s version %s matches requirement >= %s', self.NAME, self.version, self.REQ_VERSION)
+
+            if self.DEPR_VERSION is not None:
+                self.log.debug("Deprecated %s version limit defined: %s", self.NAME, self.DEPR_VERSION)
+                if StrictVersion(self.version) < StrictVersion(self.DEPR_VERSION):
+                    depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
+                    depr_msg += "found version %s" % self.version
+
+                    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+
+                    if self.version.startswith('6') and 'Lmod6' in silence_deprecation_warnings:
+                        self.log.warning(depr_msg)
+                    else:
+                        self.log.deprecated(depr_msg, '5.0')
 
             if self.MAX_VERSION is not None:
-                self.log.debug("Maximum allowed version defined.")
+                self.log.debug("Maximum allowed %s version defined: %s", self.NAME, self.MAX_VERSION)
                 if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
                     raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
-                                         self.__class__.__name__, self.MAX_VERSION, self.version)
+                                         self.NAME, self.MAX_VERSION, self.version)
                 else:
                     self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
         else:
             self.log.debug("Skipping modules tool version '%s' requirements check", self.version)
 
-        MODULE_VERSION_CACHE[self.COMMAND] = self.version
+        MODULE_VERSION_CACHE[self.cmd] = self.version
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
         cmd_path = which(self.cmd)
         if cmd_path is not None:
             self.cmd = cmd_path
-            self.log.info("Full path for module command is %s, so using it" % self.cmd)
+            self.log.info("Full path for %s command is %s, so using it", self.NAME, self.cmd)
         else:
-            mod_tool = self.__class__.__name__
             mod_tools = avail_modules_tools().keys()
-            error_msg = "%s modules tool can not be used, '%s' command is not available" % (mod_tool, self.cmd)
+            error_msg = "%s modules tool can not be used, '%s' command is not available" % (self.NAME, self.cmd)
             error_msg += "; use --modules-tool to specify a different modules tool to use (%s)" % ', '.join(mod_tools)
             raise EasyBuildError(error_msg)
 
@@ -293,7 +310,7 @@ class ModulesTool(object):
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
-        mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
+        mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.NAME)
 
         if ec == 0:
             if mod_cmd_re.search(out):
@@ -672,7 +689,7 @@ class ModulesTool(object):
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
-        self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
+        self.log.debug("No checking of module output implemented for %s", self.NAME)
 
     def compose_cmd_list(self, args, opts=None):
         """
@@ -1076,6 +1093,7 @@ class ModulesTool(object):
 
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
+    NAME = "Environment Modules v3"
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
     MAX_VERSION = '3.99'
@@ -1111,6 +1129,7 @@ class EnvironmentModulesC(ModulesTool):
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
+    NAME = "ancient Tcl-only Environment Modules"
     # Tcl environment modules have no --terse (yet),
     #   -t must be added after the command ('avail', 'list', etc.)
     TERSE_OPTION = (1, '-t')
@@ -1183,6 +1202,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 class EnvironmentModules(EnvironmentModulesTcl):
     """Interface to environment modules 4.0+"""
+    NAME = "Environment Modules v4"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
@@ -1198,9 +1218,11 @@ class EnvironmentModules(EnvironmentModulesTcl):
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
+    NAME = "Lmod"
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
     REQ_VERSION = '6.5.1'
+    DEPR_VERSION = '7.0.0'
     REQ_VERSION_DEPENDS_ON = '7.6.1'
     REQ_VERSION_EXTENSIONS = '8.2.0'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"

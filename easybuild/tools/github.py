@@ -534,17 +534,22 @@ def init_repo(path, repo_name, silent=False):
     """
     repo_path = os.path.join(path, repo_name)
 
-    # copy or init git working directory
+    if not os.path.exists(repo_path):
+        mkdir(repo_path, parents=True)
+
+    # clone repo in git_working_dirs_path to repo_path
     git_working_dirs_path = build_option('git_working_dirs_path')
     if git_working_dirs_path:
         workdir = os.path.join(git_working_dirs_path, repo_name)
         if os.path.exists(workdir):
-            print_msg("copying %s..." % workdir, silent=silent)
-            copy_dir(workdir, repo_path)
+            print_msg("cloning git repo from %s..." % workdir, silent=silent)
+            try:
+                workrepo = git.Repo(workdir)
+                workrepo.clone(repo_path)
+            except GitCommandError as err:
+                raise EasyBuildError("Failed to clone git repo at %s: %s", workdir, err)
 
-    if not os.path.exists(repo_path):
-        mkdir(repo_path, parents=True)
-
+    # initalize repo in repo_path
     try:
         repo = git.Repo.init(repo_path)
     except GitCommandError as err:

@@ -67,8 +67,8 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, string_type
-from easybuild.tools.systemtools import check_os_dependency
+from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
+from easybuild.tools.systemtools import check_os_dependency, get_cpu_architecture
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -530,12 +530,15 @@ class EasyConfig(object):
                 self.mandatory.append(key)
         self.log.debug("Updated list of mandatory easyconfig parameters: %s", self.mandatory)
 
-    def copy(self):
+    def copy(self, validate=None):
         """
         Return a copy of this EasyConfig instance.
         """
+        if validate is None:
+            validate = self.validation
+
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
+        ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
         # since rawtxt is defined, self.path may not get inherited, make sure it does
@@ -1226,6 +1229,31 @@ class EasyConfig(object):
 
         return multi_deps
 
+    def find_dep_version_match(self, dep_version):
+        """Identify the correct version for this system from the choices provided. This returns the version to use."""
+        if isinstance(dep_version, string_type):
+            self.log.debug("Version is already a string ('%s'), OK", dep_version)
+            return dep_version
+        elif dep_version is None:
+            self.log.debug("Version is None, OK")
+            return None
+        elif isinstance(dep_version, dict):
+            # figure out matches based on dict keys (after splitting on '=')
+            my_arch_key = 'arch=%s' % get_cpu_architecture()
+            arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+            other_keys = [x for x in dep_version.keys() if x not in arch_keys]
+            if other_keys:
+                raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+            if arch_keys:
+                if my_arch_key in dep_version:
+                    ver = dep_version[my_arch_key]
+                    self.log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, ver)
+                    return ver
+                else:
+                    raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+
+        raise EasyBuildError("Unknown value type for version: %s", dep_version)
+
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
         """
@@ -1269,6 +1297,7 @@ class EasyConfig(object):
             # provides information on what this module represents (software name/version, install prefix, ...)
             'external_module_metadata': {},
         }
+
         if isinstance(dep, dict):
             dependency.update(dep)
 
@@ -1304,6 +1333,9 @@ class EasyConfig(object):
 
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        # Find the version to use on this system
+        dependency['version'] = self.find_dep_version_match(dependency['version'])
 
         if dependency['external_module']:
             # check whether the external module is hidden
@@ -1481,6 +1513,10 @@ class EasyConfig(object):
             value = resolve_template(value, self.template_values)
 
         return value
+
+    def is_mandatory_param(self, key):
+        """Check whether specified easyconfig parameter is mandatory."""
+        return key in self.mandatory
 
     def get_ref(self, key):
         """
@@ -2209,10 +2245,12 @@ def fix_deprecated_easyconfigs(paths):
     print_msg("\nAll done! Fixed %d easyconfigs (out of %d found).\n", fixed_cnt, cnt, prefix=False)
 
 
-class ActiveMNS(object):
-    """Wrapper class for active module naming scheme."""
+# singleton metaclass: only one instance is created
+BaseActiveMNS = create_base_metaclass('BaseActiveMNS', Singleton, object)
 
-    __metaclass__ = Singleton
+
+class ActiveMNS(BaseActiveMNS):
+    """Wrapper class for active module naming scheme."""
 
     def __init__(self, *args, **kwargs):
         """Initialize logger."""

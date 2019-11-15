@@ -148,13 +148,18 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
 
-        eb = EasyConfig(self.eb_file)
+        ec = EasyConfig(self.eb_file)
 
-        self.assertEqual(eb['name'], "pi")
-        self.assertEqual(eb['version'], "3.14")
-        self.assertEqual(eb['homepage'], "http://example.com")
-        self.assertEqual(eb['toolchain'], {"name": "system", "version": "system"})
-        self.assertEqual(eb['description'], "test easyconfig")
+        self.assertEqual(ec['name'], "pi")
+        self.assertEqual(ec['version'], "3.14")
+        self.assertEqual(ec['homepage'], "http://example.com")
+        self.assertEqual(ec['toolchain'], {"name": "system", "version": "system"})
+        self.assertEqual(ec['description'], "test easyconfig")
+
+        for key in ['name', 'version', 'homepage', 'toolchain', 'description']:
+            self.assertTrue(ec.is_mandatory_param(key))
+        for key in ['buildopts', 'dependencies', 'easyblock', 'sources']:
+            self.assertFalse(ec.is_mandatory_param(key))
 
     def test_validation(self):
         """ test other validations beside mandatory parameters """
@@ -318,24 +323,26 @@ class EasyConfigTest(EnhancedTestCase):
 
         extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
-        self.assertEqual(eb['custom_key'], 'default')
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
+        self.assertEqual(ec['custom_key'], 'default')
 
-        eb['custom_key'] = "not so default"
-        self.assertEqual(eb['custom_key'], 'not so default')
+        self.assertFalse(ec.is_mandatory_param('custom_key'))
+
+        ec['custom_key'] = "not so default"
+        self.assertEqual(ec['custom_key'], 'not so default')
 
         self.contents += "\ncustom_key = 'test'"
 
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
-        self.assertEqual(eb['custom_key'], 'test')
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
+        self.assertEqual(ec['custom_key'], 'test')
 
-        eb['custom_key'] = "not so default"
-        self.assertEqual(eb['custom_key'], 'not so default')
+        ec['custom_key'] = "not so default"
+        self.assertEqual(ec['custom_key'], 'not so default')
 
         # test if extra toolchain options are being passed
-        self.assertEqual(eb.toolchain.options['static'], True)
+        self.assertEqual(ec.toolchain.options['static'], True)
 
         # test extra mandatory parameters
         extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
@@ -345,9 +352,23 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += '\nmandatory_key = "value"'
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
 
-        self.assertEqual(eb['mandatory_key'], 'value')
+        self.assertEqual(ec['mandatory_key'], 'value')
+        self.assertTrue(ec.is_mandatory_param('mandatory_key'))
+
+        # check whether mandatory key is retained in dumped easyconfig file, even if it's set to the default value
+        ec['mandatory_key'] = 'default'
+        test_ecfile = os.path.join(self.test_prefix, 'test_dump_mandatory.eb')
+        ec.dump(test_ecfile)
+
+        regex = re.compile("^mandatory_key = 'default'$", re.M)
+        ectxt = read_file(test_ecfile)
+        self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        # parsing again should work fine (if mandatory easyconfig parameters are indeed retained)
+        ec = EasyConfig(test_ecfile, extra_options=extra_vars)
+        self.assertEqual(ec['mandatory_key'], 'default')
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
@@ -451,13 +472,22 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.fetch_step()
 
+        # inject OS dependency that can not be fullfilled,
+        # to check whether OS deps are validated again for each extension (they shouldn't be);
+        # we need to tweak the contents of the easyconfig file via cfg.rawtxt, since that's what is used to re-parse
+        # the easyconfig file for the extension
+        eb.cfg.rawtxt += "\nosdependencies = ['this_os_dep_does_not_exist']"
+
         # run extensions step to install 'toy' extension
         eb.extensions_step()
 
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        patches = []
+        for patch in toy_ext.patches:
+            patches.append(patch['path'])
+        self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
@@ -1966,6 +1996,13 @@ class EasyConfigTest(EnhancedTestCase):
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
 
+    def test_ActiveMNS_singleton(self):
+        """Make sure ActiveMNS is a singleton class."""
+
+        mns1 = ActiveMNS()
+        mns2 = ActiveMNS()
+        self.assertEqual(id(mns1), id(mns2))
+
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
         build_options = {
@@ -3183,6 +3220,50 @@ class EasyConfigTest(EnhancedTestCase):
         expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
+
+    def test_arch_specific_dependency(self):
+        """Tests that the correct version is chosen for this architecture"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+        dep_str = "[('foo', {'arch=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '0.2'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "dependencies = %s" % dep_str,
+        ])
+        write_file(test_ec, test_ectxt)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec.dependencies()[0]['version'], expected_version)
+
+    def test_unexpected_version_keys_caught(self):
+        """Tests that unexpected keys in a version dictionary are caught"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+
+        for dep_str in ("[('foo', {'bar=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version),
+                        "[('foo', {'blah': 'bar'})]"):
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+            test_ectxt = '\n'.join([
+                "easyblock = 'ConfigureMake'",
+                "name = 'test'",
+                "version = '0.2'",
+                "homepage = 'https://example.com'",
+                "description = 'test'",
+                "toolchain = SYSTEM",
+                "dependencies = %s" % dep_str,
+            ])
+            write_file(test_ec, test_ectxt)
+
+            self.assertRaises(EasyBuildError, EasyConfig, test_ec)
 
 
 def suite():

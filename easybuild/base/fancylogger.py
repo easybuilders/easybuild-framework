@@ -452,7 +452,9 @@ def getLogger(name=None, fname=False, clsname=False, fancyrecord=None):
     nameparts = []
 
     if not is_fancyroot():
-        nameparts.append(getRootLoggerName())
+        # deliberately not calling getRootLoggerName function to determine actual root logger name,
+        # because it is prohibitively expensive in some texts (even when using 'python -O')
+        nameparts.append('root')
 
     if fancyrecord is None:
         # Altough we could set it as default value in the function definition

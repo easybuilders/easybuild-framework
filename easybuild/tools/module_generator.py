@@ -645,7 +645,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     CHARS_TO_ESCAPE = ['$']
 
     INSTALLDIR_REGEX = r"^set root\s+(?P<installdir>.*)"
-    LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
+    LOAD_REGEX = r"^\s*(?:module\s+load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'

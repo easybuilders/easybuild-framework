@@ -1,0 +1,20 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel C/C++ and Fortran compilers
+    }
+}
+
+module-whatis {Intel C/C++ and Fortran compilers}
+
+set root    /tmp/iccifort/2019.5.281
+
+conflict    iccifort
+
+setenv	EBROOTICCIFORT		"$root"
+setenv	EBVERSIONICCIFORT		"2019.5.281"
+setenv	EBDEVELICCIFORT		"$root/easybuild/iccifort-2019.5.281-easybuild-devel"
+setenv	EBROOTICC		"$root"
+setenv	EBVERSIONICC		"2019.5.281"
+setenv	EBROOTIFORT		"$root"
+setenv	EBVERSIONIFORT		"2019.5.281"

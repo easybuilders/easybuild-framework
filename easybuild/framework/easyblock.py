@@ -453,8 +453,8 @@ class EasyBlock(object):
                 raise EasyBuildError('No file found for patch %s', patch_spec)
 
         if extension:
-            self.log.info("Fetched extension patches: %s" % patches)
-            return [patch['path'] for patch in patches]
+            self.log.info("Fetched extension patches: %s", patches)
+            return patches
         else:
             self.log.info("Added patches: %s" % self.patches)
 
@@ -544,6 +544,7 @@ class EasyBlock(object):
 
                                 if not skip_checksums:
                                     for patch in ext_patches:
+                                        patch = patch['path']
                                         # report both MD5 and SHA256 checksums,
                                         # since both are valid default checksum types
                                         for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
@@ -553,6 +554,7 @@ class EasyBlock(object):
                                     # verify checksum (if provided)
                                     self.log.debug('Verifying checksums for extension patches...')
                                     for idx, patch in enumerate(ext_patches):
+                                        patch = patch['path']
                                         checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
                                         if verify_checksum(patch, checksum):
                                             self.log.info('Checksum for extension patch %s verified', patch)
@@ -3484,8 +3486,8 @@ def inject_checksums(ecs, checksum_type):
                         print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
                         ext_checksums.append((src_fn, checksum))
                     for ext_patch in ext.get('patches', []):
-                        patch_fn = os.path.basename(ext_patch)
-                        checksum = compute_checksum(ext_patch, checksum_type)
+                        patch_fn = os.path.basename(ext_patch['path'])
+                        checksum = compute_checksum(ext_patch['path'], checksum_type)
                         print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
                         ext_checksums.append((patch_fn, checksum))
 

@@ -2879,6 +2879,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
+        # add unstaged file to git working dir, to check on later
+        unstaged_file = os.path.join('easybuild-easyconfigs', 'easybuild', 'easyconfigs', 'test.eb')
+        write_file(os.path.join(git_working_dir, unstaged_file), 'test123')
+
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
@@ -2889,6 +2893,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
         self.mock_stdout(False)
+
+        # check whether unstaged file in git working dir was copied (it shouldn't)
+        res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
+        res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
+        if len(res) == 1:
+            unstaged_file_full = os.path.join(res[0], unstaged_file)
+            self.assertFalse(os.path.exists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0]))
+        else:
+            self.assertTrue(False, "Found copy of easybuild-easyconfigs working copy")
 
         # add required commit message, try again
         args.append('--pr-commit-msg=just a test')
@@ -3531,6 +3544,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         err_msg = "Different length for lists of names/versions in metadata for external module"
         self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
+        # if path to non-existing file is used, an error is reported
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        error_pattern = "Specified path for file with external modules metadata does not exist"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, [doesnotexist])
+
+        # glob pattern can be used to specify file locations to parse_external_modules_metadata
+        cfg1 = os.path.join(self.test_prefix, 'cfg_one.ini')
+        write_file(cfg1, '\n'.join(['[one/1.0]', 'name = one', 'version = 1.0']))
+        cfg2 = os.path.join(self.test_prefix, 'cfg_two.ini')
+        write_file(cfg2, '\n'.join([
+            '[two/2.0]', 'name = two', 'version = 2.0',
+            '[two/2.1]', 'name = two', 'version = 2.1',
+        ]))
+        cfg3 = os.path.join(self.test_prefix, 'cfg3.ini')
+        write_file(cfg3, '\n'.join(['[three/3.0]', 'name = three', 'version = 3.0']))
+        cfg4 = os.path.join(self.test_prefix, 'cfg_more.ini')
+        write_file(cfg4, '\n'.join(['[one/1.2.3]', 'name = one', 'version = 1.2.3', 'prefix = /one/1.2.3/']))
+
+        metadata = parse_external_modules_metadata([os.path.join(self.test_prefix, 'cfg*.ini')])
+
+        self.assertEqual(sorted(metadata.keys()), ['one/1.0', 'one/1.2.3', 'three/3.0', 'two/2.0', 'two/2.1'])
+        self.assertEqual(metadata['one/1.0'], {'name': ['one'], 'version': ['1.0']})
+        self.assertEqual(metadata['one/1.2.3'], {'name': ['one'], 'version': ['1.2.3'], 'prefix': '/one/1.2.3/'})
+        self.assertEqual(metadata['two/2.0'], {'name': ['two'], 'version': ['2.0']})
+        self.assertEqual(metadata['two/2.1'], {'name': ['two'], 'version': ['2.1']})
+        self.assertEqual(metadata['three/3.0'], {'name': ['three'], 'version': ['3.0']})
+
     def test_zip_logs(self):
         """Test use of --zip-logs"""
 
@@ -3886,6 +3926,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stdout(False)
         self.mock_stderr(False)
+
+        # make sure software install directory is *not* created (see bug issue #3064)
+        self.assertFalse(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy')))
 
         # SHA256 is default type of checksums used
         self.assertTrue("injecting sha256 checksums in" in stdout)
