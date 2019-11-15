@@ -334,6 +334,12 @@ class ModuleGenerator(object):
 
         return res
 
+    def check_version(self, minimal_version):
+        """
+        Check the minimal version of the moduletool in the module file
+        """
+        return self.MODTOOL_VERSION_CHECK % minimal_version
+
     def det_installdir(self, modfile):
         """
         Determine installation directory used by given module file
@@ -649,6 +655,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
+
+    MODTOOL_VERSION_CHECK = ''
 
     def check_group(self, group, error_msg=None):
         """
@@ -997,6 +1005,8 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
+    VERSION_CHECK = 'convertToCanonical(LmodVersion()) > convertToCanonical("%s")'
+
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
 
@@ -1124,9 +1134,10 @@ class ModuleGeneratorLua(ModuleGenerator):
             whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
         provide_list = self._generate_provides_list()
-        if self.modules_tool.supports_extensions and provide_list:
-            provide_list_str = ', '.join(['"%s"' % x for x in provide_list])
-            lines.extend(['', 'extensions(%s)' % provide_list_str])
+
+        if provide_list:
+            provide_list_mod = 'extensions(%s)' % ', '.join(['"%s"' % x for x in provide_list])
+            self.conditional_statement(self.check_version("8.2.0"), provide_list_mod)
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
