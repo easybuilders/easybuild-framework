@@ -338,7 +338,7 @@ class ModuleGenerator(object):
         """
         Check the minimal version of the moduletool in the module file
         """
-        return self.MODTOOL_VERSION_CHECK % minimal_version
+        return self.VERSION_CHECK % minimal_version
 
     def det_installdir(self, modfile):
         """
