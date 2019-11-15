@@ -3571,6 +3571,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(metadata['two/2.1'], {'name': ['two'], 'version': ['2.1']})
         self.assertEqual(metadata['three/3.0'], {'name': ['three'], 'version': ['3.0']})
 
+        # check whether entries with unknown keys result in an error
+        cfg1 = os.path.join(self.test_prefix, 'broken_cfg1.cfg')
+        write_file(cfg1, "[one/1.0]\nname = one\nversion = 1.0\nfoo = bar")
+        cfg2 = os.path.join(self.test_prefix, 'cfg2.cfg')
+        write_file(cfg2, "[two/2.0]\nname = two\nversion = 2.0")
+        cfg3 = os.path.join(self.test_prefix, 'broken_cfg3.cfg')
+        write_file(cfg3, "[three/3.0]\nnaem = three\nzzz=zzz\nvresion = 3.0\naaa = aaa")
+        cfg4 = os.path.join(self.test_prefix, 'broken_cfg4.cfg')
+        write_file(cfg4, "[four/4]\nprfeix = /software/four/4")
+        broken_cfgs = [cfg1, cfg2, cfg3, cfg4]
+        error_pattern = '\n'.join([
+            r"Found metadata entries with unknown keys:",
+            r"\* four/4: prfeix",
+            r"\* one/1.0: foo",
+            r"\* three/3.0: aaa, naem, vresion, zzz",
+        ])
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, broken_cfgs)
+
     def test_zip_logs(self):
         """Test use of --zip-logs"""
 

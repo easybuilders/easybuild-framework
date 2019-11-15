@@ -451,6 +451,16 @@ class Toolchain(object):
             if dep_exists:
                 deps.append(dep)
                 self.log.devel("_check_dependencies: added toolchain dependency %s", str(dep))
+            elif dep['external_module']:
+                # external modules may be organised hierarchically,
+                # so not all modules may be directly available for loading;
+                # we assume here that the required modules are either provided by the toolchain,
+                # or are listed earlier as dependency
+                # examples from OpenHPC:
+                # - openmpi3 module provided by OpenHPC requires that gnu7, gnu8 or intel module is loaded first
+                # - fftw module provided by OpenHPC requires that compiler + MPI module are loaded first
+                self.log.info("Assuming non-visible external module %s is available", dep['full_mod_name'])
+                deps.append(dep)
             else:
                 missing_dep_mods.append(dep_mod_name)
 

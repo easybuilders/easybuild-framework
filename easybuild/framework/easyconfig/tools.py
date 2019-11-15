@@ -125,10 +125,10 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
         for dep in easyconfig['dependencies']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
-            # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+            # always treat external modules as resolved,
             # since no corresponding easyconfig can be found for them
-            if retain_all_deps and dep.get('external_module', False):
-                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep_mod_name)
+            if dep.get('external_module', False):
+                _log.debug("Treating dependency marked as external module as resolved: %s", dep_mod_name)
 
             elif retain_all_deps and dep_mod_name not in avail_modules:
                 # if all dependencies should be retained, include dep unless it has been already
