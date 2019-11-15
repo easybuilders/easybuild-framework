@@ -85,6 +85,7 @@ GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
+GITHUB_DEVELOP_BRANCH = 'develop'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
@@ -1811,3 +1812,48 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
         pr_data['reviews'] = reviews_data
 
     return pr_data, pr_url
+
+
+def sync_pr_with_develop(pr_id):
+    """Sync pull request with current develop branch."""
+    github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to use --sync-pr-with-develop")
+
+    target_account = build_option('pr_target_account')
+    target_repo = build_option('pr_target_repo')
+
+    pr_account, pr_branch = det_account_branch_for_pr(pr_id)
+
+    # initialize repository
+    git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
+    git_repo = init_repo(git_working_dir, target_repo)
+    repo_path = os.path.join(git_working_dir, target_repo)
+
+    pr_remote_name = setup_repo(git_repo, pr_account, target_repo, pr_branch)
+
+    # pull in latest version of 'develop' branch from central repository
+    msg = "pulling latest version of '%s' branch from %s/%s..." % (target_account, target_repo, GITHUB_DEVELOP_BRANCH)
+    print_msg(msg, log=_log)
+    easybuilders_remote = create_remote(git_repo, target_account, target_repo)
+    pull_out = git_repo.git.pull(easybuilders_remote.name, GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git pull %s %s': %s", easybuilders_remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
+
+    # create 'develop' branch (with force if one already exists),
+    # and check it out to check git log
+    git_repo.create_head(GITHUB_DEVELOP_BRANCH, force=True).checkout()
+    git_log_develop = git_repo.git.log('-n 3')
+    _log.debug("Top of 'git log' for %s branch:\n%s", GITHUB_DEVELOP_BRANCH, git_log_develop)
+
+    # checkout PR branch, and merge develop branch in it (which will create a merge commit)
+    print_msg("merging '%s' branch into PR branch '%s'..." % (GITHUB_DEVELOP_BRANCH, pr_branch), log=_log)
+    git_repo.git.checkout(pr_branch)
+    merge_out = git_repo.git.merge(GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, merge_out)
+
+    # check git log, should show merge commit on top
+    post_merge_log = git_repo.git.log('-n 3')
+    _log.debug("Top of 'git log' after 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, post_merge_log)
+
+    # push updated branch back to GitHub (unless we're doing a dry run)
+    return push_branch_to_github(git_repo, pr_account, target_repo, pr_branch)
