@@ -579,7 +579,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
             patterns.append('^extensions("bar/0.0", "barbar/0.0", "l/s", "toy/0.0")')
         elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            patterns.append('^extensions "bar/0.0", "barbar/0.0", "l/s", "toy/0.0"')
+            patterns.append('^extensions bar/0.0, barbar/0.0, l/s, toy/0.0')
 
         for pattern in patterns:
             self.assertTrue(re.search(pattern, desc, re.M), "Pattern '%s' found in: %s" % (pattern, desc))

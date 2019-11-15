@@ -521,13 +521,12 @@ class ModuleGenerator(object):
 
     def _generate_provides_list(self):
         """
-        Generate a string with a comma-separated list of extensions in name/version format
+        Generate a list of all extensions in name/version format
         """
         exts_list = self.app.cfg['exts_list']
-        exts_ver_list = ['"%s/%s"' % (ext[0], ext[1]) for ext in exts_list]
-        extensions = ', '.join(sorted(exts_ver_list, key=str.lower))
+        exts_ver_list = sorted(['%s/%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower)
 
-        return extensions
+        return exts_ver_list
 
     def _generate_help_text(self):
         """
@@ -749,7 +748,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         provide_list = self._generate_provides_list()
         if self.modules_tool.supports_extensions and provide_list:
-            lines.extend(['', 'extensions %s' % provide_list])
+            lines.extend(['', 'extensions %s' % ', '.join(provide_list)])
 
         whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
         txt += '\n'.join([''] + lines + ['']) % {
@@ -1126,7 +1125,8 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         provide_list = self._generate_provides_list()
         if self.modules_tool.supports_extensions and provide_list:
-            lines.extend(['', 'extensions(%s)' % provide_list])
+            provide_list_str = ', '.join(['"%s"' % x for x in provide_list])
+            lines.extend(['', 'extensions(%s)' % provide_list_str])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
