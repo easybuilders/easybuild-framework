@@ -808,35 +808,55 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # commit
     git_repo.index.commit(commit_msg)
 
-    # push to GitHub
-    github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
+    push_branch_to_github(git_repo, target_account, pr_target_repo, pr_branch)
+
+    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
+
+
+def create_remote(git_repo, account, repo):
+    """Create remote in specified git working directory for specified account & repository."""
+
+    github_url = 'git@github.com:%s/%s.git' % (account, repo)
     salt = ''.join(random.choice(ascii_letters) for _ in range(5))
-    remote_name = 'github_%s_%s' % (target_account, salt)
+    remote_name = 'github_%s_%s' % (account, salt)
+
+    try:
+        remote = git_repo.create_remote(remote_name, github_url)
+    except GitCommandError as err:
+        raise EasyBuildError("Failed to create remote %s for %s: %s", remote_name, github_url, err)
+
+    return remote
+
+
+def push_branch_to_github(git_repo, target_account, target_repo, branch):
+    """Push specified branch to GitHub from specified git repository."""
+
+    # push to GitHub
+    remote = create_remote(git_repo, target_account, target_repo)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (pr_branch, remote_name, github_url)
+    github_url = 'git@github.com:%s/%s.git' % (target_account, target_repo)
+
+    push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (branch, remote.name, github_url)
     if dry_run:
         print_msg(push_branch_msg + ' [DRY RUN]', log=_log)
     else:
         print_msg(push_branch_msg, log=_log)
         try:
-            my_remote = git_repo.create_remote(remote_name, github_url)
-            res = my_remote.push(pr_branch)
+            res = remote.push(branch)
         except GitCommandError as err:
-            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", pr_branch, github_url, err)
+            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", branch, github_url, err)
 
         if res:
             if res[0].ERROR & res[0].flags:
                 raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
-                                     pr_branch, my_remote, github_url, res[0].summary)
+                                     branch, remote, github_url, res[0].summary)
             else:
-                _log.debug("Pushed branch %s to remote %s (%s): %s", pr_branch, my_remote, github_url, res[0].summary)
+                _log.debug("Pushed branch %s to remote %s (%s): %s", branch, remote, github_url, res[0].summary)
         else:
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
-                                 pr_branch, my_remote, github_url)
-
-    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
+                                 branch, remote, github_url)
 
 
 def is_patch_for(patch_name, ec):

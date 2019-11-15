@@ -663,6 +663,35 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(account, 'migueldiascosta')
         self.assertEqual(branch, 'fix_inject_checksums')
 
+    def test_push_branch_to_github(self):
+        """Test push_branch_to_github."""
+
+        build_options = {'dry_run': True}
+        init_config(build_options=build_options)
+
+        git_repo = gh.init_repo(self.test_prefix, GITHUB_REPO)
+        branch = 'test123'
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'master')
+        git_repo.create_head(branch, force=True)
+        gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+
+        self.assertEqual(stderr, '')
+
+        github_path = '%s/%s.git' % (GITHUB_USER, GITHUB_REPO)
+        pattern = r'^' + '\n'.join([
+            r"== fetching branch 'master' from https://github.com/%s\.\.\." % github_path,
+            r"== pushing branch 'test123' to remote 'github_.*' \(git@github.com:%s\) \[DRY RUN\]" % github_path,
+        ]) + r'$'
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ returns all the testcases in this module """
