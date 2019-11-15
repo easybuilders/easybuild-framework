@@ -577,7 +577,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         patterns = []
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            patterns.append('^extensions("bar/0.0", "barbar/0.0", "l/s", "toy/0.0")')
+            patterns.append(r'^extensions\("bar/0.0", "barbar/0.0", "l/s", "toy/0.0"\)')
         elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             patterns.append('^extensions bar/0.0, barbar/0.0, l/s, toy/0.0')
 
