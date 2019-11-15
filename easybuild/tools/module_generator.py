@@ -748,7 +748,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
         provide_list = self._generate_provides_list()
-        if isinstance(self.modules_tool, Lmod) and LooseVersion(self.modules_tool.version) >= LooseVersion('8.0') and \
+        if isinstance(self.modules_tool, Lmod) and LooseVersion(self.modules_tool.version) >= LooseVersion('8.2') and \
            provide_list:
             lines.append("extensions %s" % provide_list)
 
@@ -1126,7 +1126,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
         provide_list = self._generate_provides_list()
-        if LooseVersion(self.modules_tool.version) >= LooseVersion('8.0') and provide_list:
+        if LooseVersion(self.modules_tool.version) >= LooseVersion('8.2') and provide_list:
             lines.append("extensions(%s)" % provide_list)
 
         txt += '\n'.join([''] + lines + ['']) % {
