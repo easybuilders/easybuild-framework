@@ -814,10 +814,21 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     return file_info, deleted_paths, git_repo, pr_branch, diff_stat
 
 
-def create_remote(git_repo, account, repo):
-    """Create remote in specified git working directory for specified account & repository."""
+def create_remote(git_repo, account, repo, https=False):
+    """
+    Create remote in specified git working directory for specified account & repository.
 
-    github_url = 'git@github.com:%s/%s.git' % (account, repo)
+    :param git_repo: git.Repo instance to use (after init_repo & setup_repo)
+    :param account: GitHub account name
+    :param repo: repository name
+    :param https: use https:// URL rather than git@
+    """
+
+    if https:
+        github_url = 'https://github.com/%s/%s.git' % (account, repo)
+    else:
+        github_url = 'git@github.com:%s/%s.git' % (account, repo)
+
     salt = ''.join(random.choice(ascii_letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (account, salt)
 
@@ -830,7 +841,14 @@ def create_remote(git_repo, account, repo):
 
 
 def push_branch_to_github(git_repo, target_account, target_repo, branch):
-    """Push specified branch to GitHub from specified git repository."""
+    """
+    Push specified branch to GitHub from specified git repository.
+
+    :param git_repo: git.Repo instance to use (after init_repo & setup_repo)
+    :param target_account: GitHub account name
+    :param target_repo: repository name
+    :param branch: name of branch to push
+    """
 
     # push to GitHub
     remote = create_remote(git_repo, target_account, target_repo)
@@ -1815,7 +1833,7 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
 
 
 def sync_pr_with_develop(pr_id):
-    """Sync pull request with current develop branch."""
+    """Sync pull request with specified ID with current develop branch."""
     github_user = build_option('github_user')
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to use --sync-pr-with-develop")
@@ -1835,7 +1853,7 @@ def sync_pr_with_develop(pr_id):
     # pull in latest version of 'develop' branch from central repository
     msg = "pulling latest version of '%s' branch from %s/%s..." % (target_account, target_repo, GITHUB_DEVELOP_BRANCH)
     print_msg(msg, log=_log)
-    easybuilders_remote = create_remote(git_repo, target_account, target_repo)
+    easybuilders_remote = create_remote(git_repo, target_account, target_repo, https=True)
     pull_out = git_repo.git.pull(easybuilders_remote.name, GITHUB_DEVELOP_BRANCH)
     _log.debug("Output of 'git pull %s %s': %s", easybuilders_remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
 
