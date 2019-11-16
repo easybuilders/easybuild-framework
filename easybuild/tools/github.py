@@ -1846,9 +1846,8 @@ def sync_pr_with_develop(pr_id):
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, target_repo)
-    repo_path = os.path.join(git_working_dir, target_repo)
 
-    pr_remote_name = setup_repo(git_repo, pr_account, target_repo, pr_branch)
+    setup_repo(git_repo, pr_account, target_repo, pr_branch)
 
     # pull in latest version of 'develop' branch from central repository
     msg = "pulling latest version of '%s' branch from %s/%s..." % (target_account, target_repo, GITHUB_DEVELOP_BRANCH)
