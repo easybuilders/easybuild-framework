@@ -106,6 +106,41 @@ def is_system_toolchain(tc_name):
     return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]
 
 
+def env_vars_external_module(name, version, metadata):
+    """
+    Determine $EBROOT* and/or $EBVERSION* environment variables that can be set for external module,
+    based on the provided name, version and metadata.
+    """
+    env_vars = {}
+
+    # define $EBROOT env var for install prefix, picked up by get_software_root
+    prefix = metadata.get('prefix')
+    if prefix is not None:
+        # the prefix can be specified in a number of ways
+        # * name of environment variable (+ optional relative path to combine it with; format: <name>/<relpath>
+        # * filepath (assumed if environment variable is not defined)
+        parts = prefix.split(os.path.sep)
+        env_var = parts[0]
+        if env_var in os.environ:
+            prefix = os.environ[env_var]
+            rel_path = os.path.sep.join(parts[1:])
+            if rel_path:
+                prefix = os.path.join(prefix, rel_path, '')
+
+            _log.debug("Derived prefix for software named %s from $%s (rel path: %s): %s",
+                           name, env_var, rel_path, prefix)
+        else:
+            _log.debug("Using specified path as prefix for software named %s: %s", name, prefix)
+
+        env_vars[get_software_root_env_var_name(name)] = prefix
+
+    # define $EBVERSION env var for software version, picked up by get_software_version
+    if version is not None:
+        env_vars[get_software_version_env_var_name(name)] = version
+
+    return env_vars
+
+
 class Toolchain(object):
     """General toolchain class"""
 
@@ -512,30 +547,9 @@ class Toolchain(object):
 
         self.log.debug("Defining $EB* environment variables for software named %s", name)
 
-        # define $EBROOT env var for install prefix, picked up by get_software_root
-        prefix = metadata.get('prefix')
-        if prefix is not None:
-            # the prefix can be specified in a number of ways
-            # * name of environment variable (+ optional relative path to combine it with; format: <name>/<relpath>
-            # * filepath (assumed if environment variable is not defined)
-            parts = prefix.split(os.path.sep)
-            env_var = parts[0]
-            if env_var in os.environ:
-                prefix = os.environ[env_var]
-                rel_path = os.path.sep.join(parts[1:])
-                if rel_path:
-                    prefix = os.path.join(prefix, rel_path, '')
-
-                self.log.debug("Derived prefix for software named %s from $%s (rel path: %s): %s",
-                               name, env_var, rel_path, prefix)
-            else:
-                self.log.debug("Using specified path as prefix for software named %s: %s", name, prefix)
-
-            setvar(get_software_root_env_var_name(name), prefix, verbose=verbose)
-
-        # define $EBVERSION env var for software version, picked up by get_software_version
-        if version is not None:
-            setvar(get_software_version_env_var_name(name), version, verbose=verbose)
+        env_vars = env_vars_external_module(name, version, metadata)
+        for key in env_vars:
+            setvar(key, env_vars[key], verbose=verbose)
 
     def _load_toolchain_module(self, silent=False):
         """Load toolchain module."""
