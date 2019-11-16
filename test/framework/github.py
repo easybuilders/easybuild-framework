@@ -638,6 +638,9 @@ class GithubTest(EnhancedTestCase):
 
     def test_det_account_branch_for_pr(self):
         """Test det_account_branch_for_pr."""
+        if self.skip_github_tests:
+            print("Skipping test_det_account_branch_for_pr, no GitHub token available?")
+            return
 
         init_config(build_options={
             'pr_target_account': 'easybuilders',
