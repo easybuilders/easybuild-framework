@@ -128,7 +128,7 @@ def env_vars_external_module(name, version, metadata):
                 prefix = os.path.join(prefix, rel_path, '')
 
             _log.debug("Derived prefix for software named %s from $%s (rel path: %s): %s",
-                           name, env_var, rel_path, prefix)
+                       name, env_var, rel_path, prefix)
         else:
             _log.debug("Using specified path as prefix for software named %s: %s", name, prefix)
 
