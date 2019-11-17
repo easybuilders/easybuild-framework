@@ -49,6 +49,7 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
+from easybuild.tools.toolchain.toolchain import env_vars_external_module
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -1829,6 +1830,25 @@ class ToolchainTest(EnhancedTestCase):
 
         # we may have created our own short tmpdir above, so make sure to clean things up...
         shutil.rmtree(orig_tmpdir)
+
+    def test_env_vars_external_module(self):
+        """Test env_vars_external_module function."""
+
+        res = env_vars_external_module('test', '1.2.3', {'prefix': '/software/test/1.2.3'})
+        expected = {'EBVERSIONTEST': '1.2.3', 'EBROOTTEST': '/software/test/1.2.3'}
+        self.assertEqual(res, expected)
+
+        res = env_vars_external_module('test-test', '1.2.3', {})
+        expected = {'EBVERSIONTESTMINTEST': '1.2.3'}
+        self.assertEqual(res, expected)
+
+        res = env_vars_external_module('test', None, {'prefix': '/software/test/1.2.3'})
+        expected = {'EBROOTTEST': '/software/test/1.2.3'}
+        self.assertEqual(res, expected)
+
+        res = env_vars_external_module('test', None, {})
+        expected = {}
+        self.assertEqual(res, expected)
 
 
 def suite():
