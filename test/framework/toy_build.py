@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.py2vs3 import string_type
@@ -1533,19 +1533,27 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertEqual(stderr, '')
 
-        # Test also with lua syntax if Lmod is available. In particular, that the backup is not hidden
+        # Test also with Lua syntax if Lmod is available.
+        # In particular, that the backup is not hidden (except when using Lmod < 7.0)
         if isinstance(self.modtool, Lmod):
             args = common_args + ['--module-syntax=Lua', '--backup-modules']
 
-            toy_mod_dir = os.path.join(self.test_installpath, 'modules', 'all', 'toy')
-            toy_mod_fn = '0.0-deps'
+            remove_dir(toy_mod_dir)
             toy_mod = os.path.join(toy_mod_dir, toy_mod_fn + '.lua')
 
+            # initial installation of Lua module file
             self.eb_main(args, do_build=True, raise_error=True)
             self.assertTrue(os.path.exists(toy_mod))
-            lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua'))
+            lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua*'))
             self.assertEqual(len(lua_toy_mods), 1)
+            self.assertEqual(os.path.basename(toy_mod), os.path.basename(lua_toy_mods[0]))
+            # no backups yet
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
+            self.assertEqual(len(toy_mod_backups), 0)
+            hidden_toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
+            self.assertEqual(len(hidden_toy_mod_backups), 0)
 
+            # 2nd installation: backup module is created
             self.mock_stderr(True)
             self.mock_stdout(True)
             self.eb_main(args, do_build=True, raise_error=True, verbose=True)
@@ -1555,18 +1563,35 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stdout(False)
 
             self.assertTrue(os.path.exists(toy_mod))
-            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
-            self.assertEqual(len(toy_mod_backups), 1)
-            first_toy_lua_mod_backup = toy_mod_backups[0]
-            self.assertTrue('.bak_' in os.path.basename(first_toy_lua_mod_backup))
-            self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
+            lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua*'))
+            self.assertEqual(len(lua_toy_mods), 1)
+            self.assertEqual(os.path.basename(toy_mod), os.path.basename(lua_toy_mods[0]))
 
-            toy_mod_bak = r".*/toy/0\.0-deps\.bak_[0-9]+_[0-9]+"
+            # backup module is only hidden for old Lmod versions
+            lmod_version = os.getenv('LMOD_VERSION', 'NOT_FOUND')
+            if LooseVersion(lmod_version) < LooseVersion('7.0.0'):
+                backups_visible, backups_hidden = 0, 1
+                toy_mod_bak = r".*/toy/\.0\.0-deps\.bak_[0-9]+_[0-9]+"
+            else:
+                backups_visible, backups_hidden = 1, 0
+                toy_mod_bak = r".*/toy/0\.0-deps\.bak_[0-9]+_[0-9]+"
+
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
+            self.assertEqual(len(toy_mod_backups), backups_visible)
+            hidden_toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
+            self.assertEqual(len(hidden_toy_mod_backups), backups_hidden)
+
+            first_toy_lua_mod_backup = (toy_mod_backups or hidden_toy_mod_backups)[0]
+            self.assertTrue('.bak_' in os.path.basename(first_toy_lua_mod_backup))
+
+            # check messages in stdout/stderr
             regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
             regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            self.assertEqual(stderr, '')
 
+            # tweak existing module file so we can verify diff of installed module with backup in stdout
             write_file(toy_mod, "some difference\n", append=True)
 
             self.mock_stderr(True)
@@ -1577,8 +1602,18 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.mock_stdout(False)
 
+            if LooseVersion(lmod_version) < LooseVersion('7.0.0'):
+                backups_hidden += 1
+            else:
+                backups_visible += 1
+
+            lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua*'))
+            self.assertEqual(len(lua_toy_mods), 1)
+            self.assertEqual(os.path.basename(toy_mod), os.path.basename(lua_toy_mods[0]))
             toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
-            self.assertEqual(len(toy_mod_backups), 2)
+            self.assertEqual(len(toy_mod_backups), backups_visible)
+            hidden_toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
+            self.assertEqual(len(hidden_toy_mod_backups), backups_hidden)
 
             regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
