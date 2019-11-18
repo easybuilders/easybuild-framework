@@ -85,6 +85,7 @@ GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
+GITHUB_DEVELOP_BRANCH = 'develop'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
@@ -808,35 +809,73 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # commit
     git_repo.index.commit(commit_msg)
 
-    # push to GitHub
-    github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
+    push_branch_to_github(git_repo, target_account, pr_target_repo, pr_branch)
+
+    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
+
+
+def create_remote(git_repo, account, repo, https=False):
+    """
+    Create remote in specified git working directory for specified account & repository.
+
+    :param git_repo: git.Repo instance to use (after init_repo & setup_repo)
+    :param account: GitHub account name
+    :param repo: repository name
+    :param https: use https:// URL rather than git@
+    """
+
+    if https:
+        github_url = 'https://github.com/%s/%s.git' % (account, repo)
+    else:
+        github_url = 'git@github.com:%s/%s.git' % (account, repo)
+
     salt = ''.join(random.choice(ascii_letters) for _ in range(5))
-    remote_name = 'github_%s_%s' % (target_account, salt)
+    remote_name = 'github_%s_%s' % (account, salt)
+
+    try:
+        remote = git_repo.create_remote(remote_name, github_url)
+    except GitCommandError as err:
+        raise EasyBuildError("Failed to create remote %s for %s: %s", remote_name, github_url, err)
+
+    return remote
+
+
+def push_branch_to_github(git_repo, target_account, target_repo, branch):
+    """
+    Push specified branch to GitHub from specified git repository.
+
+    :param git_repo: git.Repo instance to use (after init_repo & setup_repo)
+    :param target_account: GitHub account name
+    :param target_repo: repository name
+    :param branch: name of branch to push
+    """
+
+    # push to GitHub
+    remote = create_remote(git_repo, target_account, target_repo)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (pr_branch, remote_name, github_url)
+    github_url = 'git@github.com:%s/%s.git' % (target_account, target_repo)
+
+    push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (branch, remote.name, github_url)
     if dry_run:
         print_msg(push_branch_msg + ' [DRY RUN]', log=_log)
     else:
         print_msg(push_branch_msg, log=_log)
         try:
-            my_remote = git_repo.create_remote(remote_name, github_url)
-            res = my_remote.push(pr_branch)
+            res = remote.push(branch)
         except GitCommandError as err:
-            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", pr_branch, github_url, err)
+            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", branch, github_url, err)
 
         if res:
             if res[0].ERROR & res[0].flags:
                 raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
-                                     pr_branch, my_remote, github_url, res[0].summary)
+                                     branch, remote, github_url, res[0].summary)
             else:
-                _log.debug("Pushed branch %s to remote %s (%s): %s", pr_branch, my_remote, github_url, res[0].summary)
+                _log.debug("Pushed branch %s to remote %s (%s): %s", branch, remote, github_url, res[0].summary)
         else:
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
-                                 pr_branch, my_remote, github_url)
-
-    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
+                                 branch, remote, github_url)
 
 
 def is_patch_for(patch_name, ec):
@@ -1359,19 +1398,39 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
+def det_account_branch_for_pr(pr_id, github_user=None):
+    """Determine account & branch corresponding to pull request with specified id."""
+
+    if github_user is None:
+        github_user = build_option('github_user')
+
+    if github_user is None:
+        raise EasyBuildError("GitHub username (--github-user) must be specified!")
+
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
+
+    pr_data, _ = fetch_pr_data(pr_id, pr_target_account, pr_target_repo, github_user)
+
+    # branch that corresponds with PR is supplied in form <account>:<branch_label>
+    account = pr_data['head']['label'].split(':')[0]
+    branch = ':'.join(pr_data['head']['label'].split(':')[1:])
+    github_target = '%s/%s' % (pr_target_account, pr_target_repo)
+    print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr_id, branch), log=_log)
+
+    return account, branch
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
-def update_pr(pr, paths, ecs, commit_msg=None):
+def update_pr(pr_id, paths, ecs, commit_msg=None):
     """
     Update specified pull request using specified files
 
-    :param pr: ID of pull request to update
+    :param pr_id: ID of pull request to update
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param commit_msg: commit message to use
     """
-    github_user = build_option('github_user')
-    if github_user is None:
-        raise EasyBuildError("GitHub user must be specified to use --update-pr")
 
     if commit_msg is None:
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when using --update-pr")
@@ -1379,13 +1438,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
-
-    # branch that corresponds with PR is supplied in form <account>:<branch_label>
-    account = pr_data['head']['label'].split(':')[0]
-    branch = ':'.join(pr_data['head']['label'].split(':')[1:])
-    github_target = '%s/%s' % (pr_target_account, pr_target_repo)
-    print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
+    account, branch = det_account_branch_for_pr(pr_id)
 
     _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch, pr_branch=branch,
                                                    start_account=account, commit_msg=commit_msg)
@@ -1393,7 +1446,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
     full_repo = '%s/%s' % (pr_target_account, pr_target_repo)
-    msg = "Updated %s PR #%s by pushing to branch %s/%s" % (full_repo, pr, account, branch)
+    msg = "Updated %s PR #%s by pushing to branch %s/%s" % (full_repo, pr_id, account, branch)
     if build_option('dry_run') or build_option('extended_dry_run'):
         msg += " [DRY RUN]"
     print_msg(msg, log=_log, prefix=False)
@@ -1777,3 +1830,47 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
         pr_data['reviews'] = reviews_data
 
     return pr_data, pr_url
+
+
+def sync_pr_with_develop(pr_id):
+    """Sync pull request with specified ID with current develop branch."""
+    github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to use --sync-pr-with-develop")
+
+    target_account = build_option('pr_target_account')
+    target_repo = build_option('pr_target_repo')
+
+    pr_account, pr_branch = det_account_branch_for_pr(pr_id)
+
+    # initialize repository
+    git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
+    git_repo = init_repo(git_working_dir, target_repo)
+
+    setup_repo(git_repo, pr_account, target_repo, pr_branch)
+
+    # pull in latest version of 'develop' branch from central repository
+    msg = "pulling latest version of '%s' branch from %s/%s..." % (target_account, target_repo, GITHUB_DEVELOP_BRANCH)
+    print_msg(msg, log=_log)
+    easybuilders_remote = create_remote(git_repo, target_account, target_repo, https=True)
+    pull_out = git_repo.git.pull(easybuilders_remote.name, GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git pull %s %s': %s", easybuilders_remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
+
+    # create 'develop' branch (with force if one already exists),
+    # and check it out to check git log
+    git_repo.create_head(GITHUB_DEVELOP_BRANCH, force=True).checkout()
+    git_log_develop = git_repo.git.log('-n 3')
+    _log.debug("Top of 'git log' for %s branch:\n%s", GITHUB_DEVELOP_BRANCH, git_log_develop)
+
+    # checkout PR branch, and merge develop branch in it (which will create a merge commit)
+    print_msg("merging '%s' branch into PR branch '%s'..." % (GITHUB_DEVELOP_BRANCH, pr_branch), log=_log)
+    git_repo.git.checkout(pr_branch)
+    merge_out = git_repo.git.merge(GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, merge_out)
+
+    # check git log, should show merge commit on top
+    post_merge_log = git_repo.git.log('-n 3')
+    _log.debug("Top of 'git log' after 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, post_merge_log)
+
+    # push updated branch back to GitHub (unless we're doing a dry run)
+    return push_branch_to_github(git_repo, pr_account, target_repo, pr_branch)

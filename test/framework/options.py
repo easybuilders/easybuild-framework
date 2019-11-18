@@ -3030,6 +3030,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
+    def test_sync_pr_with_develop(self):
+        """Test use of --sync-pr-with-develop (dry run only)."""
+        if self.github_token is None:
+            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
+            return
+
+        # use https://github.com/easybuilders/easybuild-easyconfigs/pull/9150,
+        # which is a PR from boegel:develop to easybuilders:develop
+        # (to sync 'develop' branch in boegel's fork with central develop branch);
+        # we need to test with a branch that is guaranteed to stay in place for the test to work,
+        # since it will actually be downloaded (only the final push to update the branch is skipped under --dry-run)
+        args = [
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--sync-pr-with-develop=9150',
+            '--dry-run',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        github_path = r"boegel/easybuild-easyconfigs\.git"
+        pattern = '\n'.join([
+            r"== temporary log file in case of crash .*",
+            r"== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #9150: develop",
+            r"== fetching branch 'develop' from https://github\.com/%s\.\.\." % github_path,
+            r"== pulling latest version of 'easybuilders' branch from easybuild-easyconfigs/develop\.\.\.",
+            r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
+            r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
+        ])
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
+
     def test_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
         if self.github_token is None:

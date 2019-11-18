@@ -636,6 +636,65 @@ class GithubTest(EnhancedTestCase):
         gist_id = gist_url.split('/')[-1]
         gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
 
+    def test_det_account_branch_for_pr(self):
+        """Test det_account_branch_for_pr."""
+        if self.skip_github_tests:
+            print("Skipping test_det_account_branch_for_pr, no GitHub token available?")
+            return
+
+        init_config(build_options={
+            'pr_target_account': 'easybuilders',
+            'pr_target_repo': 'easybuild-easyconfigs',
+        })
+
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
+        self.mock_stdout(True)
+        account, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
+        self.mock_stdout(False)
+        self.assertEqual(account, 'boegel')
+        self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
+
+        init_config(build_options={
+            'pr_target_account': 'easybuilders',
+            'pr_target_repo': 'easybuild-framework',
+        })
+
+        # see https://github.com/easybuilders/easybuild-framework/pull/3069
+        self.mock_stdout(True)
+        account, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
+        self.mock_stdout(False)
+        self.assertEqual(account, 'migueldiascosta')
+        self.assertEqual(branch, 'fix_inject_checksums')
+
+    def test_push_branch_to_github(self):
+        """Test push_branch_to_github."""
+
+        build_options = {'dry_run': True}
+        init_config(build_options=build_options)
+
+        git_repo = gh.init_repo(self.test_prefix, GITHUB_REPO)
+        branch = 'test123'
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'master')
+        git_repo.create_head(branch, force=True)
+        gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+
+        self.assertEqual(stderr, '')
+
+        github_path = '%s/%s.git' % (GITHUB_USER, GITHUB_REPO)
+        pattern = r'^' + '\n'.join([
+            r"== fetching branch 'master' from https://github.com/%s\.\.\." % github_path,
+            r"== pushing branch 'test123' to remote 'github_.*' \(git@github.com:%s\) \[DRY RUN\]" % github_path,
+        ]) + r'$'
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ returns all the testcases in this module """
