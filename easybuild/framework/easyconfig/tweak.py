@@ -41,9 +41,9 @@ import os
 import re
 import tempfile
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
@@ -54,9 +54,9 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
-from easybuild.tools.utilities import flatten, quote_str
+from easybuild.tools.utilities import flatten, nub, quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.tweak', fname=False)
@@ -249,7 +249,13 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         if not res:
             raise EasyBuildError("No toolchain found in easyconfig file %s: %s", orig_ec, ectxt)
 
-        toolchain = eval(res.group(1))
+        # need to treat toolchain specified via 'SYSTEM' constant separately,
+        # since SYSTEM constant is not defined during 'eval'
+        if res.group(1) == 'SYSTEM':
+            toolchain = copy.copy(EASYCONFIG_CONSTANTS['SYSTEM'][0])
+        else:
+            toolchain = eval(res.group(1))
+
         for key in ['name', 'version']:
             tc_key = "toolchain_%s" % key
             if tc_key in keys:
@@ -272,7 +278,8 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         _log.warning("Tweaking version: checksums cleared, verification disabled.")
 
     # we need to treat list values separately, i.e. we prepend to the current value (if any)
-    for (key, val) in tweaks.items():
+    for key in list(tweaks):
+        val = tweaks[key]
 
         if isinstance(val, list):
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
@@ -456,7 +463,7 @@ def select_or_generate_ec(fp, paths, specs):
     # find ALL available easyconfig files for specified software
     cfg = {
         'version': '*',
-        'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
+        'toolchain': {'name': SYSTEM_TOOLCHAIN_NAME, 'version': '*'},
         'versionprefix': '*',
         'versionsuffix': '*',
     }

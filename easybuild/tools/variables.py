@@ -31,8 +31,8 @@ e.g., in compiling or linking
 """
 import copy
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
 

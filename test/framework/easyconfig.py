@@ -43,12 +43,14 @@ from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, fix_deprecated_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
-from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -56,6 +58,7 @@ from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
+from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
@@ -65,6 +68,7 @@ from easybuild.tools.filetools import symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
+from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -140,7 +144,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += '\n' + '\n'.join([
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
         self.prep()
 
@@ -149,7 +153,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['name'], "pi")
         self.assertEqual(eb['version'], "3.14")
         self.assertEqual(eb['homepage'], "http://example.com")
-        self.assertEqual(eb['toolchain'], {"name": "dummy", "version": "dummy"})
+        self.assertEqual(eb['toolchain'], {"name": "system", "version": "system"})
         self.assertEqual(eb['description'], "test easyconfig")
 
     def test_validation(self):
@@ -160,7 +164,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'stop = "notvalid"',
         ])
         self.prep()
@@ -174,12 +178,12 @@ class EasyConfigTest(EnhancedTestCase):
         ec['osdependencies'] = ['non-existent-dep']
         self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
 
-        # dummy toolchain, installversion == version
+        # system toolchain, installversion == version
         self.assertEqual(det_full_ec_version(ec), "3.14")
 
-        os.chmod(self.eb_file, 0000)
+        os.chmod(self.eb_file, 0o000)
         self.assertErrorRegex(EasyBuildError, "Permission denied", EasyConfig, self.eb_file)
-        os.chmod(self.eb_file, 0755)
+        os.chmod(self.eb_file, 0o755)
 
         self.contents += "\nsyntax_error'"
         self.prep()
@@ -192,6 +196,21 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = "Parsing easyconfig file failed: format requires a mapping \(line 8\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
+    def test_system_toolchain_constant(self):
+        """Test use of SYSTEM constant to specify toolchain."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+        self.assertEqual(eb['toolchain'], {'name': 'system', 'version': 'system'})
+        self.assertTrue(isinstance(eb.toolchain, SystemToolchain))
+
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
         self.contents = '\n'.join([
@@ -200,7 +219,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'sanity_check_paths = { "files": ["lib/lib.%s" % SHLIB_EXT] }',
         ])
         self.prep()
@@ -344,7 +363,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'exts_default_options = {',
             '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
             '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
@@ -356,9 +375,9 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
-            '           "f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156",',
+            '           "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
-            '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
+            '           "2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c",',
             '       ],',
             '   }),',
             ']',
@@ -378,8 +397,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['name'], 'ext2')
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
-            'checksums': ['f0235f93773e40a9120e8970e438023d46bbf205d44828beffb60905a8644156',
-                          'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
+            'checksums': ['6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45',
+                          '2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c'],
             'patches': ['toy-0.0.eb'],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
@@ -410,7 +429,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix = "-test"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": ""}',
+            'toolchain = SYSTEM',
             'dependencies = [("Python", "3.6.6")]',
             'exts_defaultclass = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
@@ -561,7 +580,7 @@ class EasyConfigTest(EnhancedTestCase):
         versuff = "|mysuffix"
         tcname = "GCC"
         tcver = "4.6.3"
-        dummy = "dummy"
+        system = "system"
 
         correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
         cfg = {
@@ -576,7 +595,7 @@ class EasyConfigTest(EnhancedTestCase):
         correct_installver = "%s%s%s" % (verpref, ver, versuff)
         cfg = {
             'version': ver,
-            'toolchain': {'name': dummy, 'version': tcver},
+            'toolchain': {'name': system, 'version': tcver},
             'versionprefix': verpref,
             'versionsuffix': versuff,
         }
@@ -609,7 +628,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version = "3.12"',
                 'homepage = "http://example.com"',
                 'description = "test easyconfig"',
-                'toolchain = {"name": "dummy", "version": "dummy"}',
+                'toolchain = SYSTEM',
                 'patches = %s' % patches
             ])),
             (fns[1], "\n".join([
@@ -646,7 +665,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'homepage = "http://example.com"',
                 'description = "test easyconfig"',
                 'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
-                'foo_extra1 = "bar"',
+                'local_foo_extra1 = "bar"',
             ]))
         ]
 
@@ -750,7 +769,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
                 'full_mod_name': 'testbuildonly/.4.9.3-2.25-GCC-4.8.3',
                 'build_only': True,
@@ -764,7 +783,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.8.3',
                 'full_mod_name': 'foo/1.2.3-GCC-4.8.3',
                 'build_only': False,
@@ -778,7 +797,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '2018a'},
                 'toolchain_inherited': False,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'bar/666-gompi-2018a-bleh',
                 'full_mod_name': 'bar/666-gompi-2018a-bleh',
                 'build_only': False,
@@ -792,7 +811,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'toolchain_inherited': True,
-                'dummy': False,
+                'system': False,
                 'short_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'full_mod_name': 'test/.3.2.1-GCC-4.8.3',
                 'build_only': False,
@@ -900,7 +919,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix = "-Python-%%(pyver)s"',
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
-            'toolchain = {"name":"dummy", "version": "dummy2"}',
+            'toolchain = SYSTEM',
             'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
@@ -987,7 +1006,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
         self.contents = orig_contents
         self.prep()
@@ -1057,7 +1076,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
             'buildininstalldir = True',
         ])
         self.prep()
@@ -1084,7 +1103,7 @@ class EasyConfigTest(EnhancedTestCase):
         for eb_file1, eb_file2, specs in [
             ('gzip-1.4.eb', 'gzip.eb', {}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
-            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
+            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'system', 'version': 'system'}}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
             ('gzip-1.5-foss-2018a.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'foss', 'version': '2018a'}}),
@@ -1326,6 +1345,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         easyconfig.parser.DEPRECATED_PARAMETERS = orig_deprecated_parameters
         reload(easyconfig.parser)
+        reload(easyconfig.easyconfig)
         easyconfig.easyconfig.EasyConfig = orig_EasyConfig
         easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 
@@ -1337,7 +1357,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'toolchain = SYSTEM',
         ])
         self.prep()
         ec = EasyConfig(self.eb_file)
@@ -1595,7 +1615,7 @@ class EasyConfigTest(EnhancedTestCase):
             'patches = ["one.patch"]',
             "easyblock = 'EB_foo'",
             '',
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = SYSTEM",
             '',
             'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
             "dependencies = [",
@@ -1642,13 +1662,13 @@ class EasyConfigTest(EnhancedTestCase):
             self.test_dump()
             del os.environ['EASYBUILD_DUMP_AUTOPEP8']
         except ImportError:
-            print "Skipping test_dump_autopep8, since autopep8 is not available"
+            print("Skipping test_dump_autopep8, since autopep8 is not available")
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_dump_extra (no pycodestyle or pep8 available)"
+            print("Skipping test_dump_extra (no pycodestyle or pep8 available)")
             return
 
         rawtxt = '\n'.join([
@@ -1661,7 +1681,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': 'system'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",
@@ -1691,7 +1711,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ Test EasyConfig's dump() method for files containing templates"""
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_dump_template (no pycodestyle or pep8 available)"
+            print("Skipping test_dump_template (no pycodestyle or pep8 available)")
             return
 
         rawtxt = '\n'.join([
@@ -1705,8 +1725,8 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "foo description"',
             '',
             "toolchain = {",
-            "    'version': 'dummy',",
-            "    'name': 'dummy',",
+            "    'version': 'system',",
+            "    'name': 'system',",
             '}',
             '',
             "sources = [",
@@ -1765,7 +1785,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ Test dump() method for files containing comments """
 
         if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print "Skipping test_dump_comments (no pycodestyle or pep8 available)"
+            print("Skipping test_dump_comments (no pycodestyle or pep8 available)")
             return
 
         rawtxt = '\n'.join([
@@ -1785,8 +1805,8 @@ class EasyConfigTest(EnhancedTestCase):
             "# toolchain comment",
             '',
             "toolchain = {",
-            "    'version': 'dummy',",
-            "    'name': 'dummy'",
+            "    'version': 'system',",
+            "    'name': 'system'",
             '}',
             '',
             "sanity_check_paths = {",
@@ -1841,14 +1861,26 @@ class EasyConfigTest(EnhancedTestCase):
             '-test': 'special_char',
         }
 
-        self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
-        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
-        self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
-        templ_list = to_template_str("['-test', 'dontreplacenamehere']", templ_const, templ_val)
+        self.assertEqual(to_template_str('test', "template", templ_const, templ_val), 'TEMPLATE_VALUE')
+        self.assertEqual(to_template_str('test', "foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
+        self.assertEqual(to_template_str('test', "foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
+        templ_list = to_template_str('test', "['-test', 'dontreplacenamehere']", templ_const, templ_val)
         self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
-        templ_dict = to_template_str("{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
+        templ_dict = to_template_str('test', "{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
         self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
-        self.assertEqual(to_template_str("('foo', '0.0.1')", templ_const, templ_val), "('%(name)s', '%(version)s')")
+        templ_tuple = to_template_str('test', "('foo', '0.0.1')", templ_const, templ_val)
+        self.assertEqual(templ_tuple, "('%(name)s', '%(version)s')")
+
+        # if easyconfig parameter name and name of matching template are identical, no replacement
+        templ_val = OrderedDict([('-Python-2.7.15', 'versionsuffix'), ('2.7.15', 'pyver'), ('2.7', 'pyshortver')])
+        test_input = '-Python-2.7.15'
+        self.assertEqual(to_template_str('versionsuffix', test_input, templ_const, templ_val), '-Python-%(pyver)s')
+        self.assertEqual(to_template_str('test', test_input, templ_const, templ_val), '%(versionsuffix)s')
+
+        # test special case for 'python%(pyshortver)s'
+        test_input = "sanity_check_paths = {\n    'files': [],\n    'dirs': ['lib/python2.7/site-packages'],\n}"
+        res = "sanity_check_paths = {\n    'files': [],\n    'dirs': ['lib/python%(pyshortver)s/site-packages'],\n}"
+        self.assertEqual(to_template_str('sanity_check_paths', test_input, templ_const, templ_val), res)
 
     def test_dep_graph(self):
         """Test for dep_graph."""
@@ -1885,7 +1917,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ordered_dottxt, ordered_expected)
 
         except ImportError:
-            print "Skipping test_dep_graph, since pygraph is not available"
+            print("Skipping test_dep_graph, since pygraph is not available")
 
     def test_dep_graph_multi_deps(self):
         """
@@ -1932,7 +1964,7 @@ class EasyConfigTest(EnhancedTestCase):
                 self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
 
         except ImportError:
-            print "Skipping test_dep_graph, since pygraph is not available"
+            print("Skipping test_dep_graph, since pygraph is not available")
 
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
@@ -2188,6 +2220,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'gzip',
             'nameletter': 'g',
             'nameletterlower': 'g',
+            'parallel': None,
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
             'version': '1.5',
@@ -2206,6 +2239,21 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(res, expected)
 
+        # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        orig_get_avail_core_count = st.get_avail_core_count
+        st.get_avail_core_count = lambda: 42
+
+        # also check template values after running check_readiness_step (which runs set_parallel)
+        eb = EasyBlock(ec)
+        eb.check_readiness_step()
+
+        st.get_avail_core_count = orig_get_avail_core_count
+
+        res = template_constant_dict(ec)
+        res.pop('arch')
+        expected['parallel'] = 42
+        self.assertEqual(res, expected)
+
         ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
         # fiddle with version to check version_minor template ('0' should be retained)
         ec['version'] = '0.01'
@@ -2216,9 +2264,10 @@ class EasyConfigTest(EnhancedTestCase):
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
+            'toolchain_name': 'system',
+            'toolchain_version': 'system',
             'nameletterlower': 't',
-            'toolchain_name': 'dummy',
-            'toolchain_version': 'dummy',
+            'parallel': None,
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
@@ -2329,7 +2378,7 @@ class EasyConfigTest(EnhancedTestCase):
             ec_file,
             '--dry-run',
         ]
-        outtxt = self.eb_main(args)
+        outtxt = self.eb_main(args, raise_error=True)
         self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
@@ -2418,21 +2467,34 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, ['2018a', None])
 
-        # 'dummy', 'dummy' should be ok: return None for GCCcore, and None or '' for 'dummy'.
+        # 'system', 'system' should be ok: return None for GCCcore, and None or '' for 'system'.
         current_tc = {'name': 'GCC', 'version': '6.4.0-2.28'}
-        cands = [{'name': 'dummy', 'version': 'dummy'}]
+        cands = [{'name': 'system', 'version': 'system'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, [None, None])
 
-        init_config(build_options={
-            'add_dummy_to_minimal_toolchains': True})
+        init_config(build_options={'add_system_to_minimal_toolchains': True})
 
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, [None, ''])
 
+        # --add-dummy-to-minimal-toolchains is still supported, but deprecated
+        self.allow_deprecated_behaviour()
+        init_config(build_options={'add_system_to_minimal_toolchains': False, 'add_dummy_to_minimal_toolchains': True})
+        self.mock_stderr(True)
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(versions, [None, ''])
+        depr_msg = "WARNING: Deprecated functionality, will no longer work in v5.0: "
+        depr_msg += "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+        self.assertTrue(depr_msg in stderr)
+
         # and GCCcore if existing too
+        init_config(build_options={'add_system_to_minimal_toolchains': True})
         current_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
         cands = [{'name': 'GCCcore', 'version': '4.9.3'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
@@ -2500,8 +2562,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs = os.path.join(top_dir, 'easyconfigs')
         symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
 
+        # temporarily mock stderr to avoid printed warning (because 'eb' is not available via $PATH)
+        self.mock_stderr(True)
+
         # locations listed in 'robot_path' named argument are taken into account
         res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.mock_stderr(False)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
         # easyconfigs location can also be derived from location of 'eb'
@@ -2525,6 +2591,50 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # put mock 'eb' back in $PATH
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        # if $EB_SCRIPT_PATH is specified, this is picked up to determine location to easyconfigs
+        someprefix = os.path.join(self.test_prefix, 'someprefix')
+        test_easyconfigs_dir = os.path.join(someprefix, 'easybuild', 'easyconfigs')
+        mkdir(test_easyconfigs_dir, parents=True)
+        write_file(os.path.join(someprefix, 'bin', 'eb'), '')
+
+        # put symlink in place, both original path and resolved path should be considered
+        symlinked_prefix = os.path.join(self.test_prefix, 'symlinked_prefix')
+        symlink(someprefix, symlinked_prefix)
+
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(symlinked_prefix, 'bin', 'eb')
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+
+        # last path is symlinked path
+        self.assertEqual(res[-1], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+
+        # wipe sys.path. then only path found via $EB_SCRIPT_PATH is found
+        sys.path = []
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+
+        # if $EB_SCRIPT_PATH is not defined, then paths determined via 'eb' found through $PATH are picked up
+        del os.environ['EB_SCRIPT_PATH']
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        expected = os.path.join(self.test_prefix, 'easybuild', 'easyconfigs')
+        self.assertTrue(os.path.samefile(res[-1], expected))
+
+        # also check with $EB_SCRIPT_PATH set to a symlink which doesn't allow
+        # directly deriving path to easybuild/easyconfigs dir, but resolved symlink does
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/2248
+        eb_symlink = os.path.join(self.test_prefix, 'eb')
+        symlink(os.path.join(someprefix, 'bin', 'eb'), eb_symlink)
+        os.environ['EB_SCRIPT_PATH'] = eb_symlink
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.exists(res[0]))
+        self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
@@ -2837,6 +2947,242 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.template_values['pyver'], '3.6.6')
         self.assertTrue('pyshortver' in ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
+
+    def test_fix_deprecated_easyconfigs(self):
+        """Test fix_deprecated_easyconfigs function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.4.eb')
+
+        gzip_ec_txt = read_file(gzip_ec)
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # need to allow triggering deprecated behaviour, since that's exactly what we're fixing...
+        self.allow_deprecated_behaviour()
+
+        test_ectxt = toy_ec_txt
+        # inject local variables with names that need to be tweaked (or not for single-letter ones)
+        regex = re.compile('^(sanity_check_paths)', re.M)
+        # purposely define configopts via local variable 'foo', which has value that also contains 'foo' substring;
+        # that way, we can check whether only the 'foo' variable name is replaced with 'local_foo'
+        test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', toy_ec_txt)
+        regex = re.compile(r'^(toolchain\s*=.*)$', re.M)
+        test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
+
+        # test fixing the use of 'dummy' toolchain to SYSTEM
+        tc_regex = re.compile('^toolchain = .*', re.M)
+        tc_strs = [
+            "{'name': 'dummy', 'version': 'dummy'}",
+            "{'name': 'dummy', 'version': ''}",
+            "{'name': 'dummy', 'version': '1.2.3'}",
+            "{'version': '', 'name': 'dummy'}",
+            "{'version': 'dummy', 'name': 'dummy'}",
+        ]
+
+        unknown_params_error_pattern = "Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list"
+
+        for tc_str in tc_strs:
+            # first check if names of local variables get fixed if 'dummy' toolchain is not used
+            init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
+
+            write_file(test_ec, test_ectxt)
+            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            fix_deprecated_easyconfigs([test_ec])
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+            self.assertFalse(stderr)
+            self.assertTrue("test.eb... FIXED!" in stdout)
+
+            # parsing now works
+            ec = EasyConfig(test_ec)
+
+            # cleanup
+            remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
+
+            # now inject use of 'dummy' toolchain
+            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, test_ectxt))
+
+            test_ec_txt = read_file(test_ec)
+            regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
+            self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
+
+            # mimic default behaviour where only warnings are being printed;
+            # use of dummy toolchain or local variables not following recommended naming scheme is not fatal by default
+            init_config(build_options={'local_var_naming_check': 'warn', 'silent': False})
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            ec = EasyConfig(test_ec)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stdout)
+
+            warnings = [
+                "WARNING: Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list",
+                "Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead",
+            ]
+            for warning in warnings:
+                self.assertTrue(warning in stderr, "Found warning '%s' in stderr output: %s" % (warning, stderr))
+
+            init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
+
+            # easyconfig doesn't parse because of local variables with name other than 'local_*'
+            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            fix_deprecated_easyconfigs([toy_ec, test_ec, gzip_ec])
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            ectxt = read_file(test_ec)
+            self.assertFalse(regex.search(ectxt), "Pattern '%s' *not* found in: %s" % (regex.pattern, ectxt))
+            regex = re.compile("^toolchain = SYSTEM$", re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+            self.assertEqual(gzip_ec_txt, read_file(gzip_ec))
+            self.assertEqual(toy_ec_txt, read_file(toy_ec))
+            self.assertTrue(test_ec_txt != read_file(test_ec))
+
+            # original easyconfig is backed up automatically
+            test_ecs = sorted([f for f in os.listdir(self.test_prefix) if f.startswith('test.eb')])
+            self.assertEqual(len(test_ecs), 2)
+            backup_test_ec = os.path.join(self.test_prefix, test_ecs[1])
+            self.assertEqual(test_ec_txt, read_file(backup_test_ec))
+
+            remove_file(backup_test_ec)
+
+            # parsing works now, toolchain is replaced with system toolchain
+            ec = EasyConfig(test_ec)
+            self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
+            self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
+
+            self.assertFalse(stderr)
+            stdout = stdout.split('\n')
+            self.assertEqual(len(stdout), 8)
+            patterns = [
+                r"^\* \[1/3\] fixing .*/t/toy/toy-0.0.eb\.\.\. \(no changes made\)$",
+                r"^\* \[2/3\] fixing .*/test.eb\.\.\. FIXED!$",
+                r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9_]+\)$",
+                r"^\* \[3/3\] fixing .*/g/gzip/gzip-1.4.eb\.\.\. \(no changes made\)$",
+                r'^$',
+                r"^All done! Fixed 1 easyconfigs \(out of 3 found\).$",
+                r'^$',
+                r'^$',
+            ]
+            for idx, pattern in enumerate(patterns):
+                self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
+
+    def test_parse_list_comprehension_scope(self):
+        """Test parsing of an easyconfig file that uses a local variable in list comprehension."""
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "local_bindir = 'bin'",
+            "local_binaries = ['foo', 'bar']",
+            "sanity_check_paths = {",
+            # using local variable 'bindir' in list comprehension in sensitive w.r.t. scope,
+            # especially in Python 3 where list comprehensions have their own scope
+            # cfr. https://github.com/easybuilders/easybuild-easyconfigs/pull/7848
+            "   'files': ['%s/%s' % (local_bindir, x) for x in local_binaries],",
+            "   'dirs': [],",
+            "}",
+        ])
+        write_file(test_ec, test_ectxt)
+        ec = EasyConfig(test_ec)
+        expected_sanity_check_paths = {
+            'files': ['bin/foo', 'bin/bar'],
+            'dirs': [],
+        }
+        self.assertEqual(ec['sanity_check_paths'], expected_sanity_check_paths)
+
+    def test_triage_easyconfig_params(self):
+        """Test for triage_easyconfig_params function."""
+        variables = {
+            'foobar': 'foobar',
+            'local_foo': 'test123',
+            '_bar': 'bar',
+            'name': 'example',
+            'version': '1.2.3',
+            'toolchain': {'name': 'system', 'version': 'system'},
+            'homepage': 'https://example.com',
+            'bleh': "just a local var",
+            'x': "single letter local var",
+        }
+        ec = {
+            'name': None,
+            'version': None,
+            'homepage': None,
+            'toolchain': None,
+        }
+        ec_params, unknown_keys = triage_easyconfig_params(variables, ec)
+        expected = {
+            'name': 'example',
+            'version': '1.2.3',
+            'homepage': 'https://example.com',
+            'toolchain': {'name': 'system', 'version': 'system'},
+        }
+        self.assertEqual(ec_params, expected)
+        self.assertEqual(sorted(unknown_keys), ['bleh', 'foobar'])
+
+        # check behaviour when easyconfig parameters that use a name indicating a local variable were defined
+        ec.update({
+            'x': None,
+            'local_foo': None,
+            '_foo': None,
+            '_': None,
+        })
+        error = "Found 4 easyconfig parameters that are considered local variables: _, _foo, local_foo, x"
+        self.assertErrorRegex(EasyBuildError, error, triage_easyconfig_params, variables, ec)
+
+    def test_local_vars_detection(self):
+        """Test detection of using unknown easyconfig parameters that are likely local variables."""
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "foobar = 'xxx'",
+            "_foo = 'foo'",  # not reported
+            "local_bar = 'bar'",  # not reported
+        ])
+        write_file(test_ec, test_ectxt)
+        expected_error = "Use of 1 unknown easyconfig parameters detected in test.eb: foobar"
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
+
+        # all unknown keys are detected at once, and reported alphabetically
+        # single-letter local variables are not a problem
+        test_ectxt = '\n'.join([
+            'zzz_test = ["one", "two"]',
+            test_ectxt,
+            'a = "blah"',
+            'local_foo = "foo"',  # matches local variable naming scheme, so not reported!
+            'test_list = [x for x in ["1", "2", "3"]]',
+            '_bar = "bar"',  # matches local variable naming scheme, so not reported!
+            'an_unknown_key = 123',
+        ])
+        write_file(test_ec, test_ectxt)
+
+        expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
+        expected_error += "an_unknown_key, foobar, test_list, zzz_test"
+        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
 
 def suite():

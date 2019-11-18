@@ -42,17 +42,18 @@ import shutil
 import sys
 import tempfile
 import pwd
-import vsc.utils.generaloption
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.fancylogger import setLogLevel
-from vsc.utils.generaloption import GeneralOption
 
 import easybuild.tools.environment as env
+from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.base.fancylogger import setLogLevel
+from easybuild.base.generaloption import GeneralOption
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
@@ -63,8 +64,9 @@ from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATI
 from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
-from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
+from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
 from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, WARN
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -72,7 +74,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
@@ -83,10 +85,9 @@ from easybuild.tools.include import include_easyblocks, include_module_naming_sc
 from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
@@ -106,26 +107,6 @@ except ImportError:
         except Exception:
             # in case of errors do not bother and just return the safe default
             return False
-
-
-# monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
-# to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
-# inspired by https://github.com/hpcugent/vsc-base/pull/151
-# this fixes https://github.com/easybuilders/easybuild-framework/issues/1438
-# proper fix would be to implement a serialiser for command line options
-def eb_shell_quote(token):
-    """
-    Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
-    so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
-    """
-    # first, strip off double quotes that may wrap the entire value,
-    # we don't want to wrap single quotes around a double-quoted value
-    token = str(token).strip('"')
-    # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
-
-
-vsc.utils.generaloption.shell_quote = eb_shell_quote
 
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
@@ -322,8 +303,7 @@ class EasyBuildOptions(GeneralOption):
                                   None, 'store', None, {'metavar': 'VERSION'}),
         })
 
-        longopts = opts.keys()
-        for longopt in longopts:
+        for longopt in list(opts):
             hlp = opts[longopt][0]
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
@@ -339,8 +319,11 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
-            'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches",
+            'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
+                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
                                                 None, 'store_true', False),
+            'add-system-to-minimal-toolchains': ("Include system toolchain in minimal toolchain searches",
+                                                 None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
@@ -384,7 +367,7 @@ class EasyBuildOptions(GeneralOption):
             'filter-env-vars': ("List of names of environment variables that should *not* be defined/updated by "
                                 "module files generated by EasyBuild", 'strlist', 'extend', None),
             'fixed-installdir-naming-scheme': ("Use fixed naming scheme for installation directories", None,
-                                               'store_true', False),
+                                               'store_true', True),
             'force-download': ("Force re-downloading of sources and/or patches, "
                                "even if they are available already in source path",
                                'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
@@ -422,6 +405,9 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
                                      None, 'store_true', False),
+            'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
+                                          "rather than just warning about them",
+                                          None, 'store_true', False),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
@@ -678,12 +664,17 @@ class EasyBuildOptions(GeneralOption):
         self.add_group_parser(opts, descr, prefix='container')
 
     def easyconfig_options(self):
-        # easyconfig options (to be passed to easyconfig instance)
-        descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
+        descr = ("Options for Easyconfigs", "Options that affect all specified easyconfig files.")
 
         opts = OrderedDict({
+            'fix-deprecated-easyconfigs': ("Fix use of deprecated functionality in specified easyconfig files.",
+                                           None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
+                                       "naming scheme ('log': only log warnings (no printed messages); 'warn': print "
+                                       "warnings; 'error': fail with an error)", 'choice', 'store',
+                                       LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS),
         })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='')
@@ -965,6 +956,24 @@ class EasyBuildOptions(GeneralOption):
             self.options.installpath = get_pretend_installpath()
 
         if self.options.robot is not None:
+            # if a single path is specified to --robot/-r, it must be an existing directory;
+            # this is required since an argument to --robot is optional,
+            # which makes it susceptible to 'eating' the following argument/option;
+            # for example: with 'eb -r foo', 'foo' must be an existing directory (or 'eb foo -r' should be used);
+            # when multiple directories are specified, we deliberately do not enforce that all of them exist;
+            # if a single argument is passed to --robot/-r that ends with '.eb' or '.yeb', we assume it's an easyconfig
+            if len(self.options.robot) == 1:
+                robot_arg = self.options.robot[0]
+                if not os.path.isdir(robot_arg):
+                    if robot_arg.endswith(EB_FORMAT_EXTENSION) or robot_arg.endswith(YEB_FORMAT_EXTENSION):
+                        info_msg = "Sole --robot argument %s is not an existing directory, "
+                        info_msg += "promoting it to a stand-alone argument since it looks like an easyconfig file name"
+                        self.log.info(info_msg, robot_arg)
+                        self.args.append(robot_arg)
+                        self.options.robot = []
+                    else:
+                        raise EasyBuildError("Argument passed to --robot is not an existing directory: %s", robot_arg)
+
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
             self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
@@ -1235,13 +1244,27 @@ def parse_options(args=None, with_include=True):
         fancylogger.logToScreen(enable=True)
         fancylogger.setLogLevel('DEBUG')
 
+    if args is None:
+        args = sys.argv[1:]
+
+    # unroll arguments that correspond to a combo of single-letter options
+    # this is done to avoid interpreting -rD like "--robot D" instead of "--robot -D"
+    eb_args = []
+    letters_regex = re.compile('^[a-zA-Z]+$')
+    for arg in args:
+        if len(arg) > 2 and arg.startswith('-') and letters_regex.match(arg[1:]):
+            for letter in arg[1:]:
+                eb_args.append('-' + letter)
+        else:
+            eb_args.append(arg)
+
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror,
+                                 go_args=eb_args, error_env_options=True, error_env_option_method=raise_easybuilderror,
                                  with_include=with_include)
     except Exception as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
@@ -1275,6 +1298,10 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
     """
+
+    # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
+    # this must be done early on, to catch imports from the vsc namespace in modules included via --include-*
+    fake_vsc_path = install_fake_vsc()
 
     # parse EasyBuild configuration settings
     eb_go = parse_options(args=args)
@@ -1318,6 +1345,9 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
     log.debug("Full robot path: %s" % robot_path)
 
+    if not robot_path:
+        print_warning("Robot search path is empty!")
+
     # configure & initialize build options
     config_options_dict = eb_go.get_options_by_section('config')
     build_options = {
@@ -1333,6 +1363,13 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
+
+    # move directory containing fake vsc namespace into temporary directory used for this session
+    # (to ensure it gets cleaned up properly)
+    new_fake_vsc_path = os.path.join(tmpdir, os.path.basename(fake_vsc_path))
+    move_file(fake_vsc_path, new_fake_vsc_path, force_in_dry_run=True)
+    sys.path.remove(fake_vsc_path)
+    sys.path.insert(0, new_fake_vsc_path)
 
     return eb_go, (build_specs, log, logfile, robot_path, search_query, tmpdir, try_to_generate, tweaked_ecs_paths)
 
@@ -1436,9 +1473,18 @@ def parse_external_modules_metadata(cfgs):
 
     # use external modules metadata configuration files that are available by default, unless others are specified
     if not cfgs:
-        # we expect to find *external_modules_metadata.cfg files in etc/
-        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        cfgs = glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg'))
+        cfgs = []
+
+        # we expect to find *external_modules_metadata.cfg files in etc/ on same level as easybuild/framework
+        topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
+
+        # etc/ could also be located next to bin/
+        eb_cmd = os.getenv('EB_SCRIPT_PATH') or which('eb')
+        if eb_cmd:
+            topdirs.append(os.path.dirname(os.path.dirname(eb_cmd)))
+
+        for topdir in topdirs:
+            cfgs.extend(glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg')))
 
         if cfgs:
             _log.info("Using default external modules metadata cfg files: %s", cfgs)
@@ -1464,7 +1510,7 @@ def parse_external_modules_metadata(cfgs):
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():
         for key in ['name', 'version']:
-            if isinstance(entry.get(key), basestring):
+            if isinstance(entry.get(key), string_type):
                 entry[key] = [entry[key]]
                 _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
                            key, mod, entry[key])
@@ -1517,7 +1563,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
     try:
         fd, tmptest_file = tempfile.mkstemp()
         os.close(fd)
-        os.chmod(tmptest_file, 0700)
+        os.chmod(tmptest_file, 0o700)
         if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
                        stream_output=False):
             msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()

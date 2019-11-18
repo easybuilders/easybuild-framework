@@ -155,9 +155,9 @@ class IntelMKL(LinAlg):
             else:
                 self.BLAS_LIB_DIR = ['mkl/lib/intel64']
                 if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
-                    self.BLAS_LIB_DIR += ['compiler/lib/intel64']
+                    self.BLAS_LIB_DIR.append('compiler/lib/intel64')
                 else:
-                    self.BLAS_LIB_DIR += ['lib/intel64']
+                    self.BLAS_LIB_DIR.append('lib/intel64')
 
             self.BLAS_INCLUDE_DIR = ['mkl/include']
 

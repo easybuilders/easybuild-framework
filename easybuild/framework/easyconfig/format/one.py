@@ -33,17 +33,20 @@ This is the original pure python code, to be exec'ed rather then parsed
 import os
 import re
 import tempfile
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, INDENT_4SPACES
-from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.framework.easyconfig.format.format import get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.utilities import quote_py_str
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 
 EB_FORMAT_EXTENSION = '.eb'
@@ -54,7 +57,7 @@ REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
 REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
-    'sanity_check_paths': ['files', 'dirs'],
+    'sanity_check_paths': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }
 
 
@@ -70,7 +73,7 @@ def dump_dependency(dep, toolchain):
         # mininal spec: (name, version)
         tup = (dep['name'], dep['version'])
         if dep['toolchain'] != toolchain:
-            if dep['dummy']:
+            if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
@@ -192,7 +195,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         else:
             # dependencies are already dumped as strings, so they do not need to be quoted again
-            if isinstance(param_val, basestring) and param_name not in DEPENDENCY_PARAMETERS:
+            if isinstance(param_val, string_type) and param_name not in DEPENDENCY_PARAMETERS:
                 res = quote_py_str(param_val)
 
         return res
@@ -214,10 +217,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
-            new_val = to_template_str(val, templ_const, templ_val)
-            # avoid self-referencing templated parameter definitions
-            if not r'%(' + key in new_val:
-                val = new_val
+            val = to_template_str(key, val, templ_const, templ_val)
 
         if key in self.comments['inline']:
             res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
@@ -353,7 +353,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     # determine parameter value where the item value on this line is a part of
                     for key, val in parsed_ec.items():
                         item_val = re.sub(r',$', r'', rawline.rsplit('#', 1)[0].strip())
-                        if not isinstance(val, basestring) and item_val in str(val):
+                        if not isinstance(val, string_type) and item_val in str(val):
                             comment_key, comment_val = key, item_val
                             break
 

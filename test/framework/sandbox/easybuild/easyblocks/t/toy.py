@@ -32,6 +32,7 @@ import os
 import platform
 import shutil
 
+from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
@@ -42,6 +43,16 @@ from easybuild.tools.run import run_cmd
 
 class EB_toy(ExtensionEasyBlock):
     """Support for building/installing toy."""
+
+    @staticmethod
+    def extra_options(extra_vars=None):
+        """Custom easyconfig parameters for toytoy."""
+        if extra_vars is None:
+            extra_vars = {}
+
+        extra_vars['make_module'] = [True, "Skip generating (final) module file", CUSTOM]
+
+        return ExtensionEasyBlock.extra_options(extra_vars)
 
     def __init__(self, *args, **kwargs):
         """Constructor"""
@@ -115,6 +126,15 @@ class EB_toy(ExtensionEasyBlock):
         self.configure_step()
         self.build_step()
         self.install_step()
+
+    def make_module_step(self, fake=False):
+        """Generate module file."""
+        if self.cfg.get('make_module', True) or fake:
+            modpath = super(EB_toy, self).make_module_step(fake=fake)
+        else:
+            modpath = self.module_generator.get_modules_path(fake=fake)
+
+        return modpath
 
     def make_module_extra(self):
         """Extra stuff for toy module"""
