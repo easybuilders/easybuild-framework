@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_pat
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
@@ -1268,37 +1268,47 @@ def merge_pr(pr):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
+def create_new_branch(paths, ecs, target_account=None, commit_msg=None):
     """
-    Open new pull request using specified files
+    Create new branch on GitHub using specified filesystem
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
-    :param title: title to use for pull request
-    :param descr: description to use for description
+    :param target_account: GitHub account to push branch to (--github-org or --github-user is used if None)
     :param commit_msg: commit message to use
     """
-    pr_branch_name = build_option('pr_branch_name')
-    pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
 
-    # collect GitHub info we'll need
-    # * GitHub username to push branch to repo
-    # * GitHub token to open PR
+    branch_name = build_option('pr_branch_name')
+    if commit_msg is None:
+        commit_msg = build_option('pr_commit_msg')
+
+    if target_account is None:
+        target_account = build_option('github_org') or build_option('github_user')
+
+    # create branch, commit files to it & push to GitHub
+    res = _easyconfigs_pr_common(paths, ecs, pr_branch=branch_name, start_account=target_account, commit_msg=commit_msg)
+
+    return res
+
+
+def new_pr_from_branch(branch_name, title=None, descr=None, file_info=None, deleted_paths=None, diff_stat=None):
+    """
+    Create new pull request from specified branch on GitHub.
+    """
+
+    pr_target_account = build_option('pr_target_account')
+
+    # fetch GitHub token (required to perform actions on GitHub)
     github_user = build_option('github_user')
     if github_user is None:
-        raise EasyBuildError("GitHub user must be specified to use --new-pr")
-    github_account = build_option('github_org') or build_option('github_user')
+        raise EasyBuildError("GitHub user must be specified to open a pull request")
 
     github_token = fetch_github_token(github_user)
     if github_token is None:
-        raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
+        raise EasyBuildError("GitHub token for user '%s' must be available to open a pull request", github_user)
 
-    # create branch, commit files to it & push to GitHub
-    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, ecs,
-                                                                                   pr_branch=pr_branch_name,
-                                                                                   start_account=pr_target_account,
-                                                                                   commit_msg=commit_msg)
+    # GitHub organisation or GitHub user where branch is located
+    github_account = build_option('github_org') or github_user
 
     # label easyconfigs for new software and/or new easyconfigs for existing software
     labels = []
@@ -1318,9 +1328,9 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if commit_msg:
-            title = commit_msg
-        elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
+        # FIXME use commit msg if there's only a single commit?
+
+        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
             names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
             if len(names_and_versions) <= 3:
@@ -1351,15 +1361,17 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
         full_descr += descr
+
     # create PR
     pr_target_branch = build_option('pr_target_branch')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
+    pr_target_repo = build_option('pr_target_repo')
     msg = '\n'.join([
         '',
         "Opening pull request%s" % ('', " [DRY RUN]")[dry_run],
         "* target: %s/%s:%s" % (pr_target_account, pr_target_repo, pr_target_branch),
-        "* from: %s/%s:%s" % (github_account, pr_target_repo, branch),
+        "* from: %s/%s:%s" % (github_account, pr_target_repo, branch_name),
         "* title: \"%s\"" % title,
         "* labels: %s" % (', '.join(labels) or '(none)'),
         "* description:",
@@ -1376,13 +1388,13 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         pulls_url = g.repos[pr_target_account][pr_target_repo].pulls
         body = {
             'base': pr_target_branch,
-            'head': '%s:%s' % (github_account, branch),
+            'head': '%s:%s' % (github_account, branch_name),
             'title': title,
             'body': full_descr,
         }
         status, data = pulls_url.post(body=body)
         if not status == HTTP_STATUS_CREATED:
-            raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch, status, data)
+            raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch_name, status, data)
 
         print_msg("Opened pull request: %s" % data['html_url'], log=_log, prefix=False)
 
@@ -1396,6 +1408,33 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                     print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
             except HTTPError as err:
                 _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
+
+
+@only_if_module_is_available('git', pkgname='GitPython')
+def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
+    """
+    Open new pull request using specified files
+
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param title: title to use for pull request
+    :param descr: description to use for description
+    :param commit_msg: commit message to use
+    """
+
+    if descr is None:
+        descr = build_option('pr_descr')
+    if commit_msg is None:
+        commit_msg = build_option('pr_commit_msg')
+    if title is None:
+        title = build_option('pr_title') or commit_msg
+
+    # create new branch in GitHub
+    res = create_new_branch(paths, ecs, target_account=build_option('pr_target_account'), commit_msg=commit_msg)
+    file_info, deleted_paths, git_repo, branch_name, diff_stat = res
+
+    new_pr_from_branch(branch_name, title=title, descr=descr, file_info=file_info,
+                       deleted_paths=deleted_paths, diff_stat=diff_stat)
 
 
 def det_account_branch_for_pr(pr_id, github_user=None):
