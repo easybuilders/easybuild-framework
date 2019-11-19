@@ -86,7 +86,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
@@ -1673,6 +1673,11 @@ class EasyBlock(object):
             # since they don't have .lua in the filename Lmod will not pick them up anymore,
             # which is better than hiding them (since --show-hidden still reveals them)
             hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
+
+            # with old Lmod versions, the backup module should also be hidden when using Lua syntax;
+            # see https://github.com/easybuilders/easybuild-easyconfigs/issues/9302
+            if isinstance(self.module_generator, ModuleGeneratorLua) and isinstance(self.modules_tool, Lmod):
+                hidden = LooseVersion(self.modules_tool.version) < LooseVersion('7.0.0')
 
             self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden, strip_fn=strip_fn)
             print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
