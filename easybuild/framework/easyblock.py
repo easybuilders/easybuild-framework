@@ -2604,7 +2604,8 @@ class EasyBlock(object):
             dry_run_msg("Marked %s v%s as default version" % (self.name, version))
         else:
             mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath(fake=fake))
-            self.module_generator.set_as_default(mod_folderpath, version)
+            mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+            self.module_generator.set_as_default(mod_folderpath, version, mod_symlink_paths, fake)
 
     def cleanup_step(self):
         """
