@@ -334,12 +334,6 @@ class ModuleGenerator(object):
 
         return res
 
-    def check_version(self, minimal_version):
-        """
-        Check the minimal version of the moduletool in the module file
-        """
-        return self.VERSION_CHECK % minimal_version
-
     def det_installdir(self, modfile):
         """
         Determine installation directory used by given module file
@@ -656,8 +650,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
 
-    MODTOOL_VERSION_CHECK = ''
-
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -753,10 +745,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Core/GCC' for 'Core/GCC/4.8.2'
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
-
-        provide_list = self._generate_provides_list()
-        if self.modules_tool.supports_extensions and provide_list:
-            lines.extend(['', 'extensions %s' % ', '.join(provide_list)])
 
         whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
         txt += '\n'.join([''] + lines + ['']) % {
@@ -1005,7 +993,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
-    VERSION_CHECK = 'convertToCanonical(LmodVersion()) > convertToCanonical("%s")'
+    VERSION_CHECK = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
@@ -1020,6 +1008,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         if self.modules_tool:
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
+
+    def check_version(self, minimal_version_maj, minimal_version_min):
+        """
+        Check the minimal version of the moduletool in the module file
+        """
+        return self.VERSION_CHECK % {
+            'ver_maj': minimal_version_maj,
+            'ver_min': minimal_version_min,
+        }
 
     def check_group(self, group, error_msg=None):
         """
@@ -1137,7 +1134,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         if provide_list:
             provide_list_mod = 'extensions(%s)' % ', '.join(['"%s"' % x for x in provide_list])
-            lines.extend(['', self.conditional_statement(self.check_version("8.2.0"), provide_list_mod)])
+            lines.extend(['', self.conditional_statement(self.check_version("8", "2"), provide_list_mod)])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,

@@ -563,7 +563,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        if not self.modtool.supports_extensions:
+        # not supported for Tcl modules
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             return
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -574,12 +575,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
+        print(desc)
 
         patterns = []
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            patterns.append(r'^extensions\("bar/0.0", "barbar/0.0", "l/s", "toy/0.0"\)')
-        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            patterns.append('^extensions bar/0.0, barbar/0.0, l/s, toy/0.0')
+            patterns.append(r'^\s*extensions\("bar/0.0", "barbar/0.0", "l/s", "toy/0.0"\)')
 
         for pattern in patterns:
             self.assertTrue(re.search(pattern, desc, re.M), "Pattern '%s' found in: %s" % (pattern, desc))
