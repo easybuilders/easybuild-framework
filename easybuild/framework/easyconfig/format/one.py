@@ -161,6 +161,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                 if isinstance(param_val, dict):
                     ordered_item_keys = REFORMAT_ORDERED_ITEM_KEYS.get(param_name, sorted(param_val.keys()))
                     for item_key in ordered_item_keys:
+                        if item_key not in param_val:
+                            raise EasyBuildError("Missing mandatory key '%s' in %s.", item_key, param_name)
                         item_val = param_val[item_key]
                         comment = self._get_item_comments(param_name, item_val).get(str(item_val), '')
                         key_pref = quote_py_str(item_key) + ': '
