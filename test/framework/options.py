@@ -3980,6 +3980,60 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
 
+    def test_set_default_module_robot(self):
+        """Test use of --set-default-module --robot."""
+        # create two test easyconfigs, one depending on the other
+        # (using dummy Toolchain easyblock included in the tests)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'test'",
+            "version = '1.0'",
+            "homepage = 'https://example.com'",
+            "description = 'this is just a test'",
+            "toolchain = SYSTEM",
+            "dependencies = [('thisisjustatestdep', '3.14')]",
+        ]))
+        testdep_ec = os.path.join(self.test_prefix, 'thisisjustatestdep-3.14.eb')
+        write_file(testdep_ec, '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'thisisjustatestdep'",
+            "version = '3.14'",
+            "homepage = 'https://example.com'",
+            "description = 'this is just a test'",
+            "toolchain = SYSTEM",
+        ]))
+
+        args = [
+            test_ec,
+            '--force',
+            '--set-default-module',
+            '--robot',
+            self.test_prefix,
+        ]
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # default module is set for specified easyconfig, but *not* for its dependency
+        modfiles_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        self.assertEqual(sorted(os.listdir(modfiles_dir)), ['test', 'thisisjustatestdep'])
+        test_mod_dir = os.path.join(modfiles_dir, 'test')
+        testdep_mod_dir = os.path.join(modfiles_dir, 'thisisjustatestdep')
+
+        if get_module_syntax() == 'Lua':
+            # only 'default' symlink for test/1.0, not for thisisjustadep/3.14
+            self.assertEqual(sorted(os.listdir(test_mod_dir)), ['1.0.lua', 'default'])
+            self.assertEqual(sorted(os.listdir(testdep_mod_dir)), ['3.14.lua'])
+            default_symlink = os.path.join(test_mod_dir, 'default')
+            self.assertTrue(os.path.islink(default_symlink))
+            self.assertEqual(os.readlink(default_symlink), '1.0.lua')
+        elif get_module_syntax() == 'Tcl':
+            self.assertEqual(sorted(os.listdir(test_mod_dir)), ['.version', '1.0'])
+            self.assertEqual(sorted(os.listdir(testdep_mod_dir)), ['3.14'])
+            dot_version_file = os.path.join(test_mod_dir, '.version')
+            self.assertTrue("set ModulesVersion 1.0" in read_file(dot_version_file))
+        else:
+            self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
+
     def test_inject_checksums(self):
         """Test for --inject-checksums"""
         topdir = os.path.dirname(os.path.abspath(__file__))
