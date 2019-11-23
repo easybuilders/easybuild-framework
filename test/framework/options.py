@@ -3956,6 +3956,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
 
+        # make sure default is also set for moduleclass symlink
+        toy_mod_symlink_dir = os.path.join(self.test_installpath, 'modules', 'tools', 'toy')
+        if get_module_syntax() == 'Lua':
+            self.assertEqual(sorted(os.listdir(toy_mod_symlink_dir)), ['0.0-deps.lua', 'default'])
+            default_symlink = os.path.join(toy_mod_symlink_dir, 'default')
+            mod_symlink = os.path.join(toy_mod_symlink_dir, '0.0-deps.lua')
+            self.assertTrue(os.path.islink(default_symlink))
+            self.assertTrue(os.path.islink(mod_symlink))
+            self.assertEqual(os.readlink(default_symlink), '0.0-deps.lua')
+            modfile_path = os.path.join(toy_mod_dir, '0.0-deps.lua')
+            self.assertTrue(os.path.samefile(os.readlink(mod_symlink), modfile_path))
+        elif get_module_syntax() == 'Tcl':
+            self.assertEqual(sorted(os.listdir(toy_mod_symlink_dir)), ['.version', '0.0-deps'])
+            version_symlink = os.path.join(toy_mod_symlink_dir, '.version')
+            mod_symlink = os.path.join(toy_mod_symlink_dir, '0.0-deps')
+            self.assertTrue(os.path.islink(version_symlink))
+            self.assertTrue(os.path.islink(mod_symlink))
+            versionfile_path = os.path.join(toy_mod_dir, '.version')
+            self.assertEqual(os.readlink(version_symlink), versionfile_path)
+            modfile_path = os.path.join(toy_mod_dir, '0.0-deps')
+            self.assertTrue(os.path.samefile(os.readlink(mod_symlink), modfile_path))
+        else:
+            self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
+
     def test_inject_checksums(self):
         """Test for --inject-checksums"""
         topdir = os.path.dirname(os.path.abspath(__file__))
