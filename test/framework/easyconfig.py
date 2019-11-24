@@ -1867,6 +1867,23 @@ class EasyConfigTest(EnhancedTestCase):
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
+
+        # check internal structure to keep track of comments
+        self.assertEqual(ec.parser._formatter.comments['above'], {
+            'homepage': ["# comment on the homepage"],
+            'toolchain': ['# toolchain comment', ''],
+        })
+        self.assertEqual(ec.parser._formatter.comments['header'], ['# #', '# some header comment', '# #'])
+        self.assertEqual(ec.parser._formatter.comments['inline'], {
+            'description': '  # test',
+            'name': "  # name comment",
+        })
+        self.assertEqual(ec.parser._formatter.comments['iterabove'], {})
+        self.assertEqual(ec.parser._formatter.comments['iterinline'], {
+            'sanity_check_paths': {"    'files': ['files/foobar'],": "  # comment on files"},
+        })
+        self.assertEqual(ec.parser._formatter.comments['tail'], ["# trailing comment"])
+
         ec.dump(testec)
         ectxt = read_file(testec)
 
@@ -1875,11 +1892,10 @@ class EasyConfigTest(EnhancedTestCase):
             r"name = 'Foo'  # name comment",
             r"# comment on the homepage\nhomepage = 'http://foo.com/'",
             r'description = "foo description with a # in it"  # test',
-            r"# toolchain comment\ntoolchain = {",
+            r"# toolchain comment\n\ntoolchain = {",
             r"    'files': \['files/foobar'\],  # comment on files",
             r"    'dirs': \[\],",
         ]
-
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
@@ -1890,6 +1906,244 @@ class EasyConfigTest(EnhancedTestCase):
         EasyConfig(testec)
 
         check_easyconfigs_style([testec])
+
+        # another, more extreme example
+        # inspired by https://github.com/easybuilders/easybuild-framework/issues/3082
+        write_file(testec, '')
+        rawtxt = '\n'.join([
+            "# this is a header",
+            "#",
+            "# which may include empty comment lines",
+            "    # weirdly indented lines",
+            '  ',  # whitespace-only line, should get stripped (but no # added)
+            "# or flat out empty lines",
+            '',
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'thisisjustatest'  # just a test",
+            "# the version doesn't matter much here",
+            "version = '1.2.3'",
+            '',
+            "homepage = 'https://example.com'  # may not be actual homepage",
+            "description = \"\"\"Sneaky description with hashes, line #1",
+            " line #2",
+            " line without hashes",
+            "#4 (yeah, sneaky, isn't it),",
+            "end line",
+            "\"\"\"",
+            '',
+            "toolchain = SYSTEM",
+            "# after toolchain, before sources comment",
+            '',
+            "# this comment contains another #, uh-oh...",
+            "sources = ['test-1.2.3.tar.gz']",
+            "# how about # a comment with # multple additional hashes",
+            "source_urls = [",
+            "    # first possible source URL",
+            "    'https://example.com',",
+            "# annoying non-indented comment",
+            "    'https://anotherexample.com',  # fallback URL",
+            "]",
+            '',
+            "# this is a multiline comment above dependencies",
+            "# I said multiline",
+            "# multi > 3",
+            "dependencies = [",
+            "    # this dependency",
+            "# has multiple lines above it",
+            "    # some of which without proper indentation...",
+            "    ('foo', '1.2.3'),  # and an inline comment too",
+            "    ('nocomment', '4.5'),",
+            "    # last dependency, I promise",
+            "    ('last', '1.2.3'),",
+            "    # trailing comments in dependencies",
+            "    # a bit weird, but it happens",
+            "]  # inline comment after closing dependencies",
+            '',
+            "# how about comments above and in a dict value?",
+            "sanity_check_paths = {",
+            "    # a bunch of files",
+            "    'files': ['bin/foo', 'lib/libfoo.a'],",
+            "    # no dirs!",
+            "    'dirs': [],",
+            "}",
+            '',
+            "moduleclass = 'tools'",
+            "#",
+            "# trailing comment",
+            '',
+            "# with an empty line in between",
+            "# DONE!",
+        ])
+        ec = EasyConfig(None, rawtxt=rawtxt)
+
+        # check internal structure to keep track of comments
+        self.assertEqual(ec.parser._formatter.comments['above'], {
+           'dependencies': [
+               '# this is a multiline comment above dependencies',
+               '# I said multiline',
+               '# multi > 3',
+           ],
+           'sanity_check_paths': ['# how about comments above and in a dict value?'],
+           'source_urls': ['# how about # a comment with # multple additional hashes'],
+           'sources': ['# after toolchain, before sources comment',
+                       '',
+                       '# this comment contains another #, uh-oh...'],
+           'version': ["# the version doesn't matter much here"],
+        })
+        self.assertEqual(ec.parser._formatter.comments['header'], [
+            '# this is a header',
+            '#',
+            '# which may include empty comment lines',
+            '# weirdly indented lines',
+            '',
+            '# or flat out empty lines',
+            '',
+        ])
+        self.assertEqual(ec.parser._formatter.comments['inline'], {
+            'homepage': '  # may not be actual homepage',
+            'name': '  # just a test',
+        })
+        self.assertEqual(ec.parser._formatter.comments['iterabove'], {
+            'dependencies': {
+                "    ('foo', '1.2.3'),": ['# this dependency',
+                                          '# has multiple lines above it',
+                                          "# some of which without proper indentation..."],
+                "    ('last', '1.2.3'),": ['# last dependency, I promise'],
+                ']': ['# trailing comments in dependencies', '# a bit weird, but it happens'],
+            },
+            'sanity_check_paths': {
+                "    'dirs': [],": ['# no dirs!'],
+                "    'files': ['bin/foo', 'lib/libfoo.a'],": ['# a bunch of files'],
+            },
+            'source_urls': {
+                "    'https://example.com',": ['# first possible source URL'],
+                "    'https://anotherexample.com',": ['# annoying non-indented comment'],
+            },
+        })
+        self.assertEqual(ec.parser._formatter.comments['iterinline'], {
+            'dependencies': {
+                "    ('foo', '1.2.3'),": '  # and an inline comment too',
+                ']': "  # inline comment after closing dependencies",
+            },
+            'source_urls': {
+                "    'https://anotherexample.com',": '  # fallback URL',
+            },
+        })
+        self.assertEqual(ec.parser._formatter.comments['tail'], [
+            '#',
+            '# trailing comment',
+            '',
+            '# with an empty line in between',
+            '# DONE!',
+        ])
+
+        ec.dump(testec)
+        ectxt = read_file(testec)
+
+        # reparsing the dumped easyconfig file should work
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
+
+        self.assertTrue(ectxt.startswith('\n'.join([
+            '# this is a header',
+            '#',
+            '# which may include empty comment lines',
+            '# weirdly indented lines',
+            '',
+            '# or flat out empty lines',
+            '',
+        ])))
+
+        patterns = [
+            # inline comments
+            r"^homepage = .*  # may not be actual homepage\n",
+            r"^name = .*  # just a test",
+            r"^    \('foo', '1\.2\.3'\),  # and an inline comment too",
+            r"^    'https://anotherexample\.com',  # fallback URL",
+            # comments above parameter definition
+            '\n'.join([
+                r'',
+                r"# this is a multiline comment above dependencies",
+                r"# I said multiline",
+                r"# multi > 3",
+                r"dependencies = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# how about comments above and in a dict value\?",
+                r"sanity_check_paths = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# how about # a comment with # multple additional hashes",
+                r"source_urls = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# after toolchain, before sources comment",
+                r'',
+                r"# this comment contains another #, uh-oh...",
+                r"sources = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# the version doesn't matter much here",
+                r"version = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"    # trailing comments in dependencies",
+                r"    # a bit weird, but it happens",
+                r"\]  # inline comment after closing dependencies",
+            ]),
+            # comments above element of iterable parameter value
+            '\n'.join([
+                r'',
+                r"    # this dependency",
+                r"    # has multiple lines above it",
+                r"    # some of which without proper indentation\.\.\.",
+                r"    \('foo', '1\.2\.3'\),  # and an inline comment too",
+            ]),
+            '\n'.join([
+                r'',
+                r"    # last dependency, I promise",
+                r"    \('last', '1\.2\.3'\),"
+            ]),
+            '\n'.join([
+                '',
+                r"    # no dirs\!",
+                r"    'dirs': \[\],"
+            ]),
+            '\n'.join([
+                '',
+                r"    # a bunch of files",
+                r"    'files': \['bin/foo', 'lib/libfoo\.a'\],",
+            ]),
+            '\n'.join([
+                '',
+                r"    # first possible source URL",
+                r"    'https://example\.com',",
+            ]),
+            '\n'.join([
+                '',
+                r"    # annoying non-indented comment",
+                r"    'https://anotherexample\.com',  # fallback URL",
+            ]),
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        self.assertTrue(ectxt.endswith('\n'.join([
+            '#',
+            '# trailing comment',
+            '',
+            '# with an empty line in between',
+            '# DONE!',
+            '',
+        ])))
 
     def test_to_template_str(self):
         """ Test for to_template_str method """
