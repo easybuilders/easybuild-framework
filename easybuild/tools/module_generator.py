@@ -789,7 +789,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             cond_tmpl = "[ module-info mode remove ] || %s"
 
         if depends_on:
-            if multi_dep_mods:
+            if multi_dep_mods and len(multi_dep_mods) > 1:
                 parent_mod_name = os.path.dirname(mod_name)
                 guard = self.is_loaded(multi_dep_mods[1:])
                 if_body = load_template % {'mod_name': parent_mod_name}
@@ -1181,7 +1181,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             cond_tmpl = 'mode() == "unload" or %s'
 
         if depends_on:
-            if multi_dep_mods:
+            if multi_dep_mods and len(multi_dep_mods) > 1:
                 parent_mod_name = os.path.dirname(mod_name)
                 guard = self.is_loaded(multi_dep_mods[1:])
                 if_body = load_template % {'mod_name': parent_mod_name}
