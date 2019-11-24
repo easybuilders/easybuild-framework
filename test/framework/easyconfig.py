@@ -2081,7 +2081,7 @@ class EasyConfigTest(EnhancedTestCase):
                 r'',
                 r"    # trailing comments in dependencies",
                 r"    # a bit weird, but it happens",
-                r"\]",
+                r"\]  # inline comment after closing dependencies",
             ]),
             # comments above element of iterable parameter value
             '\n'.join([
