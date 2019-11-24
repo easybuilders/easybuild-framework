@@ -231,8 +231,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """Get per-item comments for specified parameter name/value."""
         item_comments = {}
 
-        cand_above_comments = self.comments['iterabove'].get(key, {}).items()
-        cand_above_comments.extend(self.comments['above'].items())
+        cand_above_comments = list(self.comments['iterabove'].get(key, {}).items())
+        cand_above_comments.extend(list(self.comments['above'].items()))
 
         for comment_key, comment_val in cand_above_comments:
             if str(val) in comment_key:
