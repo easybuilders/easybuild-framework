@@ -1748,7 +1748,7 @@ class EasyConfigTest(EnhancedTestCase):
             "easyblock = 'EB_foo'",
             '',
             "name = 'Foo'",
-            "version = '0.0.1'",
+            "version = '1.0.0'",
             "versionsuffix = '-test'",
             '',
             "homepage = 'http://foo.com/'",
@@ -1760,7 +1760,7 @@ class EasyConfigTest(EnhancedTestCase):
             '}',
             '',
             "sources = [",
-            "    'foo-0.0.1.tar.gz',",
+            "    'foo-1.0.0.tar.gz',",
             ']',
             '',
             "dependencies = [",
@@ -1768,14 +1768,23 @@ class EasyConfigTest(EnhancedTestCase):
             ']',
             '',
             "preconfigopts = '--opt1=%s' % name",
-            "configopts = '--opt2=0.0.1'",
+            "configopts = '--opt2=1.0.0'",
             '',
+            'exts_default_options = {',
+            "    'source_urls': ['https://example.com/files/1.0.0'],"
+            '}',
+            'exts_list = [',
+            '  ("ext1", "1.0.0"),'
+            '  ("ext2", "2.1.3"),'
+            ']',
             "sanity_check_paths = {",
             "    'files': ['files/foo/foobar', 'files/x-test'],",
             "    'dirs':[],",
             '}',
             '',
-            "foo_extra1 = 'foobar'"
+            "foo_extra1 = 'foobar'",
+            '',
+            'moduleclass = "tools"',
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1790,7 +1799,7 @@ class EasyConfigTest(EnhancedTestCase):
         patterns = [
             r"easyblock = 'EB_foo'",
             r"name = 'Foo'",
-            r"version = '0.0.1'",
+            r"version = '1.0.0'",
             r"versionsuffix = '-test'",
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
@@ -1799,12 +1808,18 @@ class EasyConfigTest(EnhancedTestCase):
             # r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
+            # no %(version)s template used in exts_default_options or exts_list
+            # see https://github.com/easybuilders/easybuild-framework/issues/3091
+            r"exts_default_options = {'source_urls': \['https://example.com/files/1\.0\.0'\]}",
+            r"\('ext1', '1\.0\.0'\),",
             r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
 
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        ectxt.endswith('moduleclass = "tools"')
 
         # reparsing the dumped easyconfig file should work
         EasyConfig(testec)
