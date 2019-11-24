@@ -231,7 +231,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """Get per-item comments for specified parameter name/value."""
         item_comments = {}
 
-        for comment_key, comment_val in self.comments['iterabove'].get(key, {}).items():
+        cand_above_comments = self.comments['iterabove'].get(key, {}).items()
+        cand_above_comments.extend(self.comments['above'].items())
+
+        for comment_key, comment_val in cand_above_comments:
             if str(val) in comment_key:
                 item_comments['above'] = comment_val
 
@@ -350,6 +353,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         parsed_ec = self.get_config_dict()
 
+        comment_regex = re.compile(r'^\s*#')
         param_def_regex = re.compile(r'^([a-z_0-9]+)\s*=')
         whitespace_regex = re.compile(r'^\s*$')
 
@@ -378,12 +382,12 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
             return before_comment, comment.strip()
 
-        def grab_more_comment_lines(lines, indent, param_key):
-            """Grab more comment lines that match specified indent."""
+        def grab_more_comment_lines(lines, param_key):
+            """Grab more comment lines."""
 
             comment_lines = []
 
-            while lines and (lines[0].startswith(indent + '#') or whitespace_regex.match(lines[0])):
+            while lines and (comment_regex.match(lines[0]) or whitespace_regex.match(lines[0])):
                 line = lines.pop(0)
                 _, actual_comment = split_on_comment_hash(line, param_key)
                 # prefix comment with '#' unless line was empty
@@ -396,7 +400,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         rawlines = rawtxt.split('\n')
 
         # extract header first (include empty lines too)
-        self.comments['header'] = grab_more_comment_lines(rawlines, '', None)
+        self.comments['header'] = grab_more_comment_lines(rawlines, None)
 
         last_param_key = None
         while rawlines:
@@ -418,7 +422,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
             # lines that start with a hash indicate (start of a block of) comment line(s)
             if rawline.startswith('#'):
-                comment = [rawline] + grab_more_comment_lines(rawlines, '', last_param_key)
+                comment = [rawline] + grab_more_comment_lines(rawlines, last_param_key)
 
                 if rawlines:
                     # try to pin comment to parameter definition below it
@@ -430,7 +434,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     else:
                         # if the comment is not above a parameter definition,
                         # just use the whole next line to determine where the comment belongs...
-                        self.comments['above'][rawlines[0]] = comment
+                        before_comment, _ = split_on_comment_hash(rawlines[0], last_param_key)
+                        self.comments['above'][before_comment.rstrip()] = comment
                 else:
                     # if there are no more lines, the comment (block) is at the tail
                     self.comments['tail'] = comment
@@ -454,7 +459,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                 # then we have an indented comment, and we need to figure out for what exactly
                 elif whitespace_regex.match(before_comment):
                     # first consume possible additional comment lines with same indentation
-                    comment = [comment] + grab_more_comment_lines(rawlines, before_comment, last_param_key)
+                    comment = [comment] + grab_more_comment_lines(rawlines, last_param_key)
 
                     before_comment, inline_comment = split_on_comment_hash(rawlines.pop(0), last_param_key)
                     comment_key = before_comment.rstrip()

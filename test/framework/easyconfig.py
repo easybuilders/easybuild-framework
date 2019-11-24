@@ -1899,6 +1899,7 @@ class EasyConfigTest(EnhancedTestCase):
             "# this is a header",
             "#",
             "# which may include empty comment lines",
+            "    # weirdly indented lines",
             '',
             "# or flat out empty lines",
             '',
@@ -1925,6 +1926,7 @@ class EasyConfigTest(EnhancedTestCase):
             "source_urls = [",
             "    # first possible source URL",
             "    'https://example.com',",
+            "# annoying non-indented comment",
             "    'https://anotherexample.com',  # fallback URL",
             "]",
             '',
@@ -1933,7 +1935,8 @@ class EasyConfigTest(EnhancedTestCase):
             "# multi > 3",
             "dependencies = [",
             "    # this dependency",
-            "    # has multiple lines above it",
+            "# has multiple lines above it",
+            "    # some of which without proper indentation...",
             "    ('foo', '1.2.3'),  # and an inline comment too",
             "    ('nocomment', '4.5'),",
             "    # last dependency, I promise",
@@ -1961,6 +1964,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # check internal structure to keep track of comments
         self.assertEqual(ec.parser._formatter.comments['above'], {
+           "    'https://anotherexample.com',": ['# annoying non-indented comment'],
            'dependencies': [
                '# this is a multiline comment above dependencies',
                '# I said multiline',
@@ -1977,6 +1981,7 @@ class EasyConfigTest(EnhancedTestCase):
             '# this is a header',
             '#',
             '# which may include empty comment lines',
+            '# weirdly indented lines',
             '',
             '# or flat out empty lines',
             '',
@@ -1988,7 +1993,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.parser._formatter.comments['iterabove'], {
             'dependencies': {
                 "    ('foo', '1.2.3'),": ['# this dependency',
-                                          '# has multiple lines above it'],
+                                          '# has multiple lines above it',
+                                          "# some of which without proper indentation..."],
                 "    ('last', '1.2.3'),": ['# last dependency, I promise'],
                 ']': ['# trailing comments in dependencies', '# a bit weird, but it happens'],
             },
@@ -2029,6 +2035,7 @@ class EasyConfigTest(EnhancedTestCase):
             '# this is a header',
             '#',
             '# which may include empty comment lines',
+            '# weirdly indented lines',
             '',
             '# or flat out empty lines',
             '',
@@ -2081,6 +2088,7 @@ class EasyConfigTest(EnhancedTestCase):
                 r'',
                 r"    # this dependency",
                 r"    # has multiple lines above it",
+                r"    # some of which without proper indentation\.\.\.",
                 r"    \('foo', '1\.2\.3'\),  # and an inline comment too",
             ]),
             '\n'.join([
@@ -2102,6 +2110,11 @@ class EasyConfigTest(EnhancedTestCase):
                 '',
                 r"    # first possible source URL",
                 r"    'https://example\.com',",
+            ]),
+            '\n'.join([
+                '',
+                r"    # annoying non-indented comment",
+                r"    'https://anotherexample\.com',  # fallback URL",
             ]),
         ]
         for pattern in patterns:
