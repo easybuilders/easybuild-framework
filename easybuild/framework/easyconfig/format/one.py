@@ -350,8 +350,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         parsed_ec = self.get_config_dict()
 
-        param_def_regex = re.compile('^([a-z__0-9]+)\s*=')
-        whitespace_regex = re.compile('^\s*$')
+        param_def_regex = re.compile(r'^([a-z__0-9]+)\s*=')
+        whitespace_regex = re.compile(r'^\s*$')
 
         def clean_part(part):
             """Helper function to strip off trailing whitespace + trailing quotes."""
