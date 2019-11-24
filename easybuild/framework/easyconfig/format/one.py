@@ -231,10 +231,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """Get per-item comments for specified parameter name/value."""
         item_comments = {}
 
-        cand_above_comments = list(self.comments['iterabove'].get(key, {}).items())
-        cand_above_comments.extend(list(self.comments['above'].items()))
-
-        for comment_key, comment_val in cand_above_comments:
+        for comment_key, comment_val in self.comments['iterabove'].get(key, {}).items():
             if str(val) in comment_key:
                 item_comments['above'] = comment_val
 
@@ -434,9 +431,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                         self.comments['above'][last_param_key] = comment
                     else:
                         # if the comment is not above a parameter definition,
-                        # just use the whole next line to determine where the comment belongs...
+                        # then it must be a comment for an item of an iterable parameter value
                         before_comment, _ = split_on_comment_hash(rawlines[0], last_param_key)
-                        self.comments['above'][before_comment.rstrip()] = comment
+                        comment_key = before_comment.rstrip()
+                        self.comments['iterabove'].setdefault(last_param_key, {})[comment_key] = comment
                 else:
                     # if there are no more lines, the comment (block) is at the tail
                     self.comments['tail'] = comment

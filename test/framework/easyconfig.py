@@ -1964,7 +1964,6 @@ class EasyConfigTest(EnhancedTestCase):
 
         # check internal structure to keep track of comments
         self.assertEqual(ec.parser._formatter.comments['above'], {
-           "    'https://anotherexample.com',": ['# annoying non-indented comment'],
            'dependencies': [
                '# this is a multiline comment above dependencies',
                '# I said multiline',
@@ -2004,6 +2003,7 @@ class EasyConfigTest(EnhancedTestCase):
             },
             'source_urls': {
                 "    'https://example.com',": ['# first possible source URL'],
+                "    'https://anotherexample.com',": ['# annoying non-indented comment'],
             },
         })
         self.assertEqual(ec.parser._formatter.comments['iterinline'], {
