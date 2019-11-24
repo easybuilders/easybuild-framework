@@ -1900,7 +1900,7 @@ class EasyConfigTest(EnhancedTestCase):
             "#",
             "# which may include empty comment lines",
             "    # weirdly indented lines",
-            '',
+            '  ',  # whitespace-only line, should get stripped (but no # added)
             "# or flat out empty lines",
             '',
             "easyblock = 'ConfigureMake'",

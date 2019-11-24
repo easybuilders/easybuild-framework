@@ -391,7 +391,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                 line = lines.pop(0)
                 _, actual_comment = split_on_comment_hash(line, param_key)
                 # prefix comment with '#' unless line was empty
-                if line:
+                if line.strip():
                     actual_comment = '# ' + actual_comment
                 comment_lines.append(actual_comment.strip())
 
