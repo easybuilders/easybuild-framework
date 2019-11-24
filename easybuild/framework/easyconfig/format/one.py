@@ -406,7 +406,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         while rawlines:
             rawline = rawlines.pop(0)
 
-            # keep track of last parameter definition we ran into
+            # keep track of last parameter definition we have seen,
+            # current line may be (the start of) a parameter definition
             res = param_def_regex.match(rawline)
             if res:
                 key = res.group(1)
