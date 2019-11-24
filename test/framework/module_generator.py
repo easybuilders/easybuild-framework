@@ -438,7 +438,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:  # Lua syntax
                 expected = '\n'.join([
                     '',
-                    'if mode() == "unload" or isloaded("foo/2.3.4") or isloaded("foo/3.4.5") or isloaded("foo/4.5.6") then',
+                    'if mode() == "unload" or isloaded("foo/2.3.4") or isloaded("foo/3.4.5") or ' +
+                    'isloaded("foo/4.5.6") then',
                     '    depends_on("foo")',
                     'else',
                     '    depends_on("foo/1.2.3")',
