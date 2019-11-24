@@ -350,7 +350,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         parsed_ec = self.get_config_dict()
 
-        param_def_regex = re.compile(r'^([a-z__0-9]+)\s*=')
+        param_def_regex = re.compile(r'^([a-z_0-9]+)\s*=')
         whitespace_regex = re.compile(r'^\s*$')
 
         def clean_part(part):
@@ -361,7 +361,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             """Helper function to split line on first (actual) comment character '#'."""
 
             # string representation of easyconfig parameter value,
-            # used to check is supposed comment isn't actual part of the parameter value
+            # used to check if supposed comment isn't actual part of the parameter value
             # (and thus not actually a comment at all)
             param_strval = str(parsed_ec.get(param_key))
 
