@@ -362,6 +362,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                 print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
         easyconfigs = retained_ecs
 
+    # keep track for which easyconfigs we should set the corresponding module as default
+    if options.set_default_module:
+        for easyconfig in easyconfigs:
+            easyconfig['ec'].set_default_module = True
+
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         # resolve dependencies if robot is enabled, except in dry run mode

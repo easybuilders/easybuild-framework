@@ -497,6 +497,8 @@ class EasyConfig(object):
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
 
+        self.set_default_module = False
+
         self.software_license = None
 
     def filename(self):

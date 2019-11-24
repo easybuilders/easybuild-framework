@@ -175,6 +175,7 @@ class EasyBlock(object):
         self.module_generator = module_generator(self, fake=True)
         self.mod_filepath = self.module_generator.get_module_filepath()
         self.mod_file_backup = None
+        self.set_default_module = self.cfg.set_default_module
 
         # modules footer/header
         self.modules_footer = None
@@ -2719,7 +2720,7 @@ class EasyBlock(object):
 
         # always set default for temporary module file,
         # to avoid that it gets overruled by an existing module file that is set as default
-        if fake or build_option('set_default_module'):
+        if fake or self.set_default_module:
             self._set_module_as_default(fake=fake)
 
         return modpath
