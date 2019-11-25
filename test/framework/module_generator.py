@@ -345,6 +345,140 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 init_config(build_options={'mod_depends_on': 'True'})
                 self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
 
+    def test_load_multi_deps(self):
+        """Test generated load statement when multi_deps is involved."""
+
+        # first check with typical two-version multi_deps
+        multi_dep_mods = ['Python/3.7.4', 'Python/2.7.16']
+        res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods)
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { ![ is-loaded Python/3.7.4 ] && ![ is-loaded Python/2.7.16 ] } {",
+                "    module load Python/3.7.4",
+                '}',
+                '',
+            ])
+        else:  # Lua syntax
+            expected = '\n'.join([
+                '',
+                'if not ( isloaded("Python/3.7.4") ) and not ( isloaded("Python/2.7.16") ) then',
+                '    load("Python/3.7.4")',
+                'end',
+                '',
+            ])
+        self.assertEqual(expected, res)
+
+        if self.modtool.supports_depends_on:
+            # two versions with depends_on
+            res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods, depends_on=True)
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded Python/2.7.16 ] } {",
+                    "    depends-on Python",
+                    '} else {',
+                    "    depends-on Python/3.7.4",
+                    '}',
+                    '',
+                ])
+            else:  # Lua syntax
+                expected = '\n'.join([
+                    '',
+                    'if mode() == "unload" or isloaded("Python/2.7.16") then',
+                    '    depends_on("Python")',
+                    'else',
+                    '    depends_on("Python/3.7.4")',
+                    'end',
+                    '',
+                ])
+            self.assertEqual(expected, res)
+
+        # now test with more than two versions...
+        multi_dep_mods = ['foo/1.2.3', 'foo/2.3.4', 'foo/3.4.5', 'foo/4.5.6']
+        res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods)
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { ![ is-loaded foo/1.2.3 ] && ![ is-loaded foo/2.3.4 ] && " +
+                "![ is-loaded foo/3.4.5 ] && ![ is-loaded foo/4.5.6 ] } {",
+                "    module load foo/1.2.3",
+                '}',
+                '',
+            ])
+        else:  # Lua syntax
+            expected = '\n'.join([
+                '',
+                'if not ( isloaded("foo/1.2.3") ) and not ( isloaded("foo/2.3.4") ) and ' +
+                'not ( isloaded("foo/3.4.5") ) and not ( isloaded("foo/4.5.6") ) then',
+                '    load("foo/1.2.3")',
+                'end',
+                '',
+            ])
+        self.assertEqual(expected, res)
+
+        if self.modtool.supports_depends_on:
+            # more than two versions, with depends_on
+            res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods, depends_on=True)
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded foo/2.3.4 ] || [ is-loaded foo/3.4.5 ] " +
+                    "|| [ is-loaded foo/4.5.6 ] } {",
+                    "    depends-on foo",
+                    "} else {",
+                    "    depends-on foo/1.2.3",
+                    '}',
+                    '',
+                ])
+            else:  # Lua syntax
+                expected = '\n'.join([
+                    '',
+                    'if mode() == "unload" or isloaded("foo/2.3.4") or isloaded("foo/3.4.5") or ' +
+                    'isloaded("foo/4.5.6") then',
+                    '    depends_on("foo")',
+                    'else',
+                    '    depends_on("foo/1.2.3")',
+                    'end',
+                    '',
+                ])
+            self.assertEqual(expected, res)
+
+        # what if we only list a single version?
+        # see https://github.com/easybuilders/easybuild-framework/issues/3080
+        res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'])
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { ![ is-loaded one/1.0 ] } {",
+                "    module load one/1.0",
+                '}',
+                '',
+            ])
+        else:  # Lua syntax
+            expected = '\n'.join([
+                '',
+                'if not ( isloaded("one/1.0") ) then',
+                '    load("one/1.0")',
+                'end',
+                '',
+            ])
+        self.assertEqual(expected, res)
+
+        if self.modtool.supports_depends_on:
+            res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'], depends_on=True)
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                expected = '\ndepends-on one/1.0\n'
+            else:  # Lua syntax
+                expected = '\ndepends_on("one/1.0")\n'
+            self.assertEqual(expected, res)
+
     def test_modulerc(self):
         """Test modulerc method."""
         self.assertErrorRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
