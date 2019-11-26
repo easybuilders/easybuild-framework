@@ -695,6 +695,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
+    if start_account is None:
+        start_account = GITHUB_EB_MAIN
+
     if start_branch is None:
         # if start branch is not specified, we're opening a new PR
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
@@ -1268,13 +1271,12 @@ def merge_pr(pr):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def create_new_branch(paths, ecs, target_account=None, commit_msg=None):
+def create_new_branch(paths, ecs, commit_msg=None):
     """
     Create new branch on GitHub using specified filesystem
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
-    :param target_account: GitHub account to push branch to (--github-org or --github-user is used if None)
     :param commit_msg: commit message to use
     """
 
@@ -1282,11 +1284,8 @@ def create_new_branch(paths, ecs, target_account=None, commit_msg=None):
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
 
-    if target_account is None:
-        target_account = build_option('github_org') or build_option('github_user')
-
     # create branch, commit files to it & push to GitHub
-    res = _easyconfigs_pr_common(paths, ecs, pr_branch=branch_name, start_account=target_account, commit_msg=commit_msg)
+    res = _easyconfigs_pr_common(paths, ecs, pr_branch=branch_name, commit_msg=commit_msg)
 
     return res
 
