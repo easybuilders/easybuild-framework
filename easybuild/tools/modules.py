@@ -342,7 +342,7 @@ class ModulesTool(object):
         # make sure we don't have the same path twice, using nub
         if mod_paths is None:
             # no paths specified, so grab list of (existing) module paths from $MODULEPATH
-            self.mod_paths = [p for p in nub(curr_module_paths()) if os.path.exists(p)]
+            self.mod_paths = nub(curr_module_paths())
         else:
             for mod_path in nub(mod_paths):
                 self.prepend_module_path(mod_path, set_mod_paths=False)
@@ -1475,8 +1475,8 @@ def curr_module_paths():
     """
     Return a list of current module paths.
     """
-    # avoid empty entries, which don't make any sense
-    return [p for p in os.environ.get('MODULEPATH', '').split(':') if p]
+    # avoid empty or nonexistent paths, which don't make any sense
+    return [p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p)]
 
 
 def mk_module_path(paths):
