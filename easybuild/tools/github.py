@@ -1871,6 +1871,36 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
     return pr_data, pr_url
 
 
+def sync_with_develop(git_repo, branch_name, github_account, github_repo):
+    """Sync specified branch with develop branch."""
+
+    # pull in latest version of 'develop' branch from central repository
+    msg = "pulling latest version of '%s' branch from %s/%s..." % (GITHUB_DEVELOP_BRANCH, github_account, github_repo)
+    print_msg(msg, log=_log)
+    easybuilders_remote = create_remote(git_repo, github_account, github_repo, https=True)
+
+    # fetch latest version of develop branch
+    pull_out = git_repo.git.pull(easybuilders_remote.name, GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git pull %s %s': %s", easybuilders_remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
+
+    # create 'develop' branch (with force if one already exists),
+    git_repo.create_head(GITHUB_DEVELOP_BRANCH, easybuilders_remote.refs.develop, force=True).checkout()
+
+    # check top of git log
+    git_log_develop = git_repo.git.log('-n 3')
+    _log.debug("Top of 'git log' for %s branch:\n%s", GITHUB_DEVELOP_BRANCH, git_log_develop)
+
+    # checkout PR branch, and merge develop branch in it (which will create a merge commit)
+    print_msg("merging '%s' branch into PR branch '%s'..." % (GITHUB_DEVELOP_BRANCH, branch_name), log=_log)
+    git_repo.git.checkout(branch_name)
+    merge_out = git_repo.git.merge(GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, merge_out)
+
+    # check git log, should show merge commit on top
+    post_merge_log = git_repo.git.log('-n 3')
+    _log.debug("Top of 'git log' after 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, post_merge_log)
+
+
 def sync_pr_with_develop(pr_id):
     """Sync pull request with specified ID with current develop branch."""
     github_user = build_option('github_user')
@@ -1888,28 +1918,7 @@ def sync_pr_with_develop(pr_id):
 
     setup_repo(git_repo, pr_account, target_repo, pr_branch)
 
-    # pull in latest version of 'develop' branch from central repository
-    msg = "pulling latest version of '%s' branch from %s/%s..." % (target_account, target_repo, GITHUB_DEVELOP_BRANCH)
-    print_msg(msg, log=_log)
-    easybuilders_remote = create_remote(git_repo, target_account, target_repo, https=True)
-    pull_out = git_repo.git.pull(easybuilders_remote.name, GITHUB_DEVELOP_BRANCH)
-    _log.debug("Output of 'git pull %s %s': %s", easybuilders_remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
-
-    # create 'develop' branch (with force if one already exists),
-    # and check it out to check git log
-    git_repo.create_head(GITHUB_DEVELOP_BRANCH, force=True).checkout()
-    git_log_develop = git_repo.git.log('-n 3')
-    _log.debug("Top of 'git log' for %s branch:\n%s", GITHUB_DEVELOP_BRANCH, git_log_develop)
-
-    # checkout PR branch, and merge develop branch in it (which will create a merge commit)
-    print_msg("merging '%s' branch into PR branch '%s'..." % (GITHUB_DEVELOP_BRANCH, pr_branch), log=_log)
-    git_repo.git.checkout(pr_branch)
-    merge_out = git_repo.git.merge(GITHUB_DEVELOP_BRANCH)
-    _log.debug("Output of 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, merge_out)
-
-    # check git log, should show merge commit on top
-    post_merge_log = git_repo.git.log('-n 3')
-    _log.debug("Top of 'git log' after 'git merge %s':\n%s", GITHUB_DEVELOP_BRANCH, post_merge_log)
+    sync_with_develop(git_repo, pr_branch, target_account, target_repo)
 
     # push updated branch back to GitHub (unless we're doing a dry run)
     return push_branch_to_github(git_repo, pr_account, target_repo, pr_branch)

@@ -3053,7 +3053,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"== temporary log file in case of crash .*",
             r"== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #9150: develop",
             r"== fetching branch 'develop' from https://github\.com/%s\.\.\." % github_path,
-            r"== pulling latest version of 'easybuilders' branch from easybuild-easyconfigs/develop\.\.\.",
+            r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
             r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
             r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
         ])
