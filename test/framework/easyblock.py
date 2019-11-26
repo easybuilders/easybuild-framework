@@ -1805,6 +1805,44 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
         self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
 
+    def test_template_module_name_full(self):
+        """Test for module_name_full template with EasyBuildMNS and HierarchicalMNS"""
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_path],
+            'silent': True,
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
+            'dependencies = [',
+            "   ('FFTW', '3.3.7'),",
+            ']',
+        ])
+
+        self.writeEC()
+        self.setup_hierarchical_modules()
+
+        test_modules = [
+            ('EasyBuildMNS', 'pi/3.14-gompi-2018a'),
+            ('HierarchicalMNS', 'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/pi/3.14'),
+        ]
+        for module in test_modules:
+            os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = module[0]
+            init_config(build_options=build_options)
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.update_config_template_run_step()
+            self.assertEqual(eb.cfg.template_values['module_name_full'], module[1])
 
 def suite():
     """ return all the tests in this file """
