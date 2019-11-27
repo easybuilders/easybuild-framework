@@ -45,7 +45,8 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
@@ -1290,12 +1291,13 @@ def create_new_branch(paths, ecs, commit_msg=None):
     return res
 
 
-def new_pr_from_branch(branch_name, title=None, descr=None, file_info=None, deleted_paths=None, diff_stat=None):
+def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
     """
     Create new pull request from specified branch on GitHub.
     """
 
     pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
 
     # fetch GitHub token (required to perform actions on GitHub)
     github_user = build_option('github_user')
@@ -1308,6 +1310,57 @@ def new_pr_from_branch(branch_name, title=None, descr=None, file_info=None, dele
 
     # GitHub organisation or GitHub user where branch is located
     github_account = build_option('github_org') or github_user
+
+    if pr_metadata:
+        file_info, deleted_paths, diff_stat = pr_metadata
+    else:
+        msg = "determining metadata for pull request based on changes files (relative to current develop)..."
+        print_msg(msg, log=_log)
+
+        # initialize repository
+        git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
+        git_repo = init_repo(git_working_dir, pr_target_repo)
+
+        # check out specified branch, and sync with current develop
+        setup_repo(git_repo, github_account, pr_target_repo, branch_name)
+        sync_with_develop(git_repo, branch_name, pr_target_account, pr_target_repo)
+
+        # checkout develop branch
+        git_repo.git.checkout(GITHUB_DEVELOP_BRANCH)
+
+        # figure out list of new/changed & deletes files in branch
+        difflist = git_repo.head.commit.diff(branch_name)
+        changed_files, ec_paths, deleted_paths, patch_paths = [], [], [], []
+        for diff in difflist:
+            path = diff.b_path
+            changed_files.append(path)
+            if diff.deleted_file:
+                deleted_paths.append(path)
+            elif path.endswith('.eb'):
+                ec_paths.append(path)
+            elif path.endswith('.patch'):
+                patch_paths.append(path)
+
+        if changed_files:
+            msg = ["found %d changed file(s):" % len(changed_files)]
+            if ec_paths:
+                msg.append("* %d new/changed easyconfig file(s):" % len(ec_paths))
+                msg.append('\n'.join(["  " + x for x in ec_paths]))
+            if patch_paths:
+                msg.append("* %d patch(es):" % len(patch_paths))
+                msg.append('\n'.join(["  " + x for x in patch_paths]))
+            if deleted_paths:
+                msg.append("* %d deleted file(s)" % len(deleted_paths))
+                msg.append('\n'.join(["  " + x for x in deleted_paths]))
+
+            print_msg('\n'.join(msg), log=_log)
+        else:
+            raise EasyBuildError("No changes in '%s' branch compared to current 'develop' branch!", branch_name)
+
+        target_dir = os.path.join(git_working_dir, pr_target_repo)
+        file_info = det_file_info(ec_paths, target_dir)
+
+        diff_stat = git_repo.git.diff(GITHUB_DEVELOP_BRANCH, branch_name, stat=True)
 
     # label easyconfigs for new software and/or new easyconfigs for existing software
     labels = []
@@ -1327,7 +1380,6 @@ def new_pr_from_branch(branch_name, title=None, descr=None, file_info=None, dele
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        # FIXME use commit msg if there's only a single commit?
 
         if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
@@ -1430,10 +1482,9 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
 
     # create new branch in GitHub
     res = create_new_branch(paths, ecs, target_account=build_option('pr_target_account'), commit_msg=commit_msg)
-    file_info, deleted_paths, git_repo, branch_name, diff_stat = res
+    file_info, deleted_paths, _, branch_name, diff_stat = res
 
-    new_pr_from_branch(branch_name, title=title, descr=descr, file_info=file_info,
-                       deleted_paths=deleted_paths, diff_stat=diff_stat)
+    new_pr_from_branch(branch_name, title=title, descr=descr, pr_metadata=(file_info, deleted_paths, diff_stat))
 
 
 def det_account_branch_for_pr(pr_id, github_user=None):
