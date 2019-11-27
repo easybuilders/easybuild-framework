@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
@@ -1316,19 +1316,26 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
     if pr_metadata:
         file_info, deleted_paths, diff_stat = pr_metadata
     else:
-        msg = "determining metadata for pull request based on changes files (relative to current develop)..."
-        print_msg(msg, log=_log)
-
         # initialize repository
         git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
         git_repo = init_repo(git_working_dir, pr_target_repo)
 
-        # check out specified branch, and sync with current develop
+        # check out PR branch, and sync with current develop
         setup_repo(git_repo, github_account, pr_target_repo, branch_name)
+
+        print_msg("syncing '%s' with current '%s/develop' branch..." % (branch_name, pr_target_account), log=_log)
         sync_with_develop(git_repo, branch_name, pr_target_account, pr_target_repo)
 
-        # checkout target branch (usually develop)
-        git_repo.git.checkout(pr_target_branch)
+        # checkout target branch, to obtain diff with PR branch
+        # make sure right branch is being used by checkout it out via remotes/*
+        print_msg("checking out target branch '%s/%s'..." % (pr_target_account, pr_target_branch), log=_log)
+        remote = create_remote(git_repo, pr_target_account, pr_target_repo, https=True)
+        git_repo.git.fetch(remote.name)
+        if pr_target_branch in [b.name for b in git_repo.branches]:
+            git_repo.delete_head(pr_target_branch)
+        git_repo.git.checkout('remotes/%s/%s' % (remote.name, pr_target_branch), track=True, force=True)
+
+        print_msg("determining metadata for pull request based on changed files...", log=_log)
 
         # figure out list of new/changed & deletes files compared to target branch
         difflist = git_repo.head.commit.diff(branch_name)
@@ -1344,22 +1351,52 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
                 patch_paths.append(path)
 
         if changed_files:
-            msg = ["found %d changed file(s):" % len(changed_files)]
+            from_branch = '%s/%s' % (github_account, branch_name)
+            to_branch = '%s/%s' % (pr_target_account, pr_target_branch)
+            msg = ["found %d changed file(s) in '%s' relative to '%s':" % (len(changed_files), from_branch, to_branch)]
             if ec_paths:
-                msg.append("* %d new/changed easyconfig file(s):" % len(ec_paths))
-                msg.append('\n'.join(["  " + x for x in ec_paths]))
+                cnt = len(ec_paths)
+                msg.append("* %d new/changed easyconfig file(s):" % cnt)
+                if cnt > 10:
+                    msg.extend(["  " + x for x in ec_paths[:10]] + ["  ..."])
+                else:
+                    msg.extend(["  " + x for x in ec_paths])
             if patch_paths:
-                msg.append("* %d patch(es):" % len(patch_paths))
-                msg.append('\n'.join(["  " + x for x in patch_paths]))
+                cnt = len(patch_paths)
+                msg.append("* %d patch(es):" % cnt)
+                if cnt > 10:
+                    msg.extend(["  " + x for x in patch_paths[:10]] + ["  ..."])
+                else:
+                    msg.extend(["  " + x for x in patch_paths])
             if deleted_paths:
-                msg.append("* %d deleted file(s)" % len(deleted_paths))
-                msg.append('\n'.join(["  " + x for x in deleted_paths]))
+                cnt = len(deleted_paths)
+                msg.append("* %d deleted file(s)" % cnt)
+                if cnt > 10:
+                    msg.append(["  " + x for x in deleted_paths[:10]] + ["  ..."])
+                else:
+                    msg.append(["  " + x for x in deleted_paths])
 
             print_msg('\n'.join(msg), log=_log)
         else:
             raise EasyBuildError("No changes in '%s' branch compared to current 'develop' branch!", branch_name)
 
-        target_dir = os.path.join(git_working_dir, pr_target_repo)
+        # copy repo while target branch is still checked out
+        tmpdir = tempfile.mkdtemp()
+        target_dir = os.path.join(tmpdir, pr_target_repo)
+        copy_dir(os.path.join(git_working_dir, pr_target_repo), target_dir, force_in_dry_run=True)
+
+        # check out PR branch to determine info on changed/added files relative to target branch
+        # make sure right branch is being used by checkout it out via remotes/*
+        print_msg("checking out PR branch '%s/%s'..." % (github_account, branch_name), log=_log)
+        remote = create_remote(git_repo, github_account, pr_target_repo, https=True)
+        git_repo.git.fetch(remote.name)
+        if branch_name in [b.name for b in git_repo.branches]:
+            git_repo.delete_head(branch_name)
+        git_repo.git.checkout('remotes/%s/%s' % (remote.name, branch_name), track=True, force=True)
+
+        # path to easyconfig files is expected to be absolute in det_file_info
+        ec_paths = [os.path.join(git_working_dir, pr_target_repo, x) for x in ec_paths]
+
         file_info = det_file_info(ec_paths, target_dir)
 
         diff_stat = git_repo.git.diff(pr_target_branch, branch_name, stat=True)
@@ -1928,14 +1965,14 @@ def sync_with_develop(git_repo, branch_name, github_account, github_repo):
     # pull in latest version of 'develop' branch from central repository
     msg = "pulling latest version of '%s' branch from %s/%s..." % (GITHUB_DEVELOP_BRANCH, github_account, github_repo)
     print_msg(msg, log=_log)
-    easybuilders_remote = create_remote(git_repo, github_account, github_repo, https=True)
+    remote = create_remote(git_repo, github_account, github_repo, https=True)
 
     # fetch latest version of develop branch
-    pull_out = git_repo.git.pull(easybuilders_remote.name, GITHUB_DEVELOP_BRANCH)
-    _log.debug("Output of 'git pull %s %s': %s", easybuilders_remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
+    pull_out = git_repo.git.pull(remote.name, GITHUB_DEVELOP_BRANCH)
+    _log.debug("Output of 'git pull %s %s': %s", remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
 
     # create 'develop' branch (with force if one already exists),
-    git_repo.create_head(GITHUB_DEVELOP_BRANCH, easybuilders_remote.refs.develop, force=True).checkout()
+    git_repo.create_head(GITHUB_DEVELOP_BRANCH, remote.refs.develop, force=True).checkout()
 
     # check top of git log
     git_log_develop = git_repo.git.log('-n 3')
