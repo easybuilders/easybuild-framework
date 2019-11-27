@@ -591,7 +591,7 @@ class EasyBuildOptions(GeneralOption):
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
             'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "
                                  "supported values: %s" % ", ".join(VALID_CLOSE_PR_REASONS), str, 'store', None),
-            'create-pr-branch': ("Create a new branch in GitHub in preparation for a PR", None, 'store_true', False),
+            'create-branch-github': ("Create new branch in GitHub in preparation for a PR", None, 'store_true', False),
             'list-prs': ("List pull requests", str, 'store_or_None',
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
