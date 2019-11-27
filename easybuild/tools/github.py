@@ -697,7 +697,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
     if start_account is None:
-        start_account = GITHUB_EB_MAIN
+        start_account = build_option('pr_target_account')
 
     if start_branch is None:
         # if start branch is not specified, we're opening a new PR
@@ -1291,12 +1291,14 @@ def create_new_branch(paths, ecs, commit_msg=None):
     return res
 
 
+@only_if_module_is_available('git', pkgname='GitPython')
 def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
     """
     Create new pull request from specified branch on GitHub.
     """
 
     pr_target_account = build_option('pr_target_account')
+    pr_target_branch = build_option('pr_target_branch')
     pr_target_repo = build_option('pr_target_repo')
 
     # fetch GitHub token (required to perform actions on GitHub)
@@ -1325,10 +1327,10 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         setup_repo(git_repo, github_account, pr_target_repo, branch_name)
         sync_with_develop(git_repo, branch_name, pr_target_account, pr_target_repo)
 
-        # checkout develop branch
-        git_repo.git.checkout(GITHUB_DEVELOP_BRANCH)
+        # checkout target branch (usually develop)
+        git_repo.git.checkout(pr_target_branch)
 
-        # figure out list of new/changed & deletes files in branch
+        # figure out list of new/changed & deletes files compared to target branch
         difflist = git_repo.head.commit.diff(branch_name)
         changed_files, ec_paths, deleted_paths, patch_paths = [], [], [], []
         for diff in difflist:
@@ -1360,7 +1362,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         target_dir = os.path.join(git_working_dir, pr_target_repo)
         file_info = det_file_info(ec_paths, target_dir)
 
-        diff_stat = git_repo.git.diff(GITHUB_DEVELOP_BRANCH, branch_name, stat=True)
+        diff_stat = git_repo.git.diff(pr_target_branch, branch_name, stat=True)
 
     # label easyconfigs for new software and/or new easyconfigs for existing software
     labels = []
@@ -1461,7 +1463,6 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
                 _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
-@only_if_module_is_available('git', pkgname='GitPython')
 def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     """
     Open new pull request using specified files
@@ -1481,7 +1482,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         title = build_option('pr_title') or commit_msg
 
     # create new branch in GitHub
-    res = create_new_branch(paths, ecs, target_account=build_option('pr_target_account'), commit_msg=commit_msg)
+    res = create_new_branch(paths, ecs, commit_msg=commit_msg)
     file_info, deleted_paths, _, branch_name, diff_stat = res
 
     new_pr_from_branch(branch_name, title=title, descr=descr, pr_metadata=(file_info, deleted_paths, diff_stat))
