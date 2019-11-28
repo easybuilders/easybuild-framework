@@ -2884,6 +2884,35 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
+    def test_update_branch_github(self):
+        """Test --update-branch-github."""
+        if self.github_token is None:
+            print("Skipping test_update_branch_github, no GitHub token available?")
+            return
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            '--update-branch-github=develop',
+            '--github-user=boegel',  # used to determine account to grab branch from (no GitHub token needed)
+            toy_ec,
+            '--pr-commit-msg="this is just a test"',
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        full_repo = 'boegel/easybuild-easyconfigs'
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/%s.git\.\.\." % full_repo,
+            r"^== copying easyconfigs to .*/git-working-dir.*/easybuild-easyconfigs...",
+            r"^== pushing branch 'develop' to remote '.*' \(git@github.com:%s.git\) \[DRY RUN\]" % full_repo,
+            r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| 32",
+            r"== pushed updated branch 'develop' to boegel/easybuild-easyconfigs \[DRY RUN\]",
+        ]
+        self._assert_regexs(regexs, txt)
+
     def test_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
         if self.github_token is None:
@@ -3067,9 +3096,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
             r"^\s*1 file(s?) changed",
-            "^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
-            r"^Updated easybuilders/easybuild-easyconfigs PR #2237 "
-            "by pushing to branch easybuilders/develop \[DRY RUN\]",
+            r"^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
+            r"^== pushed updated branch 'develop' to easybuilders/easybuild-easyconfigs \[DRY RUN\]",
+            r"^== updated https://github.com/easybuilders/easybuild-easyconfigs/pull/2237 \[DRY RUN\]",
         ]
         self._assert_regexs(regexs, txt)
 

@@ -612,6 +612,7 @@ class EasyBuildOptions(GeneralOption):
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
+            'update-branch-github': ("Update specified branch in GitHub", str, 'store', None),
             'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False, 'u'),
         })
@@ -1358,6 +1359,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     if not robot_path:
         print_warning("Robot search path is empty!")
 
+    new_update_opt = options.new_pr or options.new_pr_from_branch or options.update_branch_github or options.update_pr
+
     # configure & initialize build options
     config_options_dict = eb_go.get_options_by_section('config')
     build_options = {
@@ -1366,7 +1369,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
-        'silent': testing or options.new_pr or options.update_pr,
+        'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }

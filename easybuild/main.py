@@ -59,7 +59,7 @@ from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
-from easybuild.tools.github import sync_pr_with_develop, update_pr
+from easybuild.tools.github import sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
@@ -294,8 +294,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch
-    pr_options = pr_options or options.preview_pr or options.sync_pr_with_develop or options.update_pr
+    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
+    pr_options = pr_options or options.sync_pr_with_develop or options.update_branch_github or options.update_pr
     no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
     # determine paths to easyconfigs
@@ -390,8 +390,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             print(review_pr(paths=determined_paths, colored=use_color(options.color)))
         elif options.sync_pr_with_develop:
             sync_pr_with_develop(options.sync_pr_with_develop)
+        elif options.update_branch_github:
+            update_branch(options.update_branch_github, categorized_paths, ordered_ecs)
         elif options.update_pr:
-            update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
+            update_pr(options.update_pr, categorized_paths, ordered_ecs)
         else:
             raise EasyBuildError("Unknown PR option!")
 

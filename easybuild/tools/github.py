@@ -1537,6 +1537,37 @@ def det_account_branch_for_pr(pr_id, github_user=None):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
+def update_branch(branch_name, paths, ecs, github_account=None, commit_msg=None):
+    """
+    Update specified branch in GitHub using specified files
+
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param github_account: GitHub account where branch is located
+    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param commit_msg: commit message to use
+    """
+    if commit_msg is None:
+        commit_msg = build_option('pr_commit_msg')
+
+    if commit_msg is None:
+        raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when using --update-pr")
+
+    if github_account is None:
+        github_account = build_option('github_user') or build_option('github_org')
+
+    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch_name, pr_branch=branch_name,
+                                                   start_account=github_account, commit_msg=commit_msg)
+
+    print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
+
+    full_repo = '%s/%s' % (github_account, build_option('pr_target_repo'))
+    msg = "pushed updated branch '%s' to %s" % (branch_name, full_repo)
+    if build_option('dry_run') or build_option('extended_dry_run'):
+        msg += " [DRY RUN]"
+    print_msg(msg, log=_log)
+
+
+@only_if_module_is_available('git', pkgname='GitPython')
 def update_pr(pr_id, paths, ecs, commit_msg=None):
     """
     Update specified pull request using specified files
@@ -1547,24 +1578,15 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
     :param commit_msg: commit message to use
     """
 
-    if commit_msg is None:
-        raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when using --update-pr")
+    github_account, branch_name = det_account_branch_for_pr(pr_id)
 
-    pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    update_branch(branch_name, paths, ecs, github_account=github_account, commit_msg=commit_msg)
 
-    account, branch = det_account_branch_for_pr(pr_id)
-
-    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch, pr_branch=branch,
-                                                   start_account=account, commit_msg=commit_msg)
-
-    print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
-
-    full_repo = '%s/%s' % (pr_target_account, pr_target_repo)
-    msg = "Updated %s PR #%s by pushing to branch %s/%s" % (full_repo, pr_id, account, branch)
+    full_repo = '%s/%s' % (build_option('pr_target_account'), build_option('pr_target_repo'))
+    msg = "updated https://github.com/%s/pull/%s" % (full_repo, pr_id)
     if build_option('dry_run') or build_option('extended_dry_run'):
         msg += " [DRY RUN]"
-    print_msg(msg, log=_log, prefix=False)
+    print_msg(msg, log=_log)
 
 
 def check_github():
