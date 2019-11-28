@@ -1332,7 +1332,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         remote = create_remote(git_repo, pr_target_account, pr_target_repo, https=True)
         git_repo.git.fetch(remote.name)
         if pr_target_branch in [b.name for b in git_repo.branches]:
-            git_repo.delete_head(pr_target_branch)
+            git_repo.delete_head(pr_target_branch, force=True)
         git_repo.git.checkout('remotes/%s/%s' % (remote.name, pr_target_branch), track=True, force=True)
 
         print_msg("determining metadata for pull request based on changed files...", log=_log)
@@ -1379,7 +1379,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         remote = create_remote(git_repo, github_account, pr_target_repo, https=True)
         git_repo.git.fetch(remote.name)
         if branch_name in [b.name for b in git_repo.branches]:
-            git_repo.delete_head(branch_name)
+            git_repo.delete_head(branch_name, force=True)
         git_repo.git.checkout('remotes/%s/%s' % (remote.name, branch_name), track=True, force=True)
 
         # path to easyconfig files is expected to be absolute in det_file_info
