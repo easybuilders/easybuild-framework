@@ -1355,26 +1355,14 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
             to_branch = '%s/%s' % (pr_target_account, pr_target_branch)
             msg = ["found %d changed file(s) in '%s' relative to '%s':" % (len(changed_files), from_branch, to_branch)]
             if ec_paths:
-                cnt = len(ec_paths)
-                msg.append("* %d new/changed easyconfig file(s):" % cnt)
-                if cnt > 10:
-                    msg.extend(["  " + x for x in ec_paths[:10]] + ["  ..."])
-                else:
-                    msg.extend(["  " + x for x in ec_paths])
+                msg.append("* %d new/changed easyconfig file(s):" % len(ec_paths))
+                msg.extend(["  " + x for x in ec_paths])
             if patch_paths:
-                cnt = len(patch_paths)
-                msg.append("* %d patch(es):" % cnt)
-                if cnt > 10:
-                    msg.extend(["  " + x for x in patch_paths[:10]] + ["  ..."])
-                else:
-                    msg.extend(["  " + x for x in patch_paths])
+                msg.append("* %d patch(es):" % len(patch_paths))
+                msg.extend(["  " + x for x in patch_paths])
             if deleted_paths:
-                cnt = len(deleted_paths)
-                msg.append("* %d deleted file(s)" % cnt)
-                if cnt > 10:
-                    msg.append(["  " + x for x in deleted_paths[:10]] + ["  ..."])
-                else:
-                    msg.append(["  " + x for x in deleted_paths])
+                msg.append("* %d deleted file(s)" % len(deleted_paths))
+                msg.append(["  " + x for x in deleted_paths])
 
             print_msg('\n'.join(msg), log=_log)
         else:
