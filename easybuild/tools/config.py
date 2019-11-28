@@ -442,7 +442,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        if cmdline_options.new_pr or cmdline_options.create_branch_github or cmdline_options.update_pr:
+        if cmdline_options.new_branch_github or cmdline_options.new_pr or cmdline_options.update_pr:
             _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
             retain_all_deps = True
 
@@ -451,8 +451,8 @@ def init_build_options(build_options=None, cmdline_options=None):
                                       cmdline_options.dep_graph, cmdline_options.dry_run,
                                       cmdline_options.dry_run_short, cmdline_options.dump_env_script,
                                       cmdline_options.extended_dry_run, cmdline_options.fix_deprecated_easyconfigs,
-                                      cmdline_options.missing_modules, cmdline_options.new_pr,
-                                      cmdline_options.create_branch_github, cmdline_options.preview_pr,
+                                      cmdline_options.missing_modules, cmdline_options.new_branch_github,
+                                      cmdline_options.new_pr, cmdline_options.preview_pr,
                                       cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
             _log.info("Auto-enabling ignoring of OS dependencies")

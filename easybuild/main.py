@@ -57,7 +57,7 @@ from easybuild.tools.config import find_last_log, get_repository, get_repository
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, close_pr, create_branch_github, find_easybuild_easyconfig
+from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
 from easybuild.tools.github import sync_pr_with_develop, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
@@ -294,7 +294,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    pr_options = options.create_branch_github or options.new_pr or options.new_pr_from_branch
+    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch
     pr_options = pr_options or options.preview_pr or options.sync_pr_with_develop or options.update_pr
     no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
@@ -382,8 +382,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if pr_options:
         if options.new_pr:
             new_pr(categorized_paths, ordered_ecs)
-        elif options.create_branch_github:
-            create_branch_github(categorized_paths, ordered_ecs)
+        elif options.new_branch_github:
+            new_branch_github(categorized_paths, ordered_ecs)
         elif options.new_pr_from_branch:
             new_pr_from_branch(options.new_pr_from_branch)
         elif options.preview_pr:

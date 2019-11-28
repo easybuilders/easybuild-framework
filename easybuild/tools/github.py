@@ -1272,7 +1272,7 @@ def merge_pr(pr):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def create_branch_github(paths, ecs, commit_msg=None):
+def new_branch_github(paths, ecs, commit_msg=None):
     """
     Create new branch on GitHub using specified filesystem
 
@@ -1519,7 +1519,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         title = build_option('pr_title') or commit_msg
 
     # create new branch in GitHub
-    res = create_branch_github(paths, ecs, commit_msg=commit_msg)
+    res = new_branch_github(paths, ecs, commit_msg=commit_msg)
     file_info, deleted_paths, _, branch_name, diff_stat = res
 
     new_pr_from_branch(branch_name, title=title, descr=descr, pr_metadata=(file_info, deleted_paths, diff_stat))

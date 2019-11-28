@@ -2820,8 +2820,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stderr_txt = stderr_txt.strip()
         return stdout_txt, stderr_txt
 
-    def test_create_branch_github(self):
-        """Test for --create-branch-github."""
+    def test_new_branch_github(self):
+        """Test for --new-branch-github."""
         if self.github_token is None:
             print("Skipping test_create_branch_github, no GitHub token available?")
             return
@@ -2831,7 +2831,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         args = [
-            '--create-branch-github',
+            '--new-branch-github',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
             '-D',
