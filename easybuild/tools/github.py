@@ -1959,6 +1959,13 @@ def sync_with_develop(git_repo, branch_name, github_account, github_repo):
     pull_out = git_repo.git.pull(remote.name, GITHUB_DEVELOP_BRANCH)
     _log.debug("Output of 'git pull %s %s': %s", remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
 
+    # fetch to make sure we can check out the 'develop' branch
+    fetch_out = git_repo.git.fetch(remote.name)
+    _log.debug("Output of 'git fetch %s': %s", remote.name, fetch_out)
+
+    _log.debug("Output of 'git branch -a': %s", git_repo.git.branch(a=True))
+    _log.debug("Output of 'git remote -v': %s", git_repo.git.remote(v=True))
+
     # create 'develop' branch (with force if one already exists),
     git_repo.create_head(GITHUB_DEVELOP_BRANCH, remote.refs.develop, force=True).checkout()
 
