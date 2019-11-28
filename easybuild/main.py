@@ -314,9 +314,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif any(no_ec_opts):
         paths = determined_paths
     else:
-        print_error(("Please provide one or multiple easyconfig files, or use software build "
-                     "options to make EasyBuild search for easyconfigs"),
-                     log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+        print_error("Please provide one or multiple easyconfig files, or use software build " +
+                    "options to make EasyBuild search for easyconfigs",
+                    log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s", paths)
 
     # run regtest
