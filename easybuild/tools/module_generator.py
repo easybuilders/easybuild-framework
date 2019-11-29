@@ -364,6 +364,14 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
+    def check_version(self, minimal_version_maj, minimal_version_min):
+        """
+        Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        """
+        raise NotImplementedError
+
     def conditional_statement(self, conditions, body, negative=False, else_body=None, indent=True,
                               cond_or=False, cond_tmpl=None):
         """
@@ -519,11 +527,12 @@ class ModuleGenerator(object):
 
         return extensions
 
-    def _generate_provides_list(self):
+    def _generate_extensions_list(self):
         """
         Generate a list of all extensions in name/version format
         """
         exts_list = self.app.cfg['exts_list']
+        # the format is extension_name/extension_version
         exts_ver_list = sorted(['%s/%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower)
 
         return exts_ver_list
@@ -993,8 +1002,6 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
-    VERSION_CHECK = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
-
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
 
@@ -1012,8 +1019,11 @@ class ModuleGeneratorLua(ModuleGenerator):
     def check_version(self, minimal_version_maj, minimal_version_min):
         """
         Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
         """
-        return self.VERSION_CHECK % {
+        LMOD_VERSION_CHECK_EXPR = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
+        return LMOD_VERSION_CHECK_EXPR % {
             'ver_maj': minimal_version_maj,
             'ver_min': minimal_version_min,
         }
@@ -1130,10 +1140,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         for line in self._generate_whatis_lines():
             whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
-        provide_list = self._generate_provides_list()
+        provide_list = self._generate_extensions_list()
 
         if provide_list:
             provide_list_mod = 'extensions(%s)' % ', '.join(['"%s"' % x for x in provide_list])
+            # put this behind a Lmod version check as extension are only supported since Lmod 8.2.0
+            # Ref: https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
             lines.extend(['', self.conditional_statement(self.check_version("8", "2"), provide_list_mod)])
 
         txt += '\n'.join([''] + lines + ['']) % {
