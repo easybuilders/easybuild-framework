@@ -607,6 +607,7 @@ class EasyBuildOptions(GeneralOption):
             'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
             'preview-pr': ("Preview a new pull request", None, 'store_true', False),
+            'sync-branch-with-develop': ("Sync branch with current 'develop' branch", str, 'store', None),
             'sync-pr-with-develop': ("Sync pull request with current 'develop' branch",
                                      int, 'store', None, {'metavar': 'PR#'}),
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
