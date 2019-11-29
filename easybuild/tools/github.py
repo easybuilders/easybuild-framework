@@ -1274,7 +1274,7 @@ def merge_pr(pr):
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_branch_github(paths, ecs, commit_msg=None):
     """
-    Create new branch on GitHub using specified filesystem
+    Create new branch on GitHub using specified files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
