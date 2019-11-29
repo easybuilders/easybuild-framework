@@ -1327,7 +1327,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         sync_with_develop(git_repo, branch_name, pr_target_account, pr_target_repo)
 
         # checkout target branch, to obtain diff with PR branch
-        # make sure right branch is being used by checkout it out via remotes/*
+        # make sure right branch is being used by checking it out via remotes/*
         print_msg("checking out target branch '%s/%s'..." % (pr_target_account, pr_target_branch), log=_log)
         remote = create_remote(git_repo, pr_target_account, pr_target_repo, https=True)
         git_repo.git.fetch(remote.name)
