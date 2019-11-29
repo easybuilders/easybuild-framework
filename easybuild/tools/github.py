@@ -1333,7 +1333,11 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         git_repo.git.fetch(remote.name)
         if pr_target_branch in [b.name for b in git_repo.branches]:
             git_repo.delete_head(pr_target_branch, force=True)
-        git_repo.git.checkout('remotes/%s/%s' % (remote.name, pr_target_branch), track=True, force=True)
+
+        full_target_branch_ref = 'remotes/%s/%s' % (remote.name, pr_target_branch)
+        git_repo.git.checkout(full_target_branch_ref, track=True, force=True)
+
+        diff_stat = git_repo.git.diff(full_target_branch_ref, branch_name, stat=True)
 
         print_msg("determining metadata for pull request based on changed files...", log=_log)
 
@@ -1386,8 +1390,6 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         ec_paths = [os.path.join(git_working_dir, pr_target_repo, x) for x in ec_paths]
 
         file_info = det_file_info(ec_paths, target_dir)
-
-        diff_stat = git_repo.git.diff(pr_target_branch, branch_name, stat=True)
 
     # label easyconfigs for new software and/or new easyconfigs for existing software
     labels = []
