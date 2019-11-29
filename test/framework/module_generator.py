@@ -575,7 +575,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
-        print(desc)
 
         patterns = []
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
