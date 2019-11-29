@@ -3168,18 +3168,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--sync-branch-with-develop=%s' % test_branch,
             '--dry-run',
         ]
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        self.assertFalse(stderr)
 
         github_path = r"boegel/easybuild-easyconfigs\.git"
         pattern = '\n'.join([
             r"== temporary log file in case of crash .*",
             r"== fetching branch '%s' from https://github\.com/%s\.\.\." % (test_branch, github_path),
             r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
-            r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
-            r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
+            r"== merging 'develop' branch into PR branch '%s'\.\.\." % test_branch,
+            r"== pushing branch '%s' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % (test_branch, github_path),
         ])
         regex = re.compile(pattern)
-        self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
+        self.assertTrue(regex.match(stdout), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
     def test_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""

@@ -2044,9 +2044,12 @@ def sync_branch_with_develop(branch_name):
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, target_repo)
 
-    setup_repo(git_repo, github_user, target_repo, branch_name)
+    # GitHub organisation or GitHub user where branch is located
+    github_account = build_option('github_org') or github_user
+
+    setup_repo(git_repo, github_account, target_repo, branch_name)
 
     sync_with_develop(git_repo, branch_name, target_account, target_repo)
 
     # push updated branch back to GitHub (unless we're doing a dry run)
-    return push_branch_to_github(git_repo, github_user, target_repo, branch_name)
+    return push_branch_to_github(git_repo, github_account, target_repo, branch_name)
