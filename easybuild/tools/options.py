@@ -595,7 +595,9 @@ class EasyBuildOptions(GeneralOption):
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'new-branch-github': ("Create new branch in GitHub in preparation for a PR", None, 'store_true', False),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
+            'new-pr-from-branch': ("Open a new pull request from branch in GitHub", str, 'store', None),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
                                str, 'store', None),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
@@ -605,11 +607,13 @@ class EasyBuildOptions(GeneralOption):
             'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
             'preview-pr': ("Preview a new pull request", None, 'store_true', False),
+            'sync-branch-with-develop': ("Sync branch with current 'develop' branch", str, 'store', None),
             'sync-pr-with-develop': ("Sync pull request with current 'develop' branch",
                                      int, 'store', None, {'metavar': 'PR#'}),
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
+            'update-branch-github': ("Update specified branch in GitHub", str, 'store', None),
             'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False, 'u'),
         })
@@ -1356,6 +1360,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     if not robot_path:
         print_warning("Robot search path is empty!")
 
+    new_update_opt = options.new_pr or options.new_pr_from_branch or options.update_branch_github or options.update_pr
+
     # configure & initialize build options
     config_options_dict = eb_go.get_options_by_section('config')
     build_options = {
@@ -1364,7 +1370,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
-        'silent': testing or options.new_pr or options.update_pr,
+        'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }

@@ -57,8 +57,9 @@ from easybuild.tools.config import find_last_log, get_repository, get_repository
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
-from easybuild.tools.github import close_pr, list_prs, new_pr, merge_pr, sync_pr_with_develop, update_pr
+from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
+from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
+from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
@@ -293,7 +294,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    pr_options = options.new_pr or options.preview_pr or options.sync_pr_with_develop or options.update_pr
+    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
+    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
+    pr_options = pr_options or options.update_branch_github or options.update_pr
     no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
     # determine paths to easyconfigs
@@ -306,16 +309,15 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in determined_paths]
+    elif 'name' in build_specs:
+        # try to obtain or generate an easyconfig file via build specifications if a software name is provided
+        paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
+    elif any(no_ec_opts):
+        paths = determined_paths
     else:
-        if 'name' in build_specs:
-            # try to obtain or generate an easyconfig file via build specifications if a software name is provided
-            paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif any(no_ec_opts):
-            paths = determined_paths
-        else:
-            print_error(("Please provide one or multiple easyconfig files, or use software build "
-                         "options to make EasyBuild search for easyconfigs"),
-                        log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+        print_error("Please provide one or multiple easyconfig files, or use software build " +
+                    "options to make EasyBuild search for easyconfigs",
+                    log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s", paths)
 
     # run regtest
@@ -385,14 +387,21 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # creating/updating PRs
     if pr_options:
         if options.new_pr:
-            new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
-                   commit_msg=options.pr_commit_msg)
+            new_pr(categorized_paths, ordered_ecs)
+        elif options.new_branch_github:
+            new_branch_github(categorized_paths, ordered_ecs)
+        elif options.new_pr_from_branch:
+            new_pr_from_branch(options.new_pr_from_branch)
         elif options.preview_pr:
             print(review_pr(paths=determined_paths, colored=use_color(options.color)))
+        elif options.sync_branch_with_develop:
+            sync_branch_with_develop(options.sync_branch_with_develop)
         elif options.sync_pr_with_develop:
             sync_pr_with_develop(options.sync_pr_with_develop)
+        elif options.update_branch_github:
+            update_branch(options.update_branch_github, categorized_paths, ordered_ecs)
         elif options.update_pr:
-            update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
+            update_pr(options.update_pr, categorized_paths, ordered_ecs)
         else:
             raise EasyBuildError("Unknown PR option!")
 
