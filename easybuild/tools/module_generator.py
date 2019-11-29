@@ -366,7 +366,7 @@ class ModuleGenerator(object):
 
     def check_version(self, minimal_version_maj, minimal_version_min):
         """
-        Check the minimal version of the moduletool in the module file
+        Check the minimal version of the modules tool in the module file
         :param minimal_version_maj: the major version to check
         :param minimal_version_min: the minor version to check
         """
@@ -1022,8 +1022,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param minimal_version_maj: the major version to check
         :param minimal_version_min: the minor version to check
         """
-        LMOD_VERSION_CHECK_EXPR = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
-        return LMOD_VERSION_CHECK_EXPR % {
+        lmod_version_check_expr = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
+        return lmod_version_check_expr % {
             'ver_maj': minimal_version_maj,
             'ver_min': minimal_version_min,
         }
@@ -1140,13 +1140,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         for line in self._generate_whatis_lines():
             whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
-        provide_list = self._generate_extensions_list()
+        extensions_list = self._generate_extensions_list()
 
-        if provide_list:
-            provide_list_mod = 'extensions(%s)' % ', '.join(['"%s"' % x for x in provide_list])
-            # put this behind a Lmod version check as extension are only supported since Lmod 8.2.0
-            # Ref: https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
-            lines.extend(['', self.conditional_statement(self.check_version("8", "2"), provide_list_mod)])
+        if extensions_list:
+            extensions_stmt = 'extensions(%s)' % ', '.join(['"%s"' % x for x in extensions_list])
+            # put this behind a Lmod version check as 'extensions' is only supported since Lmod 8.2.0,
+            # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
+            lines.extend(['', self.conditional_statement(self.check_version("8", "2"), extensions_stmt)])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
