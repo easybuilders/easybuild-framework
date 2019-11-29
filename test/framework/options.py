@@ -3153,6 +3153,34 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(pattern)
         self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
 
+    def test_sync_branch_with_develop(self):
+        """Test use of --sync-branch-with-develop (dry run only)."""
+        if self.github_token is None:
+            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
+            return
+
+        # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
+        test_branch = 'test_new_pr_from_branch_DO_NOT_REMOVE'
+
+        args = [
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--github-org=boegel',  # used to determine account to grab branch from
+            '--sync-branch-with-develop=%s' % test_branch,
+            '--dry-run',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        github_path = r"boegel/easybuild-easyconfigs\.git"
+        pattern = '\n'.join([
+            r"== temporary log file in case of crash .*",
+            r"== fetching branch '%s' from https://github\.com/%s\.\.\." % (test_branch, github_path),
+            r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
+            r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
+            r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
+        ])
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
+
     def test_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
         if self.github_token is None:
