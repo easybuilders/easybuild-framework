@@ -4320,7 +4320,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^  -> features: ",
             "^\* software:$",
             "^  -> glibc version: ",
-            "^  -> Python binary: .*/python[0-9]?",
+            "^  -> Python binary: .*/[pP]ython[0-9]?",
             "^  -> Python version: [0-9.]+",
         ]
         for pattern in patterns:
