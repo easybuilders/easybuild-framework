@@ -364,6 +364,14 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
+    def check_version(self, minimal_version_maj, minimal_version_min):
+        """
+        Check the minimal version of the modules tool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        """
+        raise NotImplementedError
+
     def conditional_statement(self, conditions, body, negative=False, else_body=None, indent=True,
                               cond_or=False, cond_tmpl=None):
         """
@@ -519,6 +527,16 @@ class ModuleGenerator(object):
         extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
 
         return extensions
+
+    def _generate_extensions_list(self):
+        """
+        Generate a list of all extensions in name/version format
+        """
+        exts_list = self.app.cfg['exts_list']
+        # the format is extension_name/extension_version
+        exts_ver_list = sorted(['%s/%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower)
+
+        return exts_ver_list
 
     def _generate_help_text(self):
         """
@@ -738,7 +756,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = ["module-whatis {%s}" % re.sub('([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
+        whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
@@ -1017,6 +1035,18 @@ class ModuleGeneratorLua(ModuleGenerator):
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
 
+    def check_version(self, minimal_version_maj, minimal_version_min):
+        """
+        Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        """
+        lmod_version_check_expr = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
+        return lmod_version_check_expr % {
+            'ver_maj': minimal_version_maj,
+            'ver_min': minimal_version_min,
+        }
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -1128,6 +1158,14 @@ class ModuleGeneratorLua(ModuleGenerator):
         whatis_lines = []
         for line in self._generate_whatis_lines():
             whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
+
+        extensions_list = self._generate_extensions_list()
+
+        if extensions_list:
+            extensions_stmt = 'extensions(%s)' % ', '.join(['"%s"' % x for x in extensions_list])
+            # put this behind a Lmod version check as 'extensions' is only supported since Lmod 8.2.0,
+            # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
+            lines.extend(['', self.conditional_statement(self.check_version("8", "2"), extensions_stmt)])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,

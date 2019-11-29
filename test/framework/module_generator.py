@@ -30,6 +30,7 @@ Unit tests for module_generator.py.
 """
 import glob
 import os
+import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -693,6 +694,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
+    def test_module_extensions(self):
+        """test the extensions() for extensions"""
+        # not supported for Tcl modules
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            return
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        patterns = []
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            patterns.append(r'^\s*extensions\("bar/0.0", "barbar/0.0", "l/s", "toy/0.0"\)')
+
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, desc, re.M), "Pattern '%s' found in: %s" % (pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
