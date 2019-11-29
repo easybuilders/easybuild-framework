@@ -295,7 +295,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # command line options that do not require any easyconfigs to be specified
     pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
-    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop 
+    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
     pr_options = pr_options or options.update_branch_github or options.update_pr
     no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
