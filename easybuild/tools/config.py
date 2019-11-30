@@ -228,6 +228,7 @@ BUILD_OPTIONS_CMDLINE = {
         'lib64_fallback_sanity_check',
         'logtostdout',
         'minimal_toolchains',
+        'module_extensions',
         'module_only',
         'package',
         'read_only_installdir',

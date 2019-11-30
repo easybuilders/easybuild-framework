@@ -1159,13 +1159,14 @@ class ModuleGeneratorLua(ModuleGenerator):
         for line in self._generate_whatis_lines():
             whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
-        extensions_list = self._generate_extensions_list()
+        if build_option('module_extensions'):
+            extensions_list = self._generate_extensions_list()
 
-        if extensions_list:
-            extensions_stmt = 'extensions(%s)' % ', '.join(['"%s"' % x for x in extensions_list])
-            # put this behind a Lmod version check as 'extensions' is only supported since Lmod 8.2.0,
-            # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
-            lines.extend(['', self.conditional_statement(self.check_version("8", "2"), extensions_stmt)])
+            if extensions_list:
+                extensions_stmt = 'extensions(%s)' % ', '.join(['"%s"' % x for x in extensions_list])
+                # put this behind a Lmod version check as 'extensions' is only supported since Lmod 8.2.0,
+                # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
+                lines.extend(['', self.conditional_statement(self.check_version("8", "2"), extensions_stmt)])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,

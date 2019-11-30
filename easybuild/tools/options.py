@@ -475,6 +475,8 @@ class EasyBuildOptions(GeneralOption):
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
                                   None, 'store_true', False),
+            'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
+                                  None, 'store_true', False),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
