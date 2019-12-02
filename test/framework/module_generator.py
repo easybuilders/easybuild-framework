@@ -713,12 +713,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        patterns = []
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
-            patterns.append(r'^\s*extensions\("bar/0.0,barbar/0.0,ls,toy/0.0"\)')
+        patterns = [
+            r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
+            r'\s*extensions\("bar/0.0,barbar/0.0,ls,toy/0.0"\)\nend$',
+        ]
 
         for pattern in patterns:
-            self.assertTrue(re.search(pattern, desc, re.M), "Pattern '%s' found in: %s" % (pattern, desc))
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
