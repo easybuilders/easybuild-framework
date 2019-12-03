@@ -347,7 +347,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         try:
             # obtain temporary filename
             fd, tmpfn = tempfile.mkstemp()
-            os.chmod(tmpfn, 0644)
+            os.chmod(tmpfn, 0o644)
             os.close(fd)
 
             # write easyconfig to temporary file
