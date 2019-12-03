@@ -1551,7 +1551,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             raise EasyBuildError("Failed to create path to temporary directory %s: %s", current_tmpdir, err)
 
     _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
-    os.chmod(current_tmpdir, 0755)
+    os.chmod(current_tmpdir, 0o755)
 
     for var in ['TMPDIR', 'TEMP', 'TMP']:
         env.setvar(var, current_tmpdir, verbose=False)
