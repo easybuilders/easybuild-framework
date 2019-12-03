@@ -3,7 +3,7 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
-v4.1.0 (December 3rd 2019)
+v4.1.0 (December 4th 2019)
 --------------------------
 
 update/bugfix release
@@ -38,6 +38,7 @@ update/bugfix release
   - don't use %(version)s template in exts_default_options in dumped easyconfig (#3096)
   - fix generated module statements in case only a single version is listed in multi_deps (#3097)
   - fix broken test_show_system_info on macOS due to 'Python' binary (#3105)
+  - take into account that dependency version could be a dict rather than a string value in template_constant_dict (#3111)
 - other changes:
   - deprecate running EasyBuild with Python 2.6 via new check_python_version() function (#3076)
   - deprecate support for using Lmod 6.x (#3077)
