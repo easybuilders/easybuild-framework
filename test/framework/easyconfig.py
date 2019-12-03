@@ -2560,13 +2560,36 @@ class EasyConfigTest(EnhancedTestCase):
         expected['parallel'] = 42
         self.assertEqual(res, expected)
 
-        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_ec_txt = read_file(toy_ec)
+
         # fiddle with version to check version_minor template ('0' should be retained)
-        ec['version'] = '0.01'
+        toy_ec_txt = re.sub('version = .*', 'version = "0.01"', toy_ec_txt)
+
+        my_arch = st.get_cpu_architecture()
+
+        # add Java dep with version specified using a dict value
+        toy_ec_txt += '\n'.join([
+            "dependencies += [",
+            "  ('Python', '3.7.2'),"
+            "  ('Java', {",
+            "    'arch=%s': '1.8.0_221'," % my_arch,
+            "    'arch=fooarch': '1.8.0-foo',",
+            "  })",
+            "]",
+        ])
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt)
+
+        ec = EasyConfig(test_ec)
 
         expected = {
             'bitbucket_account': 'toy',
             'github_account': 'toy',
+            'javamajver': '1',
+            'javashortver': '1.8',
+            'javaver': '1.8.0_221',
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
@@ -2574,6 +2597,9 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_version': 'system',
             'nameletterlower': 't',
             'parallel': None,
+            'pymajver': '3',
+            'pyshortver': '3.7',
+            'pyver': '3.7.2',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
