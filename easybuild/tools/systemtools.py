@@ -45,6 +45,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -864,3 +865,40 @@ def check_python_version():
         raise EasyBuildError("EasyBuild is not compatible (yet) with Python %s", python_ver)
 
     return (python_maj_ver, python_min_ver)
+
+
+def pick_dep_version(dep_version):
+    """
+    Pick the correct dependency version to use for this system.
+    Input can either be:
+    * a string value (or None)
+    * a dict with options to choose from
+
+    Return value is the version to use.
+    """
+    if isinstance(dep_version, string_type):
+        _log.debug("Version is already a string ('%s'), OK", dep_version)
+        result = dep_version
+
+    elif dep_version is None:
+        _log.debug("Version is None, OK")
+        result = None
+
+    elif isinstance(dep_version, dict):
+        # figure out matches based on dict keys (after splitting on '=')
+        my_arch_key = 'arch=%s' % get_cpu_architecture()
+        arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+        other_keys = [x for x in dep_version.keys() if x not in arch_keys]
+        if other_keys:
+            raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+        if arch_keys:
+            if my_arch_key in dep_version:
+                result = dep_version[my_arch_key]
+                _log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, result)
+            else:
+                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+
+    else:
+        raise EasyBuildError("Unknown value type for version: %s", dep_version)
+
+    return result
