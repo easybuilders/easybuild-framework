@@ -52,7 +52,7 @@ from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
 from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
@@ -2582,11 +2582,10 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt)
 
-        ec = EasyConfig(test_ec)
+        # only perform shallow/quick parse (as is done in list_software function)
+        ec = EasyConfigParser(filename=test_ec).get_config_dict()
 
         expected = {
-            'bitbucket_account': 'toy',
-            'github_account': 'toy',
             'javamajver': '1',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
@@ -2596,7 +2595,6 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_name': 'system',
             'toolchain_version': 'system',
             'nameletterlower': 't',
-            'parallel': None,
             'pymajver': '3',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
@@ -2604,7 +2602,6 @@ class EasyConfigTest(EnhancedTestCase):
             'version_major': '0',
             'version_major_minor': '0.01',
             'version_minor': '01',
-            'versionprefix': '',
             'versionsuffix': '-deps',
         }
         res = template_constant_dict(ec)
