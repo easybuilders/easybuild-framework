@@ -51,7 +51,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 78
+TEST_MODULES_COUNT = 81
 
 
 class ModulesTest(EnhancedTestCase):
@@ -281,6 +281,106 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['GCC/6.4.0-2.28'], allow_reload=False)
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertFalse(loaded_modules[-1] == 'GCC/6.4.0-2.28')
+
+    def test_curr_module_paths(self):
+        """Test for curr_module_paths function."""
+
+        # first, create a couple of (empty) directories to use as entries in $MODULEPATH
+        test1 = os.path.join(self.test_prefix, 'test1')
+        mkdir(test1)
+        test2 = os.path.join(self.test_prefix, 'test2')
+        mkdir(test2)
+        test3 = os.path.join(self.test_prefix, 'test3')
+        mkdir(test3)
+
+        os.environ['MODULEPATH'] = ''
+        self.assertEqual(curr_module_paths(), [])
+
+        os.environ['MODULEPATH'] = '%s:%s:%s' % (test1, test2, test3)
+        self.assertEqual(curr_module_paths(), [test1, test2, test3])
+
+        # empty entries and non-existing directories are filtered out
+        os.environ['MODULEPATH'] = '/doesnotexist:%s::%s:' % (test2, test1)
+        self.assertEqual(curr_module_paths(), [test2, test1])
+
+    def test_check_module_path(self):
+        """Test ModulesTool.check_module_path() method"""
+
+        # first, create a couple of (empty) directories to use as entries in $MODULEPATH
+        test1 = os.path.join(self.test_prefix, 'test1')
+        mkdir(test1)
+        test2 = os.path.join(self.test_prefix, 'test2')
+        mkdir(test2)
+        test3 = os.path.join(self.test_prefix, 'test3')
+        mkdir(test3)
+
+        os.environ['MODULEPATH'] = test1
+
+        modtool = modules_tool()
+
+        # directory where modules are installed based on current configuration is automatically added in front
+        mod_install_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1])
+
+        # if mod_paths is reset, it can be restored using check_module_path
+        modtool.mod_paths = None
+        modtool.check_module_path()
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1])
+
+        # no harm done with multiple subsequent calls
+        modtool.check_module_path()
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1])
+
+        # if $MODULEPATH is tweaked, mod_paths and $MODULEPATH can be corrected with check_module_path
+        os.environ['MODULEPATH'] = test2
+        modtool.check_module_path()
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test2])
+        self.assertEqual(os.environ['MODULEPATH'], mod_install_dir + ':' + test1 + ':' + test2)
+
+        # check behaviour if non-existing directories are included in $MODULEPATH
+        os.environ['MODULEPATH'] = '%s:/does/not/exist:%s' % (test3, test2)
+        modtool.check_module_path()
+        # non-existing dir is filtered from mod_paths, but stays in $MODULEPATH
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test3, test2])
+        self.assertEqual(os.environ['MODULEPATH'], ':'.join([mod_install_dir, test1, test3, '/does/not/exist', test2]))
+
+    def test_check_module_path_hmns(self):
+        """Test behaviour of check_module_path with HierarchicalMNS."""
+
+        # to verify that https://github.com/easybuilders/easybuild-framework/issues/3084 is fixed
+        # (see also https://github.com/easybuilders/easybuild-framework/issues/2226);
+        # this bug can be triggered by having at least one non-existing directory in $MODULEPATH,
+        # and using HierarchicalMNS
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config()
+
+        top_mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        core_mod_dir = os.path.join(top_mod_dir, 'Core')
+        mkdir(core_mod_dir, parents=True)
+
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        self.assertFalse(os.path.exists(doesnotexist))
+
+        os.environ['MODULEPATH'] = '%s:%s' % (core_mod_dir, doesnotexist)
+        modtool = modules_tool()
+
+        self.assertEqual(modtool.mod_paths, [os.path.dirname(core_mod_dir), core_mod_dir])
+        self.assertEqual(os.environ['MODULEPATH'], '%s:%s:%s' % (top_mod_dir, core_mod_dir, doesnotexist))
+
+        # hack prepend_module_path to make sure it's not called again if check_module_path is called again;
+        # prepend_module_path is fairly expensive, so should be avoided,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3084
+        def broken_prepend_module_path(*args, **kwargs):
+            raise EasyBuildError("broken prepend_module_path")
+
+        modtool.prepend_module_path = broken_prepend_module_path
+
+        # if this doesn't trigger a raised error from the hacked prepend_module_path, the bug is fixed
+        modtool.check_module_path()
+
+        self.assertEqual(modtool.mod_paths, [os.path.dirname(core_mod_dir), core_mod_dir])
+        self.assertEqual(os.environ['MODULEPATH'], '%s:%s:%s' % (top_mod_dir, core_mod_dir, doesnotexist))
 
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""

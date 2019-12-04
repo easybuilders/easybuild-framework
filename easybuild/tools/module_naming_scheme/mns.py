@@ -33,16 +33,18 @@ import re
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import Singleton
+from easybuild.tools.py2vs3 import create_base_metaclass
 
 
 DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
 
-class ModuleNamingScheme(object):
-    """Abstract class for a module naming scheme implementation."""
+# singleton metaclass: only one instance is created
+BaseModuleNamingScheme = create_base_metaclass('BaseModuleNamingScheme', Singleton, object)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class ModuleNamingScheme(BaseModuleNamingScheme):
+    """Abstract class for a module naming scheme implementation."""
 
     REQUIRED_KEYS = None
 

@@ -52,8 +52,8 @@ FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_list', 'homepage', 'name', 'toolchain',
-                                   'version', 'multi_deps'] + DEPENDENCY_PARAMETERS
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_default_options', 'exts_list',
+                                   'homepage', 'multi_deps', 'name', 'toolchain', 'version'] + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
 GROUPED_PARAMS = [
@@ -69,7 +69,10 @@ GROUPED_PARAMS = [
     ['preinstallopts', 'installopts'],
     ['parallel', 'maxparallel'],
 ]
-LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
+LAST_PARAMS = ['exts_default_options', 'exts_list',
+               'sanity_check_paths', 'sanity_check_commands',
+               'modextrapaths', 'modextravars',
+               'moduleclass']
 
 SANITY_CHECK_PATHS_DIRS = 'dirs'
 SANITY_CHECK_PATHS_FILES = 'files'

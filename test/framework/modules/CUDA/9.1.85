@@ -25,7 +25,7 @@ prepend-path	PATH		$root/open64/bin
 prepend-path	PATH		$root/bin
 
 setenv	EBROOTCUDA		"$root"
-setenv	EBVERSIONCUDA		"5.0.35"
+setenv	EBVERSIONCUDA		"9.1.85"
 setenv	EBDEVELCUDA		"$root/easybuild/CUDA-9.1.85-easybuild-devel"
 
 prepend-path	PATH		$root/
