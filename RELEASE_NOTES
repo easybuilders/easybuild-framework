@@ -3,6 +3,49 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.1.0 (December 4th 2019)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - performance improvements:
+    - skip validation when copying EasyConfig object for extension (#3071)
+    - correctly specify that ActiveMNS & co are singleton classes when using Python 3 (#3073)
+    - don't call out to prohibitively expensive getRootLoggerName in getLogger, just use 'root' instead (#3074)
+    - fix inconsistent module path usage that leads to repeated reloading in HMNS (#3099)
+  - add support for specifying different dependency version based on processor architecture (#3047)
+  - support use of glob patterns for paths to files with external modules metadata (#3075)
+  - take into account that external modules may not be visible directly (due to module hierarchy) (#3083)
+  - add support for including 'extensions' statement in Lua modules with Lmod 8.2.8+ (#3085, #3107, #3110)
+  - add support for --sync-pr-with-develop (#3087)
+  - add support for --new-branch-github, --new-pr-from-branch, --sync-branch-with-develop, --update-branch-github (#3103)
+  - fix typo in docstring for new_branch_github (#3106)
+- various bug fixes, including:
+  - correctly handle iccifortcuda toolchain with standalone iccifort in det_toolchain_compilers (#3055)
+  - init git repo with git.repo.clone() instead of copy_dir() (#3062)
+  - fix regular expression so depends-on statements are recognized correctly in Tcl module files (#3065)
+  - update GitPython to latest version that supports Python 2.6 in requirements.txt to fix broken test_new_update_pr (#3066)
+  - imply --disable-pre-create-installdir with --inject-checksums (#3069)
+  - handle patches in extensions more like normal patches (#3067)
+  - take into account that platform.linux_distribution and platform.dist was removed in Python 3.8 (#3078)
+  - always include mandatory easyconfig parameters in dumped easyconfig (#3081)
+  - hide backup module file when using Lmod 6.x (fixes #9302) (#3089)
+  - add better error message when mandatory key is missing from a dictionary easyconfig parameter (#3092)
+  - also create symlinks for default modules in class module folders (#3093)
+  - fix semantics of --set-default-module: only set default for specified easyconfigs, not for the ones that are installed as dependencies via --robot (#3094)
+  - fix various issues in extracting comments from original easyconfig file and including them again in dumped easyconfig (#3095)
+  - don't use %(version)s template in exts_default_options in dumped easyconfig (#3096)
+  - fix generated module statements in case only a single version is listed in multi_deps (#3097)
+  - fix broken test_show_system_info on macOS due to 'Python' binary (#3105)
+  - take into account that dependency version could be a dict rather than a string value in template_constant_dict (#3111)
+- other changes:
+  - deprecate running EasyBuild with Python 2.6 via new check_python_version() function (#3076)
+  - deprecate support for using Lmod 6.x (#3077)
+  - trim set of test configurations in Travis CI (#3086)
+  - flesh out env_vars_external_module from Toolchain._simulated_load_dependency_module (#3088)
+
+
 v4.0.1 (October 15th 2019)
 --------------------------
 
