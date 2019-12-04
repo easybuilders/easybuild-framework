@@ -68,7 +68,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        log_re = re.compile("^root ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
+        log_re = re.compile(r"^root ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
         logtxt = open(tmplog, 'r').read()
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
