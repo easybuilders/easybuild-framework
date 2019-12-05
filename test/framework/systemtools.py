@@ -43,7 +43,7 @@ from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POW
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import check_python_version
+from easybuild.tools.systemtools import check_python_version, pick_dep_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
@@ -836,6 +836,26 @@ class SystemToolsTest(EnhancedTestCase):
         # only deprecation warning when actually testing with Python 2.6
         if sys.version_info[:2] == (2, 6):
             self.assertTrue(stderr.startswith(py26_depr_warning))
+
+    def test_pick_dep_version(self):
+        """Test pick_dep_version function."""
+
+        self.assertEqual(pick_dep_version(None), None)
+        self.assertEqual(pick_dep_version('1.2.3'), '1.2.3')
+
+        dep_ver_dict = {
+            'arch=x86_64': '1.2.3-amd64',
+            'arch=POWER': '1.2.3-ppc64le',
+        }
+
+        st.get_cpu_architecture = lambda: X86_64
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-amd64')
+
+        st.get_cpu_architecture = lambda: POWER
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
+
+        error_pattern = "Unknown value type for version"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
 
 
 def suite():
