@@ -52,7 +52,7 @@ from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
 from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
@@ -2560,25 +2560,48 @@ class EasyConfigTest(EnhancedTestCase):
         expected['parallel'] = 42
         self.assertEqual(res, expected)
 
-        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_ec_txt = read_file(toy_ec)
+
         # fiddle with version to check version_minor template ('0' should be retained)
-        ec['version'] = '0.01'
+        toy_ec_txt = re.sub('version = .*', 'version = "0.01"', toy_ec_txt)
+
+        my_arch = st.get_cpu_architecture()
+
+        # add Java dep with version specified using a dict value
+        toy_ec_txt += '\n'.join([
+            "dependencies += [",
+            "  ('Python', '3.7.2'),"
+            "  ('Java', {",
+            "    'arch=%s': '1.8.0_221'," % my_arch,
+            "    'arch=fooarch': '1.8.0-foo',",
+            "  })",
+            "]",
+        ])
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt)
+
+        # only perform shallow/quick parse (as is done in list_software function)
+        ec = EasyConfigParser(filename=test_ec).get_config_dict()
 
         expected = {
-            'bitbucket_account': 'toy',
-            'github_account': 'toy',
+            'javamajver': '1',
+            'javashortver': '1.8',
+            'javaver': '1.8.0_221',
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
             'toolchain_name': 'system',
             'toolchain_version': 'system',
             'nameletterlower': 't',
-            'parallel': None,
+            'pymajver': '3',
+            'pyshortver': '3.7',
+            'pyver': '3.7.2',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
             'version_minor': '01',
-            'versionprefix': '',
             'versionsuffix': '-deps',
         }
         res = template_constant_dict(ec)

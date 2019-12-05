@@ -364,11 +364,12 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def check_version(self, minimal_version_maj, minimal_version_min):
+    def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
         """
         Check the minimal version of the modules tool in the module file
         :param minimal_version_maj: the major version to check
         :param minimal_version_min: the minor version to check
+        :param minimal_version_patch: the patch version to check
         """
         raise NotImplementedError
 
@@ -534,9 +535,14 @@ class ModuleGenerator(object):
         """
         exts_list = self.app.cfg['exts_list']
         # the format is extension_name/extension_version
-        exts_ver_list = sorted(['%s/%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower)
+        exts_ver_list = []
+        for ext in exts_list:
+            if isinstance(ext, tuple):
+                exts_ver_list.append('%s/%s' % (ext[0], ext[1]))
+            elif isinstance(ext, string_type):
+                exts_ver_list.append(ext)
 
-        return exts_ver_list
+        return sorted(exts_ver_list, key=str.lower)
 
     def _generate_help_text(self):
         """
@@ -1035,16 +1041,18 @@ class ModuleGeneratorLua(ModuleGenerator):
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
 
-    def check_version(self, minimal_version_maj, minimal_version_min):
+    def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
         """
         Check the minimal version of the moduletool in the module file
         :param minimal_version_maj: the major version to check
         :param minimal_version_min: the minor version to check
+        :param minimal_version_patch: the patch version to check
         """
-        lmod_version_check_expr = 'convertToCanonical(LmodVersion()) > convertToCanonical("%(ver_maj)s.%(ver_min)s")'
+        lmod_version_check_expr = 'convertToCanonical(LmodVersion()) >= convertToCanonical("%(maj)s.%(min)s.%(patch)s")'
         return lmod_version_check_expr % {
-            'ver_maj': minimal_version_maj,
-            'ver_min': minimal_version_min,
+            'maj': minimal_version_maj,
+            'min': minimal_version_min,
+            'patch': minimal_version_patch,
         }
 
     def check_group(self, group, error_msg=None):
@@ -1163,10 +1171,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             extensions_list = self._generate_extensions_list()
 
             if extensions_list:
-                extensions_stmt = 'extensions(%s)' % ', '.join(['"%s"' % x for x in extensions_list])
-                # put this behind a Lmod version check as 'extensions' is only supported since Lmod 8.2.0,
-                # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions
-                lines.extend(['', self.conditional_statement(self.check_version("8", "2"), extensions_stmt)])
+                extensions_stmt = 'extensions("%s")' % ','.join(['%s' % x for x in extensions_list])
+                # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
+                # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
+                # https://github.com/TACC/Lmod/issues/428
+                lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
 
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
