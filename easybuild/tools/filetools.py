@@ -1902,6 +1902,7 @@ def install_fake_vsc():
     fake_vsc_path = os.path.join(tempfile.mkdtemp(prefix='fake_vsc_'))
 
     fake_vsc_init = '\n'.join([
+        'import os',
         'import sys',
         'import inspect',
         '',
@@ -1914,10 +1915,15 @@ def install_fake_vsc():
         '        filename, lineno = cand_filename, cand_lineno',
         '        break',
         '',
-        'sys.stderr.write("\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno))',
-        'sys.stderr.write("vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n")',
-        'sys.stderr.write("The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n")',
-        'sys.exit(1)',
+        '# ignore imports from pkgutil.py (part of Python standard library),',
+        '# which may happen due to a system-wide installation of vsc-base',
+        '# even if it is not actually actively used...',
+        'if os.path.basename(filename) != "pkgutil.py":',
+        '    error_msg = "\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno)',
+        '    error_msg += "vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n"',
+        '    error_msg += "The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n"',
+        '    sys.stderr.write(error_msg)',
+        '    sys.exit(1)',
     ])
 
     fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')
