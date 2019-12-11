@@ -591,57 +591,56 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     return res
 
 
-def check_log_for_errors(logTxt, regExps):
+def extract_errors_from_log(log_txt, reg_exps):
     """
-    Check logTxt for messages matching regExps in order and do appropriate action
-    :param logTxt: String containing the log, will be split into individual lines
-    :param regExps: List of: regular expressions (as RE or string) to error on,
+    Check log_txt for messages matching regExps and return warnings and errors
+    :param log_txt: String containing the log, will be split into individual lines
+    :param reg_exps: List of: regular expressions (as strings) to error on,
+                    or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
+    :return (warnings, errors) as lists of lines containing a match
+    """
+
+    # Avoid accidentally passing a single element
+    assert isinstance(reg_exps, list), "reg_exps must be a list"
+    re_tuples = []
+    for cur in reg_exps:
+        try:
+            if isinstance(cur, str):
+                reg_exp, action = cur, ERROR
+            else:
+                reg_exp, action = cur
+            if not isinstance(reg_exp, str) or action not in (IGNORE, WARN, ERROR):
+                raise TypeError("Invalid types")
+            re_tuples.append((re.compile(reg_exp), action))
+        except Exception as e:
+            raise EasyBuildError("Invalid input: No RegExp or tuple of RegExp and action '%s' (%s)", str(cur), e)
+    warnings = []
+    errors = []
+    for line in log_txt.split('\n'):
+        for reg_exp, action in re_tuples:
+            if reg_exp.search(line):
+                if action == ERROR:
+                    errors.append(line)
+                elif action == WARN:
+                    warnings.append(line)
+                break
+    return warnings, errors
+
+
+def check_log_for_errors(log_txt, reg_exps):
+    """
+    Check log_txt for messages matching regExps in order and do appropriate action
+    :param log_txt: String containing the log, will be split into individual lines
+    :param reg_exps: List of: regular expressions (as strings) to error on,
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
     """
     global errors_found_in_log
+    warnings, errors = extract_errors_from_log(log_txt, reg_exps)
 
-    def is_regexp_object(objToTest):
-        try:
-            objToTest.match('')
-            return True
-        except AttributeError:
-            return False
-
-    # Avoid accidentally passing a single element
-    assert isinstance(regExps, list), "regExps must be a list"
-    regExpTuples = []
-    for cur in regExps:
-        try:
-            if isinstance(cur, str):
-                regExpTuples.append((re.compile(cur), ERROR))
-            elif is_regexp_object(cur):
-                regExpTuples.append((cur, ERROR))
-            elif len(cur) != 2:
-                raise TypeError("Invalid tuple")
-            elif not isinstance(cur[0], str) and not is_regexp_object(cur[0]):
-                raise TypeError("Invalid RegExp in tuple")
-            elif cur[1] not in (IGNORE, WARN, ERROR):
-                raise TypeError("Invalid action in tuple")
-            else:
-                regExpTuples.append((re.compile(cur[0]) if isinstance(cur[0], str) else cur[0], cur[1]))
-        except TypeError:
-            raise EasyBuildError("Invalid input: No RegExp or tuple of RegExp and action: %s" % str(cur))
-    warnings = []
-    errors = []
-    for l in logTxt.split('\n'):
-        for regExp, action in regExpTuples:
-            m = regExp.search(l)
-            if m:
-                if action == ERROR:
-                    errors.append(l)
-                elif action == WARN:
-                    warnings.append(l)
-                break
     errors_found_in_log += len(warnings) + len(errors)
     if warnings:
-        _log.warning("Found %s potential errors in command output (output: %s)" %
-                     (len(warnings), ", ".join(warnings)))
+        _log.warning("Found %s potential error(s) in command output (output: %s)",
+                     len(warnings), ", ".join(warnings))
     if errors:
-        raise EasyBuildError("Found %s errors in command output (output: %s)" %
-                             (len(errors), ", ".join(errors)))
-
+        raise EasyBuildError("Found %s error(s) in command output (output: %s)",
+                             len(errors), ", ".join(errors))
