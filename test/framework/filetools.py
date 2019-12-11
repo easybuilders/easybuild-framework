@@ -1935,6 +1935,39 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^\nERROR: %s" % error_pattern)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
+        # also test with import from another module
+        test_python_mod = os.path.join(self.test_prefix, 'test_fake_vsc', 'import_vsc.py')
+        ft.write_file(os.path.join(os.path.dirname(test_python_mod), '__init__.py'), '')
+        ft.write_file(test_python_mod, 'import vsc')
+
+        sys.path.insert(0, self.test_prefix)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        try:
+            from test_fake_vsc import import_vsc  # noqa
+            self.assertTrue(False, "'import vsc' results in an error")
+        except SystemExit:
+            pass
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stdout, '')
+        error_pattern = r"Detected import from 'vsc' namespace in .*/test_fake_vsc/import_vsc.py \(line 1\)"
+        regex = re.compile(r"^\nERROR: %s" % error_pattern)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # no error if import was detected from pkgutil.py,
+        # since that may be triggered by a system-wide vsc-base installation
+        # (even though no code is doing 'import vsc'...)
+        ft.move_file(test_python_mod, os.path.join(os.path.dirname(test_python_mod), 'pkgutil.py'))
+
+        from test_fake_vsc import pkgutil
+        self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
+
+
 
 def suite():
     """ returns all the testcases in this module """
