@@ -771,6 +771,10 @@ def verify_checksum(path, checksums):
 
     filename = os.path.basename(path)
 
+    # if file does not exist (typo) report it as such
+    if not os.path.isfile(filename):
+        raise EasyBuildError("File %s does not exist", filename)
+
     # if no checksum is provided, pretend checksum to be valid, unless presence of checksums to verify is enforced
     if checksums is None:
         if build_option('enforce_checksums'):
