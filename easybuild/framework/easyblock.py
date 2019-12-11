@@ -3236,7 +3236,7 @@ def build_and_install_one(ecdict, init_env):
     if run.errors_found_in_log > 0:
         print_msg("WARNING: %d possible error(s) were detected in the "
                   "build logs, please verify the build." % run.errors_found_in_log,
-                  _log, silent=silent)
+                  log=_log, silent=silent)
 
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
