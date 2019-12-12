@@ -89,7 +89,7 @@ class Popen(subprocess.Popen):
 
     def get_conn_maxsize(self, which, maxsize):
         if maxsize is None:
-            maxsize = 1024
+            maxsize = 10240
         elif maxsize < 1:
             maxsize = 1
         return getattr(self, which), maxsize
