@@ -809,6 +809,10 @@ class EasyConfig(object):
         Configure/build/install options specified as lists should have same length.
         """
 
+        # Disable templating as only the existance is of interest, the actual resolved value is not
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
         # configure/build/install options may be lists, in case of an iterated build
         # when lists are used, they should be all of same length
         # list of length 1 are treated as if it were strings in EasyBlock
@@ -821,6 +825,7 @@ class EasyConfig(object):
 
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
             if self.get(opt, None) is None:
+                self.enable_templating = prev_enable_templating
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
@@ -830,7 +835,10 @@ class EasyConfig(object):
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
         if len(nub(list_opt_lengths)) > 1:
+            self.enable_templating = prev_enable_templating
             raise EasyBuildError("Build option lists for iterated build should have same length: %s", opt_counts)
+
+        self.enable_templating = prev_enable_templating
 
         return True
 
