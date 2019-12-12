@@ -384,12 +384,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return find_base_dir()
 
 
-def which(cmd, retain_all=False, check_perms=True):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
+    :param log_ok: Log an info message where the command has been found (if any)
+    :param log_error: Log a warning message when command hasn't been found
     """
     if retain_all:
         res = []
@@ -401,7 +403,8 @@ def which(cmd, retain_all=False, check_perms=True):
         cmd_path = os.path.join(path, cmd)
         # only accept path if command is there
         if os.path.isfile(cmd_path):
-            _log.info("Command %s found at %s", cmd, cmd_path)
+            if log_ok:
+                _log.info("Command %s found at %s", cmd, cmd_path)
             if check_perms:
                 # check if read/executable permissions are available
                 if not os.access(cmd_path, os.R_OK | os.X_OK):
@@ -413,7 +416,7 @@ def which(cmd, retain_all=False, check_perms=True):
                 res = cmd_path
                 break
 
-    if not res:
+    if not res and log_error:
         _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return res
 

@@ -180,16 +180,18 @@ class ModulesTool(object):
         if mod_paths is not None:
             self.set_mod_paths(mod_paths)
 
+        cmd_path = which(self.cmd, log_ok=False, log_error=False)
         # only use command path in environment variable if command in not available in $PATH
-        if which(self.cmd) is None and env_cmd_path is not None:
-            self.log.debug("Set %s command via environment variable %s: %s",
-                           self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
-            self.cmd = env_cmd_path
+        if which(self.cmd) is None:
+            if env_cmd_path is not None:
+                self.log.debug("Set %s command via environment variable %s: %s",
+                               self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
+                self.cmd = env_cmd_path
 
         # check whether paths obtained via $PATH and $LMOD_CMD are different
-        elif which(self.cmd) != env_cmd_path:
+        elif env_cmd_path and cmd_path != env_cmd_path:
             self.log.debug("Different paths found for %s command '%s' via which/$PATH and $%s: %s vs %s",
-                           self.NAME, self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
+                           self.NAME, self.COMMAND, self.COMMAND_ENVIRONMENT, cmd_path, env_cmd_path)
 
         # make sure the module command was found
         if self.cmd is None:
@@ -284,7 +286,7 @@ class ModulesTool(object):
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
-        cmd_path = which(self.cmd)
+        cmd_path = which(self.cmd, log_ok=False)
         if cmd_path is not None:
             self.cmd = cmd_path
             self.log.info("Full path for %s command is %s, so using it", self.NAME, self.cmd)
