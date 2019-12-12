@@ -144,10 +144,8 @@ class Extension(object):
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
 
-        # disabling templating is required here to support legacy string templates like name/version
-        self.cfg.enable_templating = False
-        exts_filter = self.cfg['exts_filter']
-        self.cfg.enable_templating = True
+        # Get raw value to translate ext_name, ext_version, src
+        exts_filter = self.cfg.get_ref('exts_filter')
 
         if exts_filter is not None:
             cmd, inp = exts_filter
