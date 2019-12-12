@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from inspect import cleandoc
 from datetime import datetime
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -787,17 +788,25 @@ class EasyBlockTest(EnhancedTestCase):
         """Test the skip_extensions_step"""
         init_config(build_options={'silent': True})
 
-        self.contents = '\n'.join([
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = SYSTEM',
-            'exts_list = ["ext1", "ext2"]',
-            'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
-            'exts_defaultclass = "DummyExtension"',
-        ])
+        self.contents = cleandoc("""
+            easyblock = "ConfigureMake"
+            name = "pi"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+                "ext1",
+                ("ext2", "42", {"source_tmpl": "dummy.tgz"}),
+                ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
+            ]
+            exts_filter = ("\
+                if [ %(ext_name)s == 'ext2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
+                    then exit 0;\
+                elif [ %(ext_name)s == 'real_ext' ]; then exit 0;\
+                else exit 1; fi", "")
+            exts_defaultclass = "DummyExtension"
+        """)
         # check if skip skips correct extensions
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -806,9 +815,12 @@ class EasyBlockTest(EnhancedTestCase):
         eb.skip = True
         eb.extensions_step(fetch=True)
         # 'ext1' should be in eb.exts
-        self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
+        eb_exts = [y for x in eb.exts for y in x.values()]
+        self.assertTrue('ext1' in eb_exts)
         # 'ext2' should not
-        self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
+        self.assertFalse('ext2' in eb_exts)
+        # 'ext3' should not
+        self.assertFalse('ext3' in eb_exts)
 
         # cleanup
         eb.close_log()
