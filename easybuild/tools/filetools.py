@@ -1750,8 +1750,15 @@ def copy_file(path, target_path, force_in_dry_run=False):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
-            if os.path.exists(target_path) and os.path.samefile(path, target_path):
+            target_exists = os.path.exists(target_path)
+            if target_exists and os.path.samefile(path, target_path):
                 _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            # if target file exists and is owned by someone else than the current user,
+            # try using shutil.copyfile to just copy the file contents
+            # since shutil.copy2 will fail when trying to copy over file metadata (since chown requires file ownership)
+            elif target_exists and os.stat(target_path).st_uid != os.getuid():
+                shutil.copyfile(path, target_path)
+                _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
                 shutil.copy2(path, target_path)
