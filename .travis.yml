@@ -85,6 +85,9 @@ script:
     - EB_VERBOSE=1 eb --version
     # check GitHub configuration
     - eb --check-github --github-user=easybuild_test
+    # create file owned by root but writable by anyone (used by test_copy_file)
+    - sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+    - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     # run test suite
     - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
     # try and make sure output of running tests is clean (no printed messages/warnings)
