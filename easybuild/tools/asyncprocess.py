@@ -78,6 +78,15 @@ import fcntl  #@UnresolvedImport
 
 
 class Popen(subprocess.Popen):
+
+    def __init__(self, *args, **kwargs):
+        # set bufsize to 0 to ensure buffering is disabled,
+        # otherwise we may not get all available output when polling in run_cmd_qa;
+        # bufsize=0 is the default in Python 2, but not in recent Python 3 versions,
+        # see https://docs.python.org/3/library/subprocess.html#subprocess.Popen
+        kwargs['bufsize'] = 0
+        super(Popen, self).__init__(*args, **kwargs)
+
     def recv(self, maxsize=None):
         return self._recv('stdout', maxsize)
 
