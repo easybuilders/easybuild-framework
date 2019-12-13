@@ -1336,6 +1336,27 @@ class FileToolsTest(EnhancedTestCase):
         src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
         self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
 
+        # test overwriting of existing file owned by someone else,
+        # which should make copy_file use shutil.copyfile rather than shutil.copy2
+        test_file_contents = "This is just a test, 1, 2, 3, check"
+        test_file_to_copy = os.path.join(self.test_prefix, 'test123.txt')
+        ft.write_file(test_file_to_copy, test_file_contents)
+
+        # this test file must be created before, we can't create a file owned by another account
+        test_file_to_overwrite = os.path.join('/tmp', 'file_to_overwrite_for_easybuild_test_copy_file.txt')
+        if os.path.exists(test_file_to_overwrite):
+            # make sure target file is owned by another user (we don't really care who)
+            self.assertTrue(os.stat(test_file_to_overwrite).st_uid != os.getuid())
+            # make sure the target file is writeable by current user (otherwise the copy will definitely fail)
+            self.assertTrue(os.access(test_file_to_overwrite, os.W_OK))
+
+            ft.copy_file(test_file_to_copy, test_file_to_overwrite)
+            self.assertEqual(ft.read_file(test_file_to_overwrite), test_file_contents)
+        else:
+            # printing this message will make test suite fail in Travis/GitHub CI,
+            # since we check for unexpected output produced by the tests
+            print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)", test_file_to_overwrite)
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
