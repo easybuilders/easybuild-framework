@@ -1031,6 +1031,23 @@ class FileToolsTest(EnhancedTestCase):
         nosuchfile = os.path.join(self.test_prefix, 'nosuchfile')
         self.assertErrorRegex(EasyBuildError, err_msg, ft.adjust_permissions, nosuchfile, stat.S_IWUSR, recursive=False)
 
+        # try using adjust_permissions on a file not owned by current user,
+        # using permissions that are actually already correct;
+        # actual chmod should be skipped, otherwise it fails (you need to own a file to change permissions on it)
+
+        # use /bin/ls, which should always be there, has read/exec permissions for anyone (755), and is owned by root
+        ls_path = '/bin/ls'
+
+        # try adding read/exec permissions for current user (which is already there)
+        ft.adjust_permissions(ls_path, stat.S_IRUSR | stat.S_IXUSR, add=True)
+
+        # try removing write permissions for others (which are not set already)
+        ft.adjust_permissions(ls_path, stat.S_IWOTH, add=False)
+
+        # try hard setting permissions using current permissions
+        current_ls_perms = os.stat(ls_path)[stat.ST_MODE]
+        ft.adjust_permissions(ls_path, current_ls_perms, relative=False)
+
         # restore original umask
         os.umask(orig_umask)
 

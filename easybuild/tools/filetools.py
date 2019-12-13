@@ -1130,10 +1130,21 @@ def convert_name(name, upper=False):
         return name
 
 
-def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
+def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
                        group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
     """
-    Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
+    Change permissions for specified path, using specified permission bits
+
+    :param add: add permissions relative to current permissions (only relevant if 'relative' is set to True)
+    :param onlyfiles: only change permissions on files (not directories)
+    :param onlydirs: only change permissions on directories (not files)
+    :param recursive: change permissions recursively (only makes sense if path is a directory)
+    :param group_id: also change group ownership to group with this group ID
+    :param relative: add/remove permissions relative to current permissions (if False, hard set specified permissions)
+    :param ignore_errors: ignore errors that occur when changing permissions
+                          (up to a maximum ratio specified by --max-fail-ratio-adjust-permissions configuration option)
+
+    Add or remove (if add is False) permission_bits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
 
@@ -1142,12 +1153,12 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         depr_msg += "(symlinks are never followed anymore)"
         _log.deprecated(depr_msg, '4.0')
 
-    name = os.path.abspath(name)
+    provided_path = os.path.abspath(provided_path)
 
     if recursive:
-        _log.info("Adjusting permissions recursively for %s" % name)
-        allpaths = [name]
-        for root, dirs, files in os.walk(name):
+        _log.info("Adjusting permissions recursively for %s", provided_path)
+        allpaths = [provided_path]
+        for root, dirs, files in os.walk(provided_path):
             paths = []
             if not onlydirs:
                 paths.extend(files)
@@ -1159,8 +1170,8 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 allpaths.append(os.path.join(root, path))
 
     else:
-        _log.info("Adjusting permissions for %s" % name)
-        allpaths = [name]
+        _log.info("Adjusting permissions for %s (no recursion)", provided_path)
+        allpaths = [provided_path]
 
     failed_paths = []
     fail_cnt = 0
@@ -1170,34 +1181,47 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
             # don't change permissions if path is a symlink, since we're not checking where the symlink points to
             # this is done because of security concerns (symlink may point out of installation directory)
             # (note: os.lchmod is not supported on Linux)
-            if not os.path.islink(path):
+            if os.path.islink(path):
+                _log.debug("Not changing permissions for %s, since it's a symlink", path)
+            else:
+                # determine current permissions
+                current_perms = os.lstat(path)[stat.ST_MODE]
+                _log.debug("Current permissions for %s: %s", path, oct(current_perms))
+
                 if relative:
-
                     # relative permissions (add or remove)
-                    perms = os.lstat(path)[stat.ST_MODE]
-
                     if add:
-                        os.chmod(path, perms | permissionBits)
+                        _log.debug("Adding permissions for %s: %s", path, oct(permission_bits))
+                        new_perms = current_perms | permission_bits
                     else:
-                        os.chmod(path, perms & ~permissionBits)
-
+                        _log.debug("Removing permissions for %s: %s", path, oct(permission_bits))
+                        new_perms = current_perms & ~permission_bits
                 else:
                     # hard permissions bits (not relative)
-                    os.chmod(path, permissionBits)
+                    new_perms = permission_bits
+                    _log.debug("Hard setting permissions for %s: %s", path, oct(new_perms))
+
+                # only actually do chmod if current permissions are not correct already
+                # (this is important because chmod requires that files are owned by current user)
+                if new_perms == current_perms:
+                    _log.debug("Current permissions for %s are already OK: %s", path, oct(current_perms))
+                else:
+                    _log.debug("Changing permissions for %s to %s", path, oct(new_perms))
+                    os.chmod(path, new_perms)
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
                 cur_gid = os.lstat(path).st_gid
-                if not cur_gid == group_id:
-                    _log.debug("Changing group id of %s to %s" % (path, group_id))
-                    os.lchown(path, -1, group_id)
+                if cur_gid == group_id:
+                    _log.debug("Group id of %s is already OK (%s)", path, group_id)
                 else:
-                    _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
+                    _log.debug("Changing group id of %s to %s", path, group_id)
+                    os.lchown(path, -1, group_id)
 
         except OSError as err:
             if ignore_errors:
                 # ignore errors while adjusting permissions (for example caused by bad links)
-                _log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
+                _log.info("Failed to chmod/chown %s (but ignoring it): %s", path, err)
                 fail_cnt += 1
             else:
                 failed_paths.append(path)
@@ -1213,7 +1237,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         raise EasyBuildError("%.2f%% of permissions/owner operations failed (more than %.2f%%), "
                              "something must be wrong...", 100 * fail_ratio, 100 * max_fail_ratio)
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that...", 100 * fail_ratio)
 
 
 def patch_perl_script_autoflush(path):
