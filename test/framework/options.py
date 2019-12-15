@@ -799,6 +799,35 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertEqual(txt, expected)
 
+    def test_show_ec(self):
+        """Test 'eb --show-ec'."""
+
+        args = [
+            '--show-ec',
+            'toy-0.0.eb',
+            'gzip-1.6-GCC-4.9.2.eb',
+        ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        patterns = [
+            r"^== Contents of .*/test/framework/easyconfigs/test_ecs/t/toy/toy-0.0.eb:",
+            r"^name = 'toy'",
+            r"^toolchain = SYSTEM",
+            r"^sanity_check_paths = {\n    'files': \[\('bin/yot', 'bin/toy'\)\],",
+            r"^== Contents of .*/test/framework/easyconfigs/test_ecs/g/gzip/gzip-1.6-GCC-4.9.2.eb:",
+            r"^easyblock = 'ConfigureMake'\n\nname = 'gzip'",
+            r"^toolchain = {'name': 'GCC', 'version': '4.9.2'}",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
