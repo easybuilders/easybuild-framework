@@ -95,6 +95,7 @@ def raise_nosupport(msg, ver):
     nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
     raise_easybuilderror(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
 
+
 class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.

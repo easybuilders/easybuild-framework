@@ -809,10 +809,6 @@ class EasyConfig(object):
         Configure/build/install options specified as lists should have same length.
         """
 
-        # Disable templating as only the existance is of interest, the actual resolved value is not
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
-
         # configure/build/install options may be lists, in case of an iterated build
         # when lists are used, they should be all of same length
         # list of length 1 are treated as if it were strings in EasyBlock
@@ -820,25 +816,22 @@ class EasyConfig(object):
         for opt in ITERATE_OPTIONS:
 
             # only when builddependencies is a list of lists are we iterating over them
-            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self[opt]):
+            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self.get_ref(opt)):
                 continue
 
+            opt_value = self.get(opt, None, resolve=False)
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
-            if self.get(opt, None) is None:
-                self.enable_templating = prev_enable_templating
+            if opt_value is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)):
-                opt_counts.append((opt, len(self[opt])))
+            if isinstance(opt_value, (list, tuple)):
+                opt_counts.append((opt, len(opt_value)))
 
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
         if len(nub(list_opt_lengths)) > 1:
-            self.enable_templating = prev_enable_templating
             raise EasyBuildError("Build option lists for iterated build should have same length: %s", opt_counts)
-
-        self.enable_templating = prev_enable_templating
 
         return True
 
@@ -1531,12 +1524,13 @@ class EasyConfig(object):
                                  key, value)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
-    def get(self, key, default=None):
+    def get(self, key, default=None, resolve=True):
         """
         Gets the value of a key in the config, with 'default' as fallback.
+        :param resolve: if False, disables templating via calling get_ref, else resolves template values
         """
         if key in self:
-            return self[key]
+            return self[key] if resolve else self.get_ref(key)
         else:
             return default
 

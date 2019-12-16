@@ -41,6 +41,7 @@ from easybuild.framework.easyconfig.templates import template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_cmd
+from easybuild.tools.py2vs3 import string_type
 
 
 def resolve_exts_filter_template(exts_filter, ext):
@@ -51,7 +52,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     :return (cmd, input) as a tuple of strings
     """
 
-    if isinstance(exts_filter, str) or len(exts_filter) != 2:
+    if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
         raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
 
     cmd, cmdinput = exts_filter
@@ -71,11 +72,13 @@ def resolve_exts_filter_template(exts_filter, ext):
     }
 
     try:
-        return (cmd % tmpldict, cmdinput % tmpldict if cmdinput else None)
+        cmd = cmd % tmpldict
+        cmdinput = cmdinput % tmpldict if cmdinput else None
     except KeyError as err:
         msg = "KeyError occurred on completing extension filter template: %s; "
         msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
         raise_nosupport(msg % err, '2.0')
+    return cmd, cmdinput
 
 
 class Extension(object):
