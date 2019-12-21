@@ -1430,9 +1430,22 @@ def get_software_libdir(name, only_one=True, fs=None):
     res = []
     if root:
         for lib_subdir in lib_subdirs:
-            if os.path.exists(os.path.join(root, lib_subdir)):
-                if fs is None or any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
+            lib_dir_path = os.path.join(root, lib_subdir)
+            if os.path.exists(lib_dir_path):
+                # take into account that lib64 could be a symlink to lib (or vice versa)
+                # see https://github.com/easybuilders/easybuild-framework/issues/3139
+                new_lib_dir = True
+                for retained_subdir in res:
+                    retained_path = os.path.join(root, retained_subdir)
+                    if os.path.samefile(lib_dir_path, retained_path):
+                        _log.info("%s is identical to retained path %s, so not retaining it...")
+                        new_lib_dir = False
+                        break
+
+                if new_lib_dir and (fs is None or any([os.path.exists(os.path.join(lib_dir_path, f)) for f in fs])):
+                    _log.info("Retaining library subdir '%s' (found at %s)", lib_subdir, lib_dir_path)
                     res.append(lib_subdir)
+
             elif build_option('extended_dry_run'):
                 res.append(lib_subdir)
                 break
