@@ -113,7 +113,7 @@ def unset_env_vars(keys, verbose=True):
     if keys and verbose and build_option('extended_dry_run'):
         dry_run_msg("Undefining environment variables:\n", silent=build_option('silent'))
 
-    for key in keys:
+    for key in list(keys):
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
@@ -155,24 +155,25 @@ def read_environment(env_vars, strict=False):
 
 def modify_env(old, new, verbose=True):
     """
-    Compares 2 os.environ dumps. Adapts final environment.
+    Compares two os.environ dumps. Adapts final environment.
     """
-    oldKeys = old.keys()
-    newKeys = new.keys()
-    for key in newKeys:
+    old_keys = list(old.keys())
+    new_keys = list(new.keys())
+
+    for key in new_keys:
         # set them all. no smart checking for changed/identical values
-        if key in oldKeys:
+        if key in old_keys:
             # hmm, smart checking with debug logging
             if not new[key] == old[key]:
-                _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
+                _log.debug("Key in new environment found that is different from old one: %s (%s)", key, new[key])
                 setvar(key, new[key], verbose=verbose)
         else:
-            _log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
+            _log.debug("Key in new environment found that is not in old one: %s (%s)", key, new[key])
             setvar(key, new[key], verbose=verbose)
 
-    for key in oldKeys:
-        if key not in newKeys:
-            _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
+    for key in old_keys:
+        if key not in new_keys:
+            _log.debug("Key in old environment found that is not in new one: %s (%s)", key, old[key])
             os.unsetenv(key)
             del os.environ[key]
 

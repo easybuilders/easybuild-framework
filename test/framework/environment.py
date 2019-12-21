@@ -71,6 +71,66 @@ class EnvironmentTest(EnhancedTestCase):
         self.assertEqual(os.environ['FOO'], 'barfoo')
         self.assertEqual(txt, '')
 
+    def test_modify_env(self):
+        """Test for modify_env function."""
+
+        old_env_vars = {
+            'TEST_ENV_VAR_TO_UNSET1': 'foobar',
+            'TEST_ENV_VAR_TO_UNSET2': 'value does not matter',
+            'TEST_COMMON_ENV_VAR_CHANGED': 'old_value',
+            'TEST_COMMON_ENV_VAR_SAME_VALUE': 'this_value_stays',
+        }
+        new_env_vars = {
+            'TEST_COMMON_ENV_VAR_CHANGED': 'new_value',
+            'TEST_NEW_ENV_VAR1': '1',
+            'TEST_NEW_ENV_VAR2': 'two 2 two',
+            'TEST_COMMON_ENV_VAR_SAME_VALUE': 'this_value_stays',
+        }
+
+        # prepare test environment first:
+        # keys in new_env should not be set yet, keys in old_env are expected to be set
+        for key in new_env_vars:
+            if key in os.environ:
+                del os.environ[key]
+        for key in old_env_vars:
+            os.environ[key] = old_env_vars[key]
+
+        env.modify_env(os.environ, new_env_vars)
+
+        self.assertEqual(os.environ.get('TEST_ENV_VAR_TO_UNSET1'), None)
+        self.assertEqual(os.environ.get('TEST_ENV_VAR_TO_UNSET2'), None)
+        self.assertEqual(os.environ.get('TEST_COMMON_ENV_VAR_CHANGED'), 'new_value')
+        self.assertEqual(os.environ.get('TEST_COMMON_ENV_VAR_SAME_VALUE'), 'this_value_stays')
+        self.assertEqual(os.environ.get('TEST_NEW_ENV_VAR1'), '1')
+        self.assertEqual(os.environ.get('TEST_NEW_ENV_VAR2'), 'two 2 two')
+
+        # extreme test case: empty entire environment (original env is restored for next tests)
+        env.modify_env(os.environ, {})
+
+    def test_unset_env_vars(self):
+        """Test unset_env_vars function."""
+
+        os.environ['TEST_ENV_VAR'] = 'test123'
+        # it's fair to assume $HOME will always be set
+        home = os.getenv('HOME')
+        self.assertTrue(home)
+
+        key_not_set = 'NO_SUCH_ENV_VAR'
+        if key_not_set in os.environ:
+            del os.environ[key_not_set]
+
+        res = env.unset_env_vars(['HOME', 'NO_SUCH_ENV_VAR', 'TEST_ENV_VAR'])
+
+        self.assertFalse('HOME' in os.environ)
+        self.assertFalse('NO_SUCH_ENV_VAR' in os.environ)
+        self.assertFalse('TEST_ENV_VAR' in os.environ)
+
+        expected = {
+            'HOME': home,
+            'TEST_ENV_VAR': 'test123',
+        }
+        self.assertEqual(res, expected)
+
 
 def suite():
     """ returns all the testcases in this module """
