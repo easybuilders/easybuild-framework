@@ -311,6 +311,9 @@ class SingularityContainer(ContainerGenerator):
         if 'install_eb' not in template_data:
             template_data['install_eb'] = '\n'.join([
                 "# install EasyBuild using pip",
+                # upgrade pip
+                "pip install -U pip",
+                "pip install wheel",
                 # EasyBuild 3.x requires setuptools as runtime dependency
                 "pip install -U setuptools",
                 # stick to previous version of vsc-install to avoid requiring mock (which causes installation problems)
