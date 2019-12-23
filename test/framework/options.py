@@ -49,8 +49,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, mkdir, read_file
+from easybuild.tools.filetools import remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -827,6 +827,85 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_copy_ec(self):
+        """Test --copy-ec."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+
+        toy_ec_txt = read_file(os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb'))
+        bzip2_ec_txt = read_file(os.path.join(test_easyconfigs_dir, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'))
+
+        # basic test: copying one easyconfig file to a non-existing absolute path
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = ['--copy-ec', 'toy-0.0.eb', test_ec]
+        self.eb_main(args)
+
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertEqual(toy_ec_txt, read_file(test_ec))
+
+        remove_file(test_ec)
+
+        # basic test: copying one easyconfig file to a non-existing relative path
+        cwd = change_dir(self.test_prefix)
+        target_fn = 'test.eb'
+        self.assertFalse(os.path.exists(target_fn))
+
+        args = ['--copy-ec', 'toy-0.0.eb', target_fn]
+        self.eb_main(args)
+
+        change_dir(cwd)
+
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertEqual(toy_ec_txt, read_file(test_ec))
+
+        # copying one easyconfig into an existing directory
+        test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
+        mkdir(test_target_dir)
+        args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
+        self.eb_main(args)
+
+        copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
+
+        remove_dir(test_target_dir)
+
+        def check_copied_files():
+            """Helper function to check result of copying multiple easyconfigs."""
+            self.assertTrue(os.path.exists(test_target_dir))
+            self.assertEqual(sorted(os.listdir(test_target_dir)), ['bzip2-1.0.6-GCC-4.9.2.eb', 'toy-0.0.eb'])
+            copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
+            self.assertTrue(os.path.exists(copied_toy_ec))
+            self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
+            copied_bzip2_ec = os.path.join(test_target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+            self.assertTrue(os.path.exists(copied_bzip2_ec))
+            self.assertEqual(bzip2_ec_txt, read_file(copied_bzip2_ec))
+
+        # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
+        args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
+        self.eb_main(args)
+
+        check_copied_files()
+
+        remove_dir(test_target_dir)
+
+        # same but with relative path for target dir
+        change_dir(self.test_prefix)
+        args[-1] = os.path.basename(test_target_dir)
+        self.assertFalse(os.path.exists(args[-1]))
+
+        self.eb_main(args)
+
+        check_copied_files()
+
+        # copying multiple easyconfig to an existing target file resuts in an error
+        target = os.path.join(self.test_prefix, 'test.eb')
+        self.assertTrue(os.path.isfile(target))
+        args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
+        error_pattern = ".*/test.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
