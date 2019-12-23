@@ -1744,7 +1744,7 @@ def copy_file(path, target_path, force_in_dry_run=False):
 
     :param path: the original filepath
     :param target_path: path to copy the file to
-    :param force_in_dry_run: force running the command during dry run
+    :param force_in_dry_run: force copying of file during dry run
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied file %s to %s" % (path, target_path))
@@ -1765,6 +1765,28 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+
+def copy_files(paths, target_dir, force_in_dry_run=False):
+    """
+    Copy list of files to specified target directory (which is created if it doesn't exist yet).
+
+    :param filepaths: list of files to copy
+    :param target_dir: target directory to copy files into
+    :param force_in_dry_run: force copying of files during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("copied files %s to %s" % (paths, target_dir))
+    else:
+        if os.path.exists(target_dir):
+            if os.path.isdir(target_dir):
+                _log.info("Copying easyconfigs into existing directory %s...", target_dir)
+            else:
+                raise EasyBuildError("%s exists but is not a directory", target_dir)
+        else:
+            mkdir(target_dir, parents=True)
+        for path in paths:
+            copy_file(path, target_dir)
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
