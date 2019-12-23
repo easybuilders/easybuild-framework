@@ -44,7 +44,6 @@ import glob
 import inspect
 import os
 import re
-import shutil
 import stat
 import tempfile
 import time
@@ -71,7 +70,7 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, apply_regex_substitutions, back_up_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
@@ -1317,15 +1316,18 @@ class EasyBlock(object):
         """
         A dictionary of possible directories to look for.
         """
+        lib_paths = ['lib', 'lib32', 'lib64']
         return {
             'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
-            'LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
+            'LD_LIBRARY_PATH': lib_paths,
+            'LIBRARY_PATH': lib_paths,
             'CPATH': ['include'],
             'MANPATH': ['man', os.path.join('share', 'man')],
-            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in ['lib', 'lib32', 'lib64', 'share']],
+            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in lib_paths + ['share']],
             'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
             'CLASSPATH': ['*.jar'],
+            'XDG_DATA_DIRS': ['share'],
+            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
         }
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None):
