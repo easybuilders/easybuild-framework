@@ -1324,7 +1324,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
     def test_copy_file(self):
-        """ Test copy_file """
+        """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         target_path = os.path.join(self.test_prefix, 'toy.eb')
@@ -1385,8 +1385,44 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
         self.assertEqual(txt, '')
 
+    def test_copy_files(self):
+        """Test copy_files function."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = ft.read_file(toy_ec)
+        bzip2_ec = os.path.join(test_ecs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb')
+        bzip2_ec_txt = ft.read_file(bzip2_ec)
+
+        # copying a single file to a non-existing directory
+        target_dir = os.path.join(self.test_prefix, 'target_dir1')
+        ft.copy_files([toy_ec], target_dir)
+        copied_toy_ec = os.path.join(target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(ft.read_file(copied_toy_ec), toy_ec_txt)
+
+        # copying a single file to an existing directory
+        ft.copy_files([bzip2_ec], target_dir)
+        copied_bzip2_ec = os.path.join(target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+        self.assertTrue(os.path.exists(copied_bzip2_ec))
+        self.assertEqual(ft.read_file(copied_bzip2_ec), bzip2_ec_txt)
+
+        # copying multiple files to a non-existing directory
+        target_dir = os.path.join(self.test_prefix, 'target_dir_multiple')
+        ft.copy_files([toy_ec, bzip2_ec], target_dir)
+        copied_toy_ec = os.path.join(target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(ft.read_file(copied_toy_ec), toy_ec_txt)
+        copied_bzip2_ec = os.path.join(target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+        self.assertTrue(os.path.exists(copied_bzip2_ec))
+        self.assertEqual(ft.read_file(copied_bzip2_ec), bzip2_ec_txt)
+
+        # copying files to an existing target that is not a directory results in an error
+        self.assertTrue(os.path.isfile(copied_toy_ec))
+        error_pattern = "/toy-0.0.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [bzip2_ec], copied_toy_ec)
+
     def test_copy_dir(self):
-        """Test copy_file"""
+        """Test copy_dir function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
 
