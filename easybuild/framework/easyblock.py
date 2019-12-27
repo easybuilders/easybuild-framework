@@ -1301,6 +1301,12 @@ class EasyBlock(object):
                     # only use glob if the string is non-empty
                     if path and not self.dry_run:
                         paths = sorted(glob.glob(path))
+                        if key in ('PATH', 'CPATH', 'LIBRARY_PATH', 'LD_LIBRARY_PATH') and len(paths) == 1:
+                            req = paths[0]
+                            if os.path.isdir(req):
+                                # only add paths with regular files in there (e.g. not only directories)
+                                if not any([os.path.isfile(os.path.join(req, f)) for f in os.listdir(req)]):
+                                    paths = []
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
                         paths = [path]
