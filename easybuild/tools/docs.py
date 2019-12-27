@@ -867,7 +867,8 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     doc.extend([derived, ''])
 
     # Description (docstring)
-    doc.extend([eb_class.__doc__.strip(), ''])
+    if eb_class.__doc__ is not None:
+        doc.extend([eb_class.__doc__.strip(), ''])
 
     # Add extra options, if any
     if eb_class.extra_options():
