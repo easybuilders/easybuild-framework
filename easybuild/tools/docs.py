@@ -57,7 +57,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
+from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase, sort_looseversions
 from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
@@ -635,14 +635,22 @@ def list_software_rst(software, detailed=False):
             table_titles = ['version', 'toolchain']
             table_values = [[], []]
 
+            # first determine unique pairs of version/versionsuffix
+            # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
             pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
 
+            # check whether any non-empty versionsuffixes are in play
             with_vsuff = any(vs for (_, vs) in pairs)
             if with_vsuff:
                 table_titles.insert(1, 'versionsuffix')
                 table_values.insert(1, [])
 
-            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+            # sort pairs by version (and then by versionsuffix);
+            # we sort by LooseVersion to obtain chronological version ordering,
+            # but we also need to retain original string version for filtering-by-version done below
+            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+
+            for _, vsuff, ver in sorted_pairs:
                 table_values[0].append('``%s``' % ver)
                 if with_vsuff:
                     if vsuff:
@@ -690,8 +698,17 @@ def list_software_txt(software, detailed=False):
                 "homepage: %s" % software[key][-1]['homepage'],
                 '',
             ])
+
+            # first determine unique pairs of version/versionsuffix
+            # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
             pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
-            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+
+            # sort pairs by version (and then by versionsuffix);
+            # we sort by LooseVersion to obtain chronological version ordering,
+            # but we also need to retain original string version for filtering-by-version done below
+            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+
+            for _, vsuff, ver in sorted_pairs:
                 tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
 
                 line = "  * %s v%s" % (key, ver)
