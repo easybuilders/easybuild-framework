@@ -36,6 +36,9 @@ import subprocess
 import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
+from distutils.version import LooseVersion
+from functools import cmp_to_key
+from itertools import zip_longest
 from io import StringIO  # noqa
 from string import ascii_letters, ascii_lowercase  # noqa
 from urllib.request import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
@@ -86,3 +89,59 @@ def mk_wrapper_baseclass(metaclass):
         __wraps__ = None
 
     return WrapperBase
+
+
+def safe_cmp_looseversions(v1, v2):
+    """Safe comparison function for two (values containing) LooseVersion instances."""
+
+    if type(v1) != type(v2):
+        raise TypeError("Can't compare values of different types: %s (%s) vs %s (%s)" % (v1, type(v1), v2, type(v2)))
+
+    # if we receive two iterative values, we need to recurse
+    if isinstance(v1, (list, tuple)) and isinstance(v2, (list, tuple)):
+        if len(v1) == len(v2):
+            for x1, x2 in zip(v1, v2):
+                res = safe_cmp_looseversions(x1, x2)
+                # if a difference was found, we know the result;
+                # if not, we need comparison on next item (if any), done in next iteration
+                if res != 0:
+                    return res
+            return 0  # no difference
+        else:
+            raise ValueError("Can only compare iterative values of same length: %s vs %s" % (v1, v2))
+
+    def simple_compare(x1, x2):
+        """Helper function for simple comparison using standard operators ==, <, > """
+        if x1 < x2:
+            return -1
+        elif x1 > x2:
+            return 1
+        else:
+            return 0
+
+    if isinstance(v1, LooseVersion) and isinstance(v2, LooseVersion):
+        # implementation based on '14894.patch' patch file provided in https://bugs.python.org/issue14894
+        for ver1_part, ver2_part in zip_longest(v1.version, v2.version, fillvalue=''):
+            # use string comparison if version parts have different type
+            if type(ver1_part) != type(ver2_part):
+                ver1_part = str(ver1_part)
+                ver2_part = str(ver2_part)
+
+            res = simple_compare(ver1_part, ver2_part)
+            if res == 0:
+                continue
+            else:
+                return res
+
+        # identical versions
+        return 0
+    else:
+        # for non-LooseVersion values, use simple comparison
+        return simple_compare(v1, v2)
+
+
+def sort_looseversions(looseversions):
+    """Sort list of (values including) LooseVersion instances."""
+    # with Python 2, we can safely use 'sorted' on LooseVersion instances
+    # (but we can't in Python 3, see https://bugs.python.org/issue14894)
+    return sorted(looseversions, key=cmp_to_key(safe_cmp_looseversions))

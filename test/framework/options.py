@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TextTestRunner
 
 import easybuild.main
@@ -55,7 +56,7 @@ from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIG
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
-from easybuild.tools.py2vs3 import URLError, reload
+from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -4636,6 +4637,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config(args=args, build_options={'fixed_installdir_naming_scheme': False})
         eb = EasyBlock(EasyConfig(toy_ec))
         self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
+
+    def test_sort_looseversions(self):
+        """Test sort_looseversions funuction."""
+        ver1 = LooseVersion('1.2.3')
+        ver2 = LooseVersion('4.5.6')
+        ver3 = LooseVersion('1.2.3dev')
+        ver4 = LooseVersion('system')
+        ver5 = LooseVersion('rc3')
+        ver6 = LooseVersion('v1802')
+
+        # some versions are included multiple times on purpose,
+        # to also test comparison between equal LooseVersion instances
+        input = [ver3, ver5, ver1, ver2, ver4, ver6, ver3, ver4, ver1]
+        expected = [ver1, ver1, ver3, ver3, ver2, ver5, ver4, ver4, ver6]
+        self.assertEqual(sort_looseversions(input), expected)
+
+        # also test on list of tuples consisting of a LooseVersion instance + a string
+        # (as in the list_software_* functions)
+        suff1 = ''
+        suff2 = '-foo'
+        suff3 = '-bar'
+        input = [(ver3, suff1), (ver5, suff3), (ver1, suff2), (ver2, suff3), (ver4, suff1),
+                 (ver6, suff2), (ver3, suff3), (ver4, suff3), (ver1, suff1)]
+        expected = [(ver1, suff1), (ver1, suff2), (ver3, suff1), (ver3, suff3), (ver2, suff3),
+                    (ver5, suff3), (ver4, suff1), (ver4, suff3), (ver6, suff2)]
+        self.assertEqual(sort_looseversions(input), expected)
 
 
 def suite():
