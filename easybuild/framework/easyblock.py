@@ -1289,6 +1289,9 @@ class EasyBlock(object):
                 note += "for paths are skipped for the statements below due to dry run"
                 lines.append(self.module_generator.comment(note))
 
+            # for these environment variables, the corresponding subdirectory must include at least one file
+            keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH')
+
             for key in sorted(requirements):
                 if self.dry_run:
                     self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
@@ -1301,12 +1304,17 @@ class EasyBlock(object):
                     # only use glob if the string is non-empty
                     if path and not self.dry_run:
                         paths = sorted(glob.glob(path))
-                        if key in ('PATH', 'CPATH', 'LIBRARY_PATH', 'LD_LIBRARY_PATH') and len(paths) == 1:
-                            req = paths[0]
-                            if os.path.isdir(req):
-                                # only add paths with regular files in there (e.g. not only directories)
-                                if not any([os.path.isfile(os.path.join(req, f)) for f in os.listdir(req)]):
-                                    paths = []
+                        if paths and key in keys_requiring_files:
+                            self.log.info("Only retaining paths for %s that include at least one file: %s", key, paths)
+                            # only retain paths that include at least one file
+                            retained_paths = []
+                            for path in paths:
+                                full_path = os.path.join(self.installdir, path)
+                                if os.path.isdir(full_path):
+                                    if any(os.path.isfile(os.path.join(full_path, x)) for x in os.listdir(full_path)):
+                                        retained_paths.append(path)
+                            self.log.info("Retained paths for %s: %s", key, retained_paths)
+                            paths = retained_paths
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
                         paths = [path]
