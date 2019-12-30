@@ -318,6 +318,8 @@ class EasyBlockTest(EnhancedTestCase):
         open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
         open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
         os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.mkdir(os.path.join(eb.installdir, 'bin', 'testdir'))
+        os.mkdir(os.path.join(eb.installdir, 'sbin'))
         os.mkdir(os.path.join(eb.installdir, 'share'))
         os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
         # this is not a path that should be picked up
@@ -329,14 +331,32 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
-            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            # bin/ is not added to $PATH if it doesn't include files
+            self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
+            # no include/ subdirectory, so no $CPATH update statement
             self.assertFalse(re.search(r"^prepend-path\s+CPATH\s+.*$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "bla.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "foo.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share/man"\)\)$', guess, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            # bin/ is not added to $PATH if it doesn't include files
+            self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
+            # no include/ subdirectory, so no $CPATH update statement
             self.assertFalse(re.search(r'^prepend_path\("CPATH", .*\)$', guess, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # check that bin is only added to PATH if there are files in there
+        open(os.path.join(eb.installdir, 'bin', 'test'), 'w').write('test')
+        guess = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
