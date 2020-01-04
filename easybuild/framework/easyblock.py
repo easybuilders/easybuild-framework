@@ -2762,19 +2762,31 @@ class EasyBlock(object):
 
         # add read permissions for everybody on all files, taking into account group (if any)
         perms = stat.S_IRUSR | stat.S_IRGRP
+        # directory permissions: readable (r) & searchable (x)
+        dir_perms = stat.S_IXUSR | stat.S_IXGRP
         self.log.debug("Ensuring read permissions for user/group on install dir (recursively)")
+
         if self.group is None:
             perms |= stat.S_IROTH
+            dir_perms |= stat.S_IXOTH
             self.log.debug("Also ensuring read permissions for others on install dir (no group specified)")
 
         umask = build_option('umask')
         if umask is not None:
             # umask is specified as a string, so interpret it first as integer in octal, then take complement (~)
             perms &= ~int(umask, 8)
+            dir_perms &= ~int(umask, 8)
             self.log.debug("Taking umask '%s' into account when ensuring read permissions to install dir", umask)
 
+        self.log.debug("Adding file read permissions in %s using '%s'", self.installdir, oct(perms))
         adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
-        self.log.info("Successfully added read permissions '%s' recursively on install dir", oct(perms))
+
+        # also ensure directories have exec permissions (so they can be opened)
+        self.log.debug("Adding directory search permissions in %s using '%s'", self.installdir, oct(dir_perms))
+        adjust_permissions(self.installdir, dir_perms, add=True, recursive=True, relative=True, onlydirs=True,
+                           ignore_errors=True)
+
+        self.log.info("Successfully added read permissions recursively on install dir %s", self.installdir)
 
     def test_cases_step(self):
         """
