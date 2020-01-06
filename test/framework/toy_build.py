@@ -443,6 +443,14 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_permissions(self):
         """Test toy build with custom umask settings."""
         toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec_txt = read_file(toy_ec_file)
+
+        # remove exec perms on bin subdirectory for others, to check whether correct dir permissions are set
+        test_ec_txt += "\npostinstallcmds += ['chmod o-x %(installdir)s/bin']"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
         args = [
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
@@ -456,7 +464,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_umask = os.umask(0o022)
 
         # test specifying a non-existing group
-        allargs = [toy_ec_file] + args + ['--group=thisgroupdoesnotexist']
+        allargs = [test_ec] + args + ['--group=thisgroupdoesnotexist']
         outtxt, err = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, return_error=True)
         err_regex = re.compile("Failed to get group ID .* group does not exist")
         self.assertTrue(err_regex.search(outtxt), "Pattern '%s' found in '%s'" % (err_regex.pattern, outtxt))
@@ -479,10 +487,10 @@ class ToyBuildTest(EnhancedTestCase):
             shutil.rmtree(self.test_installpath)
 
             if cfg_group is None and ec_group is None:
-                allargs = [toy_ec_file]
+                allargs = [test_ec]
             elif ec_group is not None:
-                shutil.copy2(toy_ec_file, self.test_buildpath)
-                tmp_ec_file = os.path.join(self.test_buildpath, os.path.basename(toy_ec_file))
+                shutil.copy2(test_ec, self.test_buildpath)
+                tmp_ec_file = os.path.join(self.test_buildpath, os.path.basename(test_ec))
                 write_file(tmp_ec_file, "\ngroup = '%s'" % ec_group, append=True)
                 allargs = [tmp_ec_file]
             allargs.extend(args)
@@ -527,7 +535,7 @@ class ToyBuildTest(EnhancedTestCase):
                 perms = os.stat(fullpath).st_mode & 0o777
                 tup = (fullpath, oct(correct_perms), oct(perms), umask, cfg_group, ec_group)
                 msg = "Path %s has %s permissions: %s (umask: %s, group: %s - %s)" % tup
-                self.assertEqual(perms, correct_perms, msg)
+                self.assertEqual(oct(perms), oct(correct_perms), msg)
                 if group is not None:
                     path_gid = os.stat(fullpath).st_gid
                     self.assertEqual(path_gid, grp.getgrnam(group).gr_gid)
