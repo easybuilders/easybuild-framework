@@ -540,8 +540,13 @@ class RunTest(EnhancedTestCase):
         ])
         expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found, the process crashed with 0\)"
 
+        # String promoted to list
+        self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
+                              r"\b(error|crashed)\b")
+        # List of string(s)
         self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
                               [r"\b(error|crashed)\b"])
+        # List of tuple(s)
         self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
                               [(r"\b(error|crashed)\b", ERROR)])
 

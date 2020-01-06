@@ -600,8 +600,10 @@ def extract_errors_from_log(log_txt, reg_exps):
     :return (warnings, errors) as lists of lines containing a match
     """
 
-    # Avoid accidentally passing a single element
-    assert isinstance(reg_exps, list), "reg_exps must be a list"
+    # promote single string value to list, since code below expects a list
+    if isinstance(reg_exps, string_type):
+        reg_exps = [reg_exps]
+
     re_tuples = []
     for cur in reg_exps:
         try:
@@ -614,6 +616,7 @@ def extract_errors_from_log(log_txt, reg_exps):
             re_tuples.append((re.compile(reg_exp), action))
         except Exception as e:
             raise EasyBuildError("Invalid input: No RegExp or tuple of RegExp and action '%s' (%s)", str(cur), e)
+
     warnings = []
     errors = []
     for line in log_txt.split('\n'):
