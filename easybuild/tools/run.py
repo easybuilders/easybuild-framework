@@ -539,7 +539,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if use_regexp or regexp:
         res = parse_log_for_error(stdouterr, regexp, msg="Command used: %s" % cmd)
         if len(res) > 0:
-            message = "Found %s errors in command output (output: %s)" % (len(res), ", ".join([r[0] for r in res]))
+            message = "Found %s errors in command output (output: %s)" % (len(res), "\n\t".join([r[0] for r in res]))
             if use_regexp:
                 raise EasyBuildError(message)
             else:
@@ -643,7 +643,7 @@ def check_log_for_errors(log_txt, reg_exps):
     errors_found_in_log += len(warnings) + len(errors)
     if warnings:
         _log.warning("Found %s potential error(s) in command output (output: %s)",
-                     len(warnings), ", ".join(warnings))
+                     len(warnings), "\n\t".join(warnings))
     if errors:
         raise EasyBuildError("Found %s error(s) in command output (output: %s)",
-                             len(errors), ", ".join(errors))
+                             len(errors), "\n\t".join(errors))

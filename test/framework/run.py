@@ -538,7 +538,7 @@ class RunTest(EnhancedTestCase):
             "enabling -Werror",
             "the process crashed with 0"
         ])
-        expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found, the process crashed with 0\)"
+        expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found\n\tthe process crashed with 0\)"
 
         # String promoted to list
         self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
@@ -551,13 +551,13 @@ class RunTest(EnhancedTestCase):
                               [(r"\b(error|crashed)\b", ERROR)])
 
         expected_error_msg = "Found 2 potential error(s) in command output " \
-                             "(output: error found, the process crashed with 0)"
+                             "(output: error found\n\tthe process crashed with 0)"
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
         self.assertTrue(expected_error_msg in read_file(logfile))
 
-        expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found, test failed\)"
+        expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
         write_file(logfile, '')
         init_logging(logfile, silent=True)
         self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text, [
