@@ -75,7 +75,7 @@ from easybuild.tools.filetools import change_dir, convert_name, compute_checksum
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file, is_empty_folder
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -1305,15 +1305,14 @@ class EasyBlock(object):
                     if path and not self.dry_run:
                         paths = sorted(glob.glob(path))
                         if paths and key in keys_requiring_files:
-                            self.log.info("Only retaining paths for %s that include at least one file: %s", key, paths)
-                            # only retain paths that include at least one file
-                            retained_paths = []
-                            for path in paths:
-                                full_path = os.path.join(self.installdir, path)
-                                if os.path.isdir(full_path):
-                                    if any(os.path.isfile(os.path.join(full_path, x)) for x in os.listdir(full_path)):
-                                        retained_paths.append(path)
-                            self.log.info("Retained paths for %s: %s", key, retained_paths)
+                            # only retain paths that contain at least one file
+                            retained_paths = [
+                                path for path in paths
+                                if os.path.isdir(os.path.join(self.installdir, path))
+                                and not is_empty_folder(os.path.join(self.installdir, path))
+                            ]
+                            self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
+                                          key, paths, retained_paths)
                             paths = retained_paths
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)

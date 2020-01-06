@@ -1724,6 +1724,32 @@ class FileToolsTest(EnhancedTestCase):
         for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
             self.assertErrorRegex(EasyBuildError, "Invalid search query", ft.search_file, [test_ecs], pattern)
 
+    def test_is_empty_folder(self):
+        tmpdir = tempfile.mkdtemp()
+        self.assertTrue(ft.is_empty_folder(tmpdir))
+        # Containing a folder is still empty
+        subdir = tempfile.mkdtemp(dir=tmpdir)
+        self.assertTrue(ft.is_empty_folder(tmpdir))
+        # A file in a subfolder makes it non-empty
+        sub_filename = os.path.join(subdir, 'testfile.h')
+        ft.write_file(sub_filename, '')
+        self.assertFalse(ft.is_empty_folder(tmpdir))
+        # A file in the folder makes it non-empty
+        filename = os.path.join(tmpdir, 'testfile.h')
+        ft.write_file(filename, '')
+        self.assertFalse(ft.is_empty_folder(tmpdir))
+        # And even when the file in the subfolder or the subfolder is removed
+        # as 'filename' stays
+        os.remove(sub_filename)
+        self.assertFalse(ft.is_empty_folder(tmpdir))
+        os.rmdir(subdir)
+        self.assertFalse(ft.is_empty_folder(tmpdir))
+        # And true again when the file is removed
+        os.remove(filename)
+        self.assertTrue(ft.is_empty_folder(tmpdir))
+        # Cleanup
+        os.rmdir(tmpdir)
+
     def test_find_eb_script(self):
         """Test find_eb_script function."""
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))

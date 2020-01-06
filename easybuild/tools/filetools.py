@@ -681,6 +681,14 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
+def is_empty_folder(folder_path):
+    """Return true if the given folder does not contain any files"""
+    for _root, _dirs, files in os.walk(folder_path):
+        if files:
+            return False
+    return True
+
+
 def find_eb_script(script_name):
     """Find EasyBuild script with given name (in easybuild/scripts subdirectory)."""
     filetools, eb_dir = __file__, None
@@ -746,7 +754,7 @@ def calc_block_checksum(path, algorithm):
     try:
         # in hashlib, blocksize is a class parameter
         blocksize = algorithm.blocksize * 262144  # 2^18
-    except AttributeError as err:
+    except AttributeError:
         blocksize = 16777216  # 2^24
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
