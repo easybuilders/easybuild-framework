@@ -46,7 +46,13 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import get_output_from_process, run_cmd, run_cmd_qa, parse_log_for_error, check_log_for_errors
+from easybuild.tools.run import (
+    check_log_for_errors,
+    get_output_from_process,
+    run_cmd,
+    run_cmd_qa,
+    parse_log_for_error,
+)
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -538,7 +544,8 @@ class RunTest(EnhancedTestCase):
             "enabling -Werror",
             "the process crashed with 0"
         ])
-        expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found\n\tthe process crashed with 0\)"
+        expected_error_msg = r"Found 2 error\(s\) in command output "\
+                             r"\(output: error found\n\tthe process crashed with 0\)"
 
         # String promoted to list
         self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
