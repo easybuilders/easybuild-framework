@@ -150,7 +150,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topt = EasyBuildOptions(
                                 go_args=['-H'],
                                 go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
-                                go_columns=100,  # fix col size for reproducible unittest output
+                                go_columns=200,  # fix col size for reproducible unittest output
                                 help_to_string=True,  # don't print to stdout, but to StingIO fh,
                                 prog='easybuildoptions_test',  # generate as if called from generaloption.py
                                )
@@ -164,6 +164,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         "Not all option groups included in short help (1)")
         self.assertTrue(re.search("Regression test options", outtxt),
                         "Not all option groups included in short help (2)")
+
+        # for boolean options, we mention in the help text how to disable them
+        regex = re.compile("default: True; disable with --disable-cleanup-builddir", re.M)
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_no_args(self):
         """Test using no arguments."""
