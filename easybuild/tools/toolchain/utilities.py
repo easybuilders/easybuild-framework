@@ -1,14 +1,14 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,19 +30,18 @@ Easy access to actual Toolchain classes
 
 Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import re
 import sys
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, nub
 
 import easybuild.tools.toolchain
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import get_subclasses, import_available_modules, nub
 
 
 TC_CONST_PREFIX = 'TC_CONSTANT_'
@@ -55,7 +54,8 @@ _log = fancylogger.getLogger("toolchain.utilities")
 def search_toolchain(name):
     """
     Obtain a Toolchain instance for the toolchain with specified name, next to a list of available toolchains.
-    @return Toolchain instance (or None), found_toolchains
+    :param name: toolchain name
+    :return: Toolchain instance (or None), found_toolchains
     """
 
     package = easybuild.tools.toolchain
@@ -74,7 +74,8 @@ def search_toolchain(name):
                 if hasattr(elem, '__module__'):
                     # exclude the toolchain class defined in that module
                     if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
-                        _log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
+                        elem_name = elem.__name__ if hasattr(elem, '__name__') else elem
+                        _log.debug("Adding %s to list of imported classes used for looking for constants", elem_name)
                         mod_classes.append(elem)
 
             # look for constants in modules of imported classes, and make them available
@@ -112,10 +113,16 @@ def search_toolchain(name):
     return None, found_tcs
 
 
-def get_toolchain(tc, tcopts, mns):
+def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
     """
     Return an initialized toolchain for the given specifications.
     If none is available in the toolchain instances cache, a new one is created.
+
+    :param tc: dictionary specifying toolchain name/version
+    :param tcopts: dictionary specifying toolchain options
+    :param mns: module naming scheme to use
+    :param tcdeps: toolchain dependencies (i.e. toolchain components)
+    :param modtool: ModulesTool instance to use
     """
     key = (tc['name'], tc['version'])
     if key in _initial_toolchain_instances:
@@ -124,9 +131,11 @@ def get_toolchain(tc, tcopts, mns):
     else:
         tc_class, all_tcs = search_toolchain(tc['name'])
         if not tc_class:
-            all_tcs_names = ",".join([x.NAME for x in all_tcs])
+            all_tcs_names = ','.join([x.NAME for x in all_tcs])
             raise EasyBuildError("Toolchain %s not found, available toolchains: %s", tc['name'], all_tcs_names)
-        tc_inst = tc_class(version=tc['version'], mns=mns)
+
+        hidden = tc.get('hidden', False)
+        tc_inst = tc_class(version=tc['version'], mns=mns, tcdeps=tcdeps, modtool=modtool, hidden=hidden)
         tc_dict = tc_inst.as_dict()
         _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
 

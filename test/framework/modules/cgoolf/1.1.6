@@ -9,32 +9,32 @@ proc ModulesHelp { } {
 module-whatis {Clang and GFortran based compiler toolchain,
  OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK. - Homepage: (none)}
 
-set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge/software/cgoolf/1.1.6
+set root    /prefix/software/cgoolf/1.1.6
 
 conflict    cgoolf
 
-if { ![is-loaded GCC/4.7.2] } {
-    module load GCC/4.7.2
+if { ![is-loaded GCC/6.4.0-2.28] } {
+    module load GCC/6.4.0-2.28
 }
 
-if { ![is-loaded Clang/3.2-GCC-4.7.2] } {
-    module load Clang/3.2-GCC-4.7.2
+if { ![is-loaded Clang/3.2-GCC-6.4.0-2.28] } {
+    module load Clang/3.2-GCC-6.4.0-2.28
 }
 
-if { ![is-loaded OpenMPI/1.6.4-ClangGCC-1.1.2] } {
-    module load OpenMPI/1.6.4-ClangGCC-1.1.2
+if { ![is-loaded OpenMPI/2.1.2-ClangGCC-1.1.2] } {
+    module load OpenMPI/2.1.2-ClangGCC-1.1.2
 }
 
-if { ![is-loaded OpenBLAS/0.2.6-cgompi-1.1.6-LAPACK-3.4.2] } {
-    module load OpenBLAS/0.2.6-cgompi-1.1.6-LAPACK-3.4.2
+if { ![is-loaded OpenBLAS/0.2.20-cgompi-1.1.6] } {
+    module load OpenBLAS/0.2.20-cgompi-1.1.6
 }
 
-if { ![is-loaded FFTW/3.3.3-cgompi-1.1.6] } {
-    module load FFTW/3.3.3-cgompi-1.1.6
+if { ![is-loaded FFTW/3.3.7-cgompi-1.1.6] } {
+    module load FFTW/3.3.7-cgompi-1.1.6
 }
 
-if { ![is-loaded ScaLAPACK/2.0.2-cgompi-1.1.6-OpenBLAS-0.2.6-LAPACK-3.4.2] } {
-    module load ScaLAPACK/2.0.2-cgompi-1.1.6-OpenBLAS-0.2.6-LAPACK-3.4.2
+if { ![is-loaded ScaLAPACK/2.0.2-cgompi-1.1.6-OpenBLAS-0.2.20] } {
+    module load ScaLAPACK/2.0.2-cgompi-1.1.6-OpenBLAS-0.2.20
 }
 
 

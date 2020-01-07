@@ -1,14 +1,14 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,174 +28,161 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-@author: Toon Willems (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Stijn De Weirdt (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import math
 import os
-import subprocess
+import re
 
-import easybuild.tools.config as config
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.config import build_option, get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
+from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
-from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, prepare_first=True):
+def _to_key(dep):
+    """Determine key for specified dependency."""
+    return ActiveMNS().det_full_module_name(dep)
+
+
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', prepare_first=True):
     """
-    easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
-    this function will build them in parallel by submitting jobs
-    @param build_command: build command to use
-    @param easyconfigs: list of easyconfig files
-    @param output_dir: output directory
-    returns the jobs
+    Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
+    Return list of jobs submitted.
+
+    Argument `easyconfigs` is a list of easyconfigs which can be
+    built: e.g. they have no unresolved dependencies.  This function
+    will build them in parallel by submitting jobs.
+
+    :param build_command: build command to use
+    :param easyconfigs: list of easyconfig files
+    :param output_dir: output directory
+    :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
-    job_ids = {}
+
+    active_job_backend = job_backend()
+    if active_job_backend is None:
+        raise EasyBuildError("Can not use --job if no job backend is available.")
+
+    try:
+        active_job_backend.init()
+    except RuntimeError as err:
+        raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
+
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
 
-    # create a single connection, and reuse it
-    conn = connect_to_server()
-    if conn is None:
-        raise EasyBuildError("connect_to_server returned %s, can't submit jobs.", conn)
+    # keep track of which job builds which module
+    module_to_job = {}
 
-    # determine ppn once, and pass is to each job being created
-    # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
-    ppn = get_ppn()
-
-    def tokey(dep):
-        """Determine key for specified dependency."""
-        return ActiveMNS().det_full_module_name(dep)
-
-    for ec in easyconfigs:
+    for easyconfig in easyconfigs:
         # this is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
         if prepare_first:
-            prepare_easyconfig(ec)
+            prepare_easyconfig(easyconfig)
 
         # the new job will only depend on already submitted jobs
-        _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, output_dir=output_dir, conn=conn, ppn=ppn)
+        _log.info("creating job for ec: %s" % easyconfig['ec'])
+        new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
 
-        # sometimes unresolved_deps will contain things, not needed to be build
-        job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
-        new_job.add_dependencies(job_deps)
+        # filter out dependencies marked as external modules
+        deps = [d for d in easyconfig['ec'].all_dependencies if not d.get('external_module', False)]
 
-        # place user hold on job to prevent it from starting too quickly,
-        # we might still need it in the queue to set it as a dependency for another job;
-        # only set hold for job without dependencies, other jobs have a dependency hold set anyway
-        with_hold = False
-        if not job_deps:
-            with_hold = True
+        dep_mod_names = map(ActiveMNS().det_full_module_name, deps)
+        job_deps = [module_to_job[dep] for dep in dep_mod_names if dep in module_to_job]
 
         # actually (try to) submit job
-        new_job.submit(with_hold)
-        _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
+        active_job_backend.queue(new_job, job_deps)
+        _log.info("job %s for module %s has been submitted", new_job, new_job.module)
 
         # update dictionary
-        job_ids[new_job.module] = new_job.jobid
-        new_job.cleanup()
+        module_to_job[new_job.module] = new_job
         jobs.append(new_job)
 
-    # release all user holds on jobs after submission is completed
-    for job in jobs:
-        if job.has_holds():
-            _log.info("releasing hold on job %s" % job.jobid)
-            job.release_hold()
-
-    disconnect_from_server(conn)
+    active_job_backend.complete()
 
     return jobs
 
 
-def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
+def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     """
     Submit jobs.
-    @param ordered_ecs: list of easyconfigs, in the order they should be processed
-    @param cmd_line_opts: list of command line options (in 'longopt=value' form)
+    :param ordered_ecs: list of easyconfigs, in the order they should be processed
+    :param cmd_line_opts: list of command line options (in 'longopt=value' form)
+    :param testing: If `True`, skip actual job submission
+    :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     curdir = os.getcwd()
 
-    # the options to ignore (help options can't reach here)
-    ignore_opts = ['robot', 'job']
+    # regex pattern for options to ignore (help options can't reach here)
+    ignore_opts = re.compile('^--robot$|^--job$|^--try-.*$')
 
     # generate_cmd_line returns the options in form --longopt=value
-    opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
+    opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
 
     # compose string with command line options, properly quoted and with '%' characters escaped
-    opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
+    opts_str = ' '.join(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, opts_str)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
-    job_info_lines = []
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
+        return command
     else:
-        jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
-        job_info_lines = ["List of submitted jobs:"]
-        job_info_lines.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
-        job_info_lines.append("(%d jobs submitted)" % len(jobs))
-        return '\n'.join(job_info_lines)
+        return build_easyconfigs_in_parallel(command, ordered_ecs, prepare_first=prepare_first)
 
 
-def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
+def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build'):
     """
-    Creates a job, to build a *single* easyconfig
-    @param build_command: format string for command, full path to an easyconfig file will be substituted in it
-    @param easyconfig: easyconfig as processed by process_easyconfig
-    @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
-    @param conn: open connection to PBS server
-    @param ppn: ppn setting to use (# 'processors' (cores) per node to use)
+    Creates a job to build a *single* easyconfig.
+
+    :param job_backend: A factory object for querying server parameters and creating actual job objects
+    :param build_command: format string for command, full path to an easyconfig file will be substituted in it
+    :param easyconfig: easyconfig as processed by process_easyconfig
+    :param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
+
     returns the job
     """
-    if output_dir is None:
-        output_dir = 'easybuild-build'
-
-    # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
-    easybuild_vars = {}
-    for name in os.environ:
-        if name.startswith("EASYBUILD"):
-            easybuild_vars[name] = os.environ[name]
-
-    others = ["PYTHONPATH", "MODULEPATH"]
-
-    for env_var in others:
-        if env_var in os.environ:
-            easybuild_vars[env_var] = os.environ[env_var]
-
-    _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
-
     # obtain unique name based on name/easyconfig version tuple
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
+    # determine whether additional options need to be passed to the 'eb' command
+    add_opts = ''
+    if easyconfig['hidden']:
+        add_opts += ' --hidden'
+
     # create command based on build_command template
     command = build_command % {
-        'spec': easyconfig['spec'],
+        'add_opts': add_opts,
         'output_dir': os.path.join(os.path.abspath(output_dir), name),
+        'spec': easyconfig['spec'],
     }
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
     buildstats = repo.get_buildstats(*ec_tuple)
-    resources = {}
+    extra = {}
     if buildstats:
         previous_time = buildstats[-1]['build_time']
-        resources['hours'] = int(math.ceil(previous_time * 2 / 60))
+        extra['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
+    if build_option('job_cores'):
+        extra['cores'] = build_option('job_cores')
+
+    job = job_backend.make_job(command, name, **extra)
     job.module = easyconfig['ec'].full_mod_name
 
     return job
@@ -204,7 +191,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
 def prepare_easyconfig(ec):
     """
     Prepare for building specified easyconfig (fetch sources)
-    @param ec: parsed easyconfig (EasyConfig instance)
+    :param ec: parsed easyconfig (EasyConfig instance)
     """
     try:
         easyblock_instance = get_easyblock_instance(ec)
@@ -213,5 +200,5 @@ def prepare_easyconfig(ec):
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
-    except (OSError, EasyBuildError), err:
-        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)
+    except (OSError, EasyBuildError) as err:
+        raise EasyBuildError("An error occurred while preparing %s: %s", ec, err)

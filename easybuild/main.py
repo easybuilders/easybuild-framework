@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,52 +26,50 @@
 """
 Main entry point for EasyBuild: build software from .eb input file
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import copy
 import os
+import stat
 import sys
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, init_logging, print_msg, print_error, stop_logging
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
 
-import easybuild.tools.config as config
-import easybuild.tools.options as eboptions
-from easybuild.framework.easyblock import EasyBlock, build_and_install_one
+from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
-from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
+from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
+from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
+from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
-from easybuild.tools.filetools import cleanup, write_file
-from easybuild.tools.options import process_software_build_specs
-from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.containers.common import containerize
+from easybuild.tools.docs import list_software
+from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
+from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
+from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
+from easybuild.tools.hooks import START, END, load_hooks, run_hook
+from easybuild.tools.modules import modules_tool
+from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
+from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
-from easybuild.tools.version import this_is_easybuild
-
+from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 
 _log = None
-
-
-def log_start(eb_command_line, eb_tmpdir):
-    """Log startup info."""
-    _log.info(this_is_easybuild())
-
-    # log used command line
-    _log.info("Command line: %s" % (' '.join(eb_command_line)))
-
-    _log.info("Using %s as temporary directory" % eb_tmpdir)
 
 
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
@@ -84,7 +82,7 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
             # (try to) cleanup
             try:
                 os.remove(ec_file)
-            except OSError, err:
+            except OSError as err:
                 _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
@@ -96,7 +94,13 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
 
 
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
-    """Build and install software for all provided parsed easyconfig files."""
+    """
+    Build and install software for all provided parsed easyconfig files.
+
+    :param ecs: easyconfig files to install software with
+    :param init_session_state: initial session state, to use in test reports
+    :param exit_on_failure: whether or not to exit on installation failure
+    """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
@@ -110,7 +114,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
-        except Exception, err:
+        except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err
@@ -126,9 +130,16 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         # dump test report next to log file
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
-        if 'log_file' in ec_res:
+        if 'log_file' in ec_res and ec_res['log_file']:
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
-            write_file(test_report_fp, test_report_txt)
+            parent_dir = os.path.dirname(test_report_fp)
+            # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
+            if os.stat(parent_dir).st_mode & 0o200:
+                write_file(test_report_fp, test_report_txt)
+            else:
+                adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
+                write_file(test_report_fp, test_report_txt)
+                adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:
             if 'traceback' in ec_res:
@@ -141,170 +152,303 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
-def main(testing_data=(None, None, None)):
+def run_contrib_style_checks(ecs, check_contrib, check_style):
+    """
+    Handle running of contribution and style checks on specified easyconfigs (if desired).
+
+    :return: boolean indicating whether or not any checks were actually performed
+    """
+    check_actions = {
+        'contribution': (check_contrib, run_contrib_checks),
+        'style': (check_style, cmdline_easyconfigs_style_check),
+    }
+    for check_label, (run_check, check_function) in sorted(check_actions.items()):
+        if run_check:
+            _log.info("Running %s checks on %d specified easyconfigs...", check_label, len(ecs))
+            if check_function(ecs):
+                print_msg("\n>> All %s checks PASSed!\n" % check_label, prefix=False)
+            else:
+                print_msg('', prefix=False)
+                raise EasyBuildError("One or more %s checks FAILED!" % check_label)
+
+    return check_contrib or check_style
+
+
+def clean_exit(logfile, tmpdir, testing, silent=False):
+    """Small utility function to perform a clean exit."""
+    cleanup(logfile, tmpdir, testing, silent=silent)
+    sys.exit(0)
+
+
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
-    @param testing_data: tuple with command line arguments, log file and boolean indicating whether or not to build
+    :param args: command line arguments to use
+    :param logfile: log file to use
+    :param do_build: whether or not to actually perform the build
+    :param testing: enable testing mode
     """
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
-    # steer behavior when testing main
-    testing = testing_data[0] is not None
-    args, logfile, do_build = testing_data
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    options, orig_paths = eb_go.options, eb_go.args
 
-    # initialise options
-    eb_go = eboptions.parse_options(args=args)
-    options = eb_go.options
-    orig_paths = eb_go.args
-
-    # set umask (as early as possible)
-    if options.umask is not None:
-        new_umask = int(options.umask, 8)
-        old_umask = os.umask(new_umask)
-
-    # set temporary directory to use
-    eb_tmpdir = set_tmpdir(options.tmpdir)
-
-    # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, testing=testing)
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
 
-    # disallow running EasyBuild as root
-    if os.getuid() == 0:
-        raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
-                             "so let's end this here.")
+    # load hook implementations (if any)
+    hooks = load_hooks(options.hooks)
 
-    # log startup info
-    eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
-    log_start(eb_cmd_line, eb_tmpdir)
+    run_hook(START, hooks)
 
-    if options.umask is not None:
-        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
+    if modtool is None:
+        modtool = modules_tool(testing=testing)
 
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, build_specs) = process_software_build_specs(options)
+    # check whether any (EasyBuild-generated) modules are loaded already in the current session
+    modtool.check_loaded_modules()
 
-    # determine robot path
-    # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
-    tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
-    auto_robot = try_to_generate or options.dep_graph or options.search or options.search_short
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
-    _log.debug("Full robot path: %s" % robot_path)
+    if options.last_log:
+        # print location to last log file, and exit
+        last_log = find_last_log(logfile) or '(none)'
+        print_msg(last_log, log=_log, prefix=False)
 
-    # configure & initialize build options
-    config_options_dict = eb_go.get_options_by_section('config')
-    build_options = {
-        'build_specs': build_specs,
-        'command_line': eb_cmd_line,
-        'pr_path': pr_path,
-        'robot_path': robot_path,
-        'silent': testing,
-        'try_to_generate': try_to_generate,
-        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
-    }
-    # initialise the EasyBuild configuration & build options
-    config.init(options, config_options_dict)
-    config.init_build_options(build_options=build_options, cmdline_options=options)
+    # check whether packaging is supported when it's being used
+    if options.package:
+        check_pkg_support()
+    else:
+        _log.debug("Packaging not enabled, so not checking for packaging support.")
+
+    # search for easyconfigs, if a query is specified
+    if search_query:
+        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                           terse=options.terse)
+
+    # GitHub options that warrant a silent cleanup & exit
+    if options.check_github:
+        check_github()
+
+    elif options.install_github_token:
+        install_github_token(options.github_user, silent=build_option('silent'))
+
+    elif options.close_pr:
+        close_pr(options.close_pr, motivation_msg=options.close_pr_msg)
+
+    elif options.list_prs:
+        print(list_prs(options.list_prs))
+
+    elif options.merge_pr:
+        merge_pr(options.merge_pr)
+
+    elif options.review_pr:
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
+
+    elif options.list_installed_software:
+        detailed = options.list_installed_software == 'detailed'
+        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
+
+    elif options.list_software:
+        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
+
+    # non-verbose cleanup after handling GitHub integration stuff or printing terse info
+    early_stop_options = [
+        options.check_github,
+        options.install_github_token,
+        options.list_installed_software,
+        options.list_software,
+        options.close_pr,
+        options.list_prs,
+        options.merge_pr,
+        options.review_pr,
+        options.terse,
+        search_query,
+    ]
+    if any(early_stop_options):
+        clean_exit(logfile, eb_tmpdir, testing, silent=True)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
-    modlist = session_module_list(testing=testing)  # build options must be initialized first before 'module list' works
+    modlist = modtool.list()  # build options must be initialized first before 'module list' works
     init_session_state.update({'easybuild_configuration': eb_config})
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
-
-    # search for easyconfigs, if a query is specified
-    query = options.search or options.search_short
-    if query:
-        search_easyconfigs(query, short=not options.search)
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    if options.install_latest_eb_release:
+        if orig_paths:
+            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
+                                 "other easyconfigs")
+        else:
+            eb_file = find_easybuild_easyconfig()
+            orig_paths.append(eb_file)
+
+    categorized_paths = categorize_files_by_type(orig_paths)
+
+    # command line options that do not require any easyconfigs to be specified
+    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
+    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
+    pr_options = pr_options or options.update_branch_github or options.update_pr
+    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
+
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(orig_paths)
-    if paths:
+    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+
+    if options.fix_deprecated_easyconfigs:
+        fix_deprecated_easyconfigs(determined_paths)
+        clean_exit(logfile, eb_tmpdir, testing)
+
+    if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
-        paths = [(p, False) for p in paths]
+        paths = [(p, False) for p in determined_paths]
+    elif 'name' in build_specs:
+        # try to obtain or generate an easyconfig file via build specifications if a software name is provided
+        paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
+    elif any(no_ec_opts):
+        paths = determined_paths
     else:
-        if 'name' in build_specs:
-            # try to obtain or generate an easyconfig file via build specifications if a software name is provided
-            paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
-            print_error(("Please provide one or multiple easyconfig files, or use software build "
-                         "options to make EasyBuild search for easyconfigs"),
-                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
-    _log.debug("Paths: %s" % paths)
+        print_error("Please provide one or multiple easyconfig files, or use software build " +
+                    "options to make EasyBuild search for easyconfigs",
+                    log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+    _log.debug("Paths: %s", paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         # fallback: easybuild-easyconfigs install path
-        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths)
+        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths, modtool)
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths)
+    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+
+    # handle --check-contrib & --check-style options
+    if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
+        clean_exit(logfile, eb_tmpdir, testing)
+
+    # verify easyconfig filenames, if desired
+    if options.verify_easyconfig_filenames:
+        _log.info("Verifying easyconfig filenames...")
+        for easyconfig in easyconfigs:
+            verify_easyconfig_filename(easyconfig['spec'], easyconfig['ec'], parsed_ec=easyconfig['ec'])
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, targetdir=tweaked_ecs_path)
+        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
-    # dry_run: print all easyconfigs and dependencies, and whether they are already built
-    if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
-        print_msg(txt, log=_log, silent=testing, prefix=False)
+    if options.containerize:
+        # if --containerize/-C create a container recipe (and optionally container image), and stop
+        containerize(easyconfigs)
+        clean_exit(logfile, eb_tmpdir, testing)
 
-    # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
-        cleanup(logfile, eb_tmpdir, testing)
-        sys.exit(0)
+    forced = options.force or options.rebuild
+    dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
-    # skip modules that are already installed unless forced
-    if not options.force:
-        retained_ecs = skip_available(easyconfigs)
+    # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
+    if not (forced or dry_run_mode or options.extended_dry_run or pr_options or options.inject_checksums):
+        retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
                 print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
         easyconfigs = retained_ecs
 
+    # keep track for which easyconfigs we should set the corresponding module as default
+    if options.set_default_module:
+        for easyconfig in easyconfigs:
+            easyconfig['ec'].set_default_module = True
+
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        if options.robot:
+        # resolve dependencies if robot is enabled, except in dry run mode
+        # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
+        if options.robot and (not dry_run_mode or pr_options):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+            ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
+    elif pr_options:
+        ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
+
+    # creating/updating PRs
+    if pr_options:
+        if options.new_pr:
+            new_pr(categorized_paths, ordered_ecs)
+        elif options.new_branch_github:
+            new_branch_github(categorized_paths, ordered_ecs)
+        elif options.new_pr_from_branch:
+            new_pr_from_branch(options.new_pr_from_branch)
+        elif options.preview_pr:
+            print(review_pr(paths=determined_paths, colored=use_color(options.color)))
+        elif options.sync_branch_with_develop:
+            sync_branch_with_develop(options.sync_branch_with_develop)
+        elif options.sync_pr_with_develop:
+            sync_pr_with_develop(options.sync_pr_with_develop)
+        elif options.update_branch_github:
+            update_branch(options.update_branch_github, categorized_paths, ordered_ecs)
+        elif options.update_pr:
+            update_pr(options.update_pr, categorized_paths, ordered_ecs)
+        else:
+            raise EasyBuildError("Unknown PR option!")
+
+    # dry_run: print all easyconfigs and dependencies, and whether they are already built
+    elif dry_run_mode:
+        if options.missing_modules:
+            txt = missing_deps(easyconfigs, modtool)
+        else:
+            txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
+        print_msg(txt, log=_log, silent=testing, prefix=False)
+
+    elif options.check_conflicts:
+        if check_conflicts(easyconfigs, modtool):
+            print_error("One or more conflicts detected!")
+            sys.exit(1)
+        else:
+            print_msg("\nNo conflicts detected!\n", prefix=False)
+
+    # dump source script to set up build environment
+    elif options.dump_env_script:
+        dump_env_script(easyconfigs)
+
+    elif options.inject_checksums:
+        inject_checksums(ordered_ecs, options.inject_checksums)
+
+    # cleanup and exit after dry run, searching easyconfigs or submitting regression test
+    stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
+    if any(no_ec_opts) or any(stop_options):
+        clean_exit(logfile, eb_tmpdir, testing)
 
     # create dependency graph and exit
     if options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
-        sys.exit(0)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True)
 
     # submit build as job(s), clean up and exit
     if options.job:
-        job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
+        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
-            print_msg("Submitted parallel build jobs, exiting now: %s" % job_info_txt)
-            cleanup(logfile, eb_tmpdir, testing)
-            sys.exit(0)
+            print_msg("Submitted parallel build jobs, exiting now")
+            clean_exit(logfile, eb_tmpdir, testing)
 
     # build software, will exit when errors occurs (except when testing)
-    exit_on_failure = not options.dump_test_report and not options.upload_test_report
     if not testing or (testing and do_build):
+        exit_on_failure = not (options.dump_test_report or options.upload_test_report)
+
         ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
@@ -328,7 +472,9 @@ def main(testing_data=(None, None, None)):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
-    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir path)
+    run_hook(END, hooks)
+
+    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
         cleanup(logfile, eb_tmpdir, testing)
@@ -337,5 +483,7 @@ def main(testing_data=(None, None, None)):
 if __name__ == "__main__":
     try:
         main()
-    except EasyBuildError, e:
-        print_error(e.msg)
+    except EasyBuildError as err:
+        print_error(err.msg)
+    except KeyboardInterrupt:
+        print_error("Cancelled by user (keyboard interrupt)")

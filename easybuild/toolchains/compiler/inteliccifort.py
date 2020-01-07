@@ -1,14 +1,14 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@
 """
 Support for Intel compilers (icc, ifort) as toolchain compilers.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion
@@ -58,20 +58,27 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
-        'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
+        'ieee': 'fltconsistency',
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
         'loose': ['fp-model fast=1'],
         'veryloose': ['fp-model fast=2'],
+        'vectorize': {False: 'no-vec', True: 'vec'},
         'intel-static': 'static-intel',
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHost',
-        systemtools.AMD : 'xHost',
+        (systemtools.X86_64, systemtools.AMD): 'xHost',
+        (systemtools.X86_64, systemtools.INTEL): 'xHost',
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        (systemtools.X86_64, systemtools.AMD): 'xSSE2',
+        (systemtools.X86_64, systemtools.INTEL): 'xSSE2',
     }
 
     COMPILER_CC = 'icc'
@@ -80,6 +87,7 @@ class IntelIccIfort(Compiler):
 
     COMPILER_F77 = 'ifort'
     COMPILER_F90 = 'ifort'
+    COMPILER_FC = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
@@ -87,7 +95,14 @@ class IntelIccIfort(Compiler):
         'dynamic':'-Bdynamic',
     }
 
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
+    LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        class_constants = kwargs.setdefault('class_constants', [])
+        class_constants.append('LIB_MULTITHREAD')
+
+        super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
@@ -97,8 +112,8 @@ class IntelIccIfort(Compiler):
             raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
                                  self.COMPILER_MODULE_NAME)
 
-        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
+        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)[0:2]
+        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
 
         if not ifort_version == icc_version:
             raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
@@ -115,3 +130,12 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+
+    def set_variables(self):
+        """Set the variables."""
+        # -fopenmp is not supported in old versions (11.x)
+        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
+        if LooseVersion(icc_version) < LooseVersion('12'):
+            self.options.options_map['openmp'] = 'openmp'
+
+        super(IntelIccIfort, self).set_variables()

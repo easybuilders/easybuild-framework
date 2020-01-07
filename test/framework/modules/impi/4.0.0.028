@@ -1,0 +1,7 @@
+#%Module
+
+set root /tmp/impi/4.0.0.028
+
+setenv EBROOTIMPI "$root"
+setenv EBVERSIONIMPI "4.0.0.028"
+setenv  EBDEVELIMPI "$root/easybuild/impi-4.0.0.028-easybuild-devel"

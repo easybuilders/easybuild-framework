@@ -1,0 +1,7 @@
+#%Module
+
+set root /tmp/ifort/11.1.073
+
+setenv EBROOTIFORT "$root"
+setenv EBVERSIONIFORT "11.1.073"
+setenv  EBDEVELIFORT "$root/easybuild/ifort-11.1.073-easybuild-devel"

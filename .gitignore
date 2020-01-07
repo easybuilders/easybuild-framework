@@ -2,8 +2,13 @@
 .project
 LICENSE_HEADER
 *.pyc
+*.pyo
 *.nja
 build/
 dist/
 *egg-info/
 *.swp
+
+Dockerfile.*
+Singularity.*
+test-reports/

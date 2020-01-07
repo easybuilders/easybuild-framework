@@ -1,14 +1,14 @@
 # #
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,20 +30,17 @@ Unit tests for ModulesTool class.
 import os
 import re
 import stat
-import tempfile
-from vsc.utils import fancylogger
+import sys
 
-from test.framework.utilities import EnhancedTestCase
-from unittest import main as unittestmain
-from unittest import TestLoader
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
-import easybuild.tools.options as eboptions
-from easybuild.tools import config, modules
+from easybuild.base import fancylogger
+from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which, write_file
-from easybuild.tools.modules import modules_tool, Lmod
+from easybuild.tools.modules import Lmod
 from test.framework.utilities import init_config
 
 
@@ -95,13 +92,12 @@ class ModulesToolTest(EnhancedTestCase):
             bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
             self.assertTrue(False, 'BrokenMockModulesTool should fail')
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             err_msg = "command is not available"
             self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
-        BrokenMockModulesTool._instances.pop(BrokenMockModulesTool, None)
         bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -135,13 +131,11 @@ class ModulesToolTest(EnhancedTestCase):
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
-        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool(testing=True)
         self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
-        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool(testing=True)
         f = open(self.logfile, 'r')
         logtxt = f.read()
@@ -163,7 +157,7 @@ class ModulesToolTest(EnhancedTestCase):
             init_config(build_options=build_options)
 
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, lmod_abspath)
+            self.assertTrue(os.path.samefile(lmod.cmd, lmod_abspath))
 
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
@@ -180,12 +174,17 @@ class ModulesToolTest(EnhancedTestCase):
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
             fake_path = os.path.join(self.test_installpath, 'lmod')
-            write_file(fake_path, '#!/bin/bash\necho "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION)
-            os.chmod(fake_path, stat.S_IRUSR|stat.S_IXUSR)
+            fake_lmod_txt = '\n'.join([
+                '#!/bin/bash',
+                'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
+                'echo "os.environ[\'FOO\'] = \'foo\'"',
+            ])
+            write_file(fake_path, fake_lmod_txt)
+            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
             os.environ['LMOD_CMD'] = fake_path
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, fake_path)
+            self.assertTrue(os.path.samefile(lmod.cmd, fake_path))
 
             # use correct full path for 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
@@ -212,9 +211,9 @@ class ModulesToolTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesToolTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    unittestmain()
-
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

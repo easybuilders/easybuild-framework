@@ -1,7 +1,7 @@
 # EASYCONFIGFORMAT 2.0
 # this is a version test
 ##
-# This file is an EasyBuild reciPY as per https://github.com/hpcugent/easybuild
+# This file is an EasyBuild reciPY as per https://github.com/easybuilders/easybuild
 #
 # Copyright:: Copyright (c) 2012-2013 Cyprus Institute / CaSToRC
 # Authors::   Thekla Loizou <t.loizou@cyi.ac.cy>
@@ -38,8 +38,8 @@ sanity_check_commands = [True, ('gzip', '--version')]
 
 [SUPPORTED]
 versions = 1.4, 1.5
-toolchains = dummy == dummy, goolf, GCC == 4.6.3, goolf == 1.4.10, ictce == 4.1.13
+toolchains = system == system, foss, GCC == 4.6.3, foss == 2018a, intel == 2018a
 
 [DEFAULT]
 easyblock = ConfigureMake
-moduleclass = base
+moduleclass = tools

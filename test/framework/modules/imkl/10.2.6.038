@@ -1,0 +1,7 @@
+#%Module
+
+set root	/var/folders/8s/_frgh9sj6m744mxt5w5lyztr0000gn/T/eb-SGdeX9/tmptwWn9I
+
+setenv EBROOTIMKL "$root"
+setenv EBVERSIONIMKL "10.2.6.038"
+setenv  EBDEVELIMKL "$root/easybuild/imkl-10.2.6.038-easybuild-devel"

@@ -1,14 +1,14 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@ This describes the easyconfig format versions 2.x
 
 This is a mix between version 1.0 and configparser-style configuration
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import re
@@ -76,7 +76,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def _check_docstring(self):
         """
         Verify docstring.
-        field @author: people who contributed to the easyconfig
+        field :author: people who contributed to the easyconfig
         field @maintainer: people who can be contacted in case of problems
         """
         authors = []
@@ -132,3 +132,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
         return cfg
+
+    def extract_comments(self, rawtxt):
+        """Extract comments from raw content."""
+        # this is fine-ish, it only implies that comments will be lost for format v2 easyconfig files that are dumped
+        self.log.warning("Extraction of comments not supported yet for easyconfig format v2")

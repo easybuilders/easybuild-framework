@@ -1,14 +1,14 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,15 +25,18 @@
 """
 Support for FLAME as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.linalg.lapack import Lapack
+
+
+TC_CONSTANT_OPENBLAS = 'FLAME'
 
 
 class Flame(Lapack):
     """Less trivial module, provides FLAME support."""
     LAPACK_MODULE_NAME = ['FLAME'] + Lapack.LAPACK_MODULE_NAME  # no super()
     LAPACK_LIB = ['lapack2flame', 'flame'] + Lapack.LAPACK_LIB  # no super()
-
+    LAPACK_FAMILY = TC_CONSTANT_FLAME

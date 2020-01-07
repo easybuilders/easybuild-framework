@@ -1,14 +1,14 @@
 #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,11 +27,13 @@
 Easyconfig licenses module that provides all licenses that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
+from easybuild.base import fancylogger
+from easybuild.tools.utilities import get_subclasses
+
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
@@ -51,14 +53,20 @@ class License(object):
 
     CLASSNAME_PREFIX = 'License'
 
-    def __init__(self):
+    @property
+    def name(self):
+        """Return license name."""
         if self.NAME is None:
             name = self.__class__.__name__
             if name.startswith(self.CLASSNAME_PREFIX):
                 name = name[len(self.CLASSNAME_PREFIX):]
         else:
             name = self.NAME
-        self.name = name
+
+        return name
+
+    def __init__(self):
+        """License constructor."""
         self.version = self.VERSION
         self.description = self.DESCRIPTION
         self.distribute_source = self.DISTRIBUTE_SOURCE
@@ -66,12 +74,12 @@ class License(object):
         self.group_binary = self.GROUP_BINARY
 
 
-class VeryRestrictive(License):
+class LicenseVeryRestrictive(License):
     """Default license should be very restrictive, so nothing to do here, just a placeholder"""
     pass
 
 
-class LicenseUnknown(VeryRestrictive):
+class LicenseUnknown(LicenseVeryRestrictive):
     """A (temporary) license, could be used as default in case nothing was specified"""
     pass
 
@@ -128,7 +136,7 @@ class LicenseGCCOld(LicenseGPLv2):
 
 
 class LicenseZlib(LicenseOpen):
-    """The zlib License is a permissive free software license 
+    """The zlib License is a permissive free software license
         http://www.zlib.net/zlib_license.html
     """
     DESCRIPTION = ("Permission is granted to anyone to use this software for any purpose,"
@@ -138,7 +146,7 @@ class LicenseZlib(LicenseOpen):
 
 
 class LicenseLibpng(LicenseOpen):
-    """The PNG license is derived from the zlib license, 
+    """The PNG license is derived from the zlib license,
         http://libpng.org/pub/png/src/libpng-LICENSE.txt
     """
     HIDDEN = False
@@ -153,24 +161,9 @@ def what_licenses():
     for lic in get_subclasses(License):
         if lic.HIDDEN:
             continue
-        lic_instance = lic()
-        res[lic_instance.name] = lic_instance
+        res[lic.__name__] = lic
 
     return res
 
 
 EASYCONFIG_LICENSES_DICT = what_licenses()
-EASYCONFIG_LICENSES = EASYCONFIG_LICENSES_DICT.keys()
-
-
-def license_documentation():
-    """Generate the easyconfig licenses documentation"""
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
-    doc = []
-
-    doc.append("Constants that can be used in easyconfigs")
-    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
-        doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
-
-    return "\n".join(doc)

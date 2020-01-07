@@ -1,14 +1,14 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,22 +25,21 @@
 """
 Utility functions for implementating module naming schemes.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import string
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
-from easybuild.tools import module_naming_scheme
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules
+from easybuild.base import fancylogger
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
+from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 
@@ -48,19 +47,20 @@ _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 def det_full_ec_version(ec):
     """
     Determine exact install version, based on supplied easyconfig.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for system toolchains)
     """
 
     ecver = None
+    toolchain = ec.get('toolchain', {'name': SYSTEM_TOOLCHAIN_NAME})
 
     # determine main install version based on toolchain
-    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+    if is_system_toolchain(toolchain['name']):
         ecver = ec['version']
     else:
-        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
+        ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
 
     # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
+    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec.get('versionsuffix', '')] if x])
 
     return ecver
 
@@ -81,7 +81,7 @@ def avail_module_naming_schemes():
 def is_valid_module_name(mod_name):
     """Check whether the specified value is a valid module name."""
     # module name must be a string
-    if not isinstance(mod_name, basestring):
+    if not isinstance(mod_name, string_type):
         _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
         return False
     # module name must be relative path

@@ -1,0 +1,27 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr { The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...). - Homepage: http://gcc.gnu.org/
+    }
+}
+
+module-whatis {Description: The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...). - Homepage: http://gcc.gnu.org/}
+
+set root /opt/software/GCCcore/6.2.0
+
+conflict GCCcore
+
+prepend-path    CPATH           $root/include
+prepend-path    LD_LIBRARY_PATH         $root/lib
+prepend-path    LD_LIBRARY_PATH         $root/lib64
+prepend-path    LD_LIBRARY_PATH         $root/lib/gcc/x86_64-pc-linux-gnu/6.2.0
+prepend-path    LIBRARY_PATH            $root/lib
+prepend-path    LIBRARY_PATH            $root/lib64
+prepend-path    MANPATH         $root/share/man
+prepend-path    PATH            $root/bin
+setenv  EBROOTGCCCORE           "$root"
+setenv  EBVERSIONGCCCORE                "6.2.0"
+setenv  EBDEVELGCCCORE          "$root/easybuild/GCCcore-6.2.0-easybuild-devel"
+
+# Built with EasyBuild version 3.0.0.dev0

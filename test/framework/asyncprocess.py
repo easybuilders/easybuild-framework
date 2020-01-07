@@ -1,14 +1,14 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,10 +28,10 @@ Unit tests for asyncprocess.py.
 @author: Toon Willems (Ghent University)
 """
 
-import os
+import sys
 import time
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestSuite, main
+from unittest import TextTestRunner, TestSuite
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
@@ -49,24 +49,27 @@ class AsyncProcessTest(EnhancedTestCase):
         """ try echoing some text and see if it comes back out """
         p.send_all(self.shell, "echo hello\n")
         time.sleep(0.1)
-        self.assertEqual(p.recv_some(self.shell), "hello\n")
+        self.assertEqual(p.recv_some(self.shell), b'hello\n')
 
         p.send_all(self.shell, "echo hello world\n")
         time.sleep(0.1)
-        self.assertEqual(p.recv_some(self.shell), "hello world\n")
+        self.assertEqual(p.recv_some(self.shell), b'hello world\n')
 
         p.send_all(self.shell, "exit\n")
         time.sleep(0.1)
-        self.assertEqual("", p.recv_some(self.shell, e=0))
+        self.assertEqual(b'', p.recv_some(self.shell, e=0))
         self.assertRaises(Exception, p.recv_some, self.shell)
 
     def tearDown(self):
         """cleanup"""
         super(AsyncProcessTest, self).tearDown()
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([AsyncProcessTest()])
 
+
 if __name__ == '__main__':
-    main()
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

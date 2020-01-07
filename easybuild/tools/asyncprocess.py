@@ -1,6 +1,6 @@
 ##
 # Copyright 2005 Josiah Carlson
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
@@ -10,11 +10,11 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -57,12 +57,12 @@ and the methods will return None.
 - modified
 -- added STDOUT handle
 
-@author: Josiah Carlson
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Josiah Carlson
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 
 import errno
@@ -106,8 +106,8 @@ class Popen(subprocess.Popen):
             return 0
 
         try:
-            written = os.write(self.stdin.fileno(), inp)
-        except OSError, why:
+            written = os.write(self.stdin.fileno(), inp.encode())
+        except OSError as why:
             if why[0] == errno.EPIPE: #broken pipe
                 return self._close('stdin')
             raise
@@ -160,13 +160,16 @@ def recv_some(p, t=.2, e=1, tr=5, stderr=0):
             y.append(r)
         else:
             time.sleep(max((x - time.time()) / tr, 0))
-    return ''.join(y)
+    return b''.join(y)
 
 def send_all(p, data):
     while len(data):
         sent = p.send(data)
         if sent is None:
             raise Exception(message)
-        data = buffer(data, sent)
 
-
+        try:
+            data = buffer(data, sent)
+        except NameError:
+            # in Python 3, buffer is (sort of) replaced by memoryview
+            data = memoryview(data[sent:].encode())

@@ -1,14 +1,14 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,18 @@ i.e. configure/make/make install.
 @author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import CUSTOM
 
 class ConfigureMake(EasyBlock):
     """Dummy support for building and installing applications with configure/make/make install."""
-    pass
+
+    @staticmethod
+    def extra_options(extra_vars=None):
+        """Extra easyconfig parameters specific to ConfigureMake."""
+        extra_vars = EasyBlock.extra_options(extra=extra_vars)
+        extra_vars.update({
+            'test_bool': [False, "Just a test", CUSTOM],
+            'test_none': [None, "Another test", CUSTOM],
+            'test_123': ['', "Test 1, 2, 3", CUSTOM],
+        })
+        return extra_vars

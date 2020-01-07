@@ -1,14 +1,14 @@
 # #
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,41 +26,10 @@
 """
 This module implements easyconfig specific formats and their conversions.
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings
-
-
-class Patch(DictOfStrings):
-    """Handle single patch"""
-    ALLOWED_KEYS = ['level', 'dest']
-    KEYLESS_ENTRIES = ['filename']  # filename as first element (also filename:some_path is supported)
-    # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
-    __str__ = DictOfStrings.__str__
-
-    def _from_string(self, txt):
-        """Convert from string
-            # shorthand
-            filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
-            # full dict notation
-            filename:filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
-        """
-        res = DictOfStrings._from_string(self, txt)
-        if 'level' in res:
-            res['level'] = int(res['level'])
-        return res
-
-
-class Patches(ListOfStrings):
-    """Handle patches as list of Patch"""
-    # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
-    __str__ = ListOfStrings.__str__
-
-    def _from_string(self, txt):
-        """Convert from comma-separated string"""
-        res = ListOfStrings._from_string(self, txt)
-        return [Patch(x) for x in res]
+from easybuild.tools.convert import Convert
 
 
 class Dependency(Convert):

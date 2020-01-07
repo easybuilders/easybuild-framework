@@ -1,14 +1,14 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,11 +27,11 @@ EasyBuild support for gpsmpi compiler toolchain (includes GCC and Parastation MP
 
 """
 
-from easybuild.toolchains.gmpich import Gmpich
+from easybuild.toolchains.gcc import GccToolchain
+from easybuild.toolchains.mpi.psmpi import Psmpi
 
 
-class Gpsmpi(Gmpich):
+class Gpsmpi(GccToolchain, Psmpi):
     """Compiler toolchain with GCC and Parastation MPICH."""
     NAME = 'gpsmpi'
-    # Use Parastation naming
-    MPI_MODULE_NAME = ["psmpi"]
+    SUBTOOLCHAIN = GccToolchain.NAME

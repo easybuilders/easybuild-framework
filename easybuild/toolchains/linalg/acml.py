@@ -1,14 +1,14 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@
 """
 Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 import os
@@ -38,6 +38,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_ACML = 'ACML'
+
+
 class Acml(LinAlg):
     """
     Provides ACML BLAS/LAPACK support.
@@ -46,17 +49,25 @@ class Acml(LinAlg):
     # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
     BLAS_LIB = ['acml']
     BLAS_LIB_MT = ['acml_mp']
+    BLAS_FAMILY = TC_CONSTANT_ACML
 
     # is completed in _set_blas_variables, depends on compiler used
     BLAS_LIB_DIR = []
 
     LAPACK_MODULE_NAME = ['ACML']
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_ACML
 
     ACML_SUBDIRS_MAP = {
         TC_CONSTANT_INTELCOMP: ['ifort64', 'ifort64_mp'],
         TC_CONSTANT_GCC: ['gfortran64', 'gfortran64_mp'],
     }
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        class_constants = kwargs.setdefault('class_constants', [])
+        class_constants.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
+        super(Acml, self).__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""

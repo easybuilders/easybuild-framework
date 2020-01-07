@@ -1,14 +1,14 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,20 +25,23 @@
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
+import logging
 import os
+import re
 import sys
 import tempfile
 from copy import copy
-from vsc.utils import fancylogger
-from vsc.utils.exceptions import LoggedException
+from datetime import datetime
 
-from easybuild.tools.version import VERSION
+from easybuild.base import fancylogger
+from easybuild.base.exceptions import LoggedException
+from easybuild.tools.version import VERSION, this_is_easybuild
 
 
 # EasyBuild message prefix
@@ -52,6 +55,14 @@ EXPERIMENTAL = False
 
 DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
 
+DRY_RUN_BUILD_DIR = None
+DRY_RUN_SOFTWARE_INSTALL_DIR = None
+DRY_RUN_MODULES_INSTALL_DIR = None
+
+
+DEVEL_LOG_LEVEL = logging.DEBUG - 1
+logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
+
 
 class EasyBuildError(LoggedException):
     """
@@ -59,10 +70,8 @@ class EasyBuildError(LoggedException):
     """
     LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
     LOC_INFO_LEVEL = 1
-
-    # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
-    # only required because 'error' log method raises (should no longer be needed in EB v3.x)
-    LOGGING_METHOD_NAME = '_error_no_raise'
+    # always include location where error was raised from, even under 'python -O'
+    INCLUDE_LOCATION = True
 
     def __init__(self, msg, *args):
         """Constructor: initialise EasyBuildError instance."""
@@ -86,13 +95,12 @@ class EasyBuildLog(fancylogger.FancyLogger):
     The EasyBuild logger, with its own error and exception functions.
     """
 
-    # self.raiseError can be set to False disable raising the exception which is
-    # necessary because logging.Logger.exception calls self.error
-    raiseError = True
+    RAISE_EXCEPTION_CLASS = EasyBuildError
 
     def caller_info(self):
         """Return string with caller info."""
-        (filepath, line, function_name) = self.findCaller()
+        # findCaller returns a 3-tupe in Python 2, a 4-tuple in Python 3 (stack info as extra element)
+        (filepath, line, function_name) = self.findCaller()[:3]
         filepath_dirs = filepath.split(os.path.sep)
 
         for dirName in copy(filepath_dirs):
@@ -106,17 +114,44 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def experimental(self, msg, *args, **kwargs):
         """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
+        common_msg = "Experimental functionality. Behaviour might change/be removed later"
         if EXPERIMENTAL:
-            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
+            msg = common_msg + ': ' + msg
             self.warning(msg, *args, **kwargs)
         else:
-            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
+            msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, max_ver):
-        """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
-        msg += "; see %s for more information" % DEPRECATED_DOC_URL
-        fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
+    def deprecated(self, msg, ver, max_ver=None, more_info=None, silent=False, *args, **kwargs):
+        """
+        Print deprecation warning or raise an exception, depending on specified version(s)
+
+        :param: msg: deprecation message
+        :param ver: if max_ver is None: threshold for EasyBuild version to determine warning vs exception
+                    else: version to check against max_ver to determine warning vs exception
+        :param max_ver: version threshold for warning vs exception (compared to 'ver')
+        :param more_info: additional message with instructions where to get more information
+        :param silent: stay silent (don't *print* deprecation warnings, only log them)
+        """
+        # provide log_callback function that both logs a warning and prints to stderr
+        def log_callback_warning_and_print(msg):
+            """Log warning message, and also print it to stderr."""
+            self.warning(msg)
+            print_warning(msg, silent=silent)
+
+        kwargs['log_callback'] = log_callback_warning_and_print
+
+        # always raise an EasyBuildError, nothing else
+        kwargs['exception'] = EasyBuildError
+
+        if max_ver is None:
+            if more_info:
+                msg += more_info
+            else:
+                msg += "; see %s for more information" % DEPRECATED_DOC_URL
+            fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
+        else:
+            fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
         """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
@@ -125,44 +160,22 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        ebmsg = "EasyBuild crashed with an error %s: " + msg
-        args = (self.caller_info(),) + args
+        ebmsg = "EasyBuild crashed with an error %s: " % self.caller_info()
+        fancylogger.FancyLogger.error(self, ebmsg + msg, *args, **kwargs)
 
-        fancylogger.FancyLogger.error(self, ebmsg, *args, **kwargs)
-
-        if self.raiseError:
-            self.deprecated("Use 'raise EasyBuildError' rather than error() logging method that raises", '3.0')
-            raise EasyBuildError(ebmsg, *args)
-
-    # FIXME: remove this when error() no longer raises EasyBuildError
-    def _error_no_raise(self, msg):
-        """Utility function to log an error with raising an exception."""
-
-        # make sure raising of error is disabled
-        orig_raise_error = self.raiseError
-        self.raiseError = False
-
-        fancylogger.FancyLogger.error(self, msg)
-
-        # reinstate previous raiseError setting
-        self.raiseError = orig_raise_error
+    def devel(self, msg, *args, **kwargs):
+        """Print development log message"""
+        self.log(DEVEL_LOG_LEVEL, msg, *args, **kwargs)
 
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
         # don't raise the exception from within error
-        ebmsg = "EasyBuild encountered an exception %s: " + msg
-        args = (self.caller_info(),) + args
-
-        self.raiseError = False
-        fancylogger.FancyLogger.exception(self, ebmsg, *args)
-        self.raiseError = True
-
-        self.deprecated("Use 'raise EasyBuildError' rather than exception() logging method that raises", '3.0')
-        raise EasyBuildError(ebmsg, *args)
+        ebmsg = "EasyBuild encountered an exception %s: " % self.caller_info()
+        fancylogger.FancyLogger.exception(self, ebmsg + msg, *args)
 
 
 # set format for logger
-LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
+LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
 # set the default LoggerClass to EasyBuildLog
@@ -173,73 +186,194 @@ _init_fancylog = fancylogger.getLogger(fname=False)
 del _init_fancylog.manager.loggerDict[_init_fancylog.name]
 
 # we need to make sure there is a handler
-fancylogger.logToFile(filename=os.devnull)
+fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 
 # EasyBuildLog
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, testing=False):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO, tmp_logdir=None):
     """Initialize logging."""
     if logtostdout:
-        fancylogger.logToScreen(enable=True, stdout=True)
+        fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
     else:
         if logfile is None:
+            # if logdir is specified but doesn't exist yet, create it first
+            if tmp_logdir and not os.path.exists(tmp_logdir):
+                try:
+                    os.makedirs(tmp_logdir)
+                except (IOError, OSError) as err:
+                    raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
+
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-', dir=tmp_logdir)
             os.close(fd)
 
-        fancylogger.logToFile(logfile)
-        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
+        fancylogger.logToFile(logfile, max_bytes=0)
+        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
 
     log = fancylogger.getLogger(fname=False)
 
     return log, logfile
 
 
+def log_start(log, eb_command_line, eb_tmpdir):
+    """Log startup info."""
+    log.info(this_is_easybuild())
+
+    # log used command line
+    log.info("Command line: %s", ' '.join(eb_command_line))
+
+    log.info("Using %s as temporary directory", eb_tmpdir)
+
+
 def stop_logging(logfile, logtostdout=False):
     """Stop logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
-    fancylogger.logToFile(logfile, enable=False)
+    if logfile is not None:
+        fancylogger.logToFile(logfile, enable=False)
 
 
-def get_log(name=None):
+def print_msg(msg, *args, **kwargs):
     """
-    (NO LONGER SUPPORTED!) Generate logger object
-    """
-    log.nosupport("Use of get_log function", '2.0')
+    Print a message.
 
+    :param log: logger instance to also message to
+    :param silent: be silent (only log, don't print)
+    :param prefix: include message prefix characters ('== ')
+    :param newline: end message with newline
+    :param stderr: print to stderr rather than stdout
+    """
+    if args:
+        msg = msg % args
 
-def print_msg(msg, log=None, silent=False, prefix=True):
-    """
-    Print a message to stdout.
-    """
+    log = kwargs.pop('log', None)
+    silent = kwargs.pop('silent', False)
+    prefix = kwargs.pop('prefix', True)
+    newline = kwargs.pop('newline', True)
+    stderr = kwargs.pop('stderr', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_msg: %s", kwargs)
+
     if log:
         log.info(msg)
     if not silent:
         if prefix:
-            print "%s %s" % (EB_MSG_PREFIX, msg)
+            msg = ' '.join([EB_MSG_PREFIX, msg])
+
+        if newline:
+            msg += '\n'
+
+        if stderr:
+            sys.stderr.write(msg)
         else:
-            print msg
+            sys.stdout.write(msg)
 
 
-def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
+def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
+    """
+    Initialize for printing dry run messages.
+
+    Define DRY_RUN_*DIR constants, so they can be used in dry_run_msg to replace fake build/install dirs.
+
+    :param prefix: prefix of fake build/install dirs, that can be stripped off when printing
+    :param builddir: fake build dir
+    :param software_installdir: fake software install directory
+    :param module_installdir: fake module install directory
+    """
+    global DRY_RUN_BUILD_DIR
+    DRY_RUN_BUILD_DIR = (re.compile(re.escape(builddir)), builddir[len(prefix):])
+
+    global DRY_RUN_MODULES_INSTALL_DIR
+    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(re.escape(module_installdir)), module_installdir[len(prefix):])
+
+    global DRY_RUN_SOFTWARE_INSTALL_DIR
+    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
+
+
+def dry_run_msg(msg, *args, **kwargs):
+    """Print dry run message."""
+    # replace fake build/install dir in dry run message with original value
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to dry_run_msg: %s", kwargs)
+
+    for dry_run_var in [DRY_RUN_BUILD_DIR, DRY_RUN_MODULES_INSTALL_DIR, DRY_RUN_SOFTWARE_INSTALL_DIR]:
+        if dry_run_var is not None:
+            msg = dry_run_var[0].sub(dry_run_var[1], msg)
+
+    print_msg(msg, silent=silent, prefix=False)
+
+
+def dry_run_warning(msg, *args, **kwargs):
+    """Print dry run message."""
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to dry_run_warning: %s", kwargs)
+
+    dry_run_msg("\n!!!\n!!! WARNING: %s\n!!!\n" % msg, silent=silent)
+
+
+def print_error(msg, *args, **kwargs):
     """
     Print error message and exit EasyBuild
     """
+    if args:
+        msg = msg % args
+
+    log = kwargs.pop('log', None)
+    exitCode = kwargs.pop('exitCode', 1)
+    opt_parser = kwargs.pop('opt_parser', None)
+    exit_on_error = kwargs.pop('exit_on_error', True)
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_error: %s", kwargs)
+
     if exit_on_error:
         if not silent:
             if opt_parser:
                 opt_parser.print_shorthelp()
-            sys.stderr.write("ERROR: %s\n" % message)
+            sys.stderr.write("ERROR: %s\n" % msg)
         sys.exit(exitCode)
     elif log is not None:
-        raise EasyBuildError(message)
+        raise EasyBuildError(msg)
 
 
-def print_warning(message, silent=False):
+def print_warning(msg, *args, **kwargs):
     """
     Print warning message.
     """
-    print_msg("WARNING: %s\n" % message, silent=silent)
+    if args:
+        msg = msg % args
+
+    silent = kwargs.pop('silent', False)
+    if kwargs:
+        raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
+
+    if not silent:
+        sys.stderr.write("\nWARNING: %s\n\n" % msg)
+
+
+def time_str_since(start_time):
+    """
+    Return string representing amount of time that has passed since specified timestamp
+
+    :param start_time: datetime value representing start time
+    :return: string value representing amount of time passed since start_time;
+             format: "[[%d hours, ]%d mins, ]%d sec(s)"
+    """
+    tot_time = datetime.now() - start_time
+    tot_secs = tot_time.seconds + tot_time.days * 24 * 3600
+    if tot_secs > 0:
+        res = datetime.utcfromtimestamp(tot_secs).strftime('%Hh%Mm%Ss')
+    else:
+        res = "< 1s"
+
+    return res

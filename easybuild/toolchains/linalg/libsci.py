@@ -1,14 +1,14 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,15 +26,17 @@
 Support for Cray's LibSci library, which provides BLAS/LAPACK support.
 cfr. https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
 CRAY_LIBSCI_MODULE_NAME = 'cray-libsci'
+TC_CONSTANT_CRAY_LIBSCI = 'CrayLibSci'
 
 
 class LibSci(LinAlg):
@@ -46,11 +48,13 @@ class LibSci(LinAlg):
 
     # no need to specify libraries, compiler driver takes care of linking the right libraries
     # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
-    BLAS_LIB = []
-    BLAS_LIB_MT = []
+    BLAS_LIB = ['']
+    BLAS_LIB_MT = ['']
+    BLAS_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     LAPACK_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     BLACS_MODULE_NAME = []
     SCALAPACK_MODULE_NAME = []

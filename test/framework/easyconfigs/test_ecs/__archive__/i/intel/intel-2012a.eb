@@ -1,0 +1,19 @@
+easyblock = "Toolchain"
+
+name = 'intel'
+version = '2012a'
+
+homepage = 'http://software.intel.com/en-us/intel-cluster-toolchain-compiler/'
+description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL."""
+
+toolchain = SYSTEM
+
+# fake/empty intel/2012a toolchain, just for testing purposes
+dependencies = [
+#    ('icc', '11.1.073'),
+#    ('ifort', '11.1.073'),
+#    ('impi', '4.0.0.028', '', ('iccifort', compver)),
+#    ('imkl', '10.2.6.038', '', ('iimpi', version)),
+]
+
+moduleclass = 'toolchain'

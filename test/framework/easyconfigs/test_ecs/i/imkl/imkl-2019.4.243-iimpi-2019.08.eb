@@ -1,0 +1,21 @@
+# should be EB_imkl, but OK for testing purposes
+easyblock = 'EB_toy'
+
+name = 'imkl'
+version = '2019.4.243'
+
+homepage = 'http://software.intel.com/en-us/intel-mkl/'
+description = """Intel Math Kernel Library is a library of highly optimized,
+ extensively threaded math routines for science, engineering, and financial
+ applications that require maximum performance. Core math functions include
+ BLAS, LAPACK, ScaLAPACK, Sparse Solvers, Fast Fourier Transforms, Vector Math, and more."""
+
+toolchain = {'name': 'iimpi', 'version': '2019.08'}
+
+sources = ['l_mkl_%(version)s.tgz']
+
+dontcreateinstalldir = 'True'
+
+license_file = HOME + '/licenses/intel/license.lic'
+
+moduleclass = 'numlib'

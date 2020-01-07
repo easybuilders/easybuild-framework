@@ -1,14 +1,14 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2019 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,9 +28,10 @@ Unit tests for tools/variables.py.
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import sys
 
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.tools.variables import CommaList, StrList, Variables
 from easybuild.tools.toolchain.variables import CommandFlagList
@@ -41,7 +42,7 @@ class VariablesTest(EnhancedTestCase):
 
     def test_variables(self):
         class TestVariables(Variables):
-            MAP_CLASS = {'FOO':CommaList}
+            MAP_CLASS = {'FOO': CommaList}
 
         v = TestVariables()
         self.assertEqual(str(v), "{}")
@@ -57,7 +58,7 @@ class VariablesTest(EnhancedTestCase):
         v.nappend('BAR', 20)
         self.assertEqual(str(v['BAR']), "0 1 2 10 11 20")
 
-        v.nappend_el('BAR', 30, idx= -2)
+        v.nappend_el('BAR', 30, idx=-2)
         self.assertEqual(str(v), "{'BAR': [[0, 1, 2], [10, 11, 30], [20]]}")
         self.assertEqual(str(v['BAR']), '0 1 2 10 11 30 20')
 
@@ -88,9 +89,12 @@ class VariablesTest(EnhancedTestCase):
         v.join('FOOBAR', 'BAR')
         self.assertEqual(v['FOOBAR'], [])
 
+
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(VariablesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(VariablesTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
-    main()
+    res = TextTestRunner(verbosity=1).run(suite())
+    sys.exit(len(res.failures))

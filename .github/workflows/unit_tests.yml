@@ -1,0 +1,168 @@
+# documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
+name: EasyBuild framework unit tests
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python: [2.7, 3.5, 3.6, 3.7, 3.8]
+        modules_tool: [Lmod-7.8.22, Lmod-8.2.3, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
+        module_syntax: [Lua, Tcl]
+        # exclude some configuration for non-Lmod modules tool:
+        # - don't test with Lua module syntax (only supported in Lmod)
+        # - exclude Python 3.x versions other than 3.6, to limit test configurations
+        exclude:
+          - modules_tool: modules-tcl-1.147
+            module_syntax: Lua
+          - modules_tool: modules-3.2.10
+            module_syntax: Lua
+          - modules_tool: modules-4.1.4
+            module_syntax: Lua
+          - modules_tool: modules-tcl-1.147
+            python: 3.5
+          - modules_tool: modules-tcl-1.147
+            python: 3.7
+          - modules_tool: modules-tcl-1.147
+            python: 3.8
+          - modules_tool: modules-3.2.10
+            python: 3.5
+          - modules_tool: modules-3.2.10
+            python: 3.7
+          - modules_tool: modules-3.2.10
+            python: 3.8
+          - modules_tool: modules-4.1.4
+            python: 3.5
+          - modules_tool: modules-4.1.4
+            python: 3.7
+          - modules_tool: modules-4.1.4
+            python: 3.8
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{matrix.python}}
+        architecture: x64
+
+    - name: install OS & Python packages
+      run: |
+        # for modules tool
+        sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
+        sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
+        # for GitPython, python-hglib
+        sudo apt-get install git mercurial
+        # dep for GC3Pie
+        sudo apt-get install time
+        # Python packages
+        pip --version
+        pip install --upgrade pip
+        pip --version
+        pip install -r requirements.txt
+        # git config is required to make actual git commits (cfr. tests for GitRepository)
+        git config --global user.name "Travis CI"
+        git config --global user.email "travis@travis-ci.org"
+        git config --get-regexp 'user.*'
+
+    - name: install GitHub token (if available)
+      env:
+        # see https://github.com/<username>/easybuild-framework/settings/secrets
+        GITHUB_TOKEN: ${{secrets.TEST_GITHUB_TOKEN}}
+      run: |
+        if [ ! -z $GITHUB_TOKEN ]; then
+          if [ "x${{matrix.python}}" == 'x2.6' ];
+              then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
+              else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
+          fi;
+          python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+        fi
+
+    - name: install modules tool
+      run: |
+          # avoid downloading modules tool sources into easybuild-framework dir
+          cd $HOME
+          export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh
+          # install Lmod
+          source $INSTALL_DEP ${{matrix.modules_tool}} $HOME
+          # changes in environment are not passed to other steps, so need to create files...
+          echo $MOD_INIT > mod_init
+          echo $PATH > path
+          if [ ! -z $MODULESHOME ]; then echo $MODULESHOME > moduleshome; fi
+
+    - name: check sources
+      run: |
+          # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
+          # since EasyBuild should not have a runtime requirement on setuptools
+          SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
+          test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools and/or pkg_resources imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
+
+    - name: install sources
+      run: |
+          # install from source distribution tarball, to test release as published on PyPI
+          python setup.py sdist
+          ls dist
+          export PREFIX=/tmp/$USER/$GITHUB_SHA
+          pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
+
+    - name: run test suite & test bootstrap script
+      env:
+        EB_VERBOSE: 1
+        EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
+        TEST_EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
+      run: |
+          # initialize environment for modules tool
+          if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
+          source $(cat $HOME/mod_init); type module
+          # make sure 'eb' is available via $PATH, and that $PYTHONPATH is set (some tests expect that);
+          # also pick up changes to $PATH set by sourcing $MOD_INIT
+          export PREFIX=/tmp/$USER/$GITHUB_SHA
+          export PATH=$PREFIX/bin:$(cat $HOME/path)
+          export PYTHONPATH=$PREFIX/lib/python${{matrix.python}}/site-packages:$PYTHONPATH
+          eb --version
+          # tell EasyBuild which modules tool is available
+          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
+          elif [[ ${{matrix.modules_tool}} =~ ^modules-4 ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModules
+          else
+            export EASYBUILD_MODULES_TOOL=Lmod
+          fi
+          export TEST_EASYBUILD_MODULES_TOOL=$EASYBUILD_MODULES_TOOL
+          eb --show-config
+          # gather some useful info on test system
+          eb --show-system-info
+          # check GitHub configuration
+          eb --check-github --github-user=easybuild_test
+          # run test suite
+          python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+          # try and make sure output of running tests is clean (no printed messages/warnings)
+          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device"
+          # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
+          PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
+          test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
+
+          # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
+          EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
+          EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
+          EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
+          EB_BOOTSTRAP_EXPECTED="20190922.01 778762479d77df641c247aba33c13203c8c5b8275e47f59464bab93917aaaf22"
+          test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
+
+          # test bootstrap script (only compatible with Python 2 for now)
+          if [[ ${{matrix.python}} =~ '2.' ]]; then
+              export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
+              python easybuild/scripts/bootstrap_eb.py $PREFIX
+              # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
+              unset PYTHONPATH
+              # simple sanity check on bootstrapped EasyBuild module (skip when testing with Python 3, for now)
+              module use $PREFIX/modules/all
+              module load EasyBuild
+              eb --version
+          else
+              echo "Testing of bootstrap script skipped when testing with Python ${{matrix.python}}"
+          fi
