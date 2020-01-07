@@ -1830,7 +1830,7 @@ class EasyBlock(object):
 
     def check_checksums_for(self, ent, sub='', source_cnt=None):
         """
-        Utility method: check whether checksums for all sources/patches are available, for given entity
+        Utility method: check whether SHA256 checksums for all sources/patches are available, for given entity
         """
         ec_fn = os.path.basename(self.cfg.path)
         checksum_issues = []
@@ -1857,10 +1857,14 @@ class EasyBlock(object):
             if isinstance(checksum, dict):
                 checksum = checksum.get(fn)
 
-            # take into account that we may encounter a tuuple of valid checksums
+            # take into account that we may encounter a tuple of valid SHA256 checksums
             # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
             if isinstance(checksum, tuple):
-                valid_checksums = checksum
+                # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
+                if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
+                    valid_checksums = (checksum[1],)
+                else:
+                    valid_checksums = checksum
             else:
                 valid_checksums = (checksum,)
 
