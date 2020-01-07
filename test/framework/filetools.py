@@ -1724,29 +1724,29 @@ class FileToolsTest(EnhancedTestCase):
         for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
             self.assertErrorRegex(EasyBuildError, "Invalid search query", ft.search_file, [test_ecs], pattern)
 
-    def test_is_empty_folder(self):
+    def test_dir_contains_files(self):
         def makedirs_in_test(*paths):
             """Make dir specified by paths and return top-level folder"""
             os.makedirs(os.path.join(self.test_prefix, *paths))
             return os.path.join(self.test_prefix, paths[0])
 
         empty_dir = makedirs_in_test('empty_dir')
-        self.assertTrue(ft.is_empty_folder(empty_dir))
+        self.assertFalse(ft.dir_contains_files(empty_dir))
 
         dir_w_subdir = makedirs_in_test('dir_w_subdir', 'sub_dir')
-        self.assertTrue(ft.is_empty_folder(dir_w_subdir))
+        self.assertFalse(ft.dir_contains_files(dir_w_subdir))
 
         dir_subdir_file = makedirs_in_test('dir_subdir_file', 'sub_dir_w_file')
         ft.write_file(os.path.join(dir_subdir_file, 'sub_dir_w_file', 'file.h'), '')
-        self.assertFalse(ft.is_empty_folder(dir_subdir_file))
+        self.assertTrue(ft.dir_contains_files(dir_subdir_file))
 
         dir_w_file = makedirs_in_test('dir_w_file')
         ft.write_file(os.path.join(dir_w_file, 'file.h'), '')
-        self.assertFalse(ft.is_empty_folder(dir_w_file))
+        self.assertTrue(ft.dir_contains_files(dir_w_file))
 
         dir_w_dir_and_file = makedirs_in_test('dir_w_dir_and_file', 'sub_dir')
         ft.write_file(os.path.join(dir_w_dir_and_file, 'file.h'), '')
-        self.assertFalse(ft.is_empty_folder(dir_w_dir_and_file))
+        self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file))
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""

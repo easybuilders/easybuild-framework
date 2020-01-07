@@ -681,12 +681,9 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
-def is_empty_folder(folder_path):
+def dir_contains_files(folder_path):
     """Return true if the given folder does not contain any files"""
-    for _root, _dirs, files in os.walk(folder_path):
-        if files:
-            return False
-    return True
+    return any(files for _root, _dirs, files in os.walk(folder_path))
 
 
 def find_eb_script(script_name):
