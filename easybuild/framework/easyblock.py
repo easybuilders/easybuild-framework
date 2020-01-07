@@ -1857,8 +1857,15 @@ class EasyBlock(object):
             if isinstance(checksum, dict):
                 checksum = checksum.get(fn)
 
-            if not is_sha256_checksum(checksum):
-                msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
+            # take into account that we may encounter a tuuple of valid checksums
+            # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
+            if isinstance(checksum, tuple):
+                valid_checksums = checksum
+            else:
+                valid_checksums = (checksum,)
+
+            if not all(is_sha256_checksum(c) for c in valid_checksums):
+                msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
                 checksum_issues.append(msg)
 
         return checksum_issues
