@@ -681,9 +681,9 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
-def dir_contains_files(folder_path):
-    """Return true if the given folder does not contain any files"""
-    return any(files for _root, _dirs, files in os.walk(folder_path))
+def dir_contains_files(path):
+    """Return True if the given directory does contain any file in itself or any subdirectory"""
+    return any(files for _root, _dirs, files in os.walk(path))
 
 
 def find_eb_script(script_name):
