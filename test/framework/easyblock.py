@@ -1690,7 +1690,7 @@ class EasyBlockTest(EnhancedTestCase):
             expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-2018a-test.eb: "
             expected += "found 1 sources + 1 patches vs 1 checksums"
             self.assertEqual(res[0], expected)
-            self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz:"))
+            self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz:"))
 
         # check for main sources/patches should reveal two issues with checksums
         res = eb.check_checksums_for(eb.cfg)
@@ -1707,6 +1707,43 @@ class EasyBlockTest(EnhancedTestCase):
             expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
             self.assertTrue(res[idx].startswith(expected))
             idx += 1
+
+        # check whether tuple of alternative SHA256 checksums is correctly recognized
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        ec = process_easyconfig(toy_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        # single SHA256 checksum per source/patch: OK
+        eb.cfg['checksums'] = [
+            '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # toy-0.0.tar.gz
+            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt]
+        ]
+        # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # SHA256 checksum with type specifier: OK
+        eb.cfg['checksums'] = [
+            ('sha256', '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'),  # toy-0.0.tar.gz
+            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            ('sha256', '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'),  # toy-extra.txt]
+        ]
+        # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # tuple of two alternate SHA256 checksums: OK
+        eb.cfg['checksums'] = [
+            (
+                # two alternate checksums for toy-0.0.tar.gz
+                'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
+                '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+            ),
+            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
+        ]
+        # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""

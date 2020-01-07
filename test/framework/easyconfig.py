@@ -3028,7 +3028,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
-        self.assertTrue(res[-1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz"))
+        self.assertTrue(res[-1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz"))
 
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
@@ -3052,7 +3052,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
-        self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz: "))
+        self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz: "))
 
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""

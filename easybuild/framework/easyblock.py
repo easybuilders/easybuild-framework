@@ -1829,7 +1829,7 @@ class EasyBlock(object):
 
     def check_checksums_for(self, ent, sub='', source_cnt=None):
         """
-        Utility method: check whether checksums for all sources/patches are available, for given entity
+        Utility method: check whether SHA256 checksums for all sources/patches are available, for given entity
         """
         ec_fn = os.path.basename(self.cfg.path)
         checksum_issues = []
@@ -1856,8 +1856,19 @@ class EasyBlock(object):
             if isinstance(checksum, dict):
                 checksum = checksum.get(fn)
 
-            if not is_sha256_checksum(checksum):
-                msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
+            # take into account that we may encounter a tuple of valid SHA256 checksums
+            # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
+            if isinstance(checksum, tuple):
+                # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
+                if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
+                    valid_checksums = (checksum[1],)
+                else:
+                    valid_checksums = checksum
+            else:
+                valid_checksums = (checksum,)
+
+            if not all(is_sha256_checksum(c) for c in valid_checksums):
+                msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
                 checksum_issues.append(msg)
 
         return checksum_issues
