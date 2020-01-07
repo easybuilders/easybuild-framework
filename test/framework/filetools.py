@@ -1725,30 +1725,28 @@ class FileToolsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, "Invalid search query", ft.search_file, [test_ecs], pattern)
 
     def test_is_empty_folder(self):
-        tmpdir = tempfile.mkdtemp()
-        self.assertTrue(ft.is_empty_folder(tmpdir))
-        # Containing a folder is still empty
-        subdir = tempfile.mkdtemp(dir=tmpdir)
-        self.assertTrue(ft.is_empty_folder(tmpdir))
-        # A file in a subfolder makes it non-empty
-        sub_filename = os.path.join(subdir, 'testfile.h')
-        ft.write_file(sub_filename, '')
-        self.assertFalse(ft.is_empty_folder(tmpdir))
-        # A file in the folder makes it non-empty
-        filename = os.path.join(tmpdir, 'testfile.h')
-        ft.write_file(filename, '')
-        self.assertFalse(ft.is_empty_folder(tmpdir))
-        # And even when the file in the subfolder or the subfolder is removed
-        # as 'filename' stays
-        os.remove(sub_filename)
-        self.assertFalse(ft.is_empty_folder(tmpdir))
-        os.rmdir(subdir)
-        self.assertFalse(ft.is_empty_folder(tmpdir))
-        # And true again when the file is removed
-        os.remove(filename)
-        self.assertTrue(ft.is_empty_folder(tmpdir))
-        # Cleanup
-        os.rmdir(tmpdir)
+        def makedirs_in_test(*paths):
+            """Make dir specified by paths and return top-level folder"""
+            os.makedirs(os.path.join(self.test_prefix, *paths))
+            return os.path.join(self.test_prefix, paths[0])
+
+        empty_dir = makedirs_in_test('empty_dir')
+        self.assertTrue(ft.is_empty_folder(empty_dir))
+
+        dir_w_subdir = makedirs_in_test('dir_w_subdir', 'sub_dir')
+        self.assertTrue(ft.is_empty_folder(dir_w_subdir))
+
+        dir_subdir_file = makedirs_in_test('dir_subdir_file', 'sub_dir_w_file')
+        ft.write_file(os.path.join(dir_subdir_file, 'sub_dir_w_file', 'file.h'), '')
+        self.assertFalse(ft.is_empty_folder(dir_subdir_file))
+
+        dir_w_file = makedirs_in_test('dir_w_file')
+        ft.write_file(os.path.join(dir_w_file, 'file.h'), '')
+        self.assertFalse(ft.is_empty_folder(dir_w_file))
+
+        dir_w_dir_and_file = makedirs_in_test('dir_w_dir_and_file', 'sub_dir')
+        ft.write_file(os.path.join(dir_w_dir_and_file, 'file.h'), '')
+        self.assertFalse(ft.is_empty_folder(dir_w_dir_and_file))
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
