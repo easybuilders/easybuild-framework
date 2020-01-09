@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         python: [2.7, 3.5, 3.6, 3.7, 3.8]
-        modules_tool: [Lmod-7.8.22, Lmod-8.2.3, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
+        modules_tool: [Lmod-7.8.22, Lmod-8.2.9, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
         module_syntax: [Lua, Tcl]
         # exclude some configuration for non-Lmod modules tool:
         # - don't test with Lua module syntax (only supported in Lmod)
@@ -138,6 +138,9 @@ jobs:
           eb --show-system-info
           # check GitHub configuration
           eb --check-github --github-user=easybuild_test
+          # create file owned by root but writable by anyone (used by test_copy_file)
+          sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+          sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
           # run test suite
           python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
           # try and make sure output of running tests is clean (no printed messages/warnings)
@@ -150,7 +153,7 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20190922.01 778762479d77df641c247aba33c13203c8c5b8275e47f59464bab93917aaaf22"
+          EB_BOOTSTRAP_EXPECTED="20190922.01 7927513e7448d886decfb1bb5daf840e85dc7367f57cc75e51b68f21fe109d53"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
           # test bootstrap script (only compatible with Python 2 for now)

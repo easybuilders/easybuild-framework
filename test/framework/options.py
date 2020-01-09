@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TextTestRunner
 
 import easybuild.main
@@ -49,13 +50,13 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, mkdir, read_file
+from easybuild.tools.filetools import remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
-from easybuild.tools.py2vs3 import URLError, reload
+from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -149,7 +150,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topt = EasyBuildOptions(
                                 go_args=['-H'],
                                 go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
-                                go_columns=100,  # fix col size for reproducible unittest output
+                                go_columns=200,  # fix col size for reproducible unittest output
                                 help_to_string=True,  # don't print to stdout, but to StingIO fh,
                                 prog='easybuildoptions_test',  # generate as if called from generaloption.py
                                )
@@ -163,6 +164,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         "Not all option groups included in short help (1)")
         self.assertTrue(re.search("Regression test options", outtxt),
                         "Not all option groups included in short help (2)")
+
+        # for boolean options, we mention in the help text how to disable them
+        regex = re.compile("default: True; disable with --disable-cleanup-builddir", re.M)
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_no_args(self):
         """Test using no arguments."""
@@ -798,6 +803,114 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ' * intel-2012a.eb',
         ])
         self.assertEqual(txt, expected)
+
+    def test_show_ec(self):
+        """Test 'eb --show-ec'."""
+
+        args = [
+            '--show-ec',
+            'toy-0.0.eb',
+            'gzip-1.6-GCC-4.9.2.eb',
+        ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        patterns = [
+            r"^== Contents of .*/test/framework/easyconfigs/test_ecs/t/toy/toy-0.0.eb:",
+            r"^name = 'toy'",
+            r"^toolchain = SYSTEM",
+            r"^sanity_check_paths = {\n    'files': \[\('bin/yot', 'bin/toy'\)\],",
+            r"^== Contents of .*/test/framework/easyconfigs/test_ecs/g/gzip/gzip-1.6-GCC-4.9.2.eb:",
+            r"^easyblock = 'ConfigureMake'\n\nname = 'gzip'",
+            r"^toolchain = {'name': 'GCC', 'version': '4.9.2'}",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_copy_ec(self):
+        """Test --copy-ec."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+
+        toy_ec_txt = read_file(os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb'))
+        bzip2_ec_txt = read_file(os.path.join(test_easyconfigs_dir, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'))
+
+        # basic test: copying one easyconfig file to a non-existing absolute path
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = ['--copy-ec', 'toy-0.0.eb', test_ec]
+        self.eb_main(args)
+
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertEqual(toy_ec_txt, read_file(test_ec))
+
+        remove_file(test_ec)
+
+        # basic test: copying one easyconfig file to a non-existing relative path
+        cwd = change_dir(self.test_prefix)
+        target_fn = 'test.eb'
+        self.assertFalse(os.path.exists(target_fn))
+
+        args = ['--copy-ec', 'toy-0.0.eb', target_fn]
+        self.eb_main(args)
+
+        change_dir(cwd)
+
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertEqual(toy_ec_txt, read_file(test_ec))
+
+        # copying one easyconfig into an existing directory
+        test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
+        mkdir(test_target_dir)
+        args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
+        self.eb_main(args)
+
+        copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
+
+        remove_dir(test_target_dir)
+
+        def check_copied_files():
+            """Helper function to check result of copying multiple easyconfigs."""
+            self.assertTrue(os.path.exists(test_target_dir))
+            self.assertEqual(sorted(os.listdir(test_target_dir)), ['bzip2-1.0.6-GCC-4.9.2.eb', 'toy-0.0.eb'])
+            copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
+            self.assertTrue(os.path.exists(copied_toy_ec))
+            self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
+            copied_bzip2_ec = os.path.join(test_target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+            self.assertTrue(os.path.exists(copied_bzip2_ec))
+            self.assertEqual(bzip2_ec_txt, read_file(copied_bzip2_ec))
+
+        # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
+        args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
+        self.eb_main(args)
+
+        check_copied_files()
+
+        remove_dir(test_target_dir)
+
+        # same but with relative path for target dir
+        change_dir(self.test_prefix)
+        args[-1] = os.path.basename(test_target_dir)
+        self.assertFalse(os.path.exists(args[-1]))
+
+        self.eb_main(args)
+
+        check_copied_files()
+
+        # copying multiple easyconfig to an existing target file resuts in an error
+        target = os.path.join(self.test_prefix, 'test.eb')
+        self.assertTrue(os.path.isfile(target))
+        args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
+        error_pattern = ".*/test.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
@@ -4528,6 +4641,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config(args=args, build_options={'fixed_installdir_naming_scheme': False})
         eb = EasyBlock(EasyConfig(toy_ec))
         self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
+
+    def test_sort_looseversions(self):
+        """Test sort_looseversions funuction."""
+        ver1 = LooseVersion('1.2.3')
+        ver2 = LooseVersion('4.5.6')
+        ver3 = LooseVersion('1.2.3dev')
+        ver4 = LooseVersion('system')
+        ver5 = LooseVersion('rc3')
+        ver6 = LooseVersion('v1802')
+
+        # some versions are included multiple times on purpose,
+        # to also test comparison between equal LooseVersion instances
+        input = [ver3, ver5, ver1, ver2, ver4, ver6, ver3, ver4, ver1]
+        expected = [ver1, ver1, ver3, ver3, ver2, ver5, ver4, ver4, ver6]
+        self.assertEqual(sort_looseversions(input), expected)
+
+        # also test on list of tuples consisting of a LooseVersion instance + a string
+        # (as in the list_software_* functions)
+        suff1 = ''
+        suff2 = '-foo'
+        suff3 = '-bar'
+        input = [(ver3, suff1), (ver5, suff3), (ver1, suff2), (ver2, suff3), (ver4, suff1),
+                 (ver6, suff2), (ver3, suff3), (ver4, suff3), (ver1, suff1)]
+        expected = [(ver1, suff1), (ver1, suff2), (ver3, suff1), (ver3, suff3), (ver2, suff3),
+                    (ver5, suff3), (ver4, suff1), (ver4, suff3), (ver6, suff2)]
+        self.assertEqual(sort_looseversions(input), expected)
 
 
 def suite():

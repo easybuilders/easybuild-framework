@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,6 @@ import glob
 import inspect
 import os
 import re
-import shutil
 import stat
 import tempfile
 import time
@@ -71,12 +70,12 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, apply_regex_substitutions, back_up_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file, dir_contains_files
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -1290,6 +1289,9 @@ class EasyBlock(object):
                 note += "for paths are skipped for the statements below due to dry run"
                 lines.append(self.module_generator.comment(note))
 
+            # for these environment variables, the corresponding subdirectory must include at least one file
+            keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH')
+
             for key in sorted(requirements):
                 if self.dry_run:
                     self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
@@ -1302,6 +1304,16 @@ class EasyBlock(object):
                     # only use glob if the string is non-empty
                     if path and not self.dry_run:
                         paths = sorted(glob.glob(path))
+                        if paths and key in keys_requiring_files:
+                            # only retain paths that contain at least one file
+                            retained_paths = [
+                                path for path in paths
+                                if os.path.isdir(os.path.join(self.installdir, path))
+                                and dir_contains_files(os.path.join(self.installdir, path))
+                            ]
+                            self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
+                                          key, paths, retained_paths)
+                            paths = retained_paths
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
                         paths = [path]
@@ -1317,15 +1329,18 @@ class EasyBlock(object):
         """
         A dictionary of possible directories to look for.
         """
+        lib_paths = ['lib', 'lib32', 'lib64']
         return {
             'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
-            'LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
+            'LD_LIBRARY_PATH': lib_paths,
+            'LIBRARY_PATH': lib_paths,
             'CPATH': ['include'],
             'MANPATH': ['man', os.path.join('share', 'man')],
-            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in ['lib', 'lib32', 'lib64', 'share']],
+            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in lib_paths + ['share']],
             'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
             'CLASSPATH': ['*.jar'],
+            'XDG_DATA_DIRS': ['share'],
+            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
         }
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None):
@@ -1814,7 +1829,7 @@ class EasyBlock(object):
 
     def check_checksums_for(self, ent, sub='', source_cnt=None):
         """
-        Utility method: check whether checksums for all sources/patches are available, for given entity
+        Utility method: check whether SHA256 checksums for all sources/patches are available, for given entity
         """
         ec_fn = os.path.basename(self.cfg.path)
         checksum_issues = []
@@ -1841,8 +1856,19 @@ class EasyBlock(object):
             if isinstance(checksum, dict):
                 checksum = checksum.get(fn)
 
-            if not is_sha256_checksum(checksum):
-                msg = "Non-SHA256 checksum found for %s: %s" % (fn, checksum)
+            # take into account that we may encounter a tuple of valid SHA256 checksums
+            # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
+            if isinstance(checksum, tuple):
+                # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
+                if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
+                    valid_checksums = (checksum[1],)
+                else:
+                    valid_checksums = checksum
+            else:
+                valid_checksums = (checksum,)
+
+            if not all(is_sha256_checksum(c) for c in valid_checksums):
+                msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
                 checksum_issues.append(msg)
 
         return checksum_issues
@@ -2760,19 +2786,31 @@ class EasyBlock(object):
 
         # add read permissions for everybody on all files, taking into account group (if any)
         perms = stat.S_IRUSR | stat.S_IRGRP
+        # directory permissions: readable (r) & searchable (x)
+        dir_perms = stat.S_IXUSR | stat.S_IXGRP
         self.log.debug("Ensuring read permissions for user/group on install dir (recursively)")
+
         if self.group is None:
             perms |= stat.S_IROTH
+            dir_perms |= stat.S_IXOTH
             self.log.debug("Also ensuring read permissions for others on install dir (no group specified)")
 
         umask = build_option('umask')
         if umask is not None:
             # umask is specified as a string, so interpret it first as integer in octal, then take complement (~)
             perms &= ~int(umask, 8)
+            dir_perms &= ~int(umask, 8)
             self.log.debug("Taking umask '%s' into account when ensuring read permissions to install dir", umask)
 
+        self.log.debug("Adding file read permissions in %s using '%s'", self.installdir, oct(perms))
         adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
-        self.log.info("Successfully added read permissions '%s' recursively on install dir", oct(perms))
+
+        # also ensure directories have exec permissions (so they can be opened)
+        self.log.debug("Adding directory search permissions in %s using '%s'", self.installdir, oct(dir_perms))
+        adjust_permissions(self.installdir, dir_perms, add=True, recursive=True, relative=True, onlydirs=True,
+                           ignore_errors=True)
+
+        self.log.info("Successfully added read permissions recursively on install dir %s", self.installdir)
 
     def test_cases_step(self):
         """

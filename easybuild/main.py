@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, read_file, write_file
 from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
@@ -291,6 +291,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
+    # last path is target when --copy-ec is used, so remove that from the list
+    target_path = orig_paths.pop() if options.copy_ec else None
+
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
@@ -302,8 +305,22 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if options.fix_deprecated_easyconfigs:
-        fix_deprecated_easyconfigs(determined_paths)
+    if options.copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
+
+        if options.copy_ec:
+            if len(determined_paths) == 1:
+                copy_file(determined_paths[0], target_path)
+            else:
+                copy_files(determined_paths, target_path)
+
+        elif options.fix_deprecated_easyconfigs:
+            fix_deprecated_easyconfigs(determined_paths)
+
+        elif options.show_ec:
+            for path in determined_paths:
+                print_msg("Contents of %s:" % path)
+                print_msg(read_file(path), prefix=False)
+
         clean_exit(logfile, eb_tmpdir, testing)
 
     if determined_paths:

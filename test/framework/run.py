@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -309,6 +309,18 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertTrue(out.startswith("question\nanswer\nfoo "))
         self.assertTrue(out.endswith('bar'))
+
+    def test_run_cmd_qa_buffering(self):
+        """Test whether run_cmd_qa uses unbuffered output."""
+
+        # command that generates a lot of output before waiting for input
+        # note: bug being fixed can be reproduced reliably using 1000, but not with too high values like 100000!
+        cmd = 'for x in $(seq 1000); do echo "This is a number you can pick: $x"; done; '
+        cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
+        (out, ec) = run_cmd_qa(cmd, {'Pick a number: ': '42'}, log_all=True, maxhits=5)
+
+        regex = re.compile("Picked number: 42$")
+        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
