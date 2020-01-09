@@ -30,8 +30,7 @@ Implementation of the EasyBuild packaging naming scheme
 """
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
-from easybuild.tools.version import VERSION as EASYBUILD_VERSION
-
+from datetime import datetime
 
 class EasyBuildPNS(PackageNamingScheme):
     """Class implmenting the default EasyBuild packaging naming scheme."""
@@ -42,12 +41,6 @@ class EasyBuildPNS(PackageNamingScheme):
         return '%s-%s' % (ec['name'], det_full_ec_version(ec))
 
     def version(self, ec):
-        """Determine package version: EasyBuild version used to build & install."""
-        ebver = str(EASYBUILD_VERSION)
-        if ebver.endswith('dev'):
-            # try and make sure that 'dev' EasyBuild version is not considered newer just because it's longer
-            # (e.g., 2.2.0 vs 2.2.0dev)
-            # cfr. http://rpm.org/ticket/56,
-            # https://debian-handbook.info/browse/stable/sect.manipulating-packages-with-dpkg.html (see box in 5.4.3)
-            ebver.replace('dev', '~dev')
-        return 'eb-%s' % ebver
+        """Determine package version: Date used while build & install."""
+        date_stamp = datetime.today().strftime('%Y%m%d')
+        return '%s' % date_stamp
