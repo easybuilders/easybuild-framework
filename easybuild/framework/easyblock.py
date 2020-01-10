@@ -1490,6 +1490,11 @@ class EasyBlock(object):
     #
 
     @property
+    def startdir(self):
+        """Alias for self.start_dir."""
+        return self.start_dir
+
+    @property
     def start_dir(self):
         """Start directory in build directory"""
         return self.cfg['start_dir']

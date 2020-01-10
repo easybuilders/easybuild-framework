@@ -1004,6 +1004,54 @@ class EasyConfigTest(EnhancedTestCase):
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
         self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
+    def test_dir_templates(self):
+        """Test *dir template values."""
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_file = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        ec = EasyConfig(toy_ec_file, validate=False)
+        toy_easyblock = get_easyblock_class(None, ec.name)
+        toy_eb = toy_easyblock(ec)
+
+        # initially the *dir templates are not defined yet
+        for key in ['builddir', 'installdir', 'startdir']:
+            self.assertFalse(key in toy_eb.cfg.template_values)
+
+        # after 'ready' step which calls make_builddir, both builddir and installdir templates are defined
+        toy_eb.run_step('ready', [lambda x: x.make_builddir])
+        builddir_tmpl = toy_eb.cfg.template_values['builddir']
+        expected_builddir = os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system')
+        self.assertTrue(os.path.samefile(builddir_tmpl, expected_builddir))
+        self.assertTrue(os.path.samefile(builddir_tmpl, toy_eb.builddir))
+
+        toy_eb.make_installdir()
+        expected_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        installdir_tmpl = toy_eb.cfg.template_values['installdir']
+        self.assertTrue(os.path.samefile(installdir_tmpl, expected_installdir))
+        self.assertTrue(os.path.samefile(installdir_tmpl, toy_eb.installdir))
+
+        # startdir template is not defined yet (only after prepare_step), will have 'None' as value for now
+        self.assertEqual(toy_eb.cfg.template_values['startdir'], 'None')
+
+        toy_eb.run_step('fetch', [lambda x: x.fetch_step])
+        toy_eb.run_step('extract', [lambda x: x.extract_step])
+        toy_eb.run_step('prepare', [lambda x: x.prepare_step])
+        toy_eb.update_config_template_run_step()
+
+        builddir_tmpl = toy_eb.cfg.template_values['builddir']
+        self.assertTrue(os.path.samefile(builddir_tmpl, expected_builddir))
+        self.assertTrue(os.path.samefile(builddir_tmpl, toy_eb.builddir))
+
+        installdir_tmpl = toy_eb.cfg.template_values['installdir']
+        self.assertTrue(os.path.samefile(installdir_tmpl, expected_installdir))
+        self.assertTrue(os.path.samefile(installdir_tmpl, toy_eb.installdir))
+
+        startdir_tmpl = toy_eb.cfg.template_values['startdir']
+        expected_startdir = os.path.join(toy_eb.builddir, 'toy-0.0')
+        self.assertTrue(os.path.samefile(startdir_tmpl, expected_startdir))
+        self.assertTrue(os.path.samefile(startdir_tmpl, toy_eb.startdir))
+
     def test_templating_doc(self):
         """test templating documentation"""
         doc = avail_easyconfig_templates()
