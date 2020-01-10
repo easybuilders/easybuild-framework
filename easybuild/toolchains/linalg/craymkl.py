@@ -46,7 +46,6 @@ class CrayMKL(LinAlg):
     BLAS_MODULE_NAME = [CRAY_MKL_MODULE_NAME]
 
     # no need to specify libraries, compiler driver takes care of linking the right libraries
-    # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
     BLAS_LIB = ['']
     BLAS_LIB_MT = ['']
     BLAS_FAMILY = TC_CONSTANT_CRAY_MKL
@@ -84,7 +83,7 @@ class CrayMKL(LinAlg):
     def definition(self):
         """
         Filter BLAS module from toolchain definition.
-        The cray-libsci module is loaded indirectly (and versionless) via the PrgEnv module,
+        The intel module is loaded indirectly (and versionless) via the PrgEnv module,
         and thus is not a direct toolchain component.
         """
         tc_def = super(CrayMKL, self).definition()
