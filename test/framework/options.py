@@ -4673,7 +4673,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--cuda-compute-capabilities=3.5,6.2,7.0', '--show-config']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"^cuda-compute-capabilities \(C\) = 3\.5, 6\.2, 7\.0$", re.M)
+        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
 
