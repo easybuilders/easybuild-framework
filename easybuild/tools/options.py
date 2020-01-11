@@ -343,6 +343,8 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
+            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software",
+                                          'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
@@ -759,6 +761,15 @@ class EasyBuildOptions(GeneralOption):
         if self.options.module_naming_scheme and self.options.module_naming_scheme not in avail_mnss:
             msg = "Selected module naming scheme '%s' is unknown: %s" % (self.options.module_naming_scheme, avail_mnss)
             error_msgs.append(msg)
+
+        # values passed to --cuda-compute-capabilities must be of form X.Y (with both X and Y integers),
+        # see https://developer.nvidia.com/cuda-gpus
+        if self.options.cuda_compute_capabilities:
+            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+$')
+            faulty_cuda_ccs = [x for x in self.options.cuda_compute_capabilities if not cuda_cc_regex.match(x)]
+            if faulty_cuda_ccs:
+                error_msg = "Incorrect values in --cuda-compute-capabilities (expected pattern: '%s'): %s"
+                error_msgs.append(error_msg % (cuda_cc_regex.pattern, ', '.join(faulty_cuda_ccs)))
 
         if error_msgs:
             raise EasyBuildError("Found problems validating the options: %s", '\n'.join(error_msgs))

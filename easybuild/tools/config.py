@@ -159,6 +159,7 @@ BUILD_OPTIONS_CMDLINE = {
         'container_image_name',
         'container_template_recipe',
         'container_tmpdir',
+        'cuda_compute_capabilities',
         'download_timeout',
         'dump_test_report',
         'easyblock',
