@@ -4668,6 +4668,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     (ver5, suff3), (ver4, suff1), (ver4, suff3), (ver6, suff2)]
         self.assertEqual(sort_looseversions(input), expected)
 
+    def test_cuda_compute_capabilities(self):
+        """Test --cuda-compute-capabilities configuration option."""
+        args = ['--cuda-compute-capabilities=3.5,6.2,7.0', '--show-config']
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
+
 
 def suite():
     """ returns all the testcases in this module """
