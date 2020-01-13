@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2019 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,7 +35,7 @@ from easybuild.toolchains.mpi.craympich import CrayMPICH
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
-class CrayIMKL(CrayPEIntel, CrayMPICH, CrayMKL):
+class CrayIntelMKL(CrayPEIntel, CrayMPICH, CrayMKL):
     """Compiler toolchain for Cray Programming Environment for Intel compilers and MKL (PrgEnv-intel)."""
     NAME = 'CrayIntelMKL'
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
