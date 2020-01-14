@@ -1576,7 +1576,7 @@ class EasyBlock(object):
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
-        # Using get_ref to avoid template substitution (and possible failures)
+        # Using get_ref to avoid resolving templates as their required attributes may not be available yet
         iter_opt_counts = [len(self.cfg.get_ref(opt)) for opt in ITERATE_OPTIONS
                            if opt not in ['builddependencies'] and isinstance(self.cfg.get_ref(opt), (list, tuple))]
 
