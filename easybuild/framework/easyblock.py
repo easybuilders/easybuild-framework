@@ -61,6 +61,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
+from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.tools import config, filetools
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -1446,43 +1447,18 @@ class EasyBlock(object):
 
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
-        elif isinstance(exts_filter, string_type) or len(exts_filter) != 2:
-            raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
-        cmdtmpl = exts_filter[0]
-        cmdinputtmpl = exts_filter[1]
 
         res = []
         for ext in self.exts:
-            name = ext['name']
-            if 'options' in ext and 'modulename' in ext['options']:
-                modname = ext['options']['modulename']
-            else:
-                modname = name
-            tmpldict = {
-                'ext_name': modname,
-                'ext_version': ext.get('version'),
-                'src': ext.get('source'),
-            }
-
-            try:
-                cmd = cmdtmpl % tmpldict
-            except KeyError as err:
-                msg = "KeyError occurred on completing extension filter template: %s; "
-                msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
-                self.log.nosupport(msg % err, '2.0')
-
-            if cmdinputtmpl:
-                stdin = cmdinputtmpl % tmpldict
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
-            else:
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+            cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
+            (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
-                self.log.info("Not skipping %s" % name)
+                self.log.info("Not skipping %s" % ext['name'])
                 self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
                 res.append(ext)
             else:
-                self.log.info("Skipping %s" % name)
+                self.log.info("Skipping %s" % ext['name'])
         self.exts = res
 
     #
@@ -1600,8 +1576,9 @@ class EasyBlock(object):
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
-        iter_opt_counts = [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
-                           if opt not in ['builddependencies'] and isinstance(self.cfg[opt], (list, tuple))]
+        # Using get_ref to avoid resolving templates as their required attributes may not be available yet
+        iter_opt_counts = [len(self.cfg.get_ref(opt)) for opt in ITERATE_OPTIONS
+                           if opt not in ['builddependencies'] and isinstance(self.cfg.get_ref(opt), (list, tuple))]
 
         # we need to take into account that builddependencies is always a list
         # we're only iterating over it if it's a list of lists

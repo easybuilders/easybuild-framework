@@ -90,6 +90,12 @@ def raise_easybuilderror(msg, *args):
     raise EasyBuildError(msg, *args)
 
 
+def raise_nosupport(msg, ver):
+    """Construct error message for no longer supported behaviour, and raise an EasyBuildError."""
+    nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
+    raise_easybuilderror(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
+
+
 class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
@@ -154,9 +160,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
-        """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
-        nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
-        raise EasyBuildError(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
+        """Raise error message for no longer supported behaviour, and raise an EasyBuildError."""
+        raise_nosupport(msg, ver)
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""

@@ -58,6 +58,7 @@ from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
+from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -198,7 +199,7 @@ class EasyConfigTest(EnhancedTestCase):
         # introduce "TypeError: format requires mapping" issue"
         self.contents = self.contents.replace("syntax_error'", "foo = '%(name)s %s' % version")
         self.prep()
-        error_pattern = "Parsing easyconfig file failed: format requires a mapping \(line 8\)"
+        error_pattern = r"Parsing easyconfig file failed: format requires a mapping \(line 8\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
     def test_system_toolchain_constant(self):
@@ -854,7 +855,7 @@ class EasyConfigTest(EnhancedTestCase):
         # hidden dependencies must be included in list of dependencies
         res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
-        error_pattern = "Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
+        error_pattern = r"Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
         remove_file(res[1])
 
@@ -1559,7 +1560,6 @@ class EasyConfigTest(EnhancedTestCase):
             'foo': '"foo"',
             'foo\'bar': '"foo\'bar"',
             'foo\'bar"baz': '"""foo\'bar"baz"""',
-            "foo'bar\"baz": '"""foo\'bar"baz"""',
             "foo\nbar": '"foo\nbar"',
             'foo bar': '"foo bar"'
         }
@@ -2499,9 +2499,9 @@ class EasyConfigTest(EnhancedTestCase):
         # verify whether copied easyconfig gets cleaned up (stripping out 'Built with' comment + build stats)
         txt = read_file(copied_toy_ec)
         regexs = [
-            "# Built with EasyBuild",
-            "# Build statistics",
-            "buildstats\s*=",
+            r"# Built with EasyBuild",
+            r"# Build statistics",
+            r"buildstats\s*=",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -2708,8 +2708,8 @@ class EasyConfigTest(EnhancedTestCase):
             '--dry-run',
         ]
         outtxt = self.eb_main(args, raise_error=True)
-        self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
-        self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+        self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
+        self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
@@ -2853,8 +2853,8 @@ class EasyConfigTest(EnhancedTestCase):
         # incorrect spec
         specs['versionsuffix'] = ''
         error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-2018a.eb' " % toy_ec_name
-        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
-        error_pattern += "toolchain name, version: 'gompi', '2018a'\)"
+        error_pattern += r"\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += r"toolchain name, version: 'gompi', '2018a'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
         specs['versionsuffix'] = '-test'
 
@@ -2863,8 +2863,8 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_txt)
         error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-2018a-test.eb' "
-        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
-        error_pattern += "toolchain name, version: 'gompi', '2018a'\)"
+        error_pattern += r"\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
+        error_pattern += r"toolchain name, version: 'gompi', '2018a'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
         # incorrect file contents
@@ -2998,7 +2998,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
 
-        checksums_regex = re.compile('^checksums = \[\[(.|\n)*\]\]', re.M)
+        checksums_regex = re.compile(r'^checksums = \[\[(.|\n)*\]\]', re.M)
 
         # wipe out specified checksums, to make check fail
         test_ec = os.path.join(self.test_prefix, 'toy-0.0-fail.eb')
@@ -3013,7 +3013,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(res[0].startswith('Checksums missing for one or more sources/patches in toy-0.0-fail.eb'))
 
         # test use of whitelist regex patterns: check passes because easyconfig is whitelisted by filename
-        for regex in ['toy-.*', '.*-0\.0-fail\.eb']:
+        for regex in [r'toy-.*', r'.*-0\.0-fail\.eb']:
             res = check_sha256_checksums(ecs, whitelist=[regex])
             self.assertFalse(res)
 
@@ -3033,7 +3033,7 @@ class EasyConfigTest(EnhancedTestCase):
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         test_ec_txt = checksums_regex.sub('checksums = ["%s"]' % toy_sha256, toy_ec_txt)
-        test_ec_txt = re.sub('patches = \[(.|\n)*\]', '', test_ec_txt)
+        test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0-ok.eb')
         write_file(test_ec, test_ec_txt)
@@ -3556,6 +3556,56 @@ class EasyConfigTest(EnhancedTestCase):
             write_file(test_ec, test_ectxt)
 
             self.assertRaises(EasyBuildError, EasyConfig, test_ec)
+
+    def test_resolve_exts_filter_template(self):
+        """Test for resolve_exts_filter_template function."""
+        class TestExtension(object):
+            def __init__(self, values):
+                self.name = values['name']
+                self.version = values.get('version')
+                self.src = values.get('src')
+                self.options = values.get('options', {})
+
+        error_msg = 'exts_filter should be a list or tuple'
+        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                              '[ 1 == 1 ]', {})
+        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                              ['[ 1 == 1 ]'], {})
+        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                              ['[ 1 == 1 ]', 'true', 'false'], {})
+
+        test_cases = [
+            # Minimal case: just name
+            (['%(ext_name)s', None],
+             {'name': 'foo'},
+             ('foo', None),
+             ),
+            # Minimal case with input
+            (['%(ext_name)s', '>%(ext_name)s'],
+             {'name': 'foo'},
+             ('foo', '>foo'),
+             ),
+            # All values
+            (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz'},
+             ('foo-42-bar.tgz', '>foo-42-bar.tgz'),
+             ),
+            # options dict is accepted
+            (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'dummy': 'value'}},
+             ('foo-42-bar.tgz', '>foo-42-bar.tgz'),
+             ),
+            # modulename overwrites name
+            (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'modulename': 'baz'}},
+             ('baz-42-bar.tgz', '>baz-42-bar.tgz'),
+             ),
+        ]
+        for exts_filter, ext, expected_value in test_cases:
+            value = resolve_exts_filter_template(exts_filter, ext)
+            self.assertEqual(value, expected_value)
+            value = resolve_exts_filter_template(exts_filter, TestExtension(ext))
+            self.assertEqual(value, expected_value)
 
 
 def suite():
