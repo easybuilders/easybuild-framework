@@ -176,7 +176,7 @@ class ModulesToolTest(EnhancedTestCase):
             fake_path = os.path.join(self.test_installpath, 'lmod')
             fake_lmod_txt = '\n'.join([
                 '#!/bin/bash',
-                'echo "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION,
+                'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
             ])
             write_file(fake_path, fake_lmod_txt)

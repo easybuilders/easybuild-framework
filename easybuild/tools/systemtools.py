@@ -43,11 +43,22 @@ from socket import gethostname
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
+
+
+try:
+    import distro
+    HAVE_DISTRO = True
+except ImportError as err:
+    _log.debug("Failed to import 'distro' Python module: %s", err)
+    HAVE_DISTRO = False
+
 
 # Architecture constants
 AARCH32 = 'AArch32'
@@ -531,9 +542,21 @@ def get_os_name():
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
     'red hat enterprise linux server', 'SL' (Scientific Linux), 'opensuse', ...
     """
-    # platform.linux_distribution is more useful, but only available since Python 2.6
-    # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-    os_name = platform.linux_distribution()[0].strip().lower()
+    os_name = None
+
+    # platform.linux_distribution was removed in Python 3.8,
+    # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
+    if hasattr(platform, 'linux_distribution'):
+        # platform.linux_distribution is more useful, but only available since Python 2.6
+        # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
+        os_name = platform.linux_distribution()[0].strip().lower()
+    elif HAVE_DISTRO:
+        # distro package is the recommended alternative to platform.linux_distribution,
+        # see https://pypi.org/project/distro
+        os_name = distro.name()
+    else:
+        # no easy way to determine name of Linux distribution
+        os_name = None
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
@@ -550,7 +573,15 @@ def get_os_name():
 
 def get_os_version():
     """Determine system version."""
-    os_version = platform.dist()[1]
+
+    # platform.dist was removed in Python 3.8
+    if hasattr(platform, 'dist'):
+        os_version = platform.dist()[1]
+    elif HAVE_DISTRO:
+        os_version = distro.version()
+    else:
+        os_version = None
+
     if os_version:
         if get_os_name() in ["suse", "SLES"]:
 
@@ -802,3 +833,72 @@ def det_terminal_size():
             height, width = 25, 80
 
     return height, width
+
+
+def check_python_version():
+    """Check currently used Python version."""
+    python_maj_ver = sys.version_info[0]
+    python_min_ver = sys.version_info[1]
+    python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
+    _log.info("Found Python version %s", python_ver)
+
+    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+
+    if python_maj_ver == 2:
+        if python_min_ver < 6:
+            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
+        elif python_min_ver == 6:
+            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
+            if 'Python26' in silence_deprecation_warnings:
+                _log.warning(depr_msg)
+            else:
+                _log.deprecated(depr_msg, '5.0')
+        else:
+            _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
+
+    elif python_maj_ver == 3:
+        if python_min_ver < 5:
+            raise EasyBuildError("Python 3.5 or higher is required when using Python 3, found Python %s", python_ver)
+        else:
+            _log.info("Running EasyBuild with Python 3 (version %s)", python_ver)
+    else:
+        raise EasyBuildError("EasyBuild is not compatible (yet) with Python %s", python_ver)
+
+    return (python_maj_ver, python_min_ver)
+
+
+def pick_dep_version(dep_version):
+    """
+    Pick the correct dependency version to use for this system.
+    Input can either be:
+    * a string value (or None)
+    * a dict with options to choose from
+
+    Return value is the version to use.
+    """
+    if isinstance(dep_version, string_type):
+        _log.debug("Version is already a string ('%s'), OK", dep_version)
+        result = dep_version
+
+    elif dep_version is None:
+        _log.debug("Version is None, OK")
+        result = None
+
+    elif isinstance(dep_version, dict):
+        # figure out matches based on dict keys (after splitting on '=')
+        my_arch_key = 'arch=%s' % get_cpu_architecture()
+        arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+        other_keys = [x for x in dep_version.keys() if x not in arch_keys]
+        if other_keys:
+            raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+        if arch_keys:
+            if my_arch_key in dep_version:
+                result = dep_version[my_arch_key]
+                _log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, result)
+            else:
+                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+
+    else:
+        raise EasyBuildError("Unknown value type for version: %s", dep_version)
+
+    return result

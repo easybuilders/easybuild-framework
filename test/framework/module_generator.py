@@ -30,6 +30,7 @@ Unit tests for module_generator.py.
 """
 import glob
 import os
+import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -345,6 +346,140 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 init_config(build_options={'mod_depends_on': 'True'})
                 self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
 
+    def test_load_multi_deps(self):
+        """Test generated load statement when multi_deps is involved."""
+
+        # first check with typical two-version multi_deps
+        multi_dep_mods = ['Python/3.7.4', 'Python/2.7.16']
+        res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods)
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { ![ is-loaded Python/3.7.4 ] && ![ is-loaded Python/2.7.16 ] } {",
+                "    module load Python/3.7.4",
+                '}',
+                '',
+            ])
+        else:  # Lua syntax
+            expected = '\n'.join([
+                '',
+                'if not ( isloaded("Python/3.7.4") ) and not ( isloaded("Python/2.7.16") ) then',
+                '    load("Python/3.7.4")',
+                'end',
+                '',
+            ])
+        self.assertEqual(expected, res)
+
+        if self.modtool.supports_depends_on:
+            # two versions with depends_on
+            res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods, depends_on=True)
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded Python/2.7.16 ] } {",
+                    "    depends-on Python",
+                    '} else {',
+                    "    depends-on Python/3.7.4",
+                    '}',
+                    '',
+                ])
+            else:  # Lua syntax
+                expected = '\n'.join([
+                    '',
+                    'if mode() == "unload" or isloaded("Python/2.7.16") then',
+                    '    depends_on("Python")',
+                    'else',
+                    '    depends_on("Python/3.7.4")',
+                    'end',
+                    '',
+                ])
+            self.assertEqual(expected, res)
+
+        # now test with more than two versions...
+        multi_dep_mods = ['foo/1.2.3', 'foo/2.3.4', 'foo/3.4.5', 'foo/4.5.6']
+        res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods)
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { ![ is-loaded foo/1.2.3 ] && ![ is-loaded foo/2.3.4 ] && " +
+                "![ is-loaded foo/3.4.5 ] && ![ is-loaded foo/4.5.6 ] } {",
+                "    module load foo/1.2.3",
+                '}',
+                '',
+            ])
+        else:  # Lua syntax
+            expected = '\n'.join([
+                '',
+                'if not ( isloaded("foo/1.2.3") ) and not ( isloaded("foo/2.3.4") ) and ' +
+                'not ( isloaded("foo/3.4.5") ) and not ( isloaded("foo/4.5.6") ) then',
+                '    load("foo/1.2.3")',
+                'end',
+                '',
+            ])
+        self.assertEqual(expected, res)
+
+        if self.modtool.supports_depends_on:
+            # more than two versions, with depends_on
+            res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods, depends_on=True)
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded foo/2.3.4 ] || [ is-loaded foo/3.4.5 ] " +
+                    "|| [ is-loaded foo/4.5.6 ] } {",
+                    "    depends-on foo",
+                    "} else {",
+                    "    depends-on foo/1.2.3",
+                    '}',
+                    '',
+                ])
+            else:  # Lua syntax
+                expected = '\n'.join([
+                    '',
+                    'if mode() == "unload" or isloaded("foo/2.3.4") or isloaded("foo/3.4.5") or ' +
+                    'isloaded("foo/4.5.6") then',
+                    '    depends_on("foo")',
+                    'else',
+                    '    depends_on("foo/1.2.3")',
+                    'end',
+                    '',
+                ])
+            self.assertEqual(expected, res)
+
+        # what if we only list a single version?
+        # see https://github.com/easybuilders/easybuild-framework/issues/3080
+        res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'])
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { ![ is-loaded one/1.0 ] } {",
+                "    module load one/1.0",
+                '}',
+                '',
+            ])
+        else:  # Lua syntax
+            expected = '\n'.join([
+                '',
+                'if not ( isloaded("one/1.0") ) then',
+                '    load("one/1.0")',
+                'end',
+                '',
+            ])
+        self.assertEqual(expected, res)
+
+        if self.modtool.supports_depends_on:
+            res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'], depends_on=True)
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                expected = '\ndepends-on one/1.0\n'
+            else:  # Lua syntax
+                expected = '\ndepends_on("one/1.0")\n'
+            self.assertEqual(expected, res)
+
     def test_modulerc(self):
         """Test modulerc method."""
         self.assertErrorRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
@@ -559,6 +694,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
+    def test_module_extensions(self):
+        """test the extensions() for extensions"""
+        # not supported for Tcl modules
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            return
+
+        # currently requires opt-in via --module-extensions
+        init_config(build_options={'module_extensions': True})
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        patterns = [
+            r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
+            r'\s*extensions\("bar/0.0,barbar/0.0,ls,toy/0.0"\)\nend$',
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
@@ -1197,6 +1359,35 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # only with depth=0, only direct dependencies are returned
         self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
+
+        # Lmod 7.6+ is required to use depends-on
+        if self.modtool.supports_depends_on:
+            # also test on module file that includes depends_on statements
+            test_modfile = os.path.join(self.test_prefix, 'test', '1.2.3')
+
+            if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+                test_modtxt = '\n'.join([
+                    'depends_on("GCC/6.4.0-2.28")',
+                    'depends_on("OpenMPI/2.1.2-GCC-6.4.0-2.28")',
+                ])
+                test_modfile += '.lua'
+            else:
+                test_modtxt = '\n'.join([
+                    '#%Module',
+                    "depends-on GCC/6.4.0-2.28",
+                    "depends-on OpenMPI/2.1.2-GCC-6.4.0-2.28",
+                ])
+
+            write_file(test_modfile, test_modtxt)
+
+            self.modtool.use(self.test_prefix)
+
+            expected = [
+                'GCC/6.4.0-2.28',
+                'OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                'hwloc/1.11.8-GCC-6.4.0-2.28',  # recursive dep, via OpenMPI
+            ]
+            self.assertEqual(dependencies_for('test/1.2.3', self.modtool), expected)
 
     def test_det_installdir(self):
         """Test det_installdir method."""

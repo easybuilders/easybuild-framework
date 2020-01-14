@@ -86,7 +86,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
@@ -175,6 +175,7 @@ class EasyBlock(object):
         self.module_generator = module_generator(self, fake=True)
         self.mod_filepath = self.module_generator.get_module_filepath()
         self.mod_file_backup = None
+        self.set_default_module = self.cfg.set_default_module
 
         # modules footer/header
         self.modules_footer = None
@@ -453,8 +454,8 @@ class EasyBlock(object):
                 raise EasyBuildError('No file found for patch %s', patch_spec)
 
         if extension:
-            self.log.info("Fetched extension patches: %s" % patches)
-            return [patch['path'] for patch in patches]
+            self.log.info("Fetched extension patches: %s", patches)
+            return patches
         else:
             self.log.info("Added patches: %s" % self.patches)
 
@@ -544,6 +545,7 @@ class EasyBlock(object):
 
                                 if not skip_checksums:
                                     for patch in ext_patches:
+                                        patch = patch['path']
                                         # report both MD5 and SHA256 checksums,
                                         # since both are valid default checksum types
                                         for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
@@ -553,6 +555,7 @@ class EasyBlock(object):
                                     # verify checksum (if provided)
                                     self.log.debug('Verifying checksums for extension patches...')
                                     for idx, patch in enumerate(ext_patches):
+                                        patch = patch['path']
                                         checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
                                         if verify_checksum(patch, checksum):
                                             self.log.info('Checksum for extension patch %s verified', patch)
@@ -1672,6 +1675,11 @@ class EasyBlock(object):
             # which is better than hiding them (since --show-hidden still reveals them)
             hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
 
+            # with old Lmod versions, the backup module should also be hidden when using Lua syntax;
+            # see https://github.com/easybuilders/easybuild-easyconfigs/issues/9302
+            if isinstance(self.module_generator, ModuleGeneratorLua) and isinstance(self.modules_tool, Lmod):
+                hidden = LooseVersion(self.modules_tool.version) < LooseVersion('7.0.0')
+
             self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden, strip_fn=strip_fn)
             print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
 
@@ -2596,8 +2604,12 @@ class EasyBlock(object):
         if self.dry_run:
             dry_run_msg("Marked %s v%s as default version" % (self.name, version))
         else:
-            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath(fake=fake))
-            self.module_generator.set_as_default(mod_folderpath, version)
+            mod_dir_path = os.path.dirname(self.module_generator.get_module_filepath(fake=fake))
+            if fake:
+                mod_symlink_paths = []
+            else:
+                mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+            self.module_generator.set_as_default(mod_dir_path, version, mod_symlink_paths=mod_symlink_paths)
 
     def cleanup_step(self):
         """
@@ -2708,7 +2720,7 @@ class EasyBlock(object):
 
         # always set default for temporary module file,
         # to avoid that it gets overruled by an existing module file that is set as default
-        if fake or build_option('set_default_module'):
+        if fake or self.set_default_module:
             self._set_module_as_default(fake=fake)
 
         return modpath
@@ -3484,8 +3496,8 @@ def inject_checksums(ecs, checksum_type):
                         print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
                         ext_checksums.append((src_fn, checksum))
                     for ext_patch in ext.get('patches', []):
-                        patch_fn = os.path.basename(ext_patch)
-                        checksum = compute_checksum(ext_patch, checksum_type)
+                        patch_fn = os.path.basename(ext_patch['path'])
+                        checksum = compute_checksum(ext_patch['path'], checksum_type)
                         print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
                         ext_checksums.append((patch_fn, checksum))
 

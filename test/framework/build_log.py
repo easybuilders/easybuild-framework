@@ -35,7 +35,7 @@ from datetime import datetime, timedelta
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-from easybuild.base.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
+from easybuild.base.fancylogger import getLogger, logToFile, setLogFormat
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning
 from easybuild.tools.build_log import init_logging, print_error, print_msg, print_warning, stop_logging, time_str_since
 from easybuild.tools.filetools import read_file, write_file
@@ -68,7 +68,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        log_re = re.compile("^%s ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$" % getRootLoggerName(), re.M)
+        log_re = re.compile(r"^root ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
         logtxt = open(tmplog, 'r').read()
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
@@ -130,19 +130,17 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
 
-        root = getRootLoggerName()
-
         expected_logtxt = '\n'.join([
-            r"%s.test_easybuildlog \[DEBUG\] :: 123 debug" % root,
-            r"%s.test_easybuildlog \[INFO\] :: foobar info" % root,
-            r"%s.test_easybuildlog \[WARNING\] :: justawarning" % root,
-            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*" % root,
-            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*" % root,
-            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*" % root,
-            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*" % root,
-            r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root,
-            root + r".test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
-            r"%s.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops" % root,
+            r"root.test_easybuildlog \[DEBUG\] :: 123 debug",
+            r"root.test_easybuildlog \[INFO\] :: foobar info",
+            r"root.test_easybuildlog \[WARNING\] :: justawarning",
+            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*",
+            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*",
+            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*",
+            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*",
+            r"root.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
+            r"root.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
+            r"root.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -165,10 +163,10 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
-            r"%s.test_easybuildlog \[WARNING\] :: bleh" % root,
-            r"%s.test_easybuildlog \[INFO\] :: 4\+2 = 42" % root,
-            r"%s.test_easybuildlog \[DEBUG\] :: this is just a test" % root,
-            r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz" % root,
+            r"root.test_easybuildlog \[WARNING\] :: bleh",
+            r"root.test_easybuildlog \[INFO\] :: 4\+2 = 42",
+            r"root.test_easybuildlog \[DEBUG\] :: this is just a test",
+            r"root.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -217,9 +215,7 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
 
-        root = getRootLoggerName()
-
-        prefix = '%s.test_easybuildlog' % root
+        prefix = 'root.test_easybuildlog'
         devel_msg = r"%s \[DEVEL\] :: tmi" % prefix
         debug_msg = r"%s \[DEBUG\] :: gdb" % prefix
         info_msg = r"%s \[INFO\] :: fyi" % prefix

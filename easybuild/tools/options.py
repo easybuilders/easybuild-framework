@@ -93,7 +93,8 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_system_info
+from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
+from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -412,6 +413,7 @@ class EasyBuildOptions(GeneralOption):
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
@@ -449,8 +451,8 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
-            'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
-                                          'strlist', 'store', None),
+            'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
+                                          "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
@@ -472,6 +474,8 @@ class EasyBuildOptions(GeneralOption):
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
+                                  None, 'store_true', False),
+            'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', False),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
@@ -593,7 +597,9 @@ class EasyBuildOptions(GeneralOption):
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'new-branch-github': ("Create new branch in GitHub in preparation for a PR", None, 'store_true', False),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
+            'new-pr-from-branch': ("Open a new pull request from branch in GitHub", str, 'store', None),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
                                str, 'store', None),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
@@ -603,9 +609,13 @@ class EasyBuildOptions(GeneralOption):
             'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
             'preview-pr': ("Preview a new pull request", None, 'store_true', False),
+            'sync-branch-with-develop': ("Sync branch with current 'develop' branch", str, 'store', None),
+            'sync-pr-with-develop': ("Sync pull request with current 'develop' branch",
+                                     int, 'store', None, {'metavar': 'PR#'}),
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
+            'update-branch-github': ("Update specified branch in GitHub", str, 'store', None),
             'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False, 'u'),
         })
@@ -989,6 +999,10 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
+        # imply --disable-pre-create-installdir with --inject-checksums
+        if self.options.inject_checksums:
+            self.options.pre_create_installdir = False
+
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
@@ -1348,6 +1362,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     if not robot_path:
         print_warning("Robot search path is empty!")
 
+    new_update_opt = options.new_pr or options.new_pr_from_branch or options.update_branch_github or options.update_pr
+
     # configure & initialize build options
     config_options_dict = eb_go.get_options_by_section('config')
     build_options = {
@@ -1356,13 +1372,15 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
-        'silent': testing or options.new_pr or options.update_pr,
+        'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
+
+    check_python_version()
 
     # move directory containing fake vsc namespace into temporary directory used for this session
     # (to ensure it gets cleaned up properly)
@@ -1467,14 +1485,25 @@ def parse_external_modules_metadata(cfgs):
     """
     Parse metadata for external modules.
 
-    :param cfgs: list of config files providing metadata for external modules
+    :param cfgs: list of (glob patterns for) paths to config files providing metadata for external modules
     :return: parsed metadata for external modules
     """
+    if cfgs is None:
+        cfgs = []
+
+    # expand glob patterns, and report error for faulty paths
+    paths = []
+    for cfg in cfgs:
+        res = glob.glob(cfg)
+        if res:
+            paths.extend(res)
+        else:
+            # if there are no matches, we report an error to avoid silently ignores faulty paths
+            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+    cfgs = paths
 
     # use external modules metadata configuration files that are available by default, unless others are specified
     if not cfgs:
-        cfgs = []
-
         # we expect to find *external_modules_metadata.cfg files in etc/ on same level as easybuild/framework
         topdirs = [os.path.dirname(os.path.dirname(os.path.dirname(__file__)))]
 
@@ -1498,17 +1527,22 @@ def parse_external_modules_metadata(cfgs):
 
     parsed_metadata = ConfigObj()
     for cfg in cfgs:
-        if os.path.isfile(cfg):
-            _log.debug("Parsing %s with external modules metadata", cfg)
-            try:
-                parsed_metadata.merge(ConfigObj(cfg))
-            except ConfigObjError as err:
-                raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
-        else:
-            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+        _log.debug("Parsing %s with external modules metadata", cfg)
+        try:
+            parsed_metadata.merge(ConfigObj(cfg))
+        except ConfigObjError as err:
+            raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
+
+    known_metadata_keys = ['name', 'prefix', 'version']
+    unknown_keys = {}
 
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():
+        # make sure only known keys are used
+        for key in entry.keys():
+            if key not in known_metadata_keys:
+                unknown_keys.setdefault(mod, []).append(key)
+
         for key in ['name', 'version']:
             if isinstance(entry.get(key), string_type):
                 entry[key] = [entry[key]]
@@ -1520,6 +1554,12 @@ def parse_external_modules_metadata(cfgs):
         if names is not None and versions is not None and len(names) != len(versions):
             raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
                                  "names: %s; versions: %s", mod, names, versions)
+
+    if unknown_keys:
+        error_msg = "Found metadata entries with unknown keys:"
+        for mod in sorted(unknown_keys.keys()):
+            error_msg += "\n* %s: %s" % (mod, ', '.join(sorted(unknown_keys[mod])))
+        raise EasyBuildError(error_msg)
 
     _log.debug("External modules metadata: %s", parsed_metadata)
     return parsed_metadata
