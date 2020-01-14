@@ -599,6 +599,7 @@ def extract_errors_from_log(log_txt, reg_exps):
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
     :return (warnings, errors) as lists of lines containing a match
     """
+    actions = (IGNORE, WARN, ERROR)
 
     # promote single string value to list, since code below expects a list
     if isinstance(reg_exps, string_type):
@@ -611,8 +612,10 @@ def extract_errors_from_log(log_txt, reg_exps):
                 reg_exp, action = cur, ERROR
             else:
                 reg_exp, action = cur
-            if not isinstance(reg_exp, str) or action not in (IGNORE, WARN, ERROR):
-                raise TypeError("Invalid types")
+            if not isinstance(reg_exp, str):
+                raise TypeError("RegExp must be passed as string")
+            if action not in actions:
+                raise TypeError("action must be one of %s" % action)
             re_tuples.append((re.compile(reg_exp), action))
         except Exception as e:
             raise EasyBuildError("Invalid input: No RegExp or tuple of RegExp and action '%s' (%s)", str(cur), e)

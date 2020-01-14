@@ -544,38 +544,38 @@ class RunTest(EnhancedTestCase):
             "enabling -Werror",
             "the process crashed with 0"
         ])
-        expected_error_msg = r"Found 2 error\(s\) in command output "\
-                             r"\(output: error found\n\tthe process crashed with 0\)"
+        expected_msg = r"Found 2 error\(s\) in command output "\
+                       r"\(output: error found\n\tthe process crashed with 0\)"
 
         # String promoted to list
-        self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
                               r"\b(error|crashed)\b")
         # List of string(s)
-        self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
                               [r"\b(error|crashed)\b"])
         # List of tuple(s)
-        self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text,
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
                               [(r"\b(error|crashed)\b", ERROR)])
 
-        expected_error_msg = "Found 2 potential error(s) in command output " \
-                             "(output: error found\n\tthe process crashed with 0)"
+        expected_msg = "Found 2 potential error(s) in command output " \
+                       "(output: error found\n\tthe process crashed with 0)"
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
-        self.assertTrue(expected_error_msg in read_file(logfile))
+        self.assertTrue(expected_msg in read_file(logfile))
 
-        expected_error_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
+        expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
         write_file(logfile, '')
         init_logging(logfile, silent=True)
-        self.assertErrorRegex(EasyBuildError, expected_error_msg, check_log_for_errors, input_text, [
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
             r"\berror\b",
             (r"\ballowed-test failed\b", IGNORE),
             (r"(?i)\bCRASHED\b", WARN),
             "fail"
         ])
         stop_logging(logfile)
-        expected_error_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
-        self.assertTrue(expected_error_msg in read_file(logfile))
+        expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
+        self.assertTrue(expected_msg in read_file(logfile))
 
 
 def suite():
