@@ -184,9 +184,9 @@ class ModulesTool(object):
             cmd_path = which(self.cmd, log_ok=False, log_error=False)
             # only use command path in environment variable if command in not available in $PATH
             if cmd_path is None:
+                self.cmd = env_cmd_path
                 self.log.debug("Set %s command via environment variable %s: %s",
                                self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
-                self.cmd = env_cmd_path
             # check whether paths obtained via $PATH and $LMOD_CMD are different
             elif cmd_path != env_cmd_path:
                 self.log.debug("Different paths found for %s command '%s' via which/$PATH and $%s: %s vs %s",
