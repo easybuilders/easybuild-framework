@@ -593,7 +593,8 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
 
 def extract_errors_from_log(log_txt, reg_exps):
     """
-    Check log_txt for messages matching regExps and return warnings and errors
+    Check provided string (command output) for messages matching specified regular expressions,
+    and return 2-tuple with list of warnings and errors.
     :param log_txt: String containing the log, will be split into individual lines
     :param reg_exps: List of: regular expressions (as strings) to error on,
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
@@ -609,16 +610,21 @@ def extract_errors_from_log(log_txt, reg_exps):
     for cur in reg_exps:
         try:
             if isinstance(cur, str):
+                # use ERROR as default action if only regexp pattern is specified
                 reg_exp, action = cur, ERROR
-            else:
+            elif isinstance(cur, tuple) and len(cur) == 2:
                 reg_exp, action = cur
+            else:
+                raise TypeError("Incorrect type of value, expected string or 2-tuple")
+
             if not isinstance(reg_exp, str):
-                raise TypeError("RegExp must be passed as string")
+                raise TypeError("Regular expressions must be passed as string, got %s" % type(reg_exp))
             if action not in actions:
-                raise TypeError("action must be one of %s" % action)
+                raise TypeError("action must be one of %s, got %s" % (actions, action))
+
             re_tuples.append((re.compile(reg_exp), action))
-        except Exception as e:
-            raise EasyBuildError("Invalid input: No RegExp or tuple of RegExp and action '%s' (%s)", str(cur), e)
+        except Exception as err:
+            raise EasyBuildError("Invalid input: No regexp or tuple of regexp and action '%s': %s", str(cur), err)
 
     warnings = []
     errors = []
