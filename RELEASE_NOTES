@@ -9,10 +9,10 @@ v4.1.1 (January 16th 2020)
 update/bugfix release
 
 - various enhancements, including:
-  - add check_log_for_errors to detect and handle multiple errors (#3118)
-  - implement support for 'eb --show-ec' (#3132)
-  - also update $XDG_DATA_DIR (share/) and $GI_TYPELIB_PATH environment variables (lib*/girepository-*) (#3133)
-  - add support for --copy-ec (#3142)
+  - add check_log_for_errors function (in easybuild.tools.run) to detect and handle multiple errors (#3118)
+  - implement support for 'eb --show-ec' to show contents of specified easyconfig file (#3132)
+  - also update $XDG_DATA_DIR (share/) and $GI_TYPELIB_PATH environment variables (lib*/girepository-*) in generated module files (#3133)
+  - add support for --copy-ec to copy easyconfig file to specified location (#3142)
   - mention --disable-* option in --help output for boolean options enabled by default (#3151)
   - add --cuda-compute-capabilities configuration option (#3161)
 - various bug fixes, including:
@@ -23,17 +23,16 @@ update/bugfix release
   - disable buffering in asyncprocess.Popen using bufsize=0, to fix run_cmd_qa missing output (#3130)
   - update pip & install wheel package in generated Singularity container recipes (#3136)
   - avoid crash in modify_env & unset unset_env_vars when using (older versions) of Python 3.5 & 3.6 by using list(...) (#3140)
-  - get_software_libdir: take into account that lib64 could be a symlink to lib (or vice versa) (#3141)
-  - only parse docstring if it exists (#3144)
-  - only add useful entries for $CPATH, $(LD_)LIBRARY_PATH and $PATH (#3145)
+  - take into account that lib64 could be a symlink to lib (or vice versa) in get_software_libdir function (#3141)
+  - only parse docstring if it exists in gen_easyblock_doc_section_rst function (#3144)
+  - only add useful entries for $CPATH, $(LD_)LIBRARY_PATH and $PATH (non-empty directories) (#3145, #3152)
   - fix --list-software=detailed when using Python 3 by leveraging sort_looseversions function from py2vs3 module (#3146)
   - ensure subdirectories in software install directory have correct search (exec) permission (#3147)
-  - only remove folders that contain no files recursively (#3152)
   - take into account that a checksum value may be a tuple of valid checksum in EasyBlock.check_checksums (#3153)
 - other changes:
   - bump to Lmod 8.2.9 in GitHub CI config (#3115)
   - update copyright statements for 2020 (#3149)
-  - ignore "Black would make changes" produced by flake8-black (#3162)
+  - make Hound CI code style checker ignore "Black would make changes" produced by flake8-black (#3162)
 
 
 v4.1.0 (December 4th 2019)
