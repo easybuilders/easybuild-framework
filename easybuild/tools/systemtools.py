@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2019 Ghent University
+# Copyright 2011-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -114,6 +114,9 @@ VENDOR_IDS = {
     'AuthenticAMD': AMD,
     'GenuineIntel': INTEL,
     'IBM': IBM,
+    # IBM POWER9
+    '8335-GTH': IBM,
+    '8335-GTX': IBM,
 }
 # ARM Cortex part numbers from the corresponding ARM Processor Technical Reference Manuals,
 # see http://infocenter.arm.com - Cortex-A series processors, Section "Main ID Register"
@@ -276,7 +279,7 @@ def get_cpu_vendor():
         if arch == X86_64:
             vendor_regex = re.compile(r"vendor_id\s+:\s*(\S+)")
         elif arch == POWER:
-            vendor_regex = re.compile(r"model\s+:\s*(\w+)")
+            vendor_regex = re.compile(r"model\s+:\s*((\w|-)+)")
         elif arch in [AARCH32, AARCH64]:
             vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
 

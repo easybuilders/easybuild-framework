@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -116,9 +116,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """
         Custom sanity check for extensions, whether installed as stand-alone module or not
         """
-        if not self.cfg['exts_filter']:
+        if not self.cfg.get_ref('exts_filter'):
             self.cfg['exts_filter'] = exts_filter
-        self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
+        self.log.debug("starting sanity check for extension with filter %s", self.cfg.get_ref('exts_filter'))
 
         # for stand-alone installations that were done for multiple dependency versions (via multi_deps),
         # we need to perform the extension sanity check for each of them, by loading the corresponding modules first

@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2019 Ghent University
+# Copyright 2015-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,8 +36,9 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.base.fancylogger import getLogger, logToFile, setLogFormat
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning
-from easybuild.tools.build_log import init_logging, print_error, print_msg, print_warning, stop_logging, time_str_since
+from easybuild.tools.build_log import (
+    LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error, print_msg,
+    print_warning, stop_logging, time_str_since, raise_nosupport)
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -146,9 +147,10 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
-        self.assertErrorRegex(EasyBuildError, "DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
-        self.assertErrorRegex(EasyBuildError, "DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
-        self.assertErrorRegex(EasyBuildError, "DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', max_ver='1.0')
+        self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
+        self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
+        self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0',
+                              max_ver='1.0')
 
         # wipe log so we can reuse it
         write_file(tmplog, '')
@@ -421,6 +423,10 @@ class BuildLogTest(EnhancedTestCase):
         self.assertTrue(isinstance(log, EasyBuildLog))
 
         stop_logging(logfile, logtostdout=True)
+
+    def test_raise_nosupport(self):
+        self.assertErrorRegex(EasyBuildError, 'NO LONGER SUPPORTED since v42: foobar;',
+                              raise_nosupport, 'foobar', 42)
 
 
 def suite():

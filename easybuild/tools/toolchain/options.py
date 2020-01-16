@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -86,7 +86,12 @@ class ToolchainOptions(dict):
         """Return option value"""
         value = self.get(name, None)
         if value is None and name not in self.options_map:
-            self.log.warning("option: option with name %s returns None" % name)
+            msg = "option: option with name %s returns None" % name
+            # Empty options starting with _opt_ are allowed, so don't warn
+            if name.startswith('_opt_'):
+                self.log.devel(msg)
+            else:
+                self.log.warning(msg)
             res = None
         elif name in self.options_map:
             res = self.options_map[name]
