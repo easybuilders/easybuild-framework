@@ -268,6 +268,15 @@ class RunTest(EnhancedTestCase):
 
         init_config(build_options={'trace': True})
 
+        pattern = [
+            r"^  >> running command:",
+            r"\t\[started at: .*\]",
+            r"\t\[working dir: .*\]",
+            r"\t\[output logged in .*\]",
+            r"\techo hello",
+            r"  >> command completed: exit 0, ran in .*",
+        ]
+
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd("echo hello")
@@ -275,13 +284,24 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(ec, 0)
         self.assertEqual(stderr, '')
-        pattern = "^  >> running command:\n"
-        pattern += "\t\[started at: .*\]\n"
-        pattern += "\t\[output logged in .*\]\n"
-        pattern += "\techo hello\n"
-        pattern += '  >> command completed: exit 0, ran in .*'
-        regex = re.compile(pattern)
+        regex = re.compile('\n'.join(pattern))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # also test with command that is fed input via stdin
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd('cat', inp='hello')
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(stderr, '')
+        pattern.insert(3, r"\t\[input: hello\]")
+        pattern[-2] = "\tcat"
+        regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # trace output can be disabled on a per-command basis
@@ -358,6 +378,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         pattern = "^  >> running interactive command:\n"
         pattern += "\t\[started at: .*\]\n"
+        pattern += "\t\[working dir: .*\]\n"
         pattern += "\t\[output logged in .*\]\n"
         pattern += "\techo \'n: \'; read n; seq 1 \$n\n"
         pattern += '  >> interactive command completed: exit 0, ran in .*'

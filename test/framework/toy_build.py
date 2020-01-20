@@ -2079,7 +2079,14 @@ class ToyBuildTest(EnhancedTestCase):
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             "^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
-            "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
+            '\n'.join([
+                "^  >> running command:",
+                "\t\[started at: .*\]",
+                "\t\[working dir: .*\]",
+                "\t\[output logged in .*\]",
+                "\tgcc toy.c -o toy\n"
+                '',
+            ]),
             "  >> command completed: exit 0, ran in .*",
             '^' + '\n'.join([
                 "== sanity checking\.\.\.",
