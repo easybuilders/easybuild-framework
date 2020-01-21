@@ -1050,6 +1050,14 @@ def check_pr_eligible_to_merge(pr_data):
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
+    # check whether at least one label is set
+    msg_tmpl = "* labels are set: %s"
+    if pr_data['labels']:
+        pr_labels = [label['name'] for label in pr_data['labels']]
+        print_msg(msg_tmpl % "OK (%s)" % ', '.join(pr_labels), prefix=False)
+    else:
+        res = not_eligible(msg_tmpl % 'no labels found')
+
     return res
 
 
