@@ -1956,7 +1956,9 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             '  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
             "  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            '  running command "git archive -o .*/target/test.tar --prefix=testrepository/ HEAD"',
+            "  \(in testrepository\)",
+            '  running command "gzip -nf .*/target/test.tar"',
             "  \(in .*/tmp.*\)",
         ])
         run_check()
@@ -1965,7 +1967,14 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             '  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
             "  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            '  running command "git archive -o .*/target/test.tar --prefix=testrepository/ HEAD"',
+            "  \(in testrepository\)",
+            '  running command "git submodule foreach ' +
+            '\'git archive -o \$name.tar --prefix=testrepository/\$path/ HEAD\'"',
+            "  \(in testrepository\)",
+            '  running command "git submodule foreach \'tar -f .*/target/test.tar --concatenate \$name.tar\'"',
+            "  \(in testrepository\)",
+            '  running command "gzip -nf .*/target/test.tar"',
             "  \(in .*/tmp.*\)",
         ])
         run_check()
@@ -1977,7 +1986,14 @@ class FileToolsTest(EnhancedTestCase):
             "  \(in .*/tmp.*\)",
             '  running command "git checkout 8456f86 && git submodule update"',
             "  \(in testrepository\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            '  running command "git archive -o .*/target/test.tar --prefix=testrepository/ HEAD"',
+            "  \(in testrepository\)",
+            '  running command "git submodule foreach ' +
+            '\'git archive -o \$name.tar --prefix=testrepository/\$path/ HEAD\'"',
+            "  \(in testrepository\)",
+            '  running command "git submodule foreach \'tar -f .*/target/test.tar --concatenate \$name.tar\'"',
+            "  \(in testrepository\)",
+            '  running command "gzip -nf .*/target/test.tar"',
             "  \(in .*/tmp.*\)",
         ])
         run_check()
@@ -1988,7 +2004,9 @@ class FileToolsTest(EnhancedTestCase):
             "  \(in .*/tmp.*\)",
             '  running command "git checkout 8456f86"',
             "  \(in testrepository\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            '  running command "git archive -o .*/target/test.tar --prefix=testrepository/ HEAD"',
+            "  \(in testrepository\)",
+            '  running command "gzip -nf .*/target/test.tar"',
             "  \(in .*/tmp.*\)",
         ])
         run_check()
