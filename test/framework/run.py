@@ -376,12 +376,12 @@ class RunTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
         self.assertEqual(stderr, '')
-        pattern = "^  >> running interactive command:\n"
-        pattern += "\t\[started at: .*\]\n"
-        pattern += "\t\[working dir: .*\]\n"
-        pattern += "\t\[output logged in .*\]\n"
-        pattern += "\techo \'n: \'; read n; seq 1 \$n\n"
-        pattern += '  >> interactive command completed: exit 0, ran in .*'
+        pattern = r"^  >> running interactive command:\n"
+        pattern += r"\t\[started at: .*\]\n"
+        pattern += r"\t\[working dir: .*\]\n"
+        pattern += r"\t\[output logged in .*\]\n"
+        pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
+        pattern += r'  >> interactive command completed: exit 0, ran in .*'
         self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
 
         # trace output can be disabled on a per-command basis
