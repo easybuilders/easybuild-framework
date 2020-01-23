@@ -11,14 +11,14 @@ description:
     Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers,
     Intel MPI & Intel MKL.
 
-toolchain: {name: dummy, version: dummy}
+toolchain: {name: system, version: system}
 
 # fake intel toolchain easyconfig, no dependencies (good enough for testing)
-fake_dependencies: [
-    [icc, *compver],
-    [ifort, *compver],
-    [impi, 2018.1.163],
-    [imkl, 2018.1.163]
+dependencies: [
+    # [icc, *compver],
+    # [ifort, *compver],
+    # [impi, 2018.1.163],
+    # [imkl, 2018.1.163]
 ]
 
 moduleclass: toolchain

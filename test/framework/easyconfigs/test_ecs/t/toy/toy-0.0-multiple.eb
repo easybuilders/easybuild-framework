@@ -6,7 +6,7 @@ versionsuffix = '-multiple'
 homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
 sources = [SOURCE_TAR_GZ]
 patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']

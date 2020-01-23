@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,12 +37,9 @@ Documentation-related functionality
 import copy
 import inspect
 import os
-import string
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
-from vsc.utils.docs import mk_rst_table
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -60,17 +57,15 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase, sort_looseversions
+from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import import_available_modules, quote_str
+from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
+from easybuild.tools.utilities import import_available_modules, mk_rst_table, nub, quote_str
 
 
 _log = fancylogger.getLogger('tools.docs')
 
-
-INDENT_4SPACES = ' ' * 4
-INDENT_2SPACES = ' ' * 2
 
 DETAILED = 'detailed'
 SIMPLE = 'simple'
@@ -228,10 +223,12 @@ def avail_easyconfig_params_rst(title, grouped_params):
         # group section title
         title = "%s parameters" % grpname
         table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        keys = sorted(grouped_params[grpname].keys())
+        values = [grouped_params[grpname][key] for key in keys]
         table_values = [
-            ['``%s``' % name for name in grouped_params[grpname].keys()],  # parameter name
-            [x[0] for x in grouped_params[grpname].values()],  # description
-            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  # default value
+            ['``%s``' % name for name in keys],  # parameter name
+            [x[0] for x in values],  # description
+            [str(quote_str(x[1])) for x in values]  # default value
         ]
 
         doc.extend(rst_title_and_table(title, table_titles, table_values))
@@ -531,8 +528,8 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
     software = {}
     for ec in ecs:
         software.setdefault(ec['name'], [])
-        if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
-            toolchain = DUMMY_TOOLCHAIN_NAME
+        if is_system_toolchain(ec['toolchain']['name']):
+            toolchain = SYSTEM_TOOLCHAIN_NAME
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
@@ -544,7 +541,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         # make sure values like homepage & versionsuffix get properly templated
         if isinstance(ec, dict):
-            template_values = template_constant_dict(ec, skip_lower=False)
+            template_values = template_constant_dict(ec)
             for key in keys:
                 if '%(' in info[key]:
                     try:
@@ -595,7 +592,7 @@ def list_software_rst(software, detailed=False):
     # links to per-letter tables
     letter_refs = ''
     key_letters = nub(sorted(k[0].lower() for k in software.keys()))
-    for letter in string.lowercase:
+    for letter in ascii_lowercase:
         if letter in key_letters:
             if letter_refs:
                 letter_refs += " - :ref:`list_software_letter_%s`" % letter
@@ -638,14 +635,22 @@ def list_software_rst(software, detailed=False):
             table_titles = ['version', 'toolchain']
             table_values = [[], []]
 
+            # first determine unique pairs of version/versionsuffix
+            # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
             pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
 
+            # check whether any non-empty versionsuffixes are in play
             with_vsuff = any(vs for (_, vs) in pairs)
             if with_vsuff:
                 table_titles.insert(1, 'versionsuffix')
                 table_values.insert(1, [])
 
-            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+            # sort pairs by version (and then by versionsuffix);
+            # we sort by LooseVersion to obtain chronological version ordering,
+            # but we also need to retain original string version for filtering-by-version done below
+            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+
+            for _, vsuff, ver in sorted_pairs:
                 table_values[0].append('``%s``' % ver)
                 if with_vsuff:
                     if vsuff:
@@ -693,8 +698,17 @@ def list_software_txt(software, detailed=False):
                 "homepage: %s" % software[key][-1]['homepage'],
                 '',
             ])
+
+            # first determine unique pairs of version/versionsuffix
+            # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
             pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
-            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+
+            # sort pairs by version (and then by versionsuffix);
+            # we sort by LooseVersion to obtain chronological version ordering,
+            # but we also need to retain original string version for filtering-by-version done below
+            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+
+            for _, vsuff, ver in sorted_pairs:
                 tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
 
                 line = "  * %s v%s" % (key, ver)
@@ -715,6 +729,11 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     tcs = dict()
     for (tcname, tcc) in tclist:
+
+        # filter deprecated 'dummy' toolchain
+        if tcname == DUMMY_TOOLCHAIN_NAME:
+            continue
+
         tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
         tcs[tcname] = tc.definition()
 
@@ -865,7 +884,8 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     doc.extend([derived, ''])
 
     # Description (docstring)
-    doc.extend([eb_class.__doc__.strip(), ''])
+    if eb_class.__doc__ is not None:
+        doc.extend([eb_class.__doc__.strip(), ''])
 
     # Add extra options, if any
     if eb_class.extra_options():

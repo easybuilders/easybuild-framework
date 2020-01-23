@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,21 +30,24 @@ This is the original pure python code, to be exec'ed rather then parsed
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import copy
 import os
+import pprint
 import re
 import tempfile
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, INDENT_4SPACES
-from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.framework.easyconfig.format.format import get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.utilities import quote_py_str
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 
 EB_FORMAT_EXTENSION = '.eb'
@@ -52,9 +55,10 @@ EB_FORMAT_EXTENSION = '.eb'
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
+REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['builddependencies']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
-    'sanity_check_paths': ['files', 'dirs'],
+    'sanity_check_paths': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }
 
 
@@ -70,7 +74,7 @@ def dump_dependency(dep, toolchain):
         # mininal spec: (name, version)
         tup = (dep['name'], dep['version'])
         if dep['toolchain'] != toolchain:
-            if dep['dummy']:
+            if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
@@ -140,47 +144,85 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # note: this does not take into account the parameter name + '=', only the value
         line_too_long = len(param_strval) + addlen > REFORMAT_THRESHOLD_LENGTH
         forced = param_name in REFORMAT_FORCED_PARAMS
+        list_of_lists_of_tuples_param = param_name in REFORMAT_LIST_OF_LISTS_OF_TUPLES
 
         if param_name in REFORMAT_SKIPPED_PARAMS:
             self.log.info("Skipping reformatting value for parameter '%s'", param_name)
 
         elif outer:
             # only reformat outer (iterable) values for (too) long lines (or for select parameters)
-            if isinstance(param_val, (list, tuple, dict)) and ((len(param_val) > 1 and line_too_long) or forced):
+            if isinstance(param_val, (list, tuple, dict)) and ((len(param_val) > 1 or line_too_long) or forced):
 
-                item_tmpl = INDENT_4SPACES + '%(item)s,%(comment)s\n'
+                item_tmpl = INDENT_4SPACES + '%(item)s,%(inline_comment)s\n'
+
+                start_char, end_char = param_strval[0], param_strval[-1]
 
                 # start with opening character: [, (, {
-                res = '%s\n' % param_strval[0]
+                res = '%s\n' % start_char
 
                 # add items one-by-one, special care for dict values (order of keys, different format for elements)
                 if isinstance(param_val, dict):
                     ordered_item_keys = REFORMAT_ORDERED_ITEM_KEYS.get(param_name, sorted(param_val.keys()))
                     for item_key in ordered_item_keys:
-                        item_val = param_val[item_key]
-                        comment = self._get_item_comments(param_name, item_val).get(str(item_val), '')
+                        if item_key in param_val:
+                            item_val = param_val[item_key]
+                        else:
+                            raise EasyBuildError("Missing mandatory key '%s' in %s.", item_key, param_name)
+
+                        item_comments = self._get_item_comments(param_name, item_val)
+
+                        inline_comment = item_comments.get('inline', '')
+                        item_tmpl_dict = {'inline_comment': inline_comment}
+
+                        for comment in item_comments.get('above', []):
+                            res += INDENT_4SPACES + comment + '\n'
+
                         key_pref = quote_py_str(item_key) + ': '
-                        addlen = addlen + len(INDENT_4SPACES) + len(key_pref) + len(comment)
+                        addlen = addlen + len(INDENT_4SPACES) + len(key_pref) + len(inline_comment)
                         formatted_item_val = self._reformat_line(param_name, item_val, addlen=addlen)
-                        res += item_tmpl % {
-                            'comment': comment,
-                            'item': key_pref + formatted_item_val,
-                        }
+                        item_tmpl_dict['item'] = key_pref + formatted_item_val
+
+                        res += item_tmpl % item_tmpl_dict
+
                 else:  # list, tuple
                     for item in param_val:
-                        comment = self._get_item_comments(param_name, item).get(str(item), '')
-                        addlen = addlen + len(INDENT_4SPACES) + len(comment)
-                        res += item_tmpl % {
-                            'comment': comment,
-                            'item': self._reformat_line(param_name, item, addlen=addlen)
-                        }
+                        item_comments = self._get_item_comments(param_name, item)
 
-                # end with closing character: ], ), }
-                res += param_strval[-1]
+                        inline_comment = item_comments.get('inline', '')
+                        item_tmpl_dict = {'inline_comment': inline_comment}
+
+                        for comment in item_comments.get('above', []):
+                            res += INDENT_4SPACES + comment + '\n'
+
+                        addlen = addlen + len(INDENT_4SPACES) + len(inline_comment)
+                        # the tuples are really strings here that are constructed from the dependency dicts
+                        # so for a plain list of builddependencies param_val is a list of strings here;
+                        # and for iterated builddependencies it is a list of lists of strings
+                        is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, str) for x in item)
+                        if list_of_lists_of_tuples_param and is_list_of_lists_of_tuples:
+                            itemstr = '[' + (',\n ' + INDENT_4SPACES).join([
+                                self._reformat_line(param_name, subitem, outer=True, addlen=addlen)
+                                for subitem in item]) + ']'
+                        else:
+                            itemstr = self._reformat_line(param_name, item, addlen=addlen)
+                        item_tmpl_dict['item'] = itemstr
+
+                        res += item_tmpl % item_tmpl_dict
+
+                # take into account possible closing comments
+                # see https://github.com/easybuilders/easybuild-framework/issues/3082
+                end_comments = self._get_item_comments(param_name, end_char)
+                for comment in end_comments.get('above', []):
+                    res += INDENT_4SPACES + comment + '\n'
+
+                # end with closing character (']', ')', '}'), incl. possible inline comment
+                res += end_char
+                if 'inline' in end_comments:
+                    res += end_comments['inline']
 
         else:
             # dependencies are already dumped as strings, so they do not need to be quoted again
-            if isinstance(param_val, basestring) and param_name not in DEPENDENCY_PARAMETERS:
+            if isinstance(param_val, string_type) and param_name not in DEPENDENCY_PARAMETERS:
                 res = quote_py_str(param_val)
 
         return res
@@ -188,9 +230,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     def _get_item_comments(self, key, val):
         """Get per-item comments for specified parameter name/value."""
         item_comments = {}
-        for comment_key, comment_val in self.comments['iter'].get(key, {}).items():
+
+        for comment_key, comment_val in self.comments['iterabove'].get(key, {}).items():
             if str(val) in comment_key:
-                item_comments[str(val)] = comment_val
+                item_comments['above'] = comment_val
+
+        for comment_key, comment_val in self.comments['iterinline'].get(key, {}).items():
+            if str(val) in comment_key:
+                item_comments['inline'] = comment_val
 
         return item_comments
 
@@ -202,10 +249,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
-            new_val = to_template_str(val, templ_const, templ_val)
-            # avoid self-referencing templated parameter definitions
-            if not r'%(' + key in new_val:
-                val = new_val
+            val = to_template_str(key, val, templ_const, templ_val)
 
         if key in self.comments['inline']:
             res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
@@ -225,17 +269,22 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                val = copy.deepcopy(ecfg[key])
-                # include hidden deps back in list of (build)dependencies, they were filtered out via filter_hidden_deps
-                if key == 'dependencies':
-                    val.extend([d for d in ecfg['hiddendependencies'] if not d['build_only']])
-                elif key == 'builddependencies':
-                    val.extend([d for d in ecfg['hiddendependencies'] if d['build_only']])
-
+                val = ecfg[key]
                 if val != default_values[key]:
-                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
+                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them;
+                    # take into account that these parameters may be iterative (i.e. a list of lists of parsed deps)
                     if key in DEPENDENCY_PARAMETERS:
-                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                        if key in ecfg.iterate_options:
+                            if 'multi_deps' in ecfg:
+                                # the way that builddependencies are constructed with multi_deps
+                                # we just need to dump the first entry without the dependencies
+                                # that are listed in multi_deps
+                                valstr = [dump_dependency(d, ecfg['toolchain']) for d in val[0]
+                                          if d['name'] not in ecfg['multi_deps']]
+                            else:
+                                valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                        else:
+                            valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
@@ -269,7 +318,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # print other easyconfig parameters at the end
         keys_to_ignore = printed_keys + LAST_PARAMS
         for key in default_values:
-            if key not in keys_to_ignore and ecfg[key] != default_values[key]:
+            mandatory = ecfg.is_mandatory_param(key)
+            non_default_value = ecfg[key] != default_values[key]
+            if key not in keys_to_ignore and (mandatory or non_default_value):
                 dump.extend(self._find_param_with_comments(key, quote_py_str(ecfg[key]), templ_const, templ_val))
         dump.append('')
 
@@ -289,64 +340,138 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Inline comments on items of iterable values are also extracted.
         """
         self.comments = {
-            'above': {},  # comments for a particular parameter definition
+            'above': {},  # comments above a parameter definition
             'header': [],  # header comment lines
             'inline': {},  # inline comments
-            'iter': {},  # (inline) comments on elements of iterable values
-            'tail': [],
+            'iterabove': {},  # comment above elements of iterable values
+            'iterinline': {},  # inline comments on elements of iterable values
+            'tail': [],  # comment at the end of the easyconfig file
          }
-
-        rawlines = rawtxt.split('\n')
-
-        # extract header first
-        while rawlines and rawlines[0].startswith('#'):
-            self.comments['header'].append(rawlines.pop(0))
 
         parsed_ec = self.get_config_dict()
 
+        comment_regex = re.compile(r'^\s*#')
+        param_def_regex = re.compile(r'^([a-z_0-9]+)\s*=')
+        whitespace_regex = re.compile(r'^\s*$')
+
+        def clean_part(part):
+            """Helper function to strip off trailing whitespace + trailing quotes."""
+            return part.rstrip().rstrip("'").rstrip('"')
+
+        def split_on_comment_hash(line, param_key):
+            """Helper function to split line on first (actual) comment character '#'."""
+
+            # string representation of easyconfig parameter value,
+            # used to check if supposed comment isn't actual part of the parameter value
+            # (and thus not actually a comment at all)
+            param_strval = str(parsed_ec.get(param_key))
+
+            parts = line.split('#')
+
+            # first part (before first #) is definitely not part of comment
+            before_comment = parts.pop(0)
+
+            # strip out parts that look like a comment but are actually part of a parameter value
+            while parts and ('#' + clean_part(parts[0])) in param_strval:
+                before_comment += '#' + parts.pop(0)
+
+            comment = '#'.join(parts)
+
+            return before_comment, comment.strip()
+
+        def grab_more_comment_lines(lines, param_key):
+            """Grab more comment lines."""
+
+            comment_lines = []
+
+            while lines and (comment_regex.match(lines[0]) or whitespace_regex.match(lines[0])):
+                line = lines.pop(0)
+                _, actual_comment = split_on_comment_hash(line, param_key)
+                # prefix comment with '#' unless line was empty
+                if line.strip():
+                    actual_comment = '# ' + actual_comment
+                comment_lines.append(actual_comment.strip())
+
+            return comment_lines
+
+        rawlines = rawtxt.split('\n')
+
+        # extract header first (include empty lines too)
+        self.comments['header'] = grab_more_comment_lines(rawlines, None)
+
+        last_param_key = None
         while rawlines:
             rawline = rawlines.pop(0)
+
+            # keep track of last parameter definition we have seen,
+            # current line may be (the start of) a parameter definition
+            res = param_def_regex.match(rawline)
+            if res:
+                key = res.group(1)
+                if key in parsed_ec:
+                    last_param_key = key
+
+            if last_param_key:
+                before_comment, inline_comment = split_on_comment_hash(rawline, last_param_key)
+
+                # short-circuit to next line in case there are no actual comments on this (non-empty) line
+                if before_comment and not inline_comment:
+                    continue
+
+            # lines that start with a hash indicate (start of a block of) comment line(s)
             if rawline.startswith('#'):
-                comment = []
-                # comment could be multi-line
-                while rawline is not None and (rawline.startswith('#') or not rawline):
-                    # drop empty lines (that don't even include a #)
-                    if rawline:
-                        comment.append(rawline)
-                    # grab next line (if more lines are left)
-                    if rawlines:
-                        rawline = rawlines.pop(0)
+                comment = [rawline] + grab_more_comment_lines(rawlines, last_param_key)
+
+                if rawlines:
+                    # try to pin comment to parameter definition below it
+                    # don't consume the line yet though, it may also include inline comments...
+                    res = param_def_regex.match(rawlines[0])
+                    if res:
+                        last_param_key = res.group(1)
+                        self.comments['above'][last_param_key] = comment
                     else:
-                        rawline = None
-
-                if rawline is None:
+                        # if the comment is not above a parameter definition,
+                        # then it must be a comment for an item of an iterable parameter value
+                        before_comment, _ = split_on_comment_hash(rawlines[0], last_param_key)
+                        comment_key = before_comment.rstrip()
+                        self.comments['iterabove'].setdefault(last_param_key, {})[comment_key] = comment
+                else:
+                    # if there are no more lines, the comment (block) is at the tail
                     self.comments['tail'] = comment
-                else:
-                    key = rawline.split('=', 1)[0].strip()
-                    self.comments['above'][key] = comment
 
-            elif '#' in rawline:  # inline comment
-                comment_key, comment_val = None, None
-                comment = rawline.rsplit('#', 1)[1].strip()
-                # check whether this line is parameter definition;
-                # if not, assume it's a continuation of a multi-line value
-                if re.match(r'^[a-z_]+\s*=', rawline):
-                    comment_key = rawline.split('=', 1)[0].strip()
-                else:
-                    # determine parameter value where the item value on this line is a part of
-                    for key, val in parsed_ec.items():
-                        item_val = re.sub(r',$', r'', rawline.rsplit('#', 1)[0].strip())
-                        if not isinstance(val, basestring) and item_val in str(val):
-                            comment_key, comment_val = key, item_val
-                            break
+            elif '#' in rawline:
+                # if there's a hash character elsewhere in the line (not at the start),
+                # there are a couple of possibilities:
+                # - inline comment for a parameter definition (at the end of a non-empty line)
+                # - indented comment for an item value of an iterable easyconfig parameter (list, dict, ...)
+                # - inline comment for an item value of an iterable easyconfig parameter
 
-                # check if hash actually indicated a comment; or is part of the value
-                if comment_key in parsed_ec:
-                    if comment.replace("'", '').replace('"', '') not in str(parsed_ec[comment_key]):
-                        if comment_val:
-                            self.comments['iter'].setdefault(comment_key, {})[comment_val] = '  # ' + comment
-                        else:
-                            self.comments['inline'][comment_key] = '  # ' + comment
+                before_comment, comment = split_on_comment_hash(rawline, last_param_key)
+                comment = ('# ' + comment).rstrip()
+
+                # first check whether current line is an easyconfig parameter definition
+                # if so, the comment is an inline comment
+                if param_def_regex.match(before_comment):
+                    self.comments['inline'][last_param_key] = '  ' + comment
+
+                # if there's only whitespace before the comment,
+                # then we have an indented comment, and we need to figure out for what exactly
+                elif whitespace_regex.match(before_comment):
+                    # first consume possible additional comment lines with same indentation
+                    comment = [comment] + grab_more_comment_lines(rawlines, last_param_key)
+
+                    before_comment, inline_comment = split_on_comment_hash(rawlines.pop(0), last_param_key)
+                    comment_key = before_comment.rstrip()
+                    self.comments['iterabove'].setdefault(last_param_key, {})[comment_key] = comment
+                    if inline_comment:
+                        inline_comment = ('  # ' + inline_comment).rstrip()
+                        self.comments['iterinline'].setdefault(last_param_key, {})[comment_key] = inline_comment
+                else:
+                    # inline comment for item of iterable value
+                    comment_key = before_comment.rstrip()
+                    self.comments['iterinline'].setdefault(last_param_key, {})[comment_key] = '  ' + comment
+
+        self.log.debug("Extracted comments:\n%s", pprint.pformat(self.comments, width=120))
 
 
 def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
