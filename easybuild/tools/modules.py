@@ -649,6 +649,15 @@ class ModulesTool(object):
 
         return ans
 
+    def get_variable_from_modulefile(self, mod_name, var_name):
+        """
+        Get info from the module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable value to be extracted
+        """
+        pass
+
     def get_value_from_modulefile(self, mod_name, regex):
         """
         Get info from the module file for the specified module.
@@ -1126,6 +1135,21 @@ class EnvironmentModulesC(ModulesTool):
         """Update after new modules were added."""
         pass
 
+    def get_variable_from_modulefile(self, mod_name, var_name):
+        """
+        Get info from the module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable value to be extracted
+        """
+        try:
+            # Tcl syntax
+            regex = re.compile(r'^setenv\s*%s\s*(?P<value>\S*)' % var_name, re.M)
+            ans = self.get_value_from_modulefile(mod_name, regex)
+        except Exception:
+            return None
+
+        return ans
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
@@ -1390,6 +1414,21 @@ class Lmod(ModulesTool):
         return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
                                        skip_avail=skip_avail, maybe_partial=maybe_partial)
 
+    def get_variable_from_modulefile(self, mod_name, var_name):
+        """
+        Get info from the module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable value to be extracted
+        """
+        try:
+            # Lua syntax
+            regex = re.compile(r'^setenv\(\"%s\",\s*\"(?P<value>\S*)\"\)' % var_name, re.M)
+            ans = self.get_value_from_modulefile(mod_name, regex)
+        except Exception:
+            return None
+
+        return ans
 
 def get_software_root_env_var_name(name):
     """Return name of environment variable for software root."""

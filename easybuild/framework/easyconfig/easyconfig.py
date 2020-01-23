@@ -1153,27 +1153,6 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
-    def get_variable_from_modulefile(self, mod_name, var_name):
-        """
-        Get info from the module file for the specified module.
-
-        :param mod_name: module name
-        :param regex: (compiled) regular expression, with one group
-        """
-        try:
-            # Tcl syntax
-            regex = re.compile(r'^setenv\s*%s\s*(?P<value>\S*)' % var_name, re.M)
-            ans = self.modules_tool.get_value_from_modulefile(mod_name, regex)
-        except Exception:
-            try:
-                # Lua syntax
-                regex = re.compile(r'^setenv\(\"GO_ROOT\",\s*\"(?P<value>\S*)\"\)' % var_name, re.M)
-                ans = self.modules_tool.get_value_from_modulefile(mod_name, regex)
-            except Exception:
-                return None
-
-        return ans
-
     def handle_external_module_metadata_by_probing_modules(self, dep_name):
         """
         helper function for handle_external_module_metadata
@@ -1207,8 +1186,8 @@ class EasyConfig(object):
         ]
 
         for p, v in allowed_pairs:
-            prefix = self.get_variable_from_modulefile(dep_name, p)
-            version = self.get_variable_from_modulefile(dep_name, v)
+            prefix = self.modules_tool.get_variable_from_modulefile(dep_name, p)
+            version = self.modules_tool.get_variable_from_modulefile(dep_name, v)
 
             if prefix and version:
                 dependency = {
