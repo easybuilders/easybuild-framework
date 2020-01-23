@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from inspect import cleandoc
 from datetime import datetime
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -318,6 +319,8 @@ class EasyBlockTest(EnhancedTestCase):
         open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
         open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
         os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.mkdir(os.path.join(eb.installdir, 'bin', 'testdir'))
+        os.mkdir(os.path.join(eb.installdir, 'sbin'))
         os.mkdir(os.path.join(eb.installdir, 'share'))
         os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
         # this is not a path that should be picked up
@@ -329,14 +332,32 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
-            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            # bin/ is not added to $PATH if it doesn't include files
+            self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
+            # no include/ subdirectory, so no $CPATH update statement
             self.assertFalse(re.search(r"^prepend-path\s+CPATH\s+.*$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "bla.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "foo.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share/man"\)\)$', guess, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            # bin/ is not added to $PATH if it doesn't include files
+            self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
+            # no include/ subdirectory, so no $CPATH update statement
             self.assertFalse(re.search(r'^prepend_path\("CPATH", .*\)$', guess, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # check that bin is only added to PATH if there are files in there
+        open(os.path.join(eb.installdir, 'bin', 'test'), 'w').write('test')
+        guess = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
@@ -767,17 +788,25 @@ class EasyBlockTest(EnhancedTestCase):
         """Test the skip_extensions_step"""
         init_config(build_options={'silent': True})
 
-        self.contents = '\n'.join([
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = SYSTEM',
-            'exts_list = ["ext1", "ext2"]',
-            'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
-            'exts_defaultclass = "DummyExtension"',
-        ])
+        self.contents = cleandoc("""
+            easyblock = "ConfigureMake"
+            name = "pi"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+                "ext1",
+                ("ext2", "42", {"source_tmpl": "dummy.tgz"}),
+                ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
+            ]
+            exts_filter = ("\
+                if [ %(ext_name)s == 'ext2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
+                    then exit 0;\
+                elif [ %(ext_name)s == 'real_ext' ]; then exit 0;\
+                else exit 1; fi", "")
+            exts_defaultclass = "DummyExtension"
+        """)
         # check if skip skips correct extensions
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -786,9 +815,12 @@ class EasyBlockTest(EnhancedTestCase):
         eb.skip = True
         eb.extensions_step(fetch=True)
         # 'ext1' should be in eb.exts
-        self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
+        eb_exts = [y for x in eb.exts for y in x.values()]
+        self.assertTrue('ext1' in eb_exts)
         # 'ext2' should not
-        self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
+        self.assertFalse('ext2' in eb_exts)
+        # 'ext3' should not
+        self.assertFalse('ext3' in eb_exts)
 
         # cleanup
         eb.close_log()
@@ -1670,7 +1702,7 @@ class EasyBlockTest(EnhancedTestCase):
             expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-2018a-test.eb: "
             expected += "found 1 sources + 1 patches vs 1 checksums"
             self.assertEqual(res[0], expected)
-            self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz:"))
+            self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz:"))
 
         # check for main sources/patches should reveal two issues with checksums
         res = eb.check_checksums_for(eb.cfg)
@@ -1687,6 +1719,43 @@ class EasyBlockTest(EnhancedTestCase):
             expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
             self.assertTrue(res[idx].startswith(expected))
             idx += 1
+
+        # check whether tuple of alternative SHA256 checksums is correctly recognized
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        ec = process_easyconfig(toy_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        # single SHA256 checksum per source/patch: OK
+        eb.cfg['checksums'] = [
+            '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # toy-0.0.tar.gz
+            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt]
+        ]
+        # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # SHA256 checksum with type specifier: OK
+        eb.cfg['checksums'] = [
+            ('sha256', '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'),  # toy-0.0.tar.gz
+            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            ('sha256', '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'),  # toy-extra.txt]
+        ]
+        # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # tuple of two alternate SHA256 checksums: OK
+        eb.cfg['checksums'] = [
+            (
+                # two alternate checksums for toy-0.0.tar.gz
+                'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
+                '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+            ),
+            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
+        ]
+        # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""

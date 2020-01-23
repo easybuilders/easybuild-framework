@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,8 @@ from unittest import TextTestRunner
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
@@ -462,7 +463,7 @@ class ModulesTest(EnhancedTestCase):
         for (name, env_var_name) in test_cases:
             # mock stuff that get_software_X functions rely on
             root = os.path.join(tmpdir, name)
-            os.makedirs(os.path.join(root, 'lib'))
+            mkdir(os.path.join(root, 'lib'), parents=True)
             os.environ['EBROOT%s' % env_var_name] = root
             version = '0.0-%s' % root
             os.environ['EBVERSION%s' % env_var_name] = version
@@ -476,7 +477,7 @@ class ModulesTest(EnhancedTestCase):
 
         # check expected result of get_software_libdir with multiple lib subdirs
         root = os.path.join(tmpdir, name)
-        os.makedirs(os.path.join(root, 'lib64'))
+        mkdir(os.path.join(root, 'lib64'))
         os.environ['EBROOT%s' % env_var_name] = root
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
@@ -484,6 +485,19 @@ class ModulesTest(EnhancedTestCase):
         # only directories containing files in specified list should be retained
         open(os.path.join(root, 'lib64', 'foo'), 'w').write('foo')
         self.assertEqual(get_software_libdir(name, fs=['foo']), 'lib64')
+
+        # duplicate paths due to symlink get filtered
+        remove_dir(os.path.join(root, 'lib64'))
+        symlink(os.path.join(root, 'lib'), os.path.join(root, 'lib64'))
+        self.assertEqual(get_software_libdir(name), 'lib')
+
+        # same goes for lib symlinked to lib64
+        remove_file(os.path.join(root, 'lib64'))
+        remove_dir(os.path.join(root, 'lib'))
+        mkdir(os.path.join(root, 'lib64'))
+        symlink(os.path.join(root, 'lib64'), os.path.join(root, 'lib'))
+        # still returns 'lib' because that's the first subdir considered
+        self.assertEqual(get_software_libdir(name), 'lib')
 
         # clean up for previous tests
         os.environ.pop('EBROOT%s' % env_var_name)

@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2019 Ghent University
+# Copyright 2019-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -82,3 +82,10 @@ def mk_wrapper_baseclass(metaclass):
         __wraps__ = None
 
     return WrapperBase
+
+
+def sort_looseversions(looseversions):
+    """Sort list of (values including) LooseVersion instances."""
+    # with Python 2, we can safely use 'sorted' on LooseVersion instances
+    # (but we can't in Python 3, see https://bugs.python.org/issue14894)
+    return sorted(looseversions)

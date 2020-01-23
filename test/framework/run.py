@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,7 +46,14 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import get_output_from_process, run_cmd, run_cmd_qa, parse_log_for_error
+from easybuild.tools.run import (
+    check_log_for_errors,
+    get_output_from_process,
+    run_cmd,
+    run_cmd_qa,
+    parse_log_for_error,
+)
+from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
 class RunTest(EnhancedTestCase):
@@ -310,6 +317,18 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(out.startswith("question\nanswer\nfoo "))
         self.assertTrue(out.endswith('bar'))
 
+    def test_run_cmd_qa_buffering(self):
+        """Test whether run_cmd_qa uses unbuffered output."""
+
+        # command that generates a lot of output before waiting for input
+        # note: bug being fixed can be reproduced reliably using 1000, but not with too high values like 100000!
+        cmd = 'for x in $(seq 1000); do echo "This is a number you can pick: $x"; done; '
+        cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
+        (out, ec) = run_cmd_qa(cmd, {'Pick a number: ': '42'}, log_all=True, maxhits=5)
+
+        regex = re.compile("Picked number: 42$")
+        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
         (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'}, log_all=True)
@@ -507,6 +526,56 @@ class RunTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected)
+
+    def test_check_log_for_errors(self):
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+
+        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [42])
+        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [(42, IGNORE)])
+        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", "invalid-mode")])
+        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", IGNORE, "")])
+
+        input_text = "\n".join([
+            "OK",
+            "error found",
+            "test failed",
+            "msg: allowed-test failed",
+            "enabling -Werror",
+            "the process crashed with 0"
+        ])
+        expected_msg = r"Found 2 error\(s\) in command output "\
+                       r"\(output: error found\n\tthe process crashed with 0\)"
+
+        # String promoted to list
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                              r"\b(error|crashed)\b")
+        # List of string(s)
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                              [r"\b(error|crashed)\b"])
+        # List of tuple(s)
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                              [(r"\b(error|crashed)\b", ERROR)])
+
+        expected_msg = "Found 2 potential error(s) in command output " \
+                       "(output: error found\n\tthe process crashed with 0)"
+        init_logging(logfile, silent=True)
+        check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
+        stop_logging(logfile)
+        self.assertTrue(expected_msg in read_file(logfile))
+
+        expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
+        write_file(logfile, '')
+        init_logging(logfile, silent=True)
+        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
+            r"\berror\b",
+            (r"\ballowed-test failed\b", IGNORE),
+            (r"(?i)\bCRASHED\b", WARN),
+            "fail"
+        ])
+        stop_logging(logfile)
+        expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
+        self.assertTrue(expected_msg in read_file(logfile))
 
 
 def suite():

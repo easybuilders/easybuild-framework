@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1031,6 +1031,23 @@ class FileToolsTest(EnhancedTestCase):
         nosuchfile = os.path.join(self.test_prefix, 'nosuchfile')
         self.assertErrorRegex(EasyBuildError, err_msg, ft.adjust_permissions, nosuchfile, stat.S_IWUSR, recursive=False)
 
+        # try using adjust_permissions on a file not owned by current user,
+        # using permissions that are actually already correct;
+        # actual chmod should be skipped, otherwise it fails (you need to own a file to change permissions on it)
+
+        # use /bin/ls, which should always be there, has read/exec permissions for anyone (755), and is owned by root
+        ls_path = '/bin/ls'
+
+        # try adding read/exec permissions for current user (which is already there)
+        ft.adjust_permissions(ls_path, stat.S_IRUSR | stat.S_IXUSR, add=True)
+
+        # try removing write permissions for others (which are not set already)
+        ft.adjust_permissions(ls_path, stat.S_IWOTH, add=False)
+
+        # try hard setting permissions using current permissions
+        current_ls_perms = os.stat(ls_path)[stat.ST_MODE]
+        ft.adjust_permissions(ls_path, current_ls_perms, relative=False)
+
         # restore original umask
         os.umask(orig_umask)
 
@@ -1307,7 +1324,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
     def test_copy_file(self):
-        """ Test copy_file """
+        """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         target_path = os.path.join(self.test_prefix, 'toy.eb')
@@ -1318,6 +1335,27 @@ class FileToolsTest(EnhancedTestCase):
         # clean error when trying to copy a directory with copy_file
         src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
         self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
+
+        # test overwriting of existing file owned by someone else,
+        # which should make copy_file use shutil.copyfile rather than shutil.copy2
+        test_file_contents = "This is just a test, 1, 2, 3, check"
+        test_file_to_copy = os.path.join(self.test_prefix, 'test123.txt')
+        ft.write_file(test_file_to_copy, test_file_contents)
+
+        # this test file must be created before, we can't create a file owned by another account
+        test_file_to_overwrite = os.path.join('/tmp', 'file_to_overwrite_for_easybuild_test_copy_file.txt')
+        if os.path.exists(test_file_to_overwrite):
+            # make sure target file is owned by another user (we don't really care who)
+            self.assertTrue(os.stat(test_file_to_overwrite).st_uid != os.getuid())
+            # make sure the target file is writeable by current user (otherwise the copy will definitely fail)
+            self.assertTrue(os.access(test_file_to_overwrite, os.W_OK))
+
+            ft.copy_file(test_file_to_copy, test_file_to_overwrite)
+            self.assertEqual(ft.read_file(test_file_to_overwrite), test_file_contents)
+        else:
+            # printing this message will make test suite fail in Travis/GitHub CI,
+            # since we check for unexpected output produced by the tests
+            print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)", test_file_to_overwrite)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1347,8 +1385,44 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
         self.assertEqual(txt, '')
 
+    def test_copy_files(self):
+        """Test copy_files function."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = ft.read_file(toy_ec)
+        bzip2_ec = os.path.join(test_ecs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb')
+        bzip2_ec_txt = ft.read_file(bzip2_ec)
+
+        # copying a single file to a non-existing directory
+        target_dir = os.path.join(self.test_prefix, 'target_dir1')
+        ft.copy_files([toy_ec], target_dir)
+        copied_toy_ec = os.path.join(target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(ft.read_file(copied_toy_ec), toy_ec_txt)
+
+        # copying a single file to an existing directory
+        ft.copy_files([bzip2_ec], target_dir)
+        copied_bzip2_ec = os.path.join(target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+        self.assertTrue(os.path.exists(copied_bzip2_ec))
+        self.assertEqual(ft.read_file(copied_bzip2_ec), bzip2_ec_txt)
+
+        # copying multiple files to a non-existing directory
+        target_dir = os.path.join(self.test_prefix, 'target_dir_multiple')
+        ft.copy_files([toy_ec, bzip2_ec], target_dir)
+        copied_toy_ec = os.path.join(target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(ft.read_file(copied_toy_ec), toy_ec_txt)
+        copied_bzip2_ec = os.path.join(target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+        self.assertTrue(os.path.exists(copied_bzip2_ec))
+        self.assertEqual(ft.read_file(copied_bzip2_ec), bzip2_ec_txt)
+
+        # copying files to an existing target that is not a directory results in an error
+        self.assertTrue(os.path.isfile(copied_toy_ec))
+        error_pattern = "/toy-0.0.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [bzip2_ec], copied_toy_ec)
+
     def test_copy_dir(self):
-        """Test copy_file"""
+        """Test copy_dir function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
 
@@ -1650,6 +1724,30 @@ class FileToolsTest(EnhancedTestCase):
         for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
             self.assertErrorRegex(EasyBuildError, "Invalid search query", ft.search_file, [test_ecs], pattern)
 
+    def test_dir_contains_files(self):
+        def makedirs_in_test(*paths):
+            """Make dir specified by paths and return top-level folder"""
+            os.makedirs(os.path.join(self.test_prefix, *paths))
+            return os.path.join(self.test_prefix, paths[0])
+
+        empty_dir = makedirs_in_test('empty_dir')
+        self.assertFalse(ft.dir_contains_files(empty_dir))
+
+        dir_w_subdir = makedirs_in_test('dir_w_subdir', 'sub_dir')
+        self.assertFalse(ft.dir_contains_files(dir_w_subdir))
+
+        dir_subdir_file = makedirs_in_test('dir_subdir_file', 'sub_dir_w_file')
+        ft.write_file(os.path.join(dir_subdir_file, 'sub_dir_w_file', 'file.h'), '')
+        self.assertTrue(ft.dir_contains_files(dir_subdir_file))
+
+        dir_w_file = makedirs_in_test('dir_w_file')
+        ft.write_file(os.path.join(dir_w_file, 'file.h'), '')
+        self.assertTrue(ft.dir_contains_files(dir_w_file))
+
+        dir_w_dir_and_file = makedirs_in_test('dir_w_dir_and_file', 'sub_dir')
+        ft.write_file(os.path.join(dir_w_dir_and_file, 'file.h'), '')
+        self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file))
+
     def test_find_eb_script(self):
         """Test find_eb_script function."""
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
@@ -1934,6 +2032,39 @@ class FileToolsTest(EnhancedTestCase):
         error_pattern = r"Detected import from 'vsc' namespace in .*test/framework/filetools.py \(line [0-9]+\)"
         regex = re.compile(r"^\nERROR: %s" % error_pattern)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # also test with import from another module
+        test_python_mod = os.path.join(self.test_prefix, 'test_fake_vsc', 'import_vsc.py')
+        ft.write_file(os.path.join(os.path.dirname(test_python_mod), '__init__.py'), '')
+        ft.write_file(test_python_mod, 'import vsc')
+
+        sys.path.insert(0, self.test_prefix)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        try:
+            from test_fake_vsc import import_vsc  # noqa
+            self.assertTrue(False, "'import vsc' results in an error")
+        except SystemExit:
+            pass
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stdout, '')
+        error_pattern = r"Detected import from 'vsc' namespace in .*/test_fake_vsc/import_vsc.py \(line 1\)"
+        regex = re.compile(r"^\nERROR: %s" % error_pattern)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # no error if import was detected from pkgutil.py,
+        # since that may be triggered by a system-wide vsc-base installation
+        # (even though no code is doing 'import vsc'...)
+        ft.move_file(test_python_mod, os.path.join(os.path.dirname(test_python_mod), 'pkgutil.py'))
+
+        from test_fake_vsc import pkgutil
+        self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
+
 
 
 def suite():

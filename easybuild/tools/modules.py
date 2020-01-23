@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -180,16 +180,17 @@ class ModulesTool(object):
         if mod_paths is not None:
             self.set_mod_paths(mod_paths)
 
-        # only use command path in environment variable if command in not available in $PATH
-        if which(self.cmd) is None and env_cmd_path is not None:
-            self.log.debug("Set %s command via environment variable %s: %s",
-                           self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
-            self.cmd = env_cmd_path
-
-        # check whether paths obtained via $PATH and $LMOD_CMD are different
-        elif which(self.cmd) != env_cmd_path:
-            self.log.debug("Different paths found for %s command '%s' via which/$PATH and $%s: %s vs %s",
-                           self.NAME, self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
+        if env_cmd_path:
+            cmd_path = which(self.cmd, log_ok=False, log_error=False)
+            # only use command path in environment variable if command in not available in $PATH
+            if cmd_path is None:
+                self.cmd = env_cmd_path
+                self.log.debug("Set %s command via environment variable %s: %s",
+                               self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
+            # check whether paths obtained via $PATH and $LMOD_CMD are different
+            elif cmd_path != env_cmd_path:
+                self.log.debug("Different paths found for %s command '%s' via which/$PATH and $%s: %s vs %s",
+                               self.NAME, self.COMMAND, self.COMMAND_ENVIRONMENT, cmd_path, env_cmd_path)
 
         # make sure the module command was found
         if self.cmd is None:
@@ -284,7 +285,7 @@ class ModulesTool(object):
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
-        cmd_path = which(self.cmd)
+        cmd_path = which(self.cmd, log_ok=False)
         if cmd_path is not None:
             self.cmd = cmd_path
             self.log.info("Full path for %s command is %s, so using it", self.NAME, self.cmd)
@@ -674,7 +675,7 @@ class ModulesTool(object):
         :param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
-        modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
+        modpath_re = re.compile(r'^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
         modpath = self.get_value_from_modulefile(mod_name, modpath_re)
 
         if strip_ext and modpath.endswith('.lua'):
@@ -939,7 +940,7 @@ class ModulesTool(object):
             """Helper function to compose joined path."""
             return os.path.join(*[x.strip('"') for x in res.groups()])
 
-        res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
+        res = re.sub(r'\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
 
         # also interpret all $env(...) parts
         res = re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), res)
@@ -1158,7 +1159,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         # this is required for the DEISA variant of modulecmd.tcl which is commonly used
         def tweak_stdout(txt):
             """Tweak stdout before it's exec'ed as Python code."""
-            modulescript_regex = "^exec\s+[\"'](?P<modulescript>/tmp/modulescript_[0-9_]+)[\"']$"
+            modulescript_regex = r"^exec\s+[\"'](?P<modulescript>/tmp/modulescript_[0-9_]+)[\"']$"
             return re.sub(modulescript_regex, r"execfile('\1')", txt)
 
         tweak_stdout_fn = None
@@ -1366,7 +1367,7 @@ class Lmod(ModulesTool):
 
         # first consider .modulerc.lua with Lmod 7.8 (or newer)
         if StrictVersion(self.version) >= StrictVersion('7.8'):
-            mod_wrapper_regex_template = '^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
+            mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
             res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
                                                           mod_wrapper_regex_template=mod_wrapper_regex_template)
 
@@ -1430,9 +1431,17 @@ def get_software_libdir(name, only_one=True, fs=None):
     res = []
     if root:
         for lib_subdir in lib_subdirs:
-            if os.path.exists(os.path.join(root, lib_subdir)):
-                if fs is None or any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
+            lib_dir_path = os.path.join(root, lib_subdir)
+            if os.path.exists(lib_dir_path):
+                # take into account that lib64 could be a symlink to lib (or vice versa)
+                # see https://github.com/easybuilders/easybuild-framework/issues/3139
+                if any(os.path.samefile(lib_dir_path, os.path.join(root, x)) for x in res):
+                    _log.debug("%s is the same as one of the other paths, so skipping it", lib_dir_path)
+
+                elif fs is None or any(os.path.exists(os.path.join(lib_dir_path, f)) for f in fs):
+                    _log.debug("Retaining library subdir '%s' (found at %s)", lib_subdir, lib_dir_path)
                     res.append(lib_subdir)
+
             elif build_option('extended_dry_run'):
                 res.append(lib_subdir)
                 break
