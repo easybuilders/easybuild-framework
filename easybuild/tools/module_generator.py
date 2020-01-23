@@ -1072,7 +1072,9 @@ class ModuleGeneratorLua(ModuleGenerator):
                 error_msg += "Please consult with user support how to become a member of this group"
 
             error_msg = 'LmodError("' + error_msg + '")'
-            res = '' # disable for Compute Canada: self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
+            res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
+            if 'EASYBUILD_CONFIGFILES' in os.environ:
+                res = '' # disable for Compute Canada:
         else:
             warn_msg = "Can't generate robust check in Lua modules for users belonging to group %s. "
             warn_msg += "Lmod version not recent enough (%s), should be >= %s"
