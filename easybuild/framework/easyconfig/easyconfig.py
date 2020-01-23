@@ -1161,10 +1161,16 @@ class EasyConfig(object):
         :param regex: (compiled) regular expression, with one group
         """
         try:
+            # Tcl syntax
             regex = re.compile(r'^setenv\s*%s\s*(?P<value>\S*)' % var_name, re.M)
-            ans =self.modules_tool.get_value_from_modulefile(mod_name, regex)
-        except:
-            return None
+            ans = self.modules_tool.get_value_from_modulefile(mod_name, regex)
+        except Exception:
+            try:
+                # Lua syntax
+                regex = re.compile(r'^setenv\(\"GO_ROOT\",\s*\"(?P<value>\S*)\"\)' % var_name, re.M)
+                ans = self.modules_tool.get_value_from_modulefile(mod_name, regex)
+            except Exception:
+                return None
 
         return ans
 
@@ -1187,7 +1193,6 @@ class EasyConfig(object):
         """
         dependency = {}
 
-        dep_name_upper = convert_name(dep_name, upper=True)
         short_ext_modname = dep_name.split('/')[0]
         short_ext_modname_upper = convert_name(short_ext_modname, upper=True)
 
@@ -1227,7 +1232,7 @@ class EasyConfig(object):
                           dep_name, dependency['external_module_metadata'])
         else:
             self.log.info("No metadata available for external module %s. Attempting to read from available modules",
-                           dep_name)
+                dep_name)
             dependency['external_module_metadata'] = self.handle_external_module_metadata_by_probing_modules(dep_name)
 
         return dependency
