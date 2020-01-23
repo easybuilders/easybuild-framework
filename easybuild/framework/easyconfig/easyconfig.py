@@ -36,6 +36,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+:author: Victor Holanda (CSCS, ETH Zurich)
 """
 
 import copy
@@ -61,7 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
-from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
+from easybuild.tools.filetools import convert_name, find_backup_name_candidate, find_easyconfigs, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -1152,6 +1153,68 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
+    def get_variable_from_modulefile(self, mod_name, var_name):
+        """
+        Get info from the module file for the specified module.
+
+        :param mod_name: module name
+        :param regex: (compiled) regular expression, with one group
+        """
+        try:
+            regex = re.compile(r'^setenv\s*%s\s*(?P<value>\S*)' % var_name, re.M)
+            ans =self.modules_tool.get_value_from_modulefile(mod_name, regex)
+        except:
+            return None
+
+        return ans
+
+    def handle_external_module_metadata_by_probing_modules(self, dep_name):
+        """
+        helper function for handle_external_module_metadata
+        handles metadata for external module dependencies when there is not entry in the
+        metadata file
+
+        It should look for the pair of variables definitions in the available modules
+          1. CRAY_XXXX_PREFIX and CRAY_XXXX_VERSION
+          2. CRAY_XXXX_DIR and CRAY_XXXX_VERSION
+          2. CRAY_XXXX_ROOT and CRAY_XXXX_VERSION
+          5. XXXX_PREFIX and XXXX_VERSION
+          4. XXXX_DIR and XXXX_VERSION
+          5. XXXX_ROOT and XXXX_VERSION
+          3. XXXX_HOME and XXXX_VERSION
+
+        If neither of the pairs is found, then an empty dictionary is returned
+        """
+        dependency = {}
+
+        dep_name_upper = convert_name(dep_name, upper=True)
+        short_ext_modname = dep_name.split('/')[0]
+        short_ext_modname_upper = convert_name(short_ext_modname, upper=True)
+
+        allowed_pairs = [
+            ('CRAY_%s_PREFIX' % short_ext_modname_upper, 'CRAY_%s_VERSION' % short_ext_modname_upper),
+            ('CRAY_%s_DIR' % short_ext_modname_upper, 'CRAY_%s_VERSION' % short_ext_modname_upper),
+            ('CRAY_%s_ROOT' % short_ext_modname_upper, 'CRAY_%s_VERSION' % short_ext_modname_upper),
+            ('%s_PREFIX' % short_ext_modname_upper, '%s_VERSION' % short_ext_modname_upper),
+            ('%s_DIR' % short_ext_modname_upper, '%s_VERSION' % short_ext_modname_upper),
+            ('%s_ROOT' % short_ext_modname_upper, '%s_VERSION' % short_ext_modname_upper),
+            ('%s_HOME' % short_ext_modname_upper, '%s_VERSION' % short_ext_modname_upper),
+        ]
+
+        for p, v in allowed_pairs:
+            prefix = self.get_variable_from_modulefile(dep_name, p)
+            version = self.get_variable_from_modulefile(dep_name, v)
+
+            if prefix and version:
+                dependency = {
+                    'name': [short_ext_modname],
+                    'version': [version],
+                    'prefix': p
+                }
+                break
+
+        return dependency
+
     def handle_external_module_metadata(self, dep_name):
         """
         helper function for _parse_dependency
@@ -1163,7 +1226,9 @@ class EasyConfig(object):
             self.log.info("Updated dependency info with available metadata for external module %s: %s",
                           dep_name, dependency['external_module_metadata'])
         else:
-            self.log.info("No metadata available for external module %s", dep_name)
+            self.log.info("No metadata available for external module %s. Attempting to read from available modules",
+                           dep_name)
+            dependency['external_module_metadata'] = self.handle_external_module_metadata_by_probing_modules(dep_name)
 
         return dependency
 
