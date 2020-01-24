@@ -386,6 +386,17 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
 
+        # With files in /lib and /lib64 symlinked to /lib there should be exactly 1 entry for (LD_)LIBRARY_PATH
+        # pointing to /lib
+        for var in ('LIBRARY_PATH', 'LD_LIBRARY_PATH'):
+            if get_module_syntax() == 'Tcl':
+                self.assertFalse(re.search(r"^prepend-path\s+%s\s+\$root/lib64$" % var, guess, re.M))
+                self.assertEqual(len(re.findall(r"^prepend-path\s+%s\s+\$root/lib$" % var, guess, re.M)), 1)
+            elif get_module_syntax() == 'Lua':
+                self.assertFalse(re.search(r'^prepend_path\("%s", pathJoin\(root, "lib64"\)\)$' % var, guess, re.M))
+                self.assertEqual(len(re.findall(r'^prepend_path\("%s", pathJoin\(root, "lib"\)\)$' % var,
+                                                guess, re.M)), 1)
+
         # check for behavior when a string value is used as dict value by make_module_req_guesses
         eb.make_module_req_guess = lambda: {'PATH': 'bin'}
         txt = eb.make_module_req()

@@ -1291,12 +1291,9 @@ class EasyBlock(object):
             note = "note: glob patterns are not expanded and existence checks "
             note += "for paths are skipped for the statements below due to dry run"
             lines.append(self.module_generator.comment(note))
-        else:
-            lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
-                                and os.path.samefile('lib', 'lib64'))
 
         # for these environment variables, the corresponding subdirectory must include at least one file
-        keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH', 'CMAKE_LIBRARY_PATH')
+        keys_requiring_files = {'CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH', 'CMAKE_LIBRARY_PATH'}
 
         for key, reqs in sorted(requirements.items()):
             if isinstance(reqs, string_type):
@@ -1304,45 +1301,47 @@ class EasyBlock(object):
                 reqs = [reqs]
             if self.dry_run:
                 self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
+                # Don't expand globs or do any filtering below for dry run
+                paths = sorted(reqs)
+            else:
+                # Expand globs but only if the string is non-empty
+                # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
+                paths = sorted(sum((glob.glob(path) if path else [path] for path in reqs), []))  # sum flattens to list
 
-            for path in reqs:
-                # only use glob if the string is non-empty
-                if path and not self.dry_run:
-                    paths = glob.glob(path)
-                    # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
-                    if lib64_is_symlink:
-                        fixed_paths = []
-                        for path in paths:
-                            if (path + os.path.sep).startswith('lib64' + os.path.sep):
-                                # We only need CMAKE_LIBRARY_PATH if there is a separate lib64 path
-                                if key == 'CMAKE_LIBRARY_PATH':
-                                    continue
-                                path = path.replace('lib64', 'lib', 1)
-                            fixed_paths.append(path)
-                        if fixed_paths != paths:
-                            self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s",
-                                            key, paths, fixed_paths)
-                            paths = fixed_paths
-                    # Use a set to remove duplicates
-                    paths = sorted(set(paths))
-                    if paths and key in keys_requiring_files:
-                        # only retain paths that contain at least one file
-                        retained_paths = [
-                            path for path in paths
-                            if os.path.isdir(os.path.join(self.installdir, path))
-                            and dir_contains_files(os.path.join(self.installdir, path))
-                        ]
+                # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
+                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
+                                    and os.path.samefile('lib', 'lib64'))
+                if lib64_is_symlink:
+                    fixed_paths = []
+                    for path in paths:
+                        if (path + os.path.sep).startswith('lib64' + os.path.sep):
+                            # We only need CMAKE_LIBRARY_PATH if there is a separate lib64 path, so skip symlink
+                            if key == 'CMAKE_LIBRARY_PATH':
+                                continue
+                            path = path.replace('lib64', 'lib', 1)
+                        fixed_paths.append(path)
+                    if fixed_paths != paths:
+                        self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
+                        paths = fixed_paths
+                # Use a set to remove duplicates, e.g. by having lib64 and lib which get fixed to lib and lib above
+                paths = sorted(set(paths))
+                if key in keys_requiring_files:
+                    # only retain paths that contain at least one file
+                    retained_paths = [
+                        path for path in paths
+                        if os.path.isdir(os.path.join(self.installdir, path))
+                        and dir_contains_files(os.path.join(self.installdir, path))
+                    ]
+                    if retained_paths != paths:
                         self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
-                                        key, paths, retained_paths)
+                                      key, paths, retained_paths)
                         paths = retained_paths
-                else:
-                    # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
-                    paths = [path]
 
+            if paths:
                 lines.append(self.module_generator.prepend_paths(key, paths))
         if self.dry_run:
             self.dry_run_msg('')
-        
+
         if old_dir is not None:
             change_dir(old_dir)
 
