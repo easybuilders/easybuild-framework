@@ -1297,13 +1297,12 @@ class EasyBlock(object):
             # for these environment variables, the corresponding subdirectory must include at least one file
             keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH', 'CMAKE_LIBRARY_PATH')
 
-            for key in sorted(requirements):
-                if self.dry_run:
-                    self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
-                reqs = requirements[key]
+            for key, reqs in sorted(requirements.items()):
                 if isinstance(reqs, string_type):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
                     reqs = [reqs]
+                if self.dry_run:
+                    self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
 
                 for path in reqs:
                     # only use glob if the string is non-empty
