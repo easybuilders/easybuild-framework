@@ -558,14 +558,16 @@ class EasyConfig(object):
         elif isinstance(value, list):
             lval = value
         else:
-            raise EasyBuildError("Can't update configuration value for %s, because the attempted update value, '%s', is not a string or list.", key, value)
+            msg = "Can't update configuration value for %s, because the "
+            msg += "attempted update value, '%s', is not a string or list."
+            raise EasyBuildError(msg, key, value)
 
         prev_value = self[key]
         if isinstance(prev_value, string_type):
             for item in lval:
-                if allow_duplicate or (not prev_value.startswith('%s ' % item)
-                                       and not prev_value.endswith(' %s' % item)
-                                       and ' %s ' % item not in prev_value):
+                if allow_duplicate or (not prev_value.startswith('%s ' % item) and
+                                       not prev_value.endswith(' %s' % item) and
+                                       ' %s ' % item not in prev_value):
                     prev_value += ' %s ' % item
         elif isinstance(prev_value, list):
             for item in lval:
