@@ -566,8 +566,7 @@ class EasyConfig(object):
                 if allow_duplicate or (not prev_value.startswith('%s ' % item)
                                        and not prev_value.endswith(' %s' % item)
                                        and ' %s ' % item not in prev_value):
-                    prev_value += ' %s' % item
-            prev_value += ' '
+                    prev_value += ' %s ' % item
         elif isinstance(prev_value, list):
             for item in lval:
                 if allow_duplicate or item not in prev_value:
