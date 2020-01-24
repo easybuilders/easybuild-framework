@@ -1293,7 +1293,8 @@ class EasyBlock(object):
             lines.append(self.module_generator.comment(note))
 
         # for these environment variables, the corresponding subdirectory must include at least one file
-        keys_requiring_files = {'CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH', 'CMAKE_LIBRARY_PATH'}
+        keys_requiring_files = set(('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'CPATH',
+                                    'CMAKE_PREFIX_PATH', 'CMAKE_LIBRARY_PATH'))
 
         for key, reqs in sorted(requirements.items()):
             if isinstance(reqs, string_type):
