@@ -1289,9 +1289,13 @@ class EasyBlock(object):
                 note = "note: glob patterns are not expanded and existence checks "
                 note += "for paths are skipped for the statements below due to dry run"
                 lines.append(self.module_generator.comment(note))
+                lib64_is_symlink = False
+            else:
+                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
+                                    and os.path.samefile('lib', 'lib64'))
 
             # for these environment variables, the corresponding subdirectory must include at least one file
-            keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH')
+            keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH', 'CMAKE_LIBRARY_PATH')
 
             for key in sorted(requirements):
                 if self.dry_run:
@@ -1304,7 +1308,23 @@ class EasyBlock(object):
                 for path in reqs:
                     # only use glob if the string is non-empty
                     if path and not self.dry_run:
-                        paths = sorted(glob.glob(path))
+                        paths = glob.glob(path)
+                        # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
+                        if lib64_is_symlink:
+                            fixed_paths = []
+                            for path in paths:
+                                if (path + os.path.sep).startswith('lib64' + os.path.sep):
+                                    # We only need CMAKE_LIBRARY_PATH if there is a separate lib64 path
+                                    if key == 'CMAKE_LIBRARY_PATH':
+                                        continue
+                                    path = path.replace('lib64', 'lib', 1)
+                                fixed_paths.append(path)
+                            if fixed_paths != paths:
+                                self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s",
+                                              key, paths, fixed_paths)
+                                paths = fixed_paths
+                        # Use a set to remove duplicates
+                        paths = sorted(set(paths))
                         if paths and key in keys_requiring_files:
                             # only retain paths that contain at least one file
                             retained_paths = [
@@ -1342,6 +1362,8 @@ class EasyBlock(object):
             'CLASSPATH': ['*.jar'],
             'XDG_DATA_DIRS': ['share'],
             'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
+            'CMAKE_PREFIX_PATH': [''],
+            'CMAKE_LIBRARY_PATH': ['lib64'],  # lib and lib32 are searched through the above
         }
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None):

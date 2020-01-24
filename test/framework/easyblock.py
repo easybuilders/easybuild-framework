@@ -51,7 +51,7 @@ from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import reset_module_caches
 from easybuild.tools.utilities import time2str
 from easybuild.tools.version import get_git_revision, this_is_easybuild
-
+from easybuild.tools.py2vs3 import string_type
 
 class EasyBlockTest(EnhancedTestCase):
     """ Baseclass for easyblock testcases """
@@ -318,11 +318,10 @@ class EasyBlockTest(EnhancedTestCase):
         os.makedirs(eb.installdir)
         open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
         open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
-        os.mkdir(os.path.join(eb.installdir, 'bin'))
-        os.mkdir(os.path.join(eb.installdir, 'bin', 'testdir'))
-        os.mkdir(os.path.join(eb.installdir, 'sbin'))
-        os.mkdir(os.path.join(eb.installdir, 'share'))
-        os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
+        for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
+            if isinstance(path, string_type):
+                path = (path, )
+            os.mkdir(os.path.join(eb.installdir, *path))
         # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
@@ -332,6 +331,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+CMAKE_PREFIX_PATH\s+\$root$", guess, re.M))
             # bin/ is not added to $PATH if it doesn't include files
             self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
             self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
@@ -341,6 +341,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "bla.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "foo.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share/man"\)\)$', guess, re.M))
+            self.assertTrue('prepend_path("CMAKE_PREFIX_PATH", root)' in guess)
             # bin/ is not added to $PATH if it doesn't include files
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
@@ -360,6 +361,30 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # Check that lib64 is only added to CMAKE_LIBRARY_PATH if there are files in there
+        # but only if it is not a symlink to lib
+        # -- No Files
+        if get_module_syntax() == 'Tcl':
+            self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
+        # -- With files
+        open(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'w').write('test')
+        guess = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
+        # -- With files in lib and lib64 symlinks to lib
+        open(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'w').write('test')
+        shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
+        os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
+        guess = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
 
         # check for behavior when a string value is used as dict value by make_module_req_guesses
         eb.make_module_req_guess = lambda: {'PATH': 'bin'}
