@@ -47,7 +47,8 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -537,6 +538,16 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+    labels = []
+    file_info = det_file_info(pr_files, download_repo_path)
+    if any(file_info['new_folder']):
+        labels.append('new')
+    if any(file_info['new_file_in_existing_folder']):
+        labels.append('update')
+
+    if labels:  # TODO: compare to actual PR labels?
+        lines.extend(['', "This PR should be labeled %s" % ', '.join(labels)])
 
     return '\n'.join(lines)
 
