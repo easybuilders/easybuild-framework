@@ -1173,6 +1173,13 @@ class EasyConfig(object):
         dependency = {}
 
         short_ext_modname = dep_name.split('/')[0]
+
+        if short_ext_modname.startswith('craype-'):
+            short_ext_modname = short_ext_modname.split('craype-')[1]
+        elif short_ext_modname.startswith('cray-'):
+            short_ext_modname = short_ext_modname.split('cray-')[1]
+
+        short_ext_modname.replace('-', '_')
         short_ext_modname_upper = convert_name(short_ext_modname, upper=True)
 
         allowed_pairs = [
@@ -1185,15 +1192,15 @@ class EasyConfig(object):
             ('%s_HOME' % short_ext_modname_upper, '%s_VERSION' % short_ext_modname_upper),
         ]
 
-        for p, v in allowed_pairs:
-            prefix = self.modules_tool.get_variable_from_modulefile(dep_name, p)
-            version = self.modules_tool.get_variable_from_modulefile(dep_name, v)
+        for prefix, version in allowed_pairs:
+            module_prefix = self.modules_tool.get_variable_from_modulefile(dep_name, prefix)
+            module_version = self.modules_tool.get_variable_from_modulefile(dep_name, version)
 
-            if prefix and version:
+            if module_prefix and module_version:
                 dependency = {
-                    'name': [short_ext_modname],
-                    'version': [version],
-                    'prefix': p
+                    'name': [short_ext_modname_upper],
+                    'version': [module_version],
+                    'prefix': module_prefix
                 }
                 break
 
