@@ -1624,6 +1624,8 @@ def check_github():
     * check whether creating gists works
     * check whether location to local working directories for Git repositories is available (not strictly needed)
     """
+    debug = build_option('debug')
+
     # start by assuming that everything works, individual checks will disable action that won't work
     status = {}
     for action in ['--from-pr', '--new-pr', '--review-pr', '--upload-test-report', '--update-pr']:
@@ -1716,9 +1718,9 @@ def check_github():
     git_repo, res, push_err = None, None, None
     branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
-        git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
+        git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=not debug)
         remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master',
-                                 silent=True, git_only=True)
+                                 silent=not debug, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
     except Exception as err:
@@ -1749,12 +1751,11 @@ def check_github():
     print_msg(check_res, log=_log, prefix=False)
 
     # cleanup: delete test branch that was pushed to GitHub
-    if git_repo:
+    if git_repo and push_err is None:
         try:
-            if git_repo and hasattr(git_repo, 'remotes') and hasattr(git_repo.remotes, 'origin'):
-                git_repo.remotes.origin.push(branch_name, delete=True)
+            getattr(git_repo.remotes, remote_name).push(branch_name, delete=True)
         except GitCommandError as err:
-            sys.stderr.write("WARNNIG: failed to delete test branch from GitHub: %s\n" % err)
+            sys.stderr.write("WARNING: failed to delete test branch from GitHub: %s\n" % err)
 
     # test creating a gist
     print_msg("* creating gists...", log=_log, prefix=False, newline=False)
