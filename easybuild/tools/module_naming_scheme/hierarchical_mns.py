@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -51,12 +51,14 @@ GCCCORE = GCCcore.NAME
 COMP_NAME_VERSION_TEMPLATES = {
     # required for use of iccifort toolchain
     'icc,ifort': ('intel', '%(icc)s'),
+    'iccifort': ('intel', '%(iccifort)s'),
     # required for use of ClangGCC toolchain
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     # required for use of gcccuda toolchain, and for CUDA installed with GCC toolchain
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
     # required for use of iccifortcuda toolchain
     'CUDA,icc,ifort': ('intel-CUDA', '%(icc)s-%(CUDA)s'),
+    'CUDA,iccifort': ('intel-CUDA', '%(iccifort)s-%(CUDA)s'),
     # required for CUDA installed with iccifort toolchain
     # need to use 'intel' here because 'iccifort' toolchain maps to 'intel' (see above)
     'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
@@ -113,8 +115,8 @@ class HierarchicalMNS(ModuleNamingScheme):
             if key in COMP_NAME_VERSION_TEMPLATES:
                 tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
                 tc_comp_ver = tc_comp_ver_tmpl % comp_versions
-                # make sure that icc/ifort versions match
-                if tc_comp_name == 'intel' and comp_versions['icc'] != comp_versions['ifort']:
+                # make sure that icc/ifort versions match (unless not existing as separate modules)
+                if tc_comp_name == 'intel' and comp_versions.get('icc') != comp_versions.get('ifort'):
                     raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
             else:
                 raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",

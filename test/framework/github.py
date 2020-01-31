@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,6 +41,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -222,7 +223,24 @@ class GithubTest(EnhancedTestCase):
             "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
             "[DRY RUN] Adding comment to testrepository issue #2: '" +
             "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
-            "[DRY RUN] Closed hpcugent/testrepository pull request #2",
+            "[DRY RUN] Closed hpcugent/testrepository PR #2",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
+        retest_msg = VALID_CLOSE_PR_REASONS['retest']
+
+        self.mock_stdout(True)
+        gh.close_pr(2, motivation_msg=retest_msg)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "[DRY RUN] Adding comment to testrepository issue #2: '" +
+            "@migueldiascosta, this PR is being closed for the following reason(s): %s" % retest_msg,
+            "[DRY RUN] Closed hpcugent/testrepository PR #2",
+            "[DRY RUN] Reopened hpcugent/testrepository PR #2",
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
@@ -303,7 +321,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(repodir))
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2015a.eb')))
+        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
 
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
@@ -605,6 +623,77 @@ class GithubTest(EnhancedTestCase):
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
+
+    def test_create_delete_gist(self):
+        """Test create_gist and delete_gist."""
+        if self.skip_github_tests:
+            print("Skipping test_restclient, no GitHub token available?")
+            return
+
+        test_txt = "This is just a test."
+
+        gist_url = gh.create_gist(test_txt, 'test.txt', github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
+        gist_id = gist_url.split('/')[-1]
+        gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
+
+    def test_det_account_branch_for_pr(self):
+        """Test det_account_branch_for_pr."""
+        if self.skip_github_tests:
+            print("Skipping test_det_account_branch_for_pr, no GitHub token available?")
+            return
+
+        init_config(build_options={
+            'pr_target_account': 'easybuilders',
+            'pr_target_repo': 'easybuild-easyconfigs',
+        })
+
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
+        self.mock_stdout(True)
+        account, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
+        self.mock_stdout(False)
+        self.assertEqual(account, 'boegel')
+        self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
+
+        init_config(build_options={
+            'pr_target_account': 'easybuilders',
+            'pr_target_repo': 'easybuild-framework',
+        })
+
+        # see https://github.com/easybuilders/easybuild-framework/pull/3069
+        self.mock_stdout(True)
+        account, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
+        self.mock_stdout(False)
+        self.assertEqual(account, 'migueldiascosta')
+        self.assertEqual(branch, 'fix_inject_checksums')
+
+    def test_push_branch_to_github(self):
+        """Test push_branch_to_github."""
+
+        build_options = {'dry_run': True}
+        init_config(build_options=build_options)
+
+        git_repo = gh.init_repo(self.test_prefix, GITHUB_REPO)
+        branch = 'test123'
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'master')
+        git_repo.create_head(branch, force=True)
+        gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+
+        self.assertEqual(stderr, '')
+
+        github_path = '%s/%s.git' % (GITHUB_USER, GITHUB_REPO)
+        pattern = r'^' + '\n'.join([
+            r"== fetching branch 'master' from https://github.com/%s\.\.\." % github_path,
+            r"== pushing branch 'test123' to remote 'github_.*' \(git@github.com:%s\) \[DRY RUN\]" % github_path,
+        ]) + r'$'
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
 
 def suite():

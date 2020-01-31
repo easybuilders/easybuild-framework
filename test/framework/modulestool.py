@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2019 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -176,7 +176,7 @@ class ModulesToolTest(EnhancedTestCase):
             fake_path = os.path.join(self.test_installpath, 'lmod')
             fake_lmod_txt = '\n'.join([
                 '#!/bin/bash',
-                'echo "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION,
+                'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
             ])
             write_file(fake_path, fake_lmod_txt)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TextTestRunner
 
 import easybuild.main
@@ -49,13 +50,13 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, remove_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, mkdir, read_file
+from easybuild.tools.filetools import remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
-from easybuild.tools.py2vs3 import URLError, reload
+from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -149,7 +150,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topt = EasyBuildOptions(
                                 go_args=['-H'],
                                 go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
-                                go_columns=100,  # fix col size for reproducible unittest output
+                                go_columns=200,  # fix col size for reproducible unittest output
                                 help_to_string=True,  # don't print to stdout, but to StingIO fh,
                                 prog='easybuildoptions_test',  # generate as if called from generaloption.py
                                )
@@ -163,6 +164,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         "Not all option groups included in short help (1)")
         self.assertTrue(re.search("Regression test options", outtxt),
                         "Not all option groups included in short help (2)")
+
+        # for boolean options, we mention in the help text how to disable them
+        regex = re.compile("default: True; disable with --disable-cleanup-builddir", re.M)
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_no_args(self):
         """Test using no arguments."""
@@ -361,8 +366,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
                    passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
-        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
-                   passed_args=['--debug', "--robot-paths='/tmp/bar:/tmp/foo'"])
+        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=%s' % self.test_prefix],
+                   passed_args=['--debug', "--robot-paths='%s:/tmp/foo'" % self.test_prefix])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -799,6 +804,114 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertEqual(txt, expected)
 
+    def test_show_ec(self):
+        """Test 'eb --show-ec'."""
+
+        args = [
+            '--show-ec',
+            'toy-0.0.eb',
+            'gzip-1.6-GCC-4.9.2.eb',
+        ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        patterns = [
+            r"^== Contents of .*/test/framework/easyconfigs/test_ecs/t/toy/toy-0.0.eb:",
+            r"^name = 'toy'",
+            r"^toolchain = SYSTEM",
+            r"^sanity_check_paths = {\n    'files': \[\('bin/yot', 'bin/toy'\)\],",
+            r"^== Contents of .*/test/framework/easyconfigs/test_ecs/g/gzip/gzip-1.6-GCC-4.9.2.eb:",
+            r"^easyblock = 'ConfigureMake'\n\nname = 'gzip'",
+            r"^toolchain = {'name': 'GCC', 'version': '4.9.2'}",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_copy_ec(self):
+        """Test --copy-ec."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+
+        toy_ec_txt = read_file(os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb'))
+        bzip2_ec_txt = read_file(os.path.join(test_easyconfigs_dir, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'))
+
+        # basic test: copying one easyconfig file to a non-existing absolute path
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = ['--copy-ec', 'toy-0.0.eb', test_ec]
+        self.eb_main(args)
+
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertEqual(toy_ec_txt, read_file(test_ec))
+
+        remove_file(test_ec)
+
+        # basic test: copying one easyconfig file to a non-existing relative path
+        cwd = change_dir(self.test_prefix)
+        target_fn = 'test.eb'
+        self.assertFalse(os.path.exists(target_fn))
+
+        args = ['--copy-ec', 'toy-0.0.eb', target_fn]
+        self.eb_main(args)
+
+        change_dir(cwd)
+
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertEqual(toy_ec_txt, read_file(test_ec))
+
+        # copying one easyconfig into an existing directory
+        test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
+        mkdir(test_target_dir)
+        args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
+        self.eb_main(args)
+
+        copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
+
+        remove_dir(test_target_dir)
+
+        def check_copied_files():
+            """Helper function to check result of copying multiple easyconfigs."""
+            self.assertTrue(os.path.exists(test_target_dir))
+            self.assertEqual(sorted(os.listdir(test_target_dir)), ['bzip2-1.0.6-GCC-4.9.2.eb', 'toy-0.0.eb'])
+            copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
+            self.assertTrue(os.path.exists(copied_toy_ec))
+            self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
+            copied_bzip2_ec = os.path.join(test_target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
+            self.assertTrue(os.path.exists(copied_bzip2_ec))
+            self.assertEqual(bzip2_ec_txt, read_file(copied_bzip2_ec))
+
+        # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
+        args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
+        self.eb_main(args)
+
+        check_copied_files()
+
+        remove_dir(test_target_dir)
+
+        # same but with relative path for target dir
+        change_dir(self.test_prefix)
+        args[-1] = os.path.basename(test_target_dir)
+        self.assertFalse(os.path.exists(args[-1]))
+
+        self.eb_main(args)
+
+        check_copied_files()
+
+        # copying multiple easyconfig to an existing target file resuts in an error
+        target = os.path.join(self.test_prefix, 'test.eb')
+        self.assertTrue(os.path.isfile(target))
+        args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
+        error_pattern = ".*/test.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -877,16 +990,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
+        robot_decoy = os.path.join(self.test_prefix, 'robot_decoy')
+        mkdir(robot_decoy)
         for dry_run_arg in ['-D', '--dry-run-short']:
             open(self.logfile, 'w').write('')
             args = [
                 os.path.join(tmpdir, 'easybuild', 'easyconfigs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb'),
                 dry_run_arg,
                 # purposely specifying senseless dir, to test auto-inclusion of easyconfigs pkg path in robot path
-                '--robot=%s' % os.path.join(tmpdir, 'robot_decoy'),
+                '--robot=%s' % robot_decoy,
                 '--unittest-file=%s' % self.logfile,
             ]
-            outtxt = self.eb_main(args, logfile=dummylogfn)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
             info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
             self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
@@ -1836,6 +1951,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
+        # This easyconfig contains a dependency of CMake for which no easyconfig exists. It should still
+        # succeed when called with --filter-deps=CMake=:2.8.10]
+        open(self.logfile, 'w').write('')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
+        args[0] = ec_file
+        args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        # dictionaries can be printed in any order
+        regexp = "filtered out dependency.*('name': 'CMake'.*'version': '2.8.10'|'version': '2.8.10'.*'name': 'CMake')"
+        self.assertTrue(re.search(regexp, outtxt))
+
+        # The test below fails without PR 2983
+        open(self.logfile, 'w').write('')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
+        args[0] = ec_file
+        args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
+        outtxt = self.eb_main(args + ['--minimal-toolchains'], do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search(regexp, outtxt))
+
     def test_hide_deps(self):
         """Test use of --hide-deps."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -2000,6 +2134,52 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for ecfile in ecfiles:
             ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
+
+    def test_robot_path_check(self):
+        """Test path check for --robot"""
+        empty_file = os.path.join(self.test_prefix, 'empty')
+        write_file(empty_file, '')
+
+        error_pattern = "Argument passed to --robot is not an existing directory"
+        for robot in ['--robot=foo', '--robot=%s' % empty_file]:
+            args = ['toy-0.0.eb', '--dry-run', robot]
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        toy_regex = re.compile('module: toy/0.0')
+
+        # works fine is directory exists
+        args = ['toy-0.0.eb', '-r', self.test_prefix, '--dry-run']
+        outtxt = self.eb_main(args, raise_error=True)
+        self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # no error when name of an easyconfig file is specified to --robot (even if it doesn't exist)
+        args = ['--dry-run', '--robot', 'toy-0.0.eb']
+        outtxt = self.eb_main(args, raise_error=True)
+        self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # different error when a non-existing easyconfig file is specified to --robot
+        args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
+        self.assertErrorRegex(EasyBuildError, "Can't find path", self.eb_main, args, raise_error=True)
+
+        for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
+            args = ['toy-0.0.eb', '--dry-run', robot]
+            outtxt = self.eb_main(args, raise_error=True)
+            self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # no problem with using combos of single-letter options with -r included, no matter the order
+        for arg in ['-Dr', '-rD', '-frkD', '-rfDk']:
+            args = ['toy-0.0.eb', arg]
+            outtxt = self.eb_main(args, raise_error=True)
+            self.assertTrue(toy_regex.search(outtxt), "Pattern '%s' not found in: %s" % (toy_regex.pattern, outtxt))
+
+        # unknown options are still recognized, even when used in single-letter combo arguments
+        for arg in ['-DX', '-DrX', '-DXr', '-frkDX', '-XfrD']:
+            args = ['toy-0.0.eb', arg]
+            self.mock_stderr(True)
+            self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue("error: no such option: -X" in stderr)
 
     def test_missing_cfgfile(self):
         """Test behaviour when non-existing config file is specified."""
@@ -2718,17 +2898,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config(args=['--module-naming-scheme=HierarchicalMNS'])
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
         # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
         build_options = {
-            'fixed_installdir_naming_scheme': True,
+            'fixed_installdir_naming_scheme': False,
             'valid_module_classes': module_classes(),
         }
         init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
 
     def _assert_regexs(self, regexs, txt, assert_true=True):
         """Helper function to assert presence/absence of list of regex patterns in a text"""
@@ -2752,6 +2932,99 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout_txt = stdout_txt.strip()
             stderr_txt = stderr_txt.strip()
         return stdout_txt, stderr_txt
+
+    def test_new_branch_github(self):
+        """Test for --new-branch-github."""
+        if self.github_token is None:
+            print("Skipping test_create_branch_github, no GitHub token available?")
+            return
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            '--new-branch-github',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            toy_ec,
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        remote = 'git@github.com:%s/easybuild-easyconfigs.git' % GITHUB_TEST_ACCOUNT
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git\.\.\.",
+            r"^== copying easyconfigs to .*/easybuild-easyconfigs\.\.\.",
+            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+        ]
+        self._assert_regexs(regexs, txt)
+
+    def test_new_pr_from_branch(self):
+        """Test --new-pr-from-branch."""
+        if self.github_token is None:
+            print("Skipping test_new_pr_from_branch, no GitHub token available?")
+            return
+
+        # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
+        # branch created specifically for this test,
+        # only adds toy-0.0.eb test easyconfig compared to central develop branch
+        test_branch = 'test_new_pr_from_branch_DO_NOT_REMOVE'
+
+        args = [
+            '--new-pr-from-branch=%s' % test_branch,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # used to get GitHub token
+            '--github-org=boegel',  # used to determine account to grab branch from
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        regexs = [
+            r"^== fetching branch '%s' from https://github.com/boegel/easybuild-easyconfigs.git\.\.\." % test_branch,
+            r"^== syncing 'test_new_pr_from_branch_DO_NOT_REMOVE' with current 'easybuilders/develop' branch\.\.\.",
+            r"^== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
+            r"^== merging 'develop' branch into PR branch 'test_new_pr_from_branch_DO_NOT_REMOVE'\.\.\.",
+            r"^== checking out target branch 'easybuilders/develop'\.\.\.",
+            r"^== determining metadata for pull request based on changed files\.\.\.",
+            r"^== found 1 changed file\(s\) in 'boegel/test_new_pr_from_branch_DO_NOT_REMOVE' " +
+            "relative to 'easybuilders/develop':$",
+            r"^\* 1 new/changed easyconfig file\(s\):\n  easybuild/easyconfigs/t/toy/toy-0\.0\.eb",
+            r"^== checking out PR branch 'boegel/test_new_pr_from_branch_DO_NOT_REMOVE'\.\.\.$",
+            r"\* target: easybuilders/easybuild-easyconfigs:develop$",
+            r"^\* from: boegel/easybuild-easyconfigs:test_new_pr_from_branch_DO_NOT_REMOVE$",
+            r'^\* title: "\{tools\}\[system/system\] toy v0\.0"$',
+            r"^ 1 file changed, 32 insertions\(\+\)$",
+            r"^\* overview of changes:\n  easybuild/easyconfigs/t/toy/toy-0\.0\.eb | 32",
+        ]
+        self._assert_regexs(regexs, txt)
+
+    def test_update_branch_github(self):
+        """Test --update-branch-github."""
+        if self.github_token is None:
+            print("Skipping test_update_branch_github, no GitHub token available?")
+            return
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            '--update-branch-github=develop',
+            '--github-user=boegel',  # used to determine account to grab branch from (no GitHub token needed)
+            toy_ec,
+            '--pr-commit-msg="this is just a test"',
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        full_repo = 'boegel/easybuild-easyconfigs'
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/%s.git\.\.\." % full_repo,
+            r"^== copying easyconfigs to .*/git-working-dir.*/easybuild-easyconfigs...",
+            r"^== pushing branch 'develop' to remote '.*' \(git@github.com:%s.git\) \[DRY RUN\]" % full_repo,
+            r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| 32",
+            r"== pushed updated branch 'develop' to boegel/easybuild-easyconfigs \[DRY RUN\]",
+        ]
+        self._assert_regexs(regexs, txt)
 
     def test_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
@@ -2812,6 +3085,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
+        # add unstaged file to git working dir, to check on later
+        unstaged_file = os.path.join('easybuild-easyconfigs', 'easybuild', 'easyconfigs', 'test.eb')
+        write_file(os.path.join(git_working_dir, unstaged_file), 'test123')
+
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
@@ -2822,6 +3099,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
         self.mock_stdout(False)
+
+        # check whether unstaged file in git working dir was copied (it shouldn't)
+        res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
+        res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
+        if len(res) == 1:
+            unstaged_file_full = os.path.join(res[0], unstaged_file)
+            self.assertFalse(os.path.exists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0]))
+        else:
+            self.assertTrue(False, "Found copy of easybuild-easyconfigs working copy")
 
         # add required commit message, try again
         args.append('--pr-commit-msg=just a test')
@@ -2923,9 +3209,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
             r"^\s*1 file(s?) changed",
-            "^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
-            r"^Updated easybuilders/easybuild-easyconfigs PR #2237 "
-            "by pushing to branch easybuilders/develop \[DRY RUN\]",
+            r"^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
+            r"^== pushed updated branch 'develop' to easybuilders/easybuild-easyconfigs \[DRY RUN\]",
+            r"^== updated https://github.com/easybuilders/easybuild-easyconfigs/pull/2237 \[DRY RUN\]",
         ]
         self._assert_regexs(regexs, txt)
 
@@ -2949,6 +3235,66 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "buildstats\s*=",
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
+
+    def test_sync_pr_with_develop(self):
+        """Test use of --sync-pr-with-develop (dry run only)."""
+        if self.github_token is None:
+            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
+            return
+
+        # use https://github.com/easybuilders/easybuild-easyconfigs/pull/9150,
+        # which is a PR from boegel:develop to easybuilders:develop
+        # (to sync 'develop' branch in boegel's fork with central develop branch);
+        # we need to test with a branch that is guaranteed to stay in place for the test to work,
+        # since it will actually be downloaded (only the final push to update the branch is skipped under --dry-run)
+        args = [
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--sync-pr-with-develop=9150',
+            '--dry-run',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        github_path = r"boegel/easybuild-easyconfigs\.git"
+        pattern = '\n'.join([
+            r"== temporary log file in case of crash .*",
+            r"== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #9150: develop",
+            r"== fetching branch 'develop' from https://github\.com/%s\.\.\." % github_path,
+            r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
+            r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
+            r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
+        ])
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
+
+    def test_sync_branch_with_develop(self):
+        """Test use of --sync-branch-with-develop (dry run only)."""
+        if self.github_token is None:
+            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
+            return
+
+        # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
+        test_branch = 'test_new_pr_from_branch_DO_NOT_REMOVE'
+
+        args = [
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--github-org=boegel',  # used to determine account to grab branch from
+            '--sync-branch-with-develop=%s' % test_branch,
+            '--dry-run',
+        ]
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        self.assertFalse(stderr)
+
+        github_path = r"boegel/easybuild-easyconfigs\.git"
+        pattern = '\n'.join([
+            r"== temporary log file in case of crash .*",
+            r"== fetching branch '%s' from https://github\.com/%s\.\.\." % (test_branch, github_path),
+            r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
+            r"== merging 'develop' branch into PR branch '%s'\.\.\." % test_branch,
+            r"== pushing branch '%s' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % (test_branch, github_path),
+        ])
+        regex = re.compile(pattern)
+        self.assertTrue(regex.match(stdout), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
     def test_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
@@ -3464,6 +3810,51 @@ class CommandLineOptionsTest(EnhancedTestCase):
         err_msg = "Different length for lists of names/versions in metadata for external module"
         self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
+        # if path to non-existing file is used, an error is reported
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        error_pattern = "Specified path for file with external modules metadata does not exist"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, [doesnotexist])
+
+        # glob pattern can be used to specify file locations to parse_external_modules_metadata
+        cfg1 = os.path.join(self.test_prefix, 'cfg_one.ini')
+        write_file(cfg1, '\n'.join(['[one/1.0]', 'name = one', 'version = 1.0']))
+        cfg2 = os.path.join(self.test_prefix, 'cfg_two.ini')
+        write_file(cfg2, '\n'.join([
+            '[two/2.0]', 'name = two', 'version = 2.0',
+            '[two/2.1]', 'name = two', 'version = 2.1',
+        ]))
+        cfg3 = os.path.join(self.test_prefix, 'cfg3.ini')
+        write_file(cfg3, '\n'.join(['[three/3.0]', 'name = three', 'version = 3.0']))
+        cfg4 = os.path.join(self.test_prefix, 'cfg_more.ini')
+        write_file(cfg4, '\n'.join(['[one/1.2.3]', 'name = one', 'version = 1.2.3', 'prefix = /one/1.2.3/']))
+
+        metadata = parse_external_modules_metadata([os.path.join(self.test_prefix, 'cfg*.ini')])
+
+        self.assertEqual(sorted(metadata.keys()), ['one/1.0', 'one/1.2.3', 'three/3.0', 'two/2.0', 'two/2.1'])
+        self.assertEqual(metadata['one/1.0'], {'name': ['one'], 'version': ['1.0']})
+        self.assertEqual(metadata['one/1.2.3'], {'name': ['one'], 'version': ['1.2.3'], 'prefix': '/one/1.2.3/'})
+        self.assertEqual(metadata['two/2.0'], {'name': ['two'], 'version': ['2.0']})
+        self.assertEqual(metadata['two/2.1'], {'name': ['two'], 'version': ['2.1']})
+        self.assertEqual(metadata['three/3.0'], {'name': ['three'], 'version': ['3.0']})
+
+        # check whether entries with unknown keys result in an error
+        cfg1 = os.path.join(self.test_prefix, 'broken_cfg1.cfg')
+        write_file(cfg1, "[one/1.0]\nname = one\nversion = 1.0\nfoo = bar")
+        cfg2 = os.path.join(self.test_prefix, 'cfg2.cfg')
+        write_file(cfg2, "[two/2.0]\nname = two\nversion = 2.0")
+        cfg3 = os.path.join(self.test_prefix, 'broken_cfg3.cfg')
+        write_file(cfg3, "[three/3.0]\nnaem = three\nzzz=zzz\nvresion = 3.0\naaa = aaa")
+        cfg4 = os.path.join(self.test_prefix, 'broken_cfg4.cfg')
+        write_file(cfg4, "[four/4]\nprfeix = /software/four/4")
+        broken_cfgs = [cfg1, cfg2, cfg3, cfg4]
+        error_pattern = '\n'.join([
+            r"Found metadata entries with unknown keys:",
+            r"\* four/4: prfeix",
+            r"\* one/1.0: foo",
+            r"\* three/3.0: aaa, naem, vresion, zzz",
+        ])
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, broken_cfgs)
+
     def test_zip_logs(self):
         """Test use of --zip-logs"""
 
@@ -3500,7 +3891,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:
-            print("Skipping test_debug_lmod, required Lmod as modules tool")
+            print("Skipping test_debug_lmod, requires Lmod as modules tool")
 
     def test_use_color(self):
         """Test use_color function."""
@@ -3801,6 +4192,84 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
 
+        # make sure default is also set for moduleclass symlink
+        toy_mod_symlink_dir = os.path.join(self.test_installpath, 'modules', 'tools', 'toy')
+        if get_module_syntax() == 'Lua':
+            self.assertEqual(sorted(os.listdir(toy_mod_symlink_dir)), ['0.0-deps.lua', 'default'])
+            default_symlink = os.path.join(toy_mod_symlink_dir, 'default')
+            mod_symlink = os.path.join(toy_mod_symlink_dir, '0.0-deps.lua')
+            self.assertTrue(os.path.islink(default_symlink))
+            self.assertTrue(os.path.islink(mod_symlink))
+            self.assertEqual(os.readlink(default_symlink), '0.0-deps.lua')
+            modfile_path = os.path.join(toy_mod_dir, '0.0-deps.lua')
+            self.assertTrue(os.path.samefile(os.readlink(mod_symlink), modfile_path))
+        elif get_module_syntax() == 'Tcl':
+            self.assertEqual(sorted(os.listdir(toy_mod_symlink_dir)), ['.version', '0.0-deps'])
+            version_symlink = os.path.join(toy_mod_symlink_dir, '.version')
+            mod_symlink = os.path.join(toy_mod_symlink_dir, '0.0-deps')
+            self.assertTrue(os.path.islink(version_symlink))
+            self.assertTrue(os.path.islink(mod_symlink))
+            versionfile_path = os.path.join(toy_mod_dir, '.version')
+            self.assertEqual(os.readlink(version_symlink), versionfile_path)
+            modfile_path = os.path.join(toy_mod_dir, '0.0-deps')
+            self.assertTrue(os.path.samefile(os.readlink(mod_symlink), modfile_path))
+        else:
+            self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
+
+    def test_set_default_module_robot(self):
+        """Test use of --set-default-module --robot."""
+        # create two test easyconfigs, one depending on the other
+        # (using dummy Toolchain easyblock included in the tests)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'test'",
+            "version = '1.0'",
+            "homepage = 'https://example.com'",
+            "description = 'this is just a test'",
+            "toolchain = SYSTEM",
+            "dependencies = [('thisisjustatestdep', '3.14')]",
+        ]))
+        testdep_ec = os.path.join(self.test_prefix, 'thisisjustatestdep-3.14.eb')
+        write_file(testdep_ec, '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'thisisjustatestdep'",
+            "version = '3.14'",
+            "homepage = 'https://example.com'",
+            "description = 'this is just a test'",
+            "toolchain = SYSTEM",
+        ]))
+
+        args = [
+            test_ec,
+            '--force',
+            '--set-default-module',
+            '--robot',
+            self.test_prefix,
+        ]
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # default module is set for specified easyconfig, but *not* for its dependency
+        modfiles_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        self.assertEqual(sorted(os.listdir(modfiles_dir)), ['test', 'thisisjustatestdep'])
+        test_mod_dir = os.path.join(modfiles_dir, 'test')
+        testdep_mod_dir = os.path.join(modfiles_dir, 'thisisjustatestdep')
+
+        if get_module_syntax() == 'Lua':
+            # only 'default' symlink for test/1.0, not for thisisjustadep/3.14
+            self.assertEqual(sorted(os.listdir(test_mod_dir)), ['1.0.lua', 'default'])
+            self.assertEqual(sorted(os.listdir(testdep_mod_dir)), ['3.14.lua'])
+            default_symlink = os.path.join(test_mod_dir, 'default')
+            self.assertTrue(os.path.islink(default_symlink))
+            self.assertEqual(os.readlink(default_symlink), '1.0.lua')
+        elif get_module_syntax() == 'Tcl':
+            self.assertEqual(sorted(os.listdir(test_mod_dir)), ['.version', '1.0'])
+            self.assertEqual(sorted(os.listdir(testdep_mod_dir)), ['3.14'])
+            dot_version_file = os.path.join(test_mod_dir, '.version')
+            self.assertTrue("set ModulesVersion 1.0" in read_file(dot_version_file))
+        else:
+            self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
+
     def test_inject_checksums(self):
         """Test for --inject-checksums"""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -3820,6 +4289,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
+        # make sure software install directory is *not* created (see bug issue #3064)
+        self.assertFalse(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy')))
+
         # SHA256 is default type of checksums used
         self.assertTrue("injecting sha256 checksums in" in stdout)
         self.assertEqual(stderr, '')
@@ -3832,6 +4304,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         bar_tar_gz_sha256 = 'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'
         bar_patch = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
         bar_patch_sha256 = '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'
+        bar_patch_bis = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
+        bar_patch_bis_sha256 = 'd0bf102f9c5878445178c5f49b7cd7546e704c33fe2060c7354b7e473cfeb52b'
         patterns = [
             "^== injecting sha256 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
@@ -3842,6 +4316,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^== injecting sha256 checksums for extensions in test\.eb\.\.\.$",
             "^==  \* bar-0\.0\.tar\.gz: %s$" % bar_tar_gz_sha256,
             "^==  \* %s: %s$" % (bar_patch, bar_patch_sha256),
+            "^==  \* %s: %s$" % (bar_patch_bis, bar_patch_bis_sha256),
             "^==  \* barbar-0\.0\.tar\.gz: a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c$",
         ]
         for pattern in patterns:
@@ -3861,9 +4336,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile("^[ ]*'%s',  # bar-0.0.tar.gz$" % bar_tar_gz_sha256, re.M)
         self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
 
-        # no single-line checksum entry for bar*.patch, since line would be > 120 chars
-        regex = re.compile("^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256), re.M)
-        self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
+        # no single-line checksum entry for bar patches, since line would be > 120 chars
+        bar_patch_patterns = [
+            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256),
+            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch_bis, bar_patch_bis_sha256),
+        ]
+        for pattern in bar_patch_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
+
+        # no single-line entry for bar patches themselves, since line would be too long
+        bar_patch_patterns = [
+            r"^[ ]*'%s',$" % bar_patch,
+            r"^[ ]*'%s',$" % bar_patch_bis,
+        ]
+        for pattern in bar_patch_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
 
         # name/version of toy should NOT be hardcoded in exts_list, 'name'/'version' parameters should be used
         self.assertTrue('    (name, version, {' in ec_txt)
@@ -3889,11 +4378,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'checksums': [
                 bar_tar_gz_sha256,
                 bar_patch_sha256,
+                bar_patch_bis_sha256,
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
-            'patches': [bar_patch],
+            'patches': [bar_patch, bar_patch_bis],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+            'keepsymlinks': True,
         }))
         self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
             'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
@@ -4065,7 +4556,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^  -> features: ",
             "^\* software:$",
             "^  -> glibc version: ",
-            "^  -> Python binary: .*/python[0-9]?",
+            "^  -> Python binary: .*/[pP]ython[0-9]?",
             "^  -> Python version: [0-9.]+",
         ]
         for pattern in patterns:
@@ -4102,6 +4593,88 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
         self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
+
+    def test_fake_vsc_include(self):
+        """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_mns = os.path.join(self.test_prefix, 'test_mns.py')
+        test_mns_txt = '\n'.join([
+            "import vsc",
+            "from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS",
+            "class TestMNS(EasyBuildMNS):",
+            "    pass",
+        ])
+        write_file(test_mns, test_mns_txt)
+
+        args = [
+            toy_ec,
+            '--dry-run',
+            '--include-module-naming-schemes=%s' % test_mns,
+        ]
+        self.mock_stderr(True)
+        self.assertErrorRegex(SystemExit, '1', self.eb_main, args, do_build=True, raise_error=True, verbose=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        regex = re.compile("ERROR: Detected import from 'vsc' namespace in .*/test_mns.py")
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+    def test_installdir(self):
+        """Check naming scheme of installation directory."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+
+        # even with HierarchicalMNS the installation directory remains the same,
+        # due to --fixed-installdir-naming-scheme being enabled by default
+        args = ['--module-naming-scheme=HierarchicalMNS']
+        init_config(args=args)
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+
+        # things change when --disable-fixed-installdir-naming-scheme is used
+        init_config(args=args, build_options={'fixed_installdir_naming_scheme': False})
+        eb = EasyBlock(EasyConfig(toy_ec))
+        self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
+
+    def test_sort_looseversions(self):
+        """Test sort_looseversions funuction."""
+        ver1 = LooseVersion('1.2.3')
+        ver2 = LooseVersion('4.5.6')
+        ver3 = LooseVersion('1.2.3dev')
+        ver4 = LooseVersion('system')
+        ver5 = LooseVersion('rc3')
+        ver6 = LooseVersion('v1802')
+
+        # some versions are included multiple times on purpose,
+        # to also test comparison between equal LooseVersion instances
+        input = [ver3, ver5, ver1, ver2, ver4, ver6, ver3, ver4, ver1]
+        expected = [ver1, ver1, ver3, ver3, ver2, ver5, ver4, ver4, ver6]
+        self.assertEqual(sort_looseversions(input), expected)
+
+        # also test on list of tuples consisting of a LooseVersion instance + a string
+        # (as in the list_software_* functions)
+        suff1 = ''
+        suff2 = '-foo'
+        suff3 = '-bar'
+        input = [(ver3, suff1), (ver5, suff3), (ver1, suff2), (ver2, suff3), (ver4, suff1),
+                 (ver6, suff2), (ver3, suff3), (ver4, suff3), (ver1, suff1)]
+        expected = [(ver1, suff1), (ver1, suff2), (ver3, suff1), (ver3, suff3), (ver2, suff3),
+                    (ver5, suff3), (ver4, suff1), (ver4, suff3), (ver6, suff2)]
+        self.assertEqual(sort_looseversions(input), expected)
+
+    def test_cuda_compute_capabilities(self):
+        """Test --cuda-compute-capabilities configuration option."""
+        args = ['--cuda-compute-capabilities=3.5,6.2,7.0', '--show-config']
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
 
 def suite():

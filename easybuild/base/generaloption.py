@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2018 Ghent University
+# Copyright 2011-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1088,11 +1088,15 @@ class GeneralOption(object):
 
             if default is not None:
                 if len(str(default)) == 0:
-                    extra_help.append("def ''")  # empty string
+                    extra_help.append("default: ''")  # empty string
                 elif typ in ExtOption.TYPE_STRLIST:
-                    extra_help.append("def %s" % sep.join(default))
+                    extra_help.append("default: %s" % sep.join(default))
                 else:
-                    extra_help.append("def %s" % default)
+                    extra_help.append("default: %s" % default)
+
+                # for boolean options enabled by default, mention that they can be disabled using --disable-*
+                if default is True:
+                    extra_help.append("disable with --disable-%s" % key)
 
             if len(extra_help) > 0:
                 hlp += " (%s)" % ("; ".join(extra_help))

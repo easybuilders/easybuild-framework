@@ -1,6 +1,6 @@
 #!/bin/bash
 ##
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,7 @@ function verbose() {
 }
 
 PYTHON=
-for python_cmd in ${EB_PYTHON} 'python2' 'python3' 'python'; do
+for python_cmd in ${EB_PYTHON} 'python' 'python3' 'python2'; do
 
     verbose "Considering '$python_cmd'..."
 
@@ -90,5 +90,7 @@ then
     export FANCYLOGGER_IGNORE_MPI4PY=1
 fi
 
-verbose "$PYTHON -m easybuild.main $@"
+export EB_SCRIPT_PATH=$0
+
+verbose "$PYTHON -m easybuild.main `echo \"$@\"`"
 $PYTHON -m easybuild.main "$@"

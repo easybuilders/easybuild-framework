@@ -1,0 +1,24 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel C/C++ and Fortran compilers with CUDA
+    }
+}
+
+module-whatis {Intel C/C++ and Fortran compilers with CUDA}
+
+set root    /tmp/iccifortcuda/2019a
+
+conflict    iccifortcuda
+
+if { ![is-loaded iccifort/2019.5.281] } {
+    module load iccifort/2019.5.281
+}
+
+if { ![is-loaded CUDA/9.1.85] } {
+    module load CUDA/9.1.85
+}
+
+setenv	EBROOTICCIFORTCUDA		"$root"
+setenv	EBVERSIONICCIFORTCUDA		"2019a"
+setenv	EBDEVELICCIFORTCUDA		"$root/easybuild/iccifortcuda-2019a-easybuild-devel"

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,6 +43,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
@@ -51,12 +52,13 @@ from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
 from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
 from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
+from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -147,13 +149,18 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
 
-        eb = EasyConfig(self.eb_file)
+        ec = EasyConfig(self.eb_file)
 
-        self.assertEqual(eb['name'], "pi")
-        self.assertEqual(eb['version'], "3.14")
-        self.assertEqual(eb['homepage'], "http://example.com")
-        self.assertEqual(eb['toolchain'], {"name": "system", "version": "system"})
-        self.assertEqual(eb['description'], "test easyconfig")
+        self.assertEqual(ec['name'], "pi")
+        self.assertEqual(ec['version'], "3.14")
+        self.assertEqual(ec['homepage'], "http://example.com")
+        self.assertEqual(ec['toolchain'], {"name": "system", "version": "system"})
+        self.assertEqual(ec['description'], "test easyconfig")
+
+        for key in ['name', 'version', 'homepage', 'toolchain', 'description']:
+            self.assertTrue(ec.is_mandatory_param(key))
+        for key in ['buildopts', 'dependencies', 'easyblock', 'sources']:
+            self.assertFalse(ec.is_mandatory_param(key))
 
     def test_validation(self):
         """ test other validations beside mandatory parameters """
@@ -192,7 +199,7 @@ class EasyConfigTest(EnhancedTestCase):
         # introduce "TypeError: format requires mapping" issue"
         self.contents = self.contents.replace("syntax_error'", "foo = '%(name)s %s' % version")
         self.prep()
-        error_pattern = "Parsing easyconfig file failed: format requires a mapping \(line 8\)"
+        error_pattern = r"Parsing easyconfig file failed: format requires a mapping \(line 8\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
     def test_system_toolchain_constant(self):
@@ -317,24 +324,26 @@ class EasyConfigTest(EnhancedTestCase):
 
         extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
-        self.assertEqual(eb['custom_key'], 'default')
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
+        self.assertEqual(ec['custom_key'], 'default')
 
-        eb['custom_key'] = "not so default"
-        self.assertEqual(eb['custom_key'], 'not so default')
+        self.assertFalse(ec.is_mandatory_param('custom_key'))
+
+        ec['custom_key'] = "not so default"
+        self.assertEqual(ec['custom_key'], 'not so default')
 
         self.contents += "\ncustom_key = 'test'"
 
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
-        self.assertEqual(eb['custom_key'], 'test')
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
+        self.assertEqual(ec['custom_key'], 'test')
 
-        eb['custom_key'] = "not so default"
-        self.assertEqual(eb['custom_key'], 'not so default')
+        ec['custom_key'] = "not so default"
+        self.assertEqual(ec['custom_key'], 'not so default')
 
         # test if extra toolchain options are being passed
-        self.assertEqual(eb.toolchain.options['static'], True)
+        self.assertEqual(ec.toolchain.options['static'], True)
 
         # test extra mandatory parameters
         extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
@@ -344,9 +353,23 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += '\nmandatory_key = "value"'
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars)
+        ec = EasyConfig(self.eb_file, extra_options=extra_vars)
 
-        self.assertEqual(eb['mandatory_key'], 'value')
+        self.assertEqual(ec['mandatory_key'], 'value')
+        self.assertTrue(ec.is_mandatory_param('mandatory_key'))
+
+        # check whether mandatory key is retained in dumped easyconfig file, even if it's set to the default value
+        ec['mandatory_key'] = 'default'
+        test_ecfile = os.path.join(self.test_prefix, 'test_dump_mandatory.eb')
+        ec.dump(test_ecfile)
+
+        regex = re.compile("^mandatory_key = 'default'$", re.M)
+        ectxt = read_file(test_ecfile)
+        self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        # parsing again should work fine (if mandatory easyconfig parameters are indeed retained)
+        ec = EasyConfig(test_ecfile, extra_options=extra_vars)
+        self.assertEqual(ec['mandatory_key'], 'default')
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
@@ -450,13 +473,22 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.fetch_step()
 
+        # inject OS dependency that can not be fullfilled,
+        # to check whether OS deps are validated again for each extension (they shouldn't be);
+        # we need to tweak the contents of the easyconfig file via cfg.rawtxt, since that's what is used to re-parse
+        # the easyconfig file for the extension
+        eb.cfg.rawtxt += "\nosdependencies = ['this_os_dep_does_not_exist']"
+
         # run extensions step to install 'toy' extension
         eb.extensions_step()
 
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        self.assertEqual(toy_ext.patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        patches = []
+        for patch in toy_ext.patches:
+            patches.append(patch['path'])
+        self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
@@ -823,7 +855,7 @@ class EasyConfigTest(EnhancedTestCase):
         # hidden dependencies must be included in list of dependencies
         res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
-        error_pattern = "Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
+        error_pattern = r"Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
         remove_file(res[1])
 
@@ -1528,7 +1560,6 @@ class EasyConfigTest(EnhancedTestCase):
             'foo': '"foo"',
             'foo\'bar': '"foo\'bar"',
             'foo\'bar"baz': '"""foo\'bar"baz"""',
-            "foo'bar\"baz": '"""foo\'bar"baz"""',
             "foo\nbar": '"foo\nbar"',
             'foo bar': '"foo bar"'
         }
@@ -1717,7 +1748,7 @@ class EasyConfigTest(EnhancedTestCase):
             "easyblock = 'EB_foo'",
             '',
             "name = 'Foo'",
-            "version = '0.0.1'",
+            "version = '1.0.0'",
             "versionsuffix = '-test'",
             '',
             "homepage = 'http://foo.com/'",
@@ -1729,7 +1760,7 @@ class EasyConfigTest(EnhancedTestCase):
             '}',
             '',
             "sources = [",
-            "    'foo-0.0.1.tar.gz',",
+            "    'foo-1.0.0.tar.gz',",
             ']',
             '',
             "dependencies = [",
@@ -1737,14 +1768,23 @@ class EasyConfigTest(EnhancedTestCase):
             ']',
             '',
             "preconfigopts = '--opt1=%s' % name",
-            "configopts = '--opt2=0.0.1'",
+            "configopts = '--opt2=1.0.0'",
             '',
+            'exts_default_options = {',
+            "    'source_urls': ['https://example.com/files/1.0.0'],"
+            '}',
+            'exts_list = [',
+            '  ("ext1", "1.0.0"),'
+            '  ("ext2", "2.1.3"),'
+            ']',
             "sanity_check_paths = {",
             "    'files': ['files/foo/foobar', 'files/x-test'],",
             "    'dirs':[],",
             '}',
             '',
-            "foo_extra1 = 'foobar'"
+            "foo_extra1 = 'foobar'",
+            '',
+            'moduleclass = "tools"',
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1759,7 +1799,7 @@ class EasyConfigTest(EnhancedTestCase):
         patterns = [
             r"easyblock = 'EB_foo'",
             r"name = 'Foo'",
-            r"version = '0.0.1'",
+            r"version = '1.0.0'",
             r"versionsuffix = '-test'",
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
@@ -1768,12 +1808,18 @@ class EasyConfigTest(EnhancedTestCase):
             # r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
+            # no %(version)s template used in exts_default_options or exts_list
+            # see https://github.com/easybuilders/easybuild-framework/issues/3091
+            r"exts_default_options = {'source_urls': \['https://example.com/files/1\.0\.0'\]}",
+            r"\('ext1', '1\.0\.0'\),",
             r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
 
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        ectxt.endswith('moduleclass = "tools"')
 
         # reparsing the dumped easyconfig file should work
         EasyConfig(testec)
@@ -1821,6 +1867,23 @@ class EasyConfigTest(EnhancedTestCase):
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
+
+        # check internal structure to keep track of comments
+        self.assertEqual(ec.parser._formatter.comments['above'], {
+            'homepage': ["# comment on the homepage"],
+            'toolchain': ['# toolchain comment', ''],
+        })
+        self.assertEqual(ec.parser._formatter.comments['header'], ['# #', '# some header comment', '# #'])
+        self.assertEqual(ec.parser._formatter.comments['inline'], {
+            'description': '  # test',
+            'name': "  # name comment",
+        })
+        self.assertEqual(ec.parser._formatter.comments['iterabove'], {})
+        self.assertEqual(ec.parser._formatter.comments['iterinline'], {
+            'sanity_check_paths': {"    'files': ['files/foobar'],": "  # comment on files"},
+        })
+        self.assertEqual(ec.parser._formatter.comments['tail'], ["# trailing comment"])
+
         ec.dump(testec)
         ectxt = read_file(testec)
 
@@ -1829,11 +1892,10 @@ class EasyConfigTest(EnhancedTestCase):
             r"name = 'Foo'  # name comment",
             r"# comment on the homepage\nhomepage = 'http://foo.com/'",
             r'description = "foo description with a # in it"  # test',
-            r"# toolchain comment\ntoolchain = {",
+            r"# toolchain comment\n\ntoolchain = {",
             r"    'files': \['files/foobar'\],  # comment on files",
             r"    'dirs': \[\],",
         ]
-
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
@@ -1844,6 +1906,244 @@ class EasyConfigTest(EnhancedTestCase):
         EasyConfig(testec)
 
         check_easyconfigs_style([testec])
+
+        # another, more extreme example
+        # inspired by https://github.com/easybuilders/easybuild-framework/issues/3082
+        write_file(testec, '')
+        rawtxt = '\n'.join([
+            "# this is a header",
+            "#",
+            "# which may include empty comment lines",
+            "    # weirdly indented lines",
+            '  ',  # whitespace-only line, should get stripped (but no # added)
+            "# or flat out empty lines",
+            '',
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'thisisjustatest'  # just a test",
+            "# the version doesn't matter much here",
+            "version = '1.2.3'",
+            '',
+            "homepage = 'https://example.com'  # may not be actual homepage",
+            "description = \"\"\"Sneaky description with hashes, line #1",
+            " line #2",
+            " line without hashes",
+            "#4 (yeah, sneaky, isn't it),",
+            "end line",
+            "\"\"\"",
+            '',
+            "toolchain = SYSTEM",
+            "# after toolchain, before sources comment",
+            '',
+            "# this comment contains another #, uh-oh...",
+            "sources = ['test-1.2.3.tar.gz']",
+            "# how about # a comment with # multple additional hashes",
+            "source_urls = [",
+            "    # first possible source URL",
+            "    'https://example.com',",
+            "# annoying non-indented comment",
+            "    'https://anotherexample.com',  # fallback URL",
+            "]",
+            '',
+            "# this is a multiline comment above dependencies",
+            "# I said multiline",
+            "# multi > 3",
+            "dependencies = [",
+            "    # this dependency",
+            "# has multiple lines above it",
+            "    # some of which without proper indentation...",
+            "    ('foo', '1.2.3'),  # and an inline comment too",
+            "    ('nocomment', '4.5'),",
+            "    # last dependency, I promise",
+            "    ('last', '1.2.3'),",
+            "    # trailing comments in dependencies",
+            "    # a bit weird, but it happens",
+            "]  # inline comment after closing dependencies",
+            '',
+            "# how about comments above and in a dict value?",
+            "sanity_check_paths = {",
+            "    # a bunch of files",
+            "    'files': ['bin/foo', 'lib/libfoo.a'],",
+            "    # no dirs!",
+            "    'dirs': [],",
+            "}",
+            '',
+            "moduleclass = 'tools'",
+            "#",
+            "# trailing comment",
+            '',
+            "# with an empty line in between",
+            "# DONE!",
+        ])
+        ec = EasyConfig(None, rawtxt=rawtxt)
+
+        # check internal structure to keep track of comments
+        self.assertEqual(ec.parser._formatter.comments['above'], {
+           'dependencies': [
+               '# this is a multiline comment above dependencies',
+               '# I said multiline',
+               '# multi > 3',
+           ],
+           'sanity_check_paths': ['# how about comments above and in a dict value?'],
+           'source_urls': ['# how about # a comment with # multple additional hashes'],
+           'sources': ['# after toolchain, before sources comment',
+                       '',
+                       '# this comment contains another #, uh-oh...'],
+           'version': ["# the version doesn't matter much here"],
+        })
+        self.assertEqual(ec.parser._formatter.comments['header'], [
+            '# this is a header',
+            '#',
+            '# which may include empty comment lines',
+            '# weirdly indented lines',
+            '',
+            '# or flat out empty lines',
+            '',
+        ])
+        self.assertEqual(ec.parser._formatter.comments['inline'], {
+            'homepage': '  # may not be actual homepage',
+            'name': '  # just a test',
+        })
+        self.assertEqual(ec.parser._formatter.comments['iterabove'], {
+            'dependencies': {
+                "    ('foo', '1.2.3'),": ['# this dependency',
+                                          '# has multiple lines above it',
+                                          "# some of which without proper indentation..."],
+                "    ('last', '1.2.3'),": ['# last dependency, I promise'],
+                ']': ['# trailing comments in dependencies', '# a bit weird, but it happens'],
+            },
+            'sanity_check_paths': {
+                "    'dirs': [],": ['# no dirs!'],
+                "    'files': ['bin/foo', 'lib/libfoo.a'],": ['# a bunch of files'],
+            },
+            'source_urls': {
+                "    'https://example.com',": ['# first possible source URL'],
+                "    'https://anotherexample.com',": ['# annoying non-indented comment'],
+            },
+        })
+        self.assertEqual(ec.parser._formatter.comments['iterinline'], {
+            'dependencies': {
+                "    ('foo', '1.2.3'),": '  # and an inline comment too',
+                ']': "  # inline comment after closing dependencies",
+            },
+            'source_urls': {
+                "    'https://anotherexample.com',": '  # fallback URL',
+            },
+        })
+        self.assertEqual(ec.parser._formatter.comments['tail'], [
+            '#',
+            '# trailing comment',
+            '',
+            '# with an empty line in between',
+            '# DONE!',
+        ])
+
+        ec.dump(testec)
+        ectxt = read_file(testec)
+
+        # reparsing the dumped easyconfig file should work
+        EasyConfig(testec)
+
+        check_easyconfigs_style([testec])
+
+        self.assertTrue(ectxt.startswith('\n'.join([
+            '# this is a header',
+            '#',
+            '# which may include empty comment lines',
+            '# weirdly indented lines',
+            '',
+            '# or flat out empty lines',
+            '',
+        ])))
+
+        patterns = [
+            # inline comments
+            r"^homepage = .*  # may not be actual homepage\n",
+            r"^name = .*  # just a test",
+            r"^    \('foo', '1\.2\.3'\),  # and an inline comment too",
+            r"^    'https://anotherexample\.com',  # fallback URL",
+            # comments above parameter definition
+            '\n'.join([
+                r'',
+                r"# this is a multiline comment above dependencies",
+                r"# I said multiline",
+                r"# multi > 3",
+                r"dependencies = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# how about comments above and in a dict value\?",
+                r"sanity_check_paths = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# how about # a comment with # multple additional hashes",
+                r"source_urls = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# after toolchain, before sources comment",
+                r'',
+                r"# this comment contains another #, uh-oh...",
+                r"sources = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"# the version doesn't matter much here",
+                r"version = ",
+            ]),
+            '\n'.join([
+                r'',
+                r"    # trailing comments in dependencies",
+                r"    # a bit weird, but it happens",
+                r"\]  # inline comment after closing dependencies",
+            ]),
+            # comments above element of iterable parameter value
+            '\n'.join([
+                r'',
+                r"    # this dependency",
+                r"    # has multiple lines above it",
+                r"    # some of which without proper indentation\.\.\.",
+                r"    \('foo', '1\.2\.3'\),  # and an inline comment too",
+            ]),
+            '\n'.join([
+                r'',
+                r"    # last dependency, I promise",
+                r"    \('last', '1\.2\.3'\),"
+            ]),
+            '\n'.join([
+                '',
+                r"    # no dirs\!",
+                r"    'dirs': \[\],"
+            ]),
+            '\n'.join([
+                '',
+                r"    # a bunch of files",
+                r"    'files': \['bin/foo', 'lib/libfoo\.a'\],",
+            ]),
+            '\n'.join([
+                '',
+                r"    # first possible source URL",
+                r"    'https://example\.com',",
+            ]),
+            '\n'.join([
+                '',
+                r"    # annoying non-indented comment",
+                r"    'https://anotherexample\.com',  # fallback URL",
+            ]),
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        self.assertTrue(ectxt.endswith('\n'.join([
+            '#',
+            '# trailing comment',
+            '',
+            '# with an empty line in between',
+            '# DONE!',
+            '',
+        ])))
 
     def test_to_template_str(self):
         """ Test for to_template_str method """
@@ -1964,6 +2264,13 @@ class EasyConfigTest(EnhancedTestCase):
 
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
+
+    def test_ActiveMNS_singleton(self):
+        """Make sure ActiveMNS is a singleton class."""
+
+        mns1 = ActiveMNS()
+        mns2 = ActiveMNS()
+        self.assertEqual(id(mns1), id(mns2))
 
     def test_ActiveMNS_det_full_module_name(self):
         """Test det_full_module_name method of ActiveMNS."""
@@ -2192,9 +2499,9 @@ class EasyConfigTest(EnhancedTestCase):
         # verify whether copied easyconfig gets cleaned up (stripping out 'Built with' comment + build stats)
         txt = read_file(copied_toy_ec)
         regexs = [
-            "# Built with EasyBuild",
-            "# Build statistics",
-            "buildstats\s*=",
+            r"# Built with EasyBuild",
+            r"# Build statistics",
+            r"buildstats\s*=",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -2219,6 +2526,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'gzip',
             'nameletter': 'g',
             'nameletterlower': 'g',
+            'parallel': None,
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
             'version': '1.5',
@@ -2237,24 +2545,63 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(res, expected)
 
-        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
+        # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        orig_get_avail_core_count = st.get_avail_core_count
+        st.get_avail_core_count = lambda: 42
+
+        # also check template values after running check_readiness_step (which runs set_parallel)
+        eb = EasyBlock(ec)
+        eb.check_readiness_step()
+
+        st.get_avail_core_count = orig_get_avail_core_count
+
+        res = template_constant_dict(ec)
+        res.pop('arch')
+        expected['parallel'] = 42
+        self.assertEqual(res, expected)
+
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_ec_txt = read_file(toy_ec)
+
         # fiddle with version to check version_minor template ('0' should be retained)
-        ec['version'] = '0.01'
+        toy_ec_txt = re.sub('version = .*', 'version = "0.01"', toy_ec_txt)
+
+        my_arch = st.get_cpu_architecture()
+
+        # add Java dep with version specified using a dict value
+        toy_ec_txt += '\n'.join([
+            "dependencies += [",
+            "  ('Python', '3.7.2'),"
+            "  ('Java', {",
+            "    'arch=%s': '1.8.0_221'," % my_arch,
+            "    'arch=fooarch': '1.8.0-foo',",
+            "  })",
+            "]",
+        ])
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt)
+
+        # only perform shallow/quick parse (as is done in list_software function)
+        ec = EasyConfigParser(filename=test_ec).get_config_dict()
 
         expected = {
-            'bitbucket_account': 'toy',
-            'github_account': 'toy',
+            'javamajver': '1',
+            'javashortver': '1.8',
+            'javaver': '1.8.0_221',
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
             'toolchain_name': 'system',
             'toolchain_version': 'system',
             'nameletterlower': 't',
+            'pymajver': '3',
+            'pyshortver': '3.7',
+            'pyver': '3.7.2',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
             'version_minor': '01',
-            'versionprefix': '',
             'versionsuffix': '-deps',
         }
         res = template_constant_dict(ec)
@@ -2361,8 +2708,8 @@ class EasyConfigTest(EnhancedTestCase):
             '--dry-run',
         ]
         outtxt = self.eb_main(args, raise_error=True)
-        self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
-        self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+        self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
+        self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
@@ -2462,7 +2809,21 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, [None, ''])
 
+        # --add-dummy-to-minimal-toolchains is still supported, but deprecated
+        self.allow_deprecated_behaviour()
+        init_config(build_options={'add_system_to_minimal_toolchains': False, 'add_dummy_to_minimal_toolchains': True})
+        self.mock_stderr(True)
+        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
+                    for subtoolchain_name in subtoolchains[current_tc['name']]]
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertEqual(versions, [None, ''])
+        depr_msg = "WARNING: Deprecated functionality, will no longer work in v5.0: "
+        depr_msg += "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+        self.assertTrue(depr_msg in stderr)
+
         # and GCCcore if existing too
+        init_config(build_options={'add_system_to_minimal_toolchains': True})
         current_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
         cands = [{'name': 'GCCcore', 'version': '4.9.3'}]
         versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
@@ -2492,8 +2853,8 @@ class EasyConfigTest(EnhancedTestCase):
         # incorrect spec
         specs['versionsuffix'] = ''
         error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-2018a.eb' " % toy_ec_name
-        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
-        error_pattern += "toolchain name, version: 'gompi', '2018a'\)"
+        error_pattern += r"\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += r"toolchain name, version: 'gompi', '2018a'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
         specs['versionsuffix'] = '-test'
 
@@ -2502,8 +2863,8 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_txt)
         error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-2018a-test.eb' "
-        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
-        error_pattern += "toolchain name, version: 'gompi', '2018a'\)"
+        error_pattern += r"\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
+        error_pattern += r"toolchain name, version: 'gompi', '2018a'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
         # incorrect file contents
@@ -2530,8 +2891,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs = os.path.join(top_dir, 'easyconfigs')
         symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
 
+        # temporarily mock stderr to avoid printed warning (because 'eb' is not available via $PATH)
+        self.mock_stderr(True)
+
         # locations listed in 'robot_path' named argument are taken into account
         res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.mock_stderr(False)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
         # easyconfigs location can also be derived from location of 'eb'
@@ -2555,6 +2920,50 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # put mock 'eb' back in $PATH
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        # if $EB_SCRIPT_PATH is specified, this is picked up to determine location to easyconfigs
+        someprefix = os.path.join(self.test_prefix, 'someprefix')
+        test_easyconfigs_dir = os.path.join(someprefix, 'easybuild', 'easyconfigs')
+        mkdir(test_easyconfigs_dir, parents=True)
+        write_file(os.path.join(someprefix, 'bin', 'eb'), '')
+
+        # put symlink in place, both original path and resolved path should be considered
+        symlinked_prefix = os.path.join(self.test_prefix, 'symlinked_prefix')
+        symlink(someprefix, symlinked_prefix)
+
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(symlinked_prefix, 'bin', 'eb')
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+
+        # last path is symlinked path
+        self.assertEqual(res[-1], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+
+        # wipe sys.path. then only path found via $EB_SCRIPT_PATH is found
+        sys.path = []
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
+
+        # if $EB_SCRIPT_PATH is not defined, then paths determined via 'eb' found through $PATH are picked up
+        del os.environ['EB_SCRIPT_PATH']
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        expected = os.path.join(self.test_prefix, 'easybuild', 'easyconfigs')
+        self.assertTrue(os.path.samefile(res[-1], expected))
+
+        # also check with $EB_SCRIPT_PATH set to a symlink which doesn't allow
+        # directly deriving path to easybuild/easyconfigs dir, but resolved symlink does
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/2248
+        eb_symlink = os.path.join(self.test_prefix, 'eb')
+        symlink(os.path.join(someprefix, 'bin', 'eb'), eb_symlink)
+        os.environ['EB_SCRIPT_PATH'] = eb_symlink
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.exists(res[0]))
+        self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
@@ -2589,7 +2998,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
 
-        checksums_regex = re.compile('^checksums = \[\[(.|\n)*\]\]', re.M)
+        checksums_regex = re.compile(r'^checksums = \[\[(.|\n)*\]\]', re.M)
 
         # wipe out specified checksums, to make check fail
         test_ec = os.path.join(self.test_prefix, 'toy-0.0-fail.eb')
@@ -2604,7 +3013,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(res[0].startswith('Checksums missing for one or more sources/patches in toy-0.0-fail.eb'))
 
         # test use of whitelist regex patterns: check passes because easyconfig is whitelisted by filename
-        for regex in ['toy-.*', '.*-0\.0-fail\.eb']:
+        for regex in [r'toy-.*', r'.*-0\.0-fail\.eb']:
             res = check_sha256_checksums(ecs, whitelist=[regex])
             self.assertFalse(res)
 
@@ -2619,12 +3028,12 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
-        self.assertTrue(res[-1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz"))
+        self.assertTrue(res[-1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz"))
 
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         test_ec_txt = checksums_regex.sub('checksums = ["%s"]' % toy_sha256, toy_ec_txt)
-        test_ec_txt = re.sub('patches = \[(.|\n)*\]', '', test_ec_txt)
+        test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0-ok.eb')
         write_file(test_ec, test_ec_txt)
@@ -2643,7 +3052,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
-        self.assertTrue(res[1].startswith("Non-SHA256 checksum found for toy-0.0.tar.gz: "))
+        self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz: "))
 
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""
@@ -3103,6 +3512,100 @@ class EasyConfigTest(EnhancedTestCase):
         expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
         self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
+
+    def test_arch_specific_dependency(self):
+        """Tests that the correct version is chosen for this architecture"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+        dep_str = "[('foo', {'arch=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '0.2'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "dependencies = %s" % dep_str,
+        ])
+        write_file(test_ec, test_ectxt)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec.dependencies()[0]['version'], expected_version)
+
+    def test_unexpected_version_keys_caught(self):
+        """Tests that unexpected keys in a version dictionary are caught"""
+
+        my_arch = st.get_cpu_architecture()
+        expected_version = '1.2.3'
+
+        for dep_str in ("[('foo', {'bar=%s': '%s', 'arch=Foo': 'bar'})]" % (my_arch, expected_version),
+                        "[('foo', {'blah': 'bar'})]"):
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+            test_ectxt = '\n'.join([
+                "easyblock = 'ConfigureMake'",
+                "name = 'test'",
+                "version = '0.2'",
+                "homepage = 'https://example.com'",
+                "description = 'test'",
+                "toolchain = SYSTEM",
+                "dependencies = %s" % dep_str,
+            ])
+            write_file(test_ec, test_ectxt)
+
+            self.assertRaises(EasyBuildError, EasyConfig, test_ec)
+
+    def test_resolve_exts_filter_template(self):
+        """Test for resolve_exts_filter_template function."""
+        class TestExtension(object):
+            def __init__(self, values):
+                self.name = values['name']
+                self.version = values.get('version')
+                self.src = values.get('src')
+                self.options = values.get('options', {})
+
+        error_msg = 'exts_filter should be a list or tuple'
+        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                              '[ 1 == 1 ]', {})
+        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                              ['[ 1 == 1 ]'], {})
+        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                              ['[ 1 == 1 ]', 'true', 'false'], {})
+
+        test_cases = [
+            # Minimal case: just name
+            (['%(ext_name)s', None],
+             {'name': 'foo'},
+             ('foo', None),
+             ),
+            # Minimal case with input
+            (['%(ext_name)s', '>%(ext_name)s'],
+             {'name': 'foo'},
+             ('foo', '>foo'),
+             ),
+            # All values
+            (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz'},
+             ('foo-42-bar.tgz', '>foo-42-bar.tgz'),
+             ),
+            # options dict is accepted
+            (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'dummy': 'value'}},
+             ('foo-42-bar.tgz', '>foo-42-bar.tgz'),
+             ),
+            # modulename overwrites name
+            (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'modulename': 'baz'}},
+             ('baz-42-bar.tgz', '>baz-42-bar.tgz'),
+             ),
+        ]
+        for exts_filter, ext, expected_value in test_cases:
+            value = resolve_exts_filter_template(exts_filter, ext)
+            self.assertEqual(value, expected_value)
+            value = resolve_exts_filter_template(exts_filter, TestExtension(ext))
+            self.assertEqual(value, expected_value)
 
 
 def suite():

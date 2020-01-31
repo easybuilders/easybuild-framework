@@ -5,8 +5,8 @@ keyring==5.7.1; python_version < '2.7'
 keyring<=9.1; python_version >= '2.7'
 keyrings.alt; python_version >= '2.7'
 
-# GitPython 2.x may no longer be compatible with py2.6
-GitPython<2.0; python_version < '2.7'
+# GitPython 2.1.9 no longer supports Python 2.6
+GitPython==2.1.8; python_version < '2.7'
 GitPython; python_version >= '2.7'
 
 # pydot (dep for python-graph-dot) 1.2.0 and more recent doesn't work with Python 2.6
@@ -36,13 +36,13 @@ autopep8; python_version >= '2.7'
 PyYAML<5.0; python_version < '2.7'
 PyYAML; python_version >= '2.7'
 
-# optional Python packages for EasyBuild (GC3Pie is not compatible with Python 3 yet)
-GC3Pie; python_version < '3.0'
+# optional Python packages for EasyBuild
 
-# optional Python packages for EasyBuild -- flake8 is a superset of pycodestyle
+# flake8 is a superset of pycodestyle
 pycodestyle; python_version < '2.7'
 flake8; python_version >= '2.7'
 
+GC3Pie
 python-graph-dot
 python-hglib
 requests

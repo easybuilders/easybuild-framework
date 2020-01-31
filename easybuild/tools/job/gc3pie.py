@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2019 Ghent University
+# Copyright 2015-2020 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -30,6 +30,7 @@ Interface for submitting jobs via GC3Pie.
 :author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
+import os
 from time import gmtime, strftime
 import time
 
@@ -232,7 +233,7 @@ class GC3Pie(JobBackend):
         self._engine.retrieve_overwrites = True
 
         # some sites may not be happy with flooding the cluster with build jobs...
-        self._engine.max_in_flight = build_option('job_max_jobs')
+        self._engine.max_in_flight = build_option('job_max_jobs') or 0
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
@@ -254,16 +255,24 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report()
+            stats = self._engine.counts(only=Application)
+            self._print_status_report(stats)
 
             # Wait a few seconds...
             time.sleep(self.poll_interval)
 
         # final status report
         print_msg("Done processing jobs", log=self.log, silent=build_option('silent'))
-        self._print_status_report()
+        self._print_status_report(stats)
 
-    def _print_status_report(self):
+        # fail if at least one job has failed
+        if stats['failed'] > 0:
+            error_msg = "%d jobs failed: %s" % (stats['failed'], ', '.join(self._list_failed_jobs()))
+            raise EasyBuildError(error_msg)
+        else:
+            return os.EX_OK
+
+    def _print_status_report(self, stats):
         """
         Print a job status report to STDOUT and the log file.
 
@@ -271,7 +280,17 @@ class GC3Pie(JobBackend):
         figures are extracted from the `counts()` method of the
         currently-running GC3Pie engine.
         """
-        stats = self._engine.counts(only=Application)
-        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
+        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats
+                            if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
+
+    def _list_failed_jobs(self):
+        """
+        Return list of names of failed build jobs.
+        """
+        failed = []
+        for job in self._engine.iter_tasks(only_cls=Application):
+            if job.execution.returncode != 0:
+                failed.append(job.name)
+        return failed

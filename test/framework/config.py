@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -558,8 +558,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(eb_go.options.robot_paths, ['/foo', '/bar/baz'])
 
         # paths specified via --robot still get preference
-        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz', '--robot=/first'])
-        self.assertEqual(eb_go.options.robot_paths, ['/first', '/foo/bar', tmp_ecs_dir, '/baz'])
+        first = os.path.join(self.test_prefix, 'first')
+        mkdir(first)
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz', '--robot=%s' % first])
+        self.assertEqual(eb_go.options.robot_paths, [first, '/foo/bar', tmp_ecs_dir, '/baz'])
 
         sys.path[:] = orig_sys_path
 

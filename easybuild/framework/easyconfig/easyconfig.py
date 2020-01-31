@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -67,8 +67,8 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, string_type
-from easybuild.tools.systemtools import check_os_dependency
+from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
+from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -228,7 +228,13 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
 
     # system toolchain: bottom of the hierarchy
     if is_system_toolchain(subtoolchain_name):
-        if build_option('add_system_to_minimal_toolchains') and not incl_capabilities:
+        add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
+        if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
+            depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+            _log.deprecated(depr_msg, '5.0')
+            add_system_to_minimal_toolchains = True
+
+        if add_system_to_minimal_toolchains and not incl_capabilities:
             subtoolchain_version = ''
     elif len(uniq_subtc_versions) == 1:
         subtoolchain_version = list(uniq_subtc_versions)[0]
@@ -404,7 +410,7 @@ class EasyConfig(object):
         if rawtxt is None:
             self.path = path
             self.rawtxt = read_file(path)
-            self.log.debug("Raw contents from supplied easyconfig file %s: %s" % (path, self.rawtxt))
+            self.log.debug("Raw contents from supplied easyconfig file %s: %s", path, self.rawtxt)
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
@@ -491,6 +497,8 @@ class EasyConfig(object):
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
 
+        self.set_default_module = False
+
         self.software_license = None
 
     def filename(self):
@@ -524,12 +532,15 @@ class EasyConfig(object):
                 self.mandatory.append(key)
         self.log.debug("Updated list of mandatory easyconfig parameters: %s", self.mandatory)
 
-    def copy(self):
+    def copy(self, validate=None):
         """
         Return a copy of this EasyConfig instance.
         """
+        if validate is None:
+            validate = self.validation
+
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
+        ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
         # since rawtxt is defined, self.path may not get inherited, make sure it does
@@ -565,13 +576,20 @@ class EasyConfig(object):
 
         :param params: a dict value with names/values of easyconfig parameters to set
         """
-        for key in params:
+        # disable templating when setting easyconfig parameters
+        # required to avoid problems with values that need more parsing to be done (e.g. dependencies)
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+
+        for key in sorted(params.keys()):
             # validations are skipped, just set in the config
             if key in self._config.keys():
                 self[key] = params[key]
                 self.log.info("setting easyconfig parameter %s: value %s (type: %s)", key, self[key], type(self[key]))
             else:
                 raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
+
+        self.enable_templating = prev_enable_templating
 
     def parse(self):
         """
@@ -588,7 +606,7 @@ class EasyConfig(object):
                                  type(self.build_specs))
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
-        self.log.info("Parsing easyconfig file %s with rawcontent: %s" % (self.path, self.rawtxt))
+        self.log.info("Parsing easyconfig file %s with rawcontent: %s", self.path, self.rawtxt)
         self.parser.set_specifications(arg_specs)
         local_vars = self.parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
@@ -678,7 +696,7 @@ class EasyConfig(object):
             msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
             msg += "or try using --fix-deprecated-easyconfigs to do this automatically.\nFor more information, see "
-            msg += "https://easybuild.readthedocs.io/en/4.x/Easyconfig-files-local-variables.html ."
+            msg += "https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html ."
 
             # always log a warning if local variable that don't follow recommended naming scheme are found
             self.log.warning(msg)
@@ -798,16 +816,17 @@ class EasyConfig(object):
         for opt in ITERATE_OPTIONS:
 
             # only when builddependencies is a list of lists are we iterating over them
-            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self[opt]):
+            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self.get_ref(opt)):
                 continue
 
+            opt_value = self.get(opt, None, resolve=False)
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
-            if self.get(opt, None) is None:
+            if opt_value is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)):
-                opt_counts.append((opt, len(self[opt])))
+            if isinstance(opt_value, (list, tuple)):
+                opt_counts.append((opt, len(opt_value)))
 
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
@@ -932,42 +951,42 @@ class EasyConfig(object):
 
         return res
 
+    def dep_is_filtered(self, dep, filter_deps_specs):
+        """Returns True if a dependency is filtered according to the filter_deps_specs"""
+        filter_dep = False
+        if dep['name'] in filter_deps_specs:
+            filter_spec = filter_deps_specs[dep['name']]
+
+            if filter_spec.get('always_filter', False):
+                filter_dep = True
+            else:
+                version = LooseVersion(dep['version'])
+                lower = LooseVersion(filter_spec['lower']) if filter_spec['lower'] else None
+                upper = LooseVersion(filter_spec['upper']) if filter_spec['upper'] else None
+
+                # assume dep is filtered before checking version range
+                filter_dep = True
+
+                # if version is lower than lower limit: no filtering
+                if lower:
+                    if version < lower or (filter_spec['excl_lower'] and version == lower):
+                        filter_dep = False
+
+                # if version is higher than upper limit: no filtering
+                if upper:
+                    if version > upper or (filter_spec['excl_upper'] and version == upper):
+                        filter_dep = False
+
+        return filter_dep
+
     def filter_deps(self, deps):
         """Filter dependencies according to 'filter-deps' configuration setting."""
 
         retained_deps = []
         filter_deps_specs = self.parse_filter_deps()
-
         for dep in deps:
-            filter_dep = False
-
             # figure out whether this dependency should be filtered
-            if dep['name'] in filter_deps_specs:
-
-                filter_spec = filter_deps_specs[dep['name']]
-
-                if filter_spec.get('always_filter', False):
-                    filter_dep = True
-                else:
-                    version = LooseVersion(dep['version'])
-                    lower = LooseVersion(filter_spec['lower']) if filter_spec['lower'] else None
-                    upper = LooseVersion(filter_spec['upper']) if filter_spec['upper'] else None
-
-                    # assume dep is filtered before checking version range
-
-                    filter_dep = True
-
-                    # if version is lower than lower limit: no filtering
-                    if lower:
-                        if version < lower or (filter_spec['excl_lower'] and version == lower):
-                            filter_dep = False
-
-                    # if version is higher than upper limit: no filtering
-                    if upper:
-                        if version > upper or (filter_spec['excl_upper'] and version == upper):
-                            filter_dep = False
-
-            if filter_dep:
+            if self.dep_is_filtered(dep, filter_deps_specs):
                 self.log.info("filtered out dependency %s", dep)
             else:
                 retained_deps.append(dep)
@@ -1256,6 +1275,7 @@ class EasyConfig(object):
             # provides information on what this module represents (software name/version, install prefix, ...)
             'external_module_metadata': {},
         }
+
         if isinstance(dep, dict):
             dependency.update(dep)
 
@@ -1291,6 +1311,9 @@ class EasyConfig(object):
 
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        # Find the version to use on this system
+        dependency['version'] = pick_dep_version(dependency['version'])
 
         if dependency['external_module']:
             # check whether the external module is hidden
@@ -1346,7 +1369,7 @@ class EasyConfig(object):
     def _finalize_dependencies(self):
         """Finalize dependency parameters, after initial parsing."""
 
-        filter_deps = build_option('filter_deps')
+        filter_deps_specs = self.parse_filter_deps()
 
         for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
@@ -1365,7 +1388,7 @@ class EasyConfig(object):
                 # reference to original dep dict, this is the one we should be updating
                 orig_dep = deps_ref[idx]
 
-                if filter_deps and orig_dep['name'] in filter_deps:
+                if self.dep_is_filtered(orig_dep, filter_deps_specs):
                     self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
                     continue
 
@@ -1417,7 +1440,7 @@ class EasyConfig(object):
             for key in self.template_values:
                 try:
                     curr_val = self.template_values[key]
-                    new_val = curr_val % self.template_values
+                    new_val = str(curr_val) % self.template_values
                     if new_val != curr_val:
                         cont = True
                     self.template_values[key] = new_val
@@ -1469,6 +1492,10 @@ class EasyConfig(object):
 
         return value
 
+    def is_mandatory_param(self, key):
+        """Check whether specified easyconfig parameter is mandatory."""
+        return key in self.mandatory
+
     def get_ref(self, key):
         """
         Obtain reference to original/untemplated value of specified easyconfig parameter
@@ -1497,12 +1524,13 @@ class EasyConfig(object):
                                  key, value)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
-    def get(self, key, default=None):
+    def get(self, key, default=None, resolve=True):
         """
         Gets the value of a key in the config, with 'default' as fallback.
+        :param resolve: if False, disables templating via calling get_ref, else resolves template values
         """
         if key in self:
-            return self[key]
+            return self[key] if resolve else self.get_ref(key)
         else:
             return default
 
@@ -2196,10 +2224,12 @@ def fix_deprecated_easyconfigs(paths):
     print_msg("\nAll done! Fixed %d easyconfigs (out of %d found).\n", fixed_cnt, cnt, prefix=False)
 
 
-class ActiveMNS(object):
-    """Wrapper class for active module naming scheme."""
+# singleton metaclass: only one instance is created
+BaseActiveMNS = create_base_metaclass('BaseActiveMNS', Singleton, object)
 
-    __metaclass__ = Singleton
+
+class ActiveMNS(BaseActiveMNS):
+    """Wrapper class for active module naming scheme."""
 
     def __init__(self, *args, **kwargs):
         """Initialize logger."""

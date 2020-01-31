@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,7 +33,10 @@ import re
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+
+ICCIFORT_COMPONENTS = ('icc', 'ifort')
 
 
 class IccIfort(IntelIccIfort):
@@ -60,3 +63,21 @@ class IccIfort(IntelIccIfort):
             deprecated = False
 
         return deprecated
+
+    def is_dep_in_toolchain_module(self, name):
+        """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
+        res = super(IccIfort, self).is_dep_in_toolchain_module(name)
+
+        # icc & ifort do not need to be actual dependencies in iccifort module,
+        # since they could also be installed together in a single directory;
+        # as long as the corresponding $EBROOT* and $EBVERSION* environment variables are defined, it should be OK
+        if not res:
+            if name in ICCIFORT_COMPONENTS:
+                self.log.info("Checking whether %s is a toolchain component even though it is not a dependency", name)
+                root = get_software_root(name)
+                version = get_software_version(name)
+                self.log.info("%s installation prefix: %s; version: %s", name, root, version)
+                if root and version:
+                    res = True
+
+        return res
