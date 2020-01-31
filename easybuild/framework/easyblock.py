@@ -2209,6 +2209,9 @@ class EasyBlock(object):
                         if should_patch:
                             contents = shebang_regex.sub(shebang, contents)
                             write_file(path, contents)
+                        else:
+                            contents = shebang + "\n" + contents
+                            write_file(path, contents)
 
     def post_install_step(self):
         """
