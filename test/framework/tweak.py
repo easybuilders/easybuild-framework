@@ -415,12 +415,12 @@ class TweakTest(EnhancedTestCase):
         self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertTrue(key in tweaked_dict['builddependencies'][0] and
-                            value == tweaked_dict['builddependencies'][0][key])
+            self.assertTrue(key in tweaked_dict['builddependencies'][0]
+                            and value == tweaked_dict['builddependencies'][0][key])
         # Also check that the gzip dependency was upgraded
         for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertTrue(key in tweaked_dict['dependencies'][0] and
-                            value == tweaked_dict['dependencies'][0][key])
+            self.assertTrue(key in tweaked_dict['dependencies'][0]
+                            and value == tweaked_dict['dependencies'][0][key])
 
 
 def suite():
