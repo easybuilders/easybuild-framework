@@ -2209,7 +2209,9 @@ class EasyBlock(object):
                         if should_patch:
                             contents = shebang_regex.sub(shebang, contents)
                             write_file(path, contents)
-                        else:
+                        elif not contents.startswith('#!'):
+                            self.log.info("The file '%s' doesn't have any shebang present, inserting it as first line.",
+                                          path)
                             contents = shebang + "\n" + contents
                             write_file(path, contents)
 
