@@ -1340,7 +1340,7 @@ class EasyBlock(object):
             'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in lib_paths + ['share']],
             'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
             'CLASSPATH': ['*.jar'],
-            'XDG_DATA_DIRS': ['share'],
+            #'XDG_DATA_DIRS': ['share'], #disable for now
             'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
         }
 
