@@ -35,5 +35,6 @@ class Ipsmpi(IccIfort, Psmpi):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
     """
-    NAME = 'ipsmpi'
+
+    NAME = "ipsmpi"
     SUBTOOLCHAIN = IccIfort.NAME

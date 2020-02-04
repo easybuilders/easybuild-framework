@@ -32,13 +32,14 @@ Support for BLIS as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
-TC_CONSTANT_BLIS = 'BLIS'
+TC_CONSTANT_BLIS = "BLIS"
 
 
 class Blis(LinAlg):
     """
     Trivial class, provides BLIS support.
     """
-    BLAS_MODULE_NAME = ['BLIS']
-    BLAS_LIB = ['blis']
+
+    BLAS_MODULE_NAME = ["BLIS"]
+    BLAS_LIB = ["blis"]
     BLAS_FAMILY = TC_CONSTANT_BLIS

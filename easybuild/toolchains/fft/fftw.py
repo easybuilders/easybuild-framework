@@ -38,23 +38,28 @@ from easybuild.tools.toolchain.fft import Fft
 class Fftw(Fft):
     """FFTW FFT library"""
 
-    FFT_MODULE_NAME = ['FFTW']
+    FFT_MODULE_NAME = ["FFTW"]
 
     def _set_fftw_variables(self):
 
-        suffix = ''
+        suffix = ""
         version = self.get_software_version(self.FFT_MODULE_NAME)[0]
-        if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
-            raise EasyBuildError("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)", version)
-        elif LooseVersion(version) > LooseVersion('2'):
-            suffix = '3'
+        if LooseVersion(version) < LooseVersion("2") or LooseVersion(
+            version
+        ) >= LooseVersion("4"):
+            raise EasyBuildError(
+                "_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)",
+                version,
+            )
+        elif LooseVersion(version) > LooseVersion("2"):
+            suffix = "3"
 
         # order matters!
         fftw_libs = ["fftw%s" % suffix]
-        if self.options.get('usempi', False):
+        if self.options.get("usempi", False):
             fftw_libs.insert(0, "fftw%s_mpi" % suffix)
         fftw_libs_mt = ["fftw%s" % suffix]
-        if self.options.get('openmp', False):
+        if self.options.get("openmp", False):
             fftw_libs_mt.insert(0, "fftw%s_omp" % suffix)
 
         self.FFT_LIB = fftw_libs
@@ -66,9 +71,9 @@ class Fftw(Fft):
         super(Fftw, self)._set_fft_variables()
 
         ## TODO can these be replaced with the FFT ones?
-        self.variables.join('FFTW_INC_DIR', 'FFT_INC_DIR')
-        self.variables.join('FFTW_LIB_DIR', 'FFT_LIB_DIR')
-        if 'FFT_STATIC_LIBS' in self.variables:
-            self.variables.join('FFTW_STATIC_LIBS', 'FFT_STATIC_LIBS')
-        if 'FFT_STATIC_LIBS_MT' in self.variables:
-            self.variables.join('FFTW_STATIC_LIBS_MT', 'FFT_STATIC_LIBS_MT')
+        self.variables.join("FFTW_INC_DIR", "FFT_INC_DIR")
+        self.variables.join("FFTW_LIB_DIR", "FFT_LIB_DIR")
+        if "FFT_STATIC_LIBS" in self.variables:
+            self.variables.join("FFTW_STATIC_LIBS", "FFT_STATIC_LIBS")
+        if "FFT_STATIC_LIBS_MT" in self.variables:
+            self.variables.join("FFTW_STATIC_LIBS_MT", "FFT_STATIC_LIBS_MT")

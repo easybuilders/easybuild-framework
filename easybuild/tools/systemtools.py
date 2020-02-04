@@ -49,11 +49,12 @@ from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 
 
-_log = fancylogger.getLogger('systemtools', fname=False)
+_log = fancylogger.getLogger("systemtools", fname=False)
 
 
 try:
     import distro
+
     HAVE_DISTRO = True
 except ImportError as err:
     _log.debug("Failed to import 'distro' Python module: %s", err)
@@ -61,81 +62,94 @@ except ImportError as err:
 
 
 # Architecture constants
-AARCH32 = 'AArch32'
-AARCH64 = 'AArch64'
-POWER = 'POWER'
-X86_64 = 'x86_64'
+AARCH32 = "AArch32"
+AARCH64 = "AArch64"
+POWER = "POWER"
+X86_64 = "x86_64"
 
 # Vendor constants
-AMD = 'AMD'
-APM = 'Applied Micro'
-ARM = 'ARM'
-BROADCOM = 'Broadcom'
-CAVIUM = 'Cavium'
-DEC = 'DEC'
-IBM = 'IBM'
-INFINEON = 'Infineon'
-INTEL = 'Intel'
-MARVELL = 'Marvell'
-MOTOROLA = 'Motorola/Freescale'
-NVIDIA = 'NVIDIA'
-QUALCOMM = 'Qualcomm'
+AMD = "AMD"
+APM = "Applied Micro"
+ARM = "ARM"
+BROADCOM = "Broadcom"
+CAVIUM = "Cavium"
+DEC = "DEC"
+IBM = "IBM"
+INFINEON = "Infineon"
+INTEL = "Intel"
+MARVELL = "Marvell"
+MOTOROLA = "Motorola/Freescale"
+NVIDIA = "NVIDIA"
+QUALCOMM = "Qualcomm"
 
 # Family constants
-POWER_LE = 'POWER little-endian'
+POWER_LE = "POWER little-endian"
 
 # OS constants
-LINUX = 'Linux'
-DARWIN = 'Darwin'
+LINUX = "Linux"
+DARWIN = "Darwin"
 
-UNKNOWN = 'UNKNOWN'
+UNKNOWN = "UNKNOWN"
 
-MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
-PROC_CPUINFO_FP = '/proc/cpuinfo'
-PROC_MEMINFO_FP = '/proc/meminfo'
+MAX_FREQ_FP = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq"
+PROC_CPUINFO_FP = "/proc/cpuinfo"
+PROC_MEMINFO_FP = "/proc/meminfo"
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
 CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
-CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+CPU_VENDORS = [
+    AMD,
+    APM,
+    ARM,
+    BROADCOM,
+    CAVIUM,
+    DEC,
+    IBM,
+    INTEL,
+    MARVELL,
+    MOTOROLA,
+    NVIDIA,
+    QUALCOMM,
+]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
-    '0x41': ARM,
-    '0x42': BROADCOM,
-    '0x43': CAVIUM,
-    '0x44': DEC,
-    '0x49': INFINEON,
-    '0x4D': MOTOROLA,
-    '0x4E': NVIDIA,
-    '0x50': APM,
-    '0x51': QUALCOMM,
-    '0x56': MARVELL,
-    '0x69': INTEL,
-    'AuthenticAMD': AMD,
-    'GenuineIntel': INTEL,
-    'IBM': IBM,
+    "0x41": ARM,
+    "0x42": BROADCOM,
+    "0x43": CAVIUM,
+    "0x44": DEC,
+    "0x49": INFINEON,
+    "0x4D": MOTOROLA,
+    "0x4E": NVIDIA,
+    "0x50": APM,
+    "0x51": QUALCOMM,
+    "0x56": MARVELL,
+    "0x69": INTEL,
+    "AuthenticAMD": AMD,
+    "GenuineIntel": INTEL,
+    "IBM": IBM,
     # IBM POWER9
-    '8335-GTH': IBM,
-    '8335-GTX': IBM,
+    "8335-GTH": IBM,
+    "8335-GTX": IBM,
 }
 # ARM Cortex part numbers from the corresponding ARM Processor Technical Reference Manuals,
 # see http://infocenter.arm.com - Cortex-A series processors, Section "Main ID Register"
 ARM_CORTEX_IDS = {
-    '0xc05': 'Cortex-A5',
-    '0xc07': 'Cortex-A7',
-    '0xc08': 'Cortex-A8',
-    '0xc09': 'Cortex-A9',
-    '0xc0e': 'Cortex-A17',
-    '0xc0f': 'Cortex-A15',
-    '0xd03': 'Cortex-A53',
-    '0xd07': 'Cortex-A57',
-    '0xd08': 'Cortex-A72',
-    '0xd09': 'Cortex-A73',
+    "0xc05": "Cortex-A5",
+    "0xc07": "Cortex-A7",
+    "0xc08": "Cortex-A8",
+    "0xc09": "Cortex-A9",
+    "0xc0e": "Cortex-A17",
+    "0xc0f": "Cortex-A15",
+    "0xd03": "Cortex-A53",
+    "0xd07": "Cortex-A57",
+    "0xd08": "Cortex-A72",
+    "0xd09": "Cortex-A73",
 }
 
 # OS package handler name constants
-RPM = 'rpm'
-DPKG = 'dpkg'
+RPM = "rpm"
+DPKG = "dpkg"
 
 
 class SystemToolsException(Exception):
@@ -151,14 +165,17 @@ def sched_getaffinity():
 
     class cpu_set_t(ctypes.Structure):
         """Class that implements the cpu_set_t struct."""
-        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
 
-    _libc_lib = find_library('c')
+        _fields_ = [("bits", cpu_mask_t * n_mask_bits)]
+
+    _libc_lib = find_library("c")
     _libc = ctypes.cdll.LoadLibrary(_libc_lib)
 
     pid = os.getpid()
     cs = cpu_set_t()
-    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+    ec = _libc.sched_getaffinity(
+        os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs)
+    )
     if ec == 0:
         _log.debug("sched_getaffinity for pid %s successful", pid)
     else:
@@ -185,7 +202,9 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
-        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False)
+        out, _ = run_cmd(
+            "sysctl -n hw.ncpu", force_in_dry_run=True, trace=False, stream_output=False
+        )
         try:
             if int(out) > 0:
                 core_cnt = int(out)
@@ -193,14 +212,14 @@ def get_avail_core_count():
             pass
 
     if core_cnt is None:
-        raise SystemToolsException('Can not determine number of cores on this system')
+        raise SystemToolsException("Can not determine number of cores on this system")
     else:
         return core_cnt
 
 
 def get_core_count():
     """NO LONGER SUPPORTED: use get_avail_core_count() instead"""
-    _log.nosupport("get_core_count() is replaced by get_avail_core_count()", '2.0')
+    _log.nosupport("get_core_count() is replaced by get_avail_core_count()", "2.0")
 
 
 def get_total_memory():
@@ -213,9 +232,11 @@ def get_total_memory():
     os_type = get_os_type()
 
     if os_type == LINUX and is_readable(PROC_MEMINFO_FP):
-        _log.debug("Trying to determine total memory size on Linux via %s", PROC_MEMINFO_FP)
+        _log.debug(
+            "Trying to determine total memory size on Linux via %s", PROC_MEMINFO_FP
+        )
         meminfo = read_file(PROC_MEMINFO_FP)
-        mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
+        mem_mo = re.match(r"^MemTotal:\s*(\d+)\s*kB", meminfo, re.M)
         if mem_mo:
             memtotal = int(mem_mo.group(1)) // 1024
 
@@ -224,7 +245,7 @@ def get_total_memory():
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
-            memtotal = int(out.strip()) // (1024**2)
+            memtotal = int(out.strip()) // (1024 ** 2)
 
     if memtotal is None:
         memtotal = UNKNOWN
@@ -293,8 +314,12 @@ def get_cpu_vendor():
 
             if vendor_id in VENDOR_IDS:
                 vendor = VENDOR_IDS[vendor_id]
-                _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
-                           vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
+                _log.debug(
+                    "Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
+                    vendor,
+                    vendor_regex.pattern,
+                    PROC_CPUINFO_FP,
+                )
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
@@ -302,11 +327,16 @@ def get_cpu_vendor():
         out = out.strip()
         if ec == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
-            _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
+            _log.debug(
+                "Determined CPU vendor on DARWIN as being '%s' via cmd '%s"
+                % (vendor, cmd)
+            )
 
     if vendor is None:
         vendor = UNKNOWN
-        _log.warning("Could not determine CPU vendor on %s, returning %s" % (os_type, vendor))
+        _log.warning(
+            "Could not determine CPU vendor on %s, returning %s" % (os_type, vendor)
+        )
 
     return vendor
 
@@ -367,25 +397,37 @@ def get_cpu_model():
                     id_list = []
                     for model_id in sorted(set(model_ids)):
                         id_list.append(ARM_CORTEX_IDS.get(model_id, UNKNOWN))
-                    model = vendor + ' ' + ' + '.join(id_list)
-                    _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
-                               model_regex.pattern, PROC_CPUINFO_FP, model)
+                    model = vendor + " " + " + ".join(id_list)
+                    _log.debug(
+                        "Determined CPU model on Linux using regex '%s' in %s: %s",
+                        model_regex.pattern,
+                        PROC_CPUINFO_FP,
+                        model,
+                    )
         else:
             # we need 'model name' on Linux/x86, but 'model' is there first with different info
             # 'model name' is not there for Linux/POWER, but 'model' has the right info
-            model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
+            model_regex = re.compile(
+                r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M
+            )
             res = model_regex.search(proc_cpuinfo)
             if res is not None:
-                model = res.group('model').strip()
-                _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
-                           model_regex.pattern, PROC_CPUINFO_FP, model)
+                model = res.group("model").strip()
+                _log.debug(
+                    "Determined CPU model on Linux using regex '%s' in %s: %s",
+                    model_regex.pattern,
+                    PROC_CPUINFO_FP,
+                    model,
+                )
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             model = out.strip()
-            _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
+            _log.debug(
+                "Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model)
+            )
 
     if model is None:
         model = UNKNOWN
@@ -405,24 +447,36 @@ def get_cpu_speed():
     if os_type == LINUX:
         # Linux with cpu scaling
         if is_readable(MAX_FREQ_FP):
-            _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
+            _log.debug(
+                "Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP
+            )
             txt = read_file(MAX_FREQ_FP)
             cpu_freq = float(txt) // 1000
 
         # Linux without cpu scaling
         elif is_readable(PROC_CPUINFO_FP):
-            _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
+            _log.debug(
+                "Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP
+            )
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER
-            cpu_freq_regex = re.compile(r"^(?:cpu MHz|clock)\s*:\s*(?P<cpu_freq>\d+(?:\.\d+)?)", re.M)
+            cpu_freq_regex = re.compile(
+                r"^(?:cpu MHz|clock)\s*:\s*(?P<cpu_freq>\d+(?:\.\d+)?)", re.M
+            )
             res = cpu_freq_regex.search(proc_cpuinfo)
             if res:
-                cpu_freq = float(res.group('cpu_freq'))
-                _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
+                cpu_freq = float(res.group("cpu_freq"))
+                _log.debug(
+                    "Found CPU frequency using regex '%s': %s"
+                    % (cpu_freq_regex.pattern, cpu_freq)
+                )
             else:
                 _log.debug("Failed to determine CPU frequency from %s", PROC_CPUINFO_FP)
         else:
-            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling", PROC_CPUINFO_FP)
+            _log.debug(
+                "%s not found to determine max. CPU clock frequency without CPU scaling",
+                PROC_CPUINFO_FP,
+            )
 
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
@@ -433,7 +487,9 @@ def get_cpu_speed():
             cpu_freq = float(out.strip()) // (1000 ** 2)
 
     else:
-        raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
+        raise SystemToolsException(
+            "Could not determine CPU clock frequency (OS: %s)." % os_type
+        )
 
     return cpu_freq
 
@@ -447,47 +503,59 @@ def get_cpu_features():
 
     if os_type == LINUX:
         if is_readable(PROC_CPUINFO_FP):
-            _log.debug("Trying to determine CPU features on Linux via %s", PROC_CPUINFO_FP)
+            _log.debug(
+                "Trying to determine CPU features on Linux via %s", PROC_CPUINFO_FP
+            )
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'flags' on Linux/x86, 'Features' on Linux/ARM
-            flags_regex = re.compile(r"^(?:flags|[fF]eatures)\s*:\s*(?P<flags>.*)", re.M)
+            flags_regex = re.compile(
+                r"^(?:flags|[fF]eatures)\s*:\s*(?P<flags>.*)", re.M
+            )
             res = flags_regex.search(proc_cpuinfo)
             if res:
-                cpu_feat = sorted(res.group('flags').lower().split())
-                _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
+                cpu_feat = sorted(res.group("flags").lower().split())
+                _log.debug(
+                    "Found CPU features using regex '%s': %s",
+                    flags_regex.pattern,
+                    cpu_feat,
+                )
             elif get_cpu_architecture() == POWER:
                 # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
                 cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
                 if cpu_altivec_regex.search(proc_cpuinfo):
-                    cpu_feat.append('altivec')
+                    cpu_feat.append("altivec")
                 # VSX is supported since POWER7
                 cpu_power7_regex = re.compile("^cpu\s*:.*POWER(7|8|9)", re.M)
                 if cpu_power7_regex.search(proc_cpuinfo):
-                    cpu_feat.append('vsx')
+                    cpu_feat.append("vsx")
             else:
                 _log.debug("Failed to determine CPU features from %s", PROC_CPUINFO_FP)
         else:
             _log.debug("%s not found to determine CPU features", PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
-        for feature_set in ['extfeatures', 'features', 'leaf7_features']:
+        for feature_set in ["extfeatures", "features", "leaf7_features"]:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            out, ec = run_cmd(
+                cmd, force_in_dry_run=True, trace=False, stream_output=False
+            )
             if ec == 0:
                 cpu_feat.extend(out.strip().lower().split())
 
         cpu_feat.sort()
 
     else:
-        raise SystemToolsException("Could not determine CPU features (OS: %s)" % os_type)
+        raise SystemToolsException(
+            "Could not determine CPU features (OS: %s)" % os_type
+        )
 
     return cpu_feat
 
 
 def get_kernel_name():
     """NO LONGER SUPPORTED: use get_os_type() instead"""
-    _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
+    _log.nosupport("get_kernel_name() is replaced by get_os_type()", "2.0")
 
 
 def get_os_type():
@@ -496,7 +564,9 @@ def get_os_type():
     if len(os_type) > 0:
         return os_type
     else:
-        raise SystemToolsException("Failed to determine system name using platform.system().")
+        raise SystemToolsException(
+            "Failed to determine system name using platform.system()."
+        )
 
 
 def get_shared_lib_ext():
@@ -504,17 +574,16 @@ def get_shared_lib_ext():
 
     Linux: 'so', Darwin: 'dylib'
     """
-    shared_lib_exts = {
-        LINUX: 'so',
-        DARWIN: 'dylib'
-    }
+    shared_lib_exts = {LINUX: "so", DARWIN: "dylib"}
 
     os_type = get_os_type()
     if os_type in shared_lib_exts.keys():
         return shared_lib_exts[os_type]
     else:
-        raise SystemToolsException("Unable to determine extention for shared libraries,"
-                                   "unknown system name: %s" % os_type)
+        raise SystemToolsException(
+            "Unable to determine extention for shared libraries,"
+            "unknown system name: %s" % os_type
+        )
 
 
 def get_platform_name(withversion=False):
@@ -526,14 +595,16 @@ def get_platform_name(withversion=False):
     machine = platform.machine()
 
     if os_type == LINUX:
-        vendor = 'unknown'
-        release = '-gnu'
+        vendor = "unknown"
+        release = "-gnu"
     elif os_type == DARWIN:
-        vendor = 'apple'
+        vendor = "apple"
     else:
-        raise SystemToolsException("Failed to determine platform name, unknown system name: %s" % os_type)
+        raise SystemToolsException(
+            "Failed to determine platform name, unknown system name: %s" % os_type
+        )
 
-    platform_name = '%s-%s-%s' % (machine, vendor, os_type.lower())
+    platform_name = "%s-%s-%s" % (machine, vendor, os_type.lower())
     if withversion:
         platform_name += release
 
@@ -549,7 +620,7 @@ def get_os_name():
 
     # platform.linux_distribution was removed in Python 3.8,
     # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
-    if hasattr(platform, 'linux_distribution'):
+    if hasattr(platform, "linux_distribution"):
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         os_name = platform.linux_distribution()[0].strip().lower()
@@ -562,10 +633,10 @@ def get_os_name():
         os_name = None
 
     os_name_map = {
-        'red hat enterprise linux server': 'RHEL',
-        'scientific linux sl': 'SL',
-        'scientific linux': 'SL',
-        'suse linux enterprise server': 'SLES',
+        "red hat enterprise linux server": "RHEL",
+        "scientific linux sl": "SL",
+        "scientific linux": "SL",
+        "suse linux enterprise server": "SLES",
     }
 
     if os_name:
@@ -578,7 +649,7 @@ def get_os_version():
     """Determine system version."""
 
     # platform.dist was removed in Python 3.8
-    if hasattr(platform, 'dist'):
+    if hasattr(platform, "dist"):
         os_version = platform.dist()[1]
     elif HAVE_DISTRO:
         os_version = distro.version()
@@ -591,20 +662,16 @@ def get_os_version():
             # SLES subversions can only be told apart based on kernel version,
             # see http://wiki.novell.com/index.php/Kernel_versions
             version_suffixes = {
-                '11': [
-                    ('2.6.27', ''),
-                    ('2.6.32', '_SP1'),
-                    ('3.0.101-63', '_SP4'),
+                "11": [
+                    ("2.6.27", ""),
+                    ("2.6.32", "_SP1"),
+                    ("3.0.101-63", "_SP4"),
                     # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
-                    ('3.0.101', '_SP3'),
+                    ("3.0.101", "_SP3"),
                     # SP2 kernel versions range from 3.0.13 - 3.0.101
-                    ('3.0', '_SP2'),
+                    ("3.0", "_SP2"),
                 ],
-
-                '12': [
-                    ('3.12.28', ''),
-                    ('3.12.49', '_SP1'),
-                ],
+                "12": [("3.12.28", ""), ("3.12.49", "_SP1"),],
             }
 
             # append suitable suffix to system version
@@ -617,9 +684,11 @@ def get_os_version():
                         known_sp = True
                         break
                 if not known_sp:
-                    suff = '_UNKNOWN_SP'
+                    suff = "_UNKNOWN_SP"
             else:
-                raise EasyBuildError("Don't know how to determine subversions for SLES %s", os_version)
+                raise EasyBuildError(
+                    "Don't know how to determine subversions for SLES %s", os_version
+                )
 
         return os_version
     else:
@@ -636,14 +705,14 @@ def check_os_dependency(dep):
     found = False
     cmd = None
     os_to_pkg_cmd_map = {
-        'centos': RPM,
-        'debian': DPKG,
-        'redhat': RPM,
-        'ubuntu': DPKG,
+        "centos": RPM,
+        "debian": DPKG,
+        "redhat": RPM,
+        "ubuntu": DPKG,
     }
     pkg_cmd_flag = {
-        DPKG: '-s',
-        RPM: '-q',
+        DPKG: "-s",
+        RPM: "-q",
     }
     os_name = get_os_name()
     if os_name in os_to_pkg_cmd_map:
@@ -653,9 +722,16 @@ def check_os_dependency(dep):
 
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
-            cmd = ' '.join([pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep])
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False,
-                            force_in_dry_run=True, trace=False, stream_output=False)
+            cmd = " ".join([pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep])
+            found = run_cmd(
+                cmd,
+                simple=True,
+                log_all=False,
+                log_ok=False,
+                force_in_dry_run=True,
+                trace=False,
+                stream_output=False,
+            )
             if found:
                 break
 
@@ -664,34 +740,57 @@ def check_os_dependency(dep):
         found = which(dep)
 
         # try locate if it's available
-        if not found and which('locate'):
+        if not found and which("locate"):
             cmd = 'locate --regexp "/%s$"' % dep
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                            stream_output=False)
+            found = run_cmd(
+                cmd,
+                simple=True,
+                log_all=False,
+                log_ok=False,
+                force_in_dry_run=True,
+                trace=False,
+                stream_output=False,
+            )
 
     return found
 
 
-def get_tool_version(tool, version_option='--version'):
+def get_tool_version(tool, version_option="--version"):
     """
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
-                      trace=False, stream_output=False)
+    out, ec = run_cmd(
+        " ".join([tool, version_option]),
+        simple=False,
+        log_ok=False,
+        force_in_dry_run=True,
+        trace=False,
+        stream_output=False,
+    )
     if ec:
-        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
+        _log.warning(
+            "Failed to determine version of %s using '%s %s': %s"
+            % (tool, tool, version_option, out)
+        )
         return UNKNOWN
     else:
-        return '; '.join(out.split('\n'))
+        return "; ".join(out.split("\n"))
 
 
 def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False, trace=False,
-                      stream_output=False)
+    out, ec = run_cmd(
+        "gcc --version",
+        simple=False,
+        log_ok=False,
+        force_in_dry_run=True,
+        verbose=False,
+        trace=False,
+        stream_output=False,
+    )
     res = None
     if ec:
         _log.warning("Failed to determine the version of GCC: %s", out)
@@ -701,12 +800,14 @@ def get_gcc_version():
     # Debian: gcc (Debian 4.9.2-10) 4.9.2
     find_version = re.search("^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
     if find_version:
-        res = find_version.group('version')
+        res = find_version.group("version")
         _log.debug("Found GCC version: %s from %s", res, out)
     else:
         # Apple likes to install clang but call it gcc. <insert rant about Apple>
         if get_os_type() == DARWIN:
-            _log.warning("On recent version of Mac OS, gcc is actually clang, returning None as GCC version")
+            _log.warning(
+                "On recent version of Mac OS, gcc is actually clang, returning None as GCC version"
+            )
             res = None
         else:
             raise EasyBuildError("Failed to determine the GCC version from: %s", out)
@@ -722,7 +823,7 @@ def get_glibc_version():
     os_type = get_os_type()
 
     if os_type == LINUX:
-        glibc_ver_str = get_tool_version('ldd')
+        glibc_ver_str = get_tool_version("ldd")
         glibc_ver_regex = re.compile(r"^ldd \([^)]*\) (\d[\d.]*).*$")
         res = glibc_ver_regex.search(glibc_ver_str)
 
@@ -730,8 +831,11 @@ def get_glibc_version():
             glibc_ver = res.group(1)
             _log.debug("Found glibc version %s" % glibc_ver)
         else:
-            _log.warning("Failed to determine glibc version from '%s' using pattern '%s'.",
-                         glibc_ver_str, glibc_ver_regex.pattern)
+            _log.warning(
+                "Failed to determine glibc version from '%s' using pattern '%s'.",
+                glibc_ver_str,
+                glibc_ver_regex.pattern,
+            )
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
@@ -741,23 +845,23 @@ def get_glibc_version():
 
 def get_system_info():
     """Return a dictionary with system information."""
-    python_version = '; '.join(sys.version.split('\n'))
+    python_version = "; ".join(sys.version.split("\n"))
     return {
-        'core_count': get_avail_core_count(),
-        'total_memory': get_total_memory(),
-        'cpu_model': get_cpu_model(),
-        'cpu_speed': get_cpu_speed(),
-        'cpu_vendor': get_cpu_vendor(),
-        'gcc_version': get_tool_version('gcc', version_option='-v'),
-        'hostname': gethostname(),
-        'glibc_version': get_glibc_version(),
-        'os_name': get_os_name(),
-        'os_type': get_os_type(),
-        'os_version': get_os_version(),
-        'platform_name': get_platform_name(),
-        'python_version': python_version,
-        'system_python_path': which('python'),
-        'system_gcc_path': which('gcc'),
+        "core_count": get_avail_core_count(),
+        "total_memory": get_total_memory(),
+        "cpu_model": get_cpu_model(),
+        "cpu_speed": get_cpu_speed(),
+        "cpu_vendor": get_cpu_vendor(),
+        "gcc_version": get_tool_version("gcc", version_option="-v"),
+        "hostname": gethostname(),
+        "glibc_version": get_glibc_version(),
+        "os_name": get_os_name(),
+        "os_type": get_os_type(),
+        "os_version": get_os_version(),
+        "platform_name": get_platform_name(),
+        "python_version": python_version,
+        "system_python_path": which("python"),
+        "system_gcc_path": which("gcc"),
     }
 
 
@@ -766,7 +870,11 @@ def use_group(group_name):
     try:
         group_id = grp.getgrnam(group_name).gr_gid
     except KeyError as err:
-        raise EasyBuildError("Failed to get group ID for '%s', group does not exist (err: %s)", group_name, err)
+        raise EasyBuildError(
+            "Failed to get group ID for '%s', group does not exist (err: %s)",
+            group_name,
+            err,
+        )
 
     group = (group_name, group_id)
     try:
@@ -776,9 +884,16 @@ def use_group(group_name):
         user = pwd.getpwuid(os.getuid()).pw_name
         grp_members = grp.getgrgid(group_id).gr_mem
         if user in grp_members:
-            err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % group_name
+            err_msg += (
+                "change the primary group before using EasyBuild, using 'newgrp %s'."
+                % group_name
+            )
         else:
-            err_msg += "current user '%s' is not in group %s (members: %s)" % (user, group, grp_members)
+            err_msg += "current user '%s' is not in group %s (members: %s)" % (
+                user,
+                group,
+                grp_members,
+            )
         raise EasyBuildError(err_msg)
     _log.info("Using group '%s' (gid: %s)" % group)
 
@@ -795,11 +910,17 @@ def det_parallelism(par=None, maxpar=None):
             try:
                 par = int(par)
             except ValueError as err:
-                raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
+                raise EasyBuildError(
+                    "Specified level of parallelism '%s' is not an integer value: %s",
+                    par,
+                    err,
+                )
     else:
         par = get_avail_core_count()
         # check ulimit -u
-        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+        out, ec = run_cmd(
+            "ulimit -u", force_in_dry_run=True, trace=False, stream_output=False
+        )
         try:
             if out.startswith("unlimited"):
                 out = 2 ** 32 - 1
@@ -808,9 +929,14 @@ def det_parallelism(par=None, maxpar=None):
             par_guess = int((maxuserproc - 15) // 6)
             if par_guess < par:
                 par = par_guess
-                _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+                _log.info(
+                    "Limit parallel builds to %s because max user processes is %s"
+                    % (par, out)
+                )
         except ValueError as err:
-            raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
+            raise EasyBuildError(
+                "Failed to determine max user processes (%s, %s): %s", ec, out, err
+            )
 
     if maxpar is not None and maxpar < par:
         _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
@@ -826,13 +952,20 @@ def det_terminal_size():
     """
     # see http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
     try:
-        height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
+        height, width, _, _ = struct.unpack(
+            "HHHH", fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0))
+        )
     except Exception as err:
         _log.warning("First attempt to determine terminal size failed: %s", err)
         try:
-            height, width = [int(x) for x in os.popen("stty size").read().strip().split()]
+            height, width = [
+                int(x) for x in os.popen("stty size").read().strip().split()
+            ]
         except Exception as err:
-            _log.warning("Second attempt to determine terminal size failed, going to return defaults: %s", err)
+            _log.warning(
+                "Second attempt to determine terminal size failed, going to return defaults: %s",
+                err,
+            )
             height, width = 25, 80
 
     return height, width
@@ -842,30 +975,38 @@ def check_python_version():
     """Check currently used Python version."""
     python_maj_ver = sys.version_info[0]
     python_min_ver = sys.version_info[1]
-    python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
+    python_ver = "%d.%d" % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+    silence_deprecation_warnings = build_option("silence_deprecation_warnings") or []
 
     if python_maj_ver == 2:
         if python_min_ver < 6:
-            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
+            raise EasyBuildError(
+                "Python 2.6 or higher is required when using Python 2, found Python %s",
+                python_ver,
+            )
         elif python_min_ver == 6:
             depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
-            if 'Python26' in silence_deprecation_warnings:
+            if "Python26" in silence_deprecation_warnings:
                 _log.warning(depr_msg)
             else:
-                _log.deprecated(depr_msg, '5.0')
+                _log.deprecated(depr_msg, "5.0")
         else:
             _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
 
     elif python_maj_ver == 3:
         if python_min_ver < 5:
-            raise EasyBuildError("Python 3.5 or higher is required when using Python 3, found Python %s", python_ver)
+            raise EasyBuildError(
+                "Python 3.5 or higher is required when using Python 3, found Python %s",
+                python_ver,
+            )
         else:
             _log.info("Running EasyBuild with Python 3 (version %s)", python_ver)
     else:
-        raise EasyBuildError("EasyBuild is not compatible (yet) with Python %s", python_ver)
+        raise EasyBuildError(
+            "EasyBuild is not compatible (yet) with Python %s", python_ver
+        )
 
     return (python_maj_ver, python_min_ver)
 
@@ -889,17 +1030,29 @@ def pick_dep_version(dep_version):
 
     elif isinstance(dep_version, dict):
         # figure out matches based on dict keys (after splitting on '=')
-        my_arch_key = 'arch=%s' % get_cpu_architecture()
-        arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+        my_arch_key = "arch=%s" % get_cpu_architecture()
+        arch_keys = [x for x in dep_version.keys() if x.startswith("arch=")]
         other_keys = [x for x in dep_version.keys() if x not in arch_keys]
         if other_keys:
-            raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+            raise EasyBuildError(
+                "Unexpected keys in version: %s. Only 'arch=' keys are supported",
+                other_keys,
+            )
         if arch_keys:
             if my_arch_key in dep_version:
                 result = dep_version[my_arch_key]
-                _log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, result)
+                _log.info(
+                    "Version selected from %s using key %s: %s",
+                    dep_version,
+                    my_arch_key,
+                    result,
+                )
             else:
-                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+                raise EasyBuildError(
+                    "No matches for version in %s (looking for %s)",
+                    dep_version,
+                    my_arch_key,
+                )
 
     else:
         raise EasyBuildError("Unknown value type for version: %s", dep_version)

@@ -39,7 +39,11 @@ class bar(EasyBlock):
     def extra_options():
         """Custom easyconfig parameters for bar."""
         extra_vars = {
-            'bar_extra1': [None, "first bar-specific easyconfig parameter (mandatory)", MANDATORY],
-            'bar_extra2': ['BAR', "second bar-specific easyconfig parameter", CUSTOM],
+            "bar_extra1": [
+                None,
+                "first bar-specific easyconfig parameter (mandatory)",
+                MANDATORY,
+            ],
+            "bar_extra2": ["BAR", "second bar-specific easyconfig parameter", CUSTOM],
         }
         return EasyBlock.extra_options(extra_vars)

@@ -46,7 +46,7 @@ class Pgi(Compiler):
     """PGI compiler class
     """
 
-    COMPILER_MODULE_NAME = ['PGI']
+    COMPILER_MODULE_NAME = ["PGI"]
 
     COMPILER_FAMILY = TC_CONSTANT_PGI
 
@@ -56,47 +56,47 @@ class Pgi(Compiler):
     # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfprelaxed
     # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfpapprox
     COMPILER_UNIQUE_OPTION_MAP = {
-        'i8': 'i8',
-        'r8': 'r8',
-        'optarch': '', # PGI by default generates code for the arch it is running on!
-        'openmp': 'mp',
-        'ieee': 'Kieee',
-        'strict': ['Mnoflushz','Kieee'],
-        'precise': ['Mnoflushz'],
-        'defaultprec': ['Mflushz'],
-        'loose': ['Mfprelaxed'],
-        'veryloose': ['Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', 'Mfpapprox'],
-        'vectorize': {False: 'Mnovect', True: 'Mvect'},
+        "i8": "i8",
+        "r8": "r8",
+        "optarch": "",  # PGI by default generates code for the arch it is running on!
+        "openmp": "mp",
+        "ieee": "Kieee",
+        "strict": ["Mnoflushz", "Kieee"],
+        "precise": ["Mnoflushz"],
+        "defaultprec": ["Mflushz"],
+        "loose": ["Mfprelaxed"],
+        "veryloose": ["Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt", "Mfpapprox"],
+        "vectorize": {False: "Mnovect", True: "Mvect"},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): '',
-        (systemtools.X86_64, systemtools.INTEL): '',
+        (systemtools.X86_64, systemtools.AMD): "",
+        (systemtools.X86_64, systemtools.INTEL): "",
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'tp=x64',
-        (systemtools.X86_64, systemtools.INTEL): 'tp=x64',
+        (systemtools.X86_64, systemtools.AMD): "tp=x64",
+        (systemtools.X86_64, systemtools.INTEL): "tp=x64",
     }
 
-    COMPILER_CC = 'pgcc'
+    COMPILER_CC = "pgcc"
     # C++ compiler command is version-dependent, see below
     COMPILER_CXX = None
 
-    COMPILER_F77 = 'pgf77'
-    COMPILER_F90 = 'pgf90'
-    COMPILER_FC = 'pgfortran'
+    COMPILER_F77 = "pgf77"
+    COMPILER_F90 = "pgf90"
+    COMPILER_FC = "pgfortran"
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
-        'static': '-Bstatic',
-        'dynamic':'-Bdynamic',
+        "static": "-Bstatic",
+        "dynamic": "-Bdynamic",
     }
 
     def _set_compiler_flags(self):
         """Set -tp=x64 if optarch is set to False."""
-        if not self.options.get('optarch', False):
-            self.variables.nextend('OPTFLAGS', ['tp=x64'])
+        if not self.options.get("optarch", False):
+            self.variables.nextend("OPTFLAGS", ["tp=x64"])
         super(Pgi, self)._set_compiler_flags()
 
     def _set_compiler_vars(self):
@@ -104,14 +104,14 @@ class Pgi(Compiler):
         pgi_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
 
         # based on feedback from PGI support: use pgc++ with PGI 14.10 and newer, pgCC for older versions
-        if LooseVersion(pgi_version) >= LooseVersion('14.10'):
-            self.COMPILER_CXX = 'pgc++'
+        if LooseVersion(pgi_version) >= LooseVersion("14.10"):
+            self.COMPILER_CXX = "pgc++"
         else:
-            self.COMPILER_CXX = 'pgCC'
+            self.COMPILER_CXX = "pgCC"
 
-        if LooseVersion(pgi_version) >= LooseVersion('19.1'):
-            self.COMPILER_F77 = 'pgfortran'
+        if LooseVersion(pgi_version) >= LooseVersion("19.1"):
+            self.COMPILER_F77 = "pgfortran"
         else:
-            self.COMPILER_F77 = 'pgf77'
+            self.COMPILER_F77 = "pgf77"
 
         super(Pgi, self)._set_compiler_vars()

@@ -37,7 +37,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 class EasyBuildMNS(ModuleNamingScheme):
     """Class implementing the default EasyBuild module naming scheme."""
 
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain']
+    REQUIRED_KEYS = ["name", "version", "versionsuffix", "toolchain"]
 
     def det_full_module_name(self, ec):
         """
@@ -46,4 +46,4 @@ class EasyBuildMNS(ModuleNamingScheme):
         :param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
         :return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
         """
-        return os.path.join(ec['name'], det_full_ec_version(ec))
+        return os.path.join(ec["name"], det_full_ec_version(ec))

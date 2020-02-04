@@ -37,5 +37,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Giolf(Gimpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, IntelMPI, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'giolf'
+
+    NAME = "giolf"
     SUBTOOLCHAIN = [Gimpi.NAME, Golf.NAME]

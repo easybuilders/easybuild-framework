@@ -35,10 +35,11 @@ import re
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
+
 class CategorizedModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the categorized module naming scheme."""
 
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ["name", "version", "versionsuffix", "toolchain", "moduleclass"]
 
     def det_full_module_name(self, ec):
         """
@@ -47,7 +48,7 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         :param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
         :return: string representing full module name, e.g.: 'biology/ABySS/1.3.4-goolf-1.4.10'
         """
-        return os.path.join(ec['moduleclass'], ec['name'], det_full_ec_version(ec))
+        return os.path.join(ec["moduleclass"], ec["name"], det_full_ec_version(ec))
 
     def is_short_modname_for(self, short_modname, name):
         """
@@ -55,11 +56,13 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
         <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^[^/]+/%s/\S+$' % re.escape(name))
+        modname_regex = re.compile("^[^/]+/%s/\S+$" % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
         tup = (short_modname, name, modname_regex.pattern, res)
-        self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s" % tup)
+        self.log.debug(
+            "Checking whether '%s' is a module name for software with name '%s' via regex %s: %s"
+            % tup
+        )
 
         return res
-

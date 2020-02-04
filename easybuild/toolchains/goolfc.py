@@ -37,7 +37,8 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Goolfc(Gompic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'goolfc'
+
+    NAME = "goolfc"
     SUBTOOLCHAIN = [Gompic.NAME, Golfc.NAME]
 
     def is_deprecated(self):

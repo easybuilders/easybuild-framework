@@ -37,5 +37,6 @@ from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 class Gqacml(GccToolchain, QLogicMPI, Acml, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, QLogic MPI, ACML, ScaLAPACK and FFTW."""
-    NAME = 'gqacml'
+
+    NAME = "gqacml"
     SUBTOOLCHAIN = GccToolchain.NAME

@@ -38,51 +38,57 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
-TC_CONSTANT_ACML = 'ACML'
+TC_CONSTANT_ACML = "ACML"
 
 
 class Acml(LinAlg):
     """
     Provides ACML BLAS/LAPACK support.
     """
-    BLAS_MODULE_NAME = ['ACML']
+
+    BLAS_MODULE_NAME = ["ACML"]
     # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
-    BLAS_LIB = ['acml']
-    BLAS_LIB_MT = ['acml_mp']
+    BLAS_LIB = ["acml"]
+    BLAS_LIB_MT = ["acml_mp"]
     BLAS_FAMILY = TC_CONSTANT_ACML
 
     # is completed in _set_blas_variables, depends on compiler used
     BLAS_LIB_DIR = []
 
-    LAPACK_MODULE_NAME = ['ACML']
+    LAPACK_MODULE_NAME = ["ACML"]
     LAPACK_IS_BLAS = True
     LAPACK_FAMILY = TC_CONSTANT_ACML
 
     ACML_SUBDIRS_MAP = {
-        TC_CONSTANT_INTELCOMP: ['ifort64', 'ifort64_mp'],
-        TC_CONSTANT_GCC: ['gfortran64', 'gfortran64_mp'],
+        TC_CONSTANT_INTELCOMP: ["ifort64", "ifort64_mp"],
+        TC_CONSTANT_GCC: ["gfortran64", "gfortran64_mp"],
     }
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
-        class_constants = kwargs.setdefault('class_constants', [])
-        class_constants.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
+        class_constants = kwargs.setdefault("class_constants", [])
+        class_constants.extend(["BLAS_LIB", "BLAS_LIB_MT"])
         super(Acml, self).__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
-        if self.options.get('32bit', None):
+        if self.options.get("32bit", None):
             raise EasyBuildError("_set_blas_variables: 32bit ACML not (yet) supported")
         try:
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 subdirs = self.ACML_SUBDIRS_MAP[self.COMPILER_FAMILY]
-                self.BLAS_LIB_DIR = [os.path.join(x, 'lib') for x in subdirs]
-                self.variables.append_exists('LDFLAGS', root, self.BLAS_LIB_DIR, append_all=True)
-                incdirs = [os.path.join(x, 'include') for x in subdirs]
-                self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
+                self.BLAS_LIB_DIR = [os.path.join(x, "lib") for x in subdirs]
+                self.variables.append_exists(
+                    "LDFLAGS", root, self.BLAS_LIB_DIR, append_all=True
+                )
+                incdirs = [os.path.join(x, "include") for x in subdirs]
+                self.variables.append_exists("CPPFLAGS", root, incdirs, append_all=True)
         except:
-            raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
-                                 "with compiler family %s", self.COMPILER_FAMILY)
+            raise EasyBuildError(
+                "_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
+                "with compiler family %s",
+                self.COMPILER_FAMILY,
+            )
 
         # version before 5.x still featured the acml_mv library
         ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]
@@ -91,4 +97,3 @@ class Acml(LinAlg):
             self.BLAS_LIB_MT.insert(0, "acml_mv")
 
         super(Acml, self)._set_blas_variables()
-

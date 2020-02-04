@@ -42,19 +42,19 @@ rpath_include = sys.argv[3]
 args = sys.argv[4:]
 
 # wheter or not to use -Wl to pass options to the linker
-if cmd in ['ld', 'ld.gold', 'ld.bfd']:
-    flag_prefix = ''
+if cmd in ["ld", "ld.gold", "ld.bfd"]:
+    flag_prefix = ""
 else:
-    flag_prefix = '-Wl,'
+    flag_prefix = "-Wl,"
 
-rpath_filter = rpath_filter.split(',')
+rpath_filter = rpath_filter.split(",")
 if rpath_filter:
-    rpath_filter = re.compile('^%s$' % '|'.join(rpath_filter))
+    rpath_filter = re.compile("^%s$" % "|".join(rpath_filter))
 else:
     rpath_filter = None
 
 if rpath_include:
-    rpath_include = rpath_include.split(',')
+    rpath_include = rpath_include.split(",")
 else:
     rpath_include = []
 
@@ -68,7 +68,7 @@ while idx < len(args):
     arg = args[idx]
 
     # if command is run in 'version check' mode, make sure we don't include *any* -rpath arguments
-    if arg in ['-v', '-V', '--version', '-dumpversion']:
+    if arg in ["-v", "-V", "--version", "-dumpversion"]:
         version_mode = True
         cmd_args.append(arg)
 
@@ -78,24 +78,26 @@ while idx < len(args):
     # FIXME skip paths in /tmp, build dir, etc.?
 
     # handle -L flags, inject corresponding -rpath flag
-    elif arg.startswith('-L'):
+    elif arg.startswith("-L"):
         # take into account that argument to -L may be separated with one or more spaces...
-        if arg == '-L':
+        if arg == "-L":
             # actual library path is next argument when arg='-L'
             idx += 1
             lib_path = args[idx]
         else:
             lib_path = arg[2:]
 
-        if os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+        if os.path.isabs(lib_path) and (
+            rpath_filter is None or not rpath_filter.match(lib_path)
+        ):
             # inject -rpath flag in front for every -L with an absolute path,
             # also retain the -L flag (without reordering!)
-            cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
-            cmd_args.append('-L%s' % lib_path)
+            cmd_args_rpath.append(flag_prefix + "-rpath=%s" % lib_path)
+            cmd_args.append("-L%s" % lib_path)
         else:
             # don't RPATH in relative paths;
             # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
-            cmd_args.append('-L%s' % lib_path)
+            cmd_args.append("-L%s" % lib_path)
 
     # replace --enable-new-dtags with --disable-new-dtags if it's used;
     # --enable-new-dtags would result in copying rpath to runpath,
@@ -103,8 +105,8 @@ while idx < len(args):
     # --enable-new-dtags is not removed but replaced to prevent issues when linker flag is forwarded from the compiler
     # to the linker with an extra prefixed flag (either -Xlinker or -Wl,).
     # In that case, the compiler would erroneously pass the next random argument to the linker.
-    elif arg == flag_prefix + '--enable-new-dtags':
-        cmd_args.append(flag_prefix + '--disable-new-dtags')
+    elif arg == flag_prefix + "--enable-new-dtags":
+        cmd_args.append(flag_prefix + "--disable-new-dtags")
     else:
         cmd_args.append(arg)
 
@@ -113,16 +115,21 @@ while idx < len(args):
 # add -rpath flags in front
 cmd_args = cmd_args_rpath + cmd_args
 
-cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
+cmd_args_rpath = [flag_prefix + "-rpath=%s" % inc for inc in rpath_include]
 
 if not version_mode:
-    cmd_args = cmd_args_rpath + [
-        # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
-        flag_prefix + '--disable-new-dtags',
-    ] + cmd_args
+    cmd_args = (
+        cmd_args_rpath
+        + [
+            # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
+            flag_prefix
+            + "--disable-new-dtags",
+        ]
+        + cmd_args
+    )
 
 # wrap all arguments into single quotes to avoid further bash expansion
 cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
 
 # output: statement to define $CMD_ARGS and $RPATH_ARGS
-print("CMD_ARGS=(%s)" % ' '.join(cmd_args))
+print("CMD_ARGS=(%s)" % " ".join(cmd_args))

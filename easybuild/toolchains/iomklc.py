@@ -42,5 +42,6 @@ class Iomklc(Iompic, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort), OpenMPI,
     CUDA, Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'iomklc'
+
+    NAME = "iomklc"
     SUBTOOLCHAIN = [Iompic.NAME, Iimklc.NAME]

@@ -41,7 +41,8 @@ class Ictce(Iimpi, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'ictce'
+
+    NAME = "ictce"
     SUBTOOLCHAIN = [Iimpi.NAME, Iimkl.NAME]
 
     def is_deprecated(self):

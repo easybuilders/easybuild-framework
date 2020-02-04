@@ -33,4 +33,5 @@ from easybuild.toolchains.compiler.dummycompiler import DummyCompiler
 
 class Dummy(DummyCompiler):
     """Dummy toolchain."""
-    NAME = 'dummy'
+
+    NAME = "dummy"

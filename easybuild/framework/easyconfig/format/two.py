@@ -34,9 +34,15 @@ This is a mix between version 1.0 and configparser-style configuration
 import copy
 import re
 
-from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import (
+    EasyConfigFormatConfigObj,
+)
 from easybuild.framework.easyconfig.format.format import EBConfigObj
-from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
+from easybuild.framework.easyconfig.format.version import (
+    EasyVersion,
+    ToolchainVersionOperator,
+    VersionOperator,
+)
 from easybuild.tools.build_log import EasyBuildError
 
 
@@ -54,16 +60,28 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         - type validation
         - command line generation (--try-X command line options)
     """
-    VERSION = EasyVersion('2.0')
+
+    VERSION = EasyVersion("2.0")
     USABLE = True
 
-    PYHEADER_ALLOWED_BUILTINS = ['len', 'False', 'True']
-    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'software_license', 'software_license_urls', 'docurls']
-    PYHEADER_BLACKLIST = ['version', 'toolchain']
+    PYHEADER_ALLOWED_BUILTINS = ["len", "False", "True"]
+    PYHEADER_MANDATORY = [
+        "name",
+        "homepage",
+        "description",
+        "software_license",
+        "software_license_urls",
+        "docurls",
+    ]
+    PYHEADER_BLACKLIST = ["version", "toolchain"]
 
-    NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
-    AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % 'author', re.M)
-    MAINTAINER_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % 'maintainer', re.M)
+    NAME_DOCSTRING_REGEX_TEMPLATE = (
+        r"^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$"  # non-greedy match in named pattern
+    )
+    AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % "author", re.M)
+    MAINTAINER_DOCSTRING_REGEX = re.compile(
+        NAME_DOCSTRING_REGEX_TEMPLATE % "maintainer", re.M
+    )
 
     AUTHOR_REQUIRED = True
     MAINTAINER_REQUIRED = False
@@ -83,17 +101,23 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         maintainers = []
         for auth_reg in self.AUTHOR_DOCSTRING_REGEX.finditer(self.docstring):
             res = auth_reg.groupdict()
-            authors.append(res['name'])
+            authors.append(res["name"])
 
         for maint_reg in self.MAINTAINER_DOCSTRING_REGEX.finditer(self.docstring):
             res = maint_reg.groupdict()
-            maintainers.append(res['name'])
+            maintainers.append(res["name"])
 
         if self.AUTHOR_REQUIRED and not authors:
-            raise EasyBuildError("No author in docstring (regex: '%s')", self.AUTHOR_DOCSTRING_REGEX.pattern)
+            raise EasyBuildError(
+                "No author in docstring (regex: '%s')",
+                self.AUTHOR_DOCSTRING_REGEX.pattern,
+            )
 
         if self.MAINTAINER_REQUIRED and not maintainers:
-            raise EasyBuildError("No maintainer in docstring (regex: '%s')", self.MAINTAINER_DOCSTRING_REGEX.pattern)
+            raise EasyBuildError(
+                "No maintainer in docstring (regex: '%s')",
+                self.MAINTAINER_DOCSTRING_REGEX.pattern,
+            )
 
     def get_config_dict(self):
         """Return the best matching easyconfig dict"""
@@ -107,33 +131,43 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         co = EBConfigObj(self.configobj)
 
-        version = self.specs.get('version', None)
-        tc_spec = self.specs.get('toolchain', {})
-        toolchain_name = tc_spec.get('name', None)
-        toolchain_version = tc_spec.get('version', None)
+        version = self.specs.get("version", None)
+        tc_spec = self.specs.get("toolchain", {})
+        toolchain_name = tc_spec.get("name", None)
+        toolchain_version = tc_spec.get("version", None)
 
         # parse and interpret, dealing with defaults etc
-        version, tcname, tcversion = co.get_version_toolchain(version, toolchain_name, toolchain_version)
+        version, tcname, tcversion = co.get_version_toolchain(
+            version, toolchain_name, toolchain_version
+        )
 
         # format 2.0 will squash
-        self.log.debug('Squashing with version %s and toolchain %s' % (version, (tcname, tcversion)))
+        self.log.debug(
+            "Squashing with version %s and toolchain %s"
+            % (version, (tcname, tcversion))
+        )
         res = co.squash(version, tcname, tcversion)
 
         cfg.update(res)
-        self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
+        self.log.debug(
+            "Config dict after processing applicable easyconfig sections: %s" % cfg
+        )
         # FIXME what about updating dict values/appending to list values?
         # FIXME how do we allow both redefining and updating? = and +=?
 
         # update config with correct version/toolchain (to avoid using values specified in default section)
-        cfg.update({
-            'version': version,
-            'toolchain': {'name': tcname, 'version': tcversion},
-        })
+        cfg.update(
+            {"version": version, "toolchain": {"name": tcname, "version": tcversion},}
+        )
 
-        self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
+        self.log.debug(
+            "Final config dict (including correct version/toolchain): %s" % cfg
+        )
         return cfg
 
     def extract_comments(self, rawtxt):
         """Extract comments from raw content."""
         # this is fine-ish, it only implies that comments will be lost for format v2 easyconfig files that are dumped
-        self.log.warning("Extraction of comments not supported yet for easyconfig format v2")
+        self.log.warning(
+            "Extraction of comments not supported yet for easyconfig format v2"
+        )

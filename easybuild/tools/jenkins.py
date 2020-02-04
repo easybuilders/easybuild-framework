@@ -38,7 +38,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
-_log = fancylogger.getLogger('jenkins', fname=False)
+_log = fancylogger.getLogger("jenkins", fname=False)
 
 
 def write_to_xml(succes, failed, filename):
@@ -137,7 +137,9 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
 
     root.firstChild.appendChild(properties)
 
-    dirs = filter(os.path.isdir, [os.path.join(base_dir, d) for d in os.listdir(base_dir)])
+    dirs = filter(
+        os.path.isdir, [os.path.join(base_dir, d) for d in os.listdir(base_dir)]
+    )
 
     succes = 0
     total = 0
@@ -150,7 +152,9 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
             try:
                 dom = xml.parse(xml_file)
             except IOError as err:
-                raise EasyBuildError("Failed to read/parse XML file %s: %s", xml_file, err)
+                raise EasyBuildError(
+                    "Failed to read/parse XML file %s: %s", xml_file, err
+                )
             # only one should be present, we are just discarding the rest
             testcase = dom.getElementsByTagName("testcase")[0]
             root.firstChild.appendChild(testcase)
@@ -166,6 +170,8 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
         root.writexml(output_file, addindent="\t", newl="\n")
         output_file.close()
     except IOError as err:
-        raise EasyBuildError("Failed to write out XML file %s: %s", output_filename, err)
+        raise EasyBuildError(
+            "Failed to write out XML file %s: %s", output_filename, err
+        )
 
     print("Aggregate regtest results written to %s" % output_filename)

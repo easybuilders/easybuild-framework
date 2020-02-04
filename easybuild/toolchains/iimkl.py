@@ -41,6 +41,7 @@ class Iimkl(IccIfort, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort),
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'iimkl'
+
+    NAME = "iimkl"
     SUBTOOLCHAIN = IccIfort.NAME
     OPTIONAL = True

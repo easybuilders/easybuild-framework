@@ -38,5 +38,6 @@ class Pompi(PgiToolchain, OpenMPI):
     """
     Compiler toolchain with PGI compilers and OpenMPI.
     """
-    NAME = 'pompi'
+
+    NAME = "pompi"
     SUBTOOLCHAIN = PgiToolchain.NAME

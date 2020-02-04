@@ -37,5 +37,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Goalf(Gompi, Atlas, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, ATLAS, ScaLAPACK and FFTW."""
-    NAME = 'goalf'
+
+    NAME = "goalf"
     SUBTOOLCHAIN = Gompi.NAME

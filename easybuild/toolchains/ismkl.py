@@ -42,5 +42,6 @@ class Ismkl(IccIfort, Mpich2, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort), MPICH2 (ScaleMP MPI),
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'ismkl'
+
+    NAME = "ismkl"
     SUBTOOLCHAIN = [IccIfort.NAME, Iimkl.NAME]

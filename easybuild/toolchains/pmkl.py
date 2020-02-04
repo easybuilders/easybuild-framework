@@ -41,6 +41,7 @@ class Pmkl(PgiToolchain, IntelMKL, IntelFFTW):
     Compiler toolchain with PGI, Intel Math Kernel Library (MKL)
     and Intel FFTW wrappers.
     """
-    NAME = 'pmkl'
+
+    NAME = "pmkl"
     SUBTOOLCHAIN = PgiToolchain.NAME
     OPTIONAL = True

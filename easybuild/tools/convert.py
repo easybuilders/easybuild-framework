@@ -36,7 +36,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import string_type
 
 
-_log = fancylogger.getLogger('tools.convert', fname=False)
+_log = fancylogger.getLogger("tools.convert", fname=False)
 
 
 class Convert(Wrapper):
@@ -44,16 +44,24 @@ class Convert(Wrapper):
     Convert casts a string passed via the initialisation to a Convert (sub)class instance,
      mainly for typechecking and printing purposes.
     """
+
     SEPARATOR = None
 
     def __init__(self, obj):
         """Support the conversion of obj to something"""
-        self.__dict__['log'] = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.__dict__['data'] = None
+        self.__dict__["log"] = fancylogger.getLogger(
+            self.__class__.__name__, fname=False
+        )
+        self.__dict__["data"] = None
         if isinstance(obj, string_type):
             self.data = self._from_string(obj)
         else:
-            raise EasyBuildError("unsupported type %s for %s: %s", type(obj), self.__class__.__name__, obj)
+            raise EasyBuildError(
+                "unsupported type %s for %s: %s",
+                type(obj),
+                self.__class__.__name__,
+                obj,
+            )
         super(Convert, self).__init__(self.data)
 
     def _split_string(self, txt, sep=None, max=0):
@@ -66,7 +74,7 @@ class Convert(Wrapper):
                 raise EasyBuildError("No SEPARATOR set, also no separator passed")
             else:
                 sep = self.SEPARATOR
-        return [x.strip() for x in re.split(r'' + sep, txt, maxsplit=max)]
+        return [x.strip() for x in re.split(r"" + sep, txt, maxsplit=max)]
 
     def _from_string(self, txt):
         """Convert string txt to self.data in proper type"""

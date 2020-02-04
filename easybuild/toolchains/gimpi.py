@@ -35,5 +35,6 @@ from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 class Gimpi(GccToolchain, IntelMPI):
     """Compiler toolchain with GCC and Intel MPI."""
-    NAME = 'gimpi'
+
+    NAME = "gimpi"
     SUBTOOLCHAIN = GccToolchain.NAME

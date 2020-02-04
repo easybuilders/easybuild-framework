@@ -33,8 +33,14 @@ import copy
 import re
 
 from easybuild.base import fancylogger
-from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
-from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
+from easybuild.framework.easyconfig.format.version import (
+    EasyVersion,
+    OrderedVersionOperators,
+)
+from easybuild.framework.easyconfig.format.version import (
+    ToolchainVersionOperator,
+    VersionOperator,
+)
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
@@ -45,39 +51,58 @@ from easybuild.tools.py2vs3 import string_type
 # format is mandatory major.minor
 FORMAT_VERSION_KEYWORD = "EASYCONFIGFORMAT"
 FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"
-FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_VERSION_TEMPLATE)  # must end in newline
-FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
-FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
+FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (
+    FORMAT_VERSION_KEYWORD,
+    FORMAT_VERSION_TEMPLATE,
+)  # must end in newline
+FORMAT_VERSION_REGEXP = re.compile(
+    r"^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$" % FORMAT_VERSION_KEYWORD, re.M
+)
+FORMAT_DEFAULT_VERSION = EasyVersion("1.0")
 
-DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
+DEPENDENCY_PARAMETERS = ["builddependencies", "dependencies", "hiddendependencies"]
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_default_options', 'exts_list',
-                                   'homepage', 'multi_deps', 'name', 'toolchain', 'version'] + DEPENDENCY_PARAMETERS
+EXCLUDED_KEYS_REPLACE_TEMPLATES = [
+    "description",
+    "easyblock",
+    "exts_default_options",
+    "exts_list",
+    "homepage",
+    "multi_deps",
+    "name",
+    "toolchain",
+    "version",
+] + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
 GROUPED_PARAMS = [
-    ['easyblock'],
-    ['name', 'version', 'versionprefix', 'versionsuffix'],
-    ['homepage', 'description'],
-    ['toolchain', 'toolchainopts'],
-    ['source_urls', 'sources', 'patches', 'checksums'],
-    DEPENDENCY_PARAMETERS + ['multi_deps'],
-    ['osdependencies'],
-    ['preconfigopts', 'configopts'],
-    ['prebuildopts', 'buildopts'],
-    ['preinstallopts', 'installopts'],
-    ['parallel', 'maxparallel'],
+    ["easyblock"],
+    ["name", "version", "versionprefix", "versionsuffix"],
+    ["homepage", "description"],
+    ["toolchain", "toolchainopts"],
+    ["source_urls", "sources", "patches", "checksums"],
+    DEPENDENCY_PARAMETERS + ["multi_deps"],
+    ["osdependencies"],
+    ["preconfigopts", "configopts"],
+    ["prebuildopts", "buildopts"],
+    ["preinstallopts", "installopts"],
+    ["parallel", "maxparallel"],
 ]
-LAST_PARAMS = ['exts_default_options', 'exts_list',
-               'sanity_check_paths', 'sanity_check_commands',
-               'modextrapaths', 'modextravars',
-               'moduleclass']
+LAST_PARAMS = [
+    "exts_default_options",
+    "exts_list",
+    "sanity_check_paths",
+    "sanity_check_commands",
+    "modextrapaths",
+    "modextravars",
+    "moduleclass",
+]
 
-SANITY_CHECK_PATHS_DIRS = 'dirs'
-SANITY_CHECK_PATHS_FILES = 'files'
+SANITY_CHECK_PATHS_DIRS = "dirs"
+SANITY_CHECK_PATHS_FILES = "files"
 
-_log = fancylogger.getLogger('easyconfig.format.format', fname=False)
+_log = fancylogger.getLogger("easyconfig.format.format", fname=False)
 
 
 def get_format_version(txt):
@@ -89,12 +114,15 @@ def get_format_version(txt):
             maj_min = res.groupdict()
             format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
         except (KeyError, TypeError) as err:
-            raise EasyBuildError("Failed to get version from match %s: %s", res.groups(), err)
+            raise EasyBuildError(
+                "Failed to get version from match %s: %s", res.groups(), err
+            )
     return format_version
 
 
 class NestedDict(dict):
     """A nested dictionary, with tracking of depth and parent"""
+
     def __init__(self, parent, depth):
         """Initialise NestedDict instance"""
         dict.__init__(self)
@@ -121,6 +149,7 @@ class NestedDict(dict):
 
 class TopNestedDict(NestedDict):
     """The top level nested dictionary (depth 0, parent is itself)"""
+
     def __init__(self, parent=None, depth=None):
         """Initialise TopNestedDict instance"""
         # parent and depth are ignored; just to support same init for copier
@@ -129,6 +158,7 @@ class TopNestedDict(NestedDict):
 
 class Squashed(object):
     """Class to ease the squashing of OrderedVersionOperators and OrderedToolchainVersionOperators"""
+
     def __init__(self):
         """Initialise Squashed instance"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -166,9 +196,15 @@ class Squashed(object):
 
     def final(self):
         """Final squashing of version and toolchainversion operators and return the result"""
-        self.log.debug('Pre-final result %s' % self.result)
-        self.log.debug('Pre-final versions %s with data %s' % (self.versions, self.versions.datamap))
-        self.log.debug('Pre-final tcversions %s with data %s' % (self.tcversions, self.tcversions.datamap))
+        self.log.debug("Pre-final result %s" % self.result)
+        self.log.debug(
+            "Pre-final versions %s with data %s"
+            % (self.versions, self.versions.datamap)
+        )
+        self.log.debug(
+            "Pre-final tcversions %s with data %s"
+            % (self.tcversions, self.tcversions.datamap)
+        )
 
         # update self.result, most strict matching versionoperator should be first element
         # so update in reversed order
@@ -201,16 +237,20 @@ class EBConfigObj(object):
     ...
     ...
     """
-    SECTION_MARKER_DEFAULT = 'DEFAULT'
-    SECTION_MARKER_DEPENDENCIES = 'DEPENDENCIES'
-    SECTION_MARKER_SUPPORTED = 'SUPPORTED'
+
+    SECTION_MARKER_DEFAULT = "DEFAULT"
+    SECTION_MARKER_DEPENDENCIES = "DEPENDENCIES"
+    SECTION_MARKER_SUPPORTED = "SUPPORTED"
     # list of known marker types (except default)
-    KNOWN_VERSION_MARKER_TYPES = [ToolchainVersionOperator, VersionOperator]  # order matters, see parse_sections
+    KNOWN_VERSION_MARKER_TYPES = [
+        ToolchainVersionOperator,
+        VersionOperator,
+    ]  # order matters, see parse_sections
     VERSION_OPERATOR_VALUE_TYPES = {
         # toolchains: comma-separated list of toolchain version operators
-        'toolchains': ToolchainVersionOperator,
+        "toolchains": ToolchainVersionOperator,
         # versions: comma-separated list of version operators
-        'versions': VersionOperator,
+        "versions": VersionOperator,
     }
 
     def __init__(self, configobj=None):
@@ -250,7 +290,7 @@ class EBConfigObj(object):
         # list of supported keywords, all else will fail
         special_keys = self.VERSION_OPERATOR_VALUE_TYPES.keys()
 
-        self.log.debug('Processing current depth %s' % current.depth)
+        self.log.debug("Processing current depth %s" % current.depth)
 
         for key, value in toparse.items():
             if isinstance(value, Section):
@@ -264,27 +304,37 @@ class EBConfigObj(object):
                 if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
                     # parse value as a section, recursively
                     new_value = self.parse_sections(value, current.get_nested_dict())
-                    self.log.debug('Converted %s section to new value %s' % (key, new_value))
+                    self.log.debug(
+                        "Converted %s section to new value %s" % (key, new_value)
+                    )
                     current[key] = new_value
 
                 elif key == self.SECTION_MARKER_DEPENDENCIES:
-                    new_key = 'dependencies'
+                    new_key = "dependencies"
                     new_value = []
                     for dep_name, dep_val in value.items():
                         if isinstance(dep_val, Section):
-                            raise EasyBuildError("Unsupported nested section '%s' in dependencies section", dep_name)
+                            raise EasyBuildError(
+                                "Unsupported nested section '%s' in dependencies section",
+                                dep_name,
+                            )
                         else:
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
                             dep = Dependency(dep_val, name=dep_name)
                             if dep.name() is None or dep.version() is None:
-                                raise EasyBuildError("Failed to find name/version in parsed dependency: %s (dict: %s)",
-                                                     dep, dict(dep))
+                                raise EasyBuildError(
+                                    "Failed to find name/version in parsed dependency: %s (dict: %s)",
+                                    dep,
+                                    dict(dep),
+                                )
                             new_value.append(dep)
 
-                    tmpl = 'Converted dependency section %s to %s, passed it to parent section (or default)'
+                    tmpl = "Converted dependency section %s to %s, passed it to parent section (or default)"
                     self.log.debug(tmpl % (key, new_value))
                     if isinstance(current, TopNestedDict):
-                        current[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
+                        current[self.SECTION_MARKER_DEFAULT].update(
+                            {new_key: new_value}
+                        )
                     else:
                         current.parent[new_key] = new_value
                 else:
@@ -293,24 +343,34 @@ class EBConfigObj(object):
                     for marker_type in self.KNOWN_VERSION_MARKER_TYPES:
                         new_key = marker_type(key)
                         if new_key:
-                            self.log.debug("'%s' was parsed as a %s section marker" % (key, marker_type.__name__))
+                            self.log.debug(
+                                "'%s' was parsed as a %s section marker"
+                                % (key, marker_type.__name__)
+                            )
                             break
                         else:
-                            self.log.debug("Not a %s section marker" % marker_type.__name__)
+                            self.log.debug(
+                                "Not a %s section marker" % marker_type.__name__
+                            )
                     if not new_key:
                         raise EasyBuildError("Unsupported section marker '%s'", key)
 
                     # parse value as a section, recursively
                     new_value = self.parse_sections(value, current.get_nested_dict())
 
-                    self.log.debug("Converted section key %s value %s in new key %s new value %s",
-                                   key, value, new_key, new_value)
+                    self.log.debug(
+                        "Converted section key %s value %s in new key %s new value %s",
+                        key,
+                        value,
+                        new_key,
+                        new_value,
+                    )
                     current[new_key] = new_value
 
             else:
                 # simply pass down any non-special key-value items
                 if key not in special_keys:
-                    self.log.debug('Passing down key %s with value %s' % (key, value))
+                    self.log.debug("Passing down key %s with value %s" % (key, value))
                     new_value = value
 
                 # parse individual key-value assignments
@@ -322,16 +382,27 @@ class EBConfigObj(object):
                         # so the split should be unnecessary
                         # (if it's not a list already, it's just one value)
                         # TODO this is annoying. check if we can force this in configobj
-                        value = value.split(',')
+                        value = value.split(",")
                     # remove possible surrounding whitespace (some people add space after comma)
                     new_value = [value_type(x.strip()) for x in value]
                     if False in [x.is_valid() for x in new_value]:
-                        raise EasyBuildError("Failed to parse '%s' as list of %s", value, value_type.__name__)
+                        raise EasyBuildError(
+                            "Failed to parse '%s' as list of %s",
+                            value,
+                            value_type.__name__,
+                        )
                 else:
-                    raise EasyBuildError('Bug: supported but unknown key %s with non-string value: %s, type %s',
-                                         key, value, type(value))
+                    raise EasyBuildError(
+                        "Bug: supported but unknown key %s with non-string value: %s, type %s",
+                        key,
+                        value,
+                        type(value),
+                    )
 
-                self.log.debug("Converted value '%s' for key '%s' into new value '%s'" % (value, key, new_value))
+                self.log.debug(
+                    "Converted value '%s' for key '%s' into new value '%s'"
+                    % (value, key, new_value)
+                )
                 current[key] = new_value
 
         return current
@@ -364,19 +435,35 @@ class EBConfigObj(object):
         self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED)
         for key, value in self.supported.items():
             if key not in self.VERSION_OPERATOR_VALUE_TYPES:
-                raise EasyBuildError('Unsupported key %s in %s section', key, self.SECTION_MARKER_SUPPORTED)
-            self.sections['%s' % key] = value
+                raise EasyBuildError(
+                    "Unsupported key %s in %s section",
+                    key,
+                    self.SECTION_MARKER_SUPPORTED,
+                )
+            self.sections["%s" % key] = value
 
-        for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
-                                            ('toolchain', 'toolchains', 'as_dict')]:
+        for key, supported_key, fn_name in [
+            ("version", "versions", "get_version_str"),
+            ("toolchain", "toolchains", "as_dict"),
+        ]:
             if supported_key in self.supported:
-                self.log.debug('%s in supported section, trying to determine default for %s' % (supported_key, key))
+                self.log.debug(
+                    "%s in supported section, trying to determine default for %s"
+                    % (supported_key, key)
+                )
                 first = self.supported[supported_key][0]
                 f_val = getattr(first, fn_name)()
                 if f_val is None:
-                    raise EasyBuildError("First %s %s can't be used as default (%s returned None)", key, first, fn_name)
+                    raise EasyBuildError(
+                        "First %s %s can't be used as default (%s returned None)",
+                        key,
+                        first,
+                        fn_name,
+                    )
                 else:
-                    self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
+                    self.log.debug(
+                        "Using first %s (%s) as default %s" % (key, first, f_val)
+                    )
                     self.default[key] = f_val
 
         # TODO is it verified somewhere that the defaults are supported?
@@ -394,19 +481,19 @@ class EBConfigObj(object):
         :param tcname: toolchain name to keep
         :param tcversion: toolchain version to keep
         """
-        self.log.debug('Start squash with sections %s' % self.sections)
+        self.log.debug("Start squash with sections %s" % self.sections)
 
         # dictionary to keep track of all sections, to detect conflicts in the easyconfig
         sanity = {
-            'versops': OrderedVersionOperators(),
-            'toolchains': {},
+            "versops": OrderedVersionOperators(),
+            "toolchains": {},
         }
 
         vt_tuple = (version, tcname, tcversion)
         squashed = self._squash(vt_tuple, self.sections, sanity)
         result = squashed.final()
 
-        self.log.debug('End squash with result %s' % result)
+        self.log.debug("End squash with result %s" % result)
         return result
 
     def _squash(self, vt_tuple, processed, sanity):
@@ -425,7 +512,7 @@ class EBConfigObj(object):
         # also contains the intermediate result
         squashed = Squashed()
 
-        self.log.debug('Start processed %s' % processed)
+        self.log.debug("Start processed %s" % processed)
         # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
         for key, value in processed.items():
             if isinstance(value, NestedDict):
@@ -437,16 +524,18 @@ class EBConfigObj(object):
                 if tmp is not None:
                     return tmp
             else:
-                self.log.debug('Adding key %s value %s' % (key, value))
+                self.log.debug("Adding key %s value %s" % (key, value))
                 squashed.result[key] = value
 
         # merge the current attributes with deeper nested ones, deepest nested ones win
-        self.log.debug('Current level result %s' % squashed.result)
-        self.log.debug('Higher level sections result %s' % res_sections)
+        self.log.debug("Current level result %s" % squashed.result)
+        self.log.debug("Higher level sections result %s" % res_sections)
         squashed.result.update(res_sections)
 
-        self.log.debug('End processed %s ordered versions %s result %s' %
-                       (processed, squashed.versions, squashed.result))
+        self.log.debug(
+            "End processed %s ordered versions %s result %s"
+            % (processed, squashed.versions, squashed.result)
+        )
         return squashed
 
     def _squash_netsed_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
@@ -464,11 +553,18 @@ class EBConfigObj(object):
 
         if isinstance(key, ToolchainVersionOperator):
             # perform sanity check for all toolchains, use .add to check for conflicts
-            tc_overops = sanity['toolchains'].setdefault(key.tc_name, OrderedVersionOperators())
+            tc_overops = sanity["toolchains"].setdefault(
+                key.tc_name, OrderedVersionOperators()
+            )
             tc_overops.add(key)
 
             if key.test(tcname, tcversion):
-                self.log.debug("Found matching marker for specified toolchain '%s, %s': %s", tcname, tcversion, key)
+                self.log.debug(
+                    "Found matching marker for specified toolchain '%s, %s': %s",
+                    tcname,
+                    tcversion,
+                    key,
+                )
                 # TODO remove when unifying add_toolchina with .add()
                 tmp_squashed = self._squash(vt_tuple, nested_dict, sanity)
                 res_sections.update(tmp_squashed.result)
@@ -478,14 +574,19 @@ class EBConfigObj(object):
                 self.log.debug(tmpl % key)
         elif isinstance(key, VersionOperator):
             # keep track of all version operators, and enforce conflict check
-            sanity['versops'].add(key)
+            sanity["versops"].add(key)
             if key.test(version):
-                self.log.debug('Found matching version marker %s' % key)
+                self.log.debug("Found matching version marker %s" % key)
                 squashed.add_version(key, self._squash(vt_tuple, nested_dict, sanity))
             else:
-                self.log.debug('Found non-matching version marker %s. Ignoring this (nested) section.' % key)
+                self.log.debug(
+                    "Found non-matching version marker %s. Ignoring this (nested) section."
+                    % key
+                )
         else:
-            raise EasyBuildError("Unhandled section marker '%s' (type '%s')", key, type(key))
+            raise EasyBuildError(
+                "Unhandled section marker '%s' (type '%s')", key, type(key)
+            )
 
         return res_sections
 
@@ -500,87 +601,125 @@ class EBConfigObj(object):
         :param vt_tuple: version, tc_name, tc_version tuple
         """
         version, tcname, tcversion = vt_tuple
-        if key == 'toolchains':
+        if key == "toolchains":
             # remove any other toolchain from list
             self.log.debug("Filtering 'toolchains' key")
 
             matching_toolchains = []
             tmp_tc_oversops = {}  # temporary, only for conflict checking
             for tcversop in value:
-                tc_overops = tmp_tc_oversops.setdefault(tcversop.tc_name, OrderedVersionOperators())
-                self.log.debug("Add tcversop %s to tc_overops %s tcname %s tcversion %s",
-                               tcversop, tc_overops, tcname, tcversion)
+                tc_overops = tmp_tc_oversops.setdefault(
+                    tcversop.tc_name, OrderedVersionOperators()
+                )
+                self.log.debug(
+                    "Add tcversop %s to tc_overops %s tcname %s tcversion %s",
+                    tcversop,
+                    tc_overops,
+                    tcname,
+                    tcversion,
+                )
                 tc_overops.add(tcversop)  # test non-conflicting list
                 if tcversop.test(tcname, tcversion):
                     matching_toolchains.append(tcversop)
 
             if matching_toolchains:
                 # does this have any use?
-                self.log.debug('Matching toolchains %s found (but data not needed)' % matching_toolchains)
+                self.log.debug(
+                    "Matching toolchains %s found (but data not needed)"
+                    % matching_toolchains
+                )
             else:
-                self.log.debug('No matching toolchains, removing the whole current key %s' % key)
+                self.log.debug(
+                    "No matching toolchains, removing the whole current key %s" % key
+                )
                 return Squashed()
 
-        elif key == 'versions':
+        elif key == "versions":
             self.log.debug("Adding all versions %s from versions key" % value)
             matching_versions = []
-            tmp_versops = OrderedVersionOperators()  # temporary, only for conflict checking
+            tmp_versops = (
+                OrderedVersionOperators()
+            )  # temporary, only for conflict checking
             for versop in value:
                 tmp_versops.add(versop)  # test non-conflicting list
                 if versop.test(version):
                     matching_versions.append(versop)
             if matching_versions:
                 # does this have any use?
-                self.log.debug('Matching versions %s found (but data not needed)' % matching_versions)
+                self.log.debug(
+                    "Matching versions %s found (but data not needed)"
+                    % matching_versions
+                )
             else:
-                self.log.debug('No matching versions, removing the whole current key %s' % key)
+                self.log.debug(
+                    "No matching versions, removing the whole current key %s" % key
+                )
                 return Squashed()
         else:
-            raise EasyBuildError('Unexpected VERSION_OPERATOR_VALUE_TYPES key %s value %s', key, value)
+            raise EasyBuildError(
+                "Unexpected VERSION_OPERATOR_VALUE_TYPES key %s value %s", key, value
+            )
 
         return None
 
     def get_version_toolchain(self, version=None, tcname=None, tcversion=None):
         """Return tuple of version, toolchainname and toolchainversion (possibly using defaults)."""
         # make sure that requested version/toolchain are supported by this easyconfig
-        versions = [x.get_version_str() for x in self.supported['versions']]
+        versions = [x.get_version_str() for x in self.supported["versions"]]
         if version is None:
-            if 'version' in self.default:
-                version = self.default['version']
+            if "version" in self.default:
+                version = self.default["version"]
                 self.log.debug("No version specified, using default %s" % version)
             else:
                 raise EasyBuildError("No version specified, no default found.")
         elif version in versions:
             self.log.debug("Version '%s' is supported in easyconfig." % version)
         else:
-            raise EasyBuildError("Version '%s' not supported in easyconfig (only %s)", version, versions)
+            raise EasyBuildError(
+                "Version '%s' not supported in easyconfig (only %s)", version, versions
+            )
 
-        tcnames = [tc.tc_name for tc in self.supported['toolchains']]
+        tcnames = [tc.tc_name for tc in self.supported["toolchains"]]
         if tcname is None:
-            if 'toolchain' in self.default and 'name' in self.default['toolchain']:
-                tcname = self.default['toolchain']['name']
+            if "toolchain" in self.default and "name" in self.default["toolchain"]:
+                tcname = self.default["toolchain"]["name"]
                 self.log.debug("No toolchain name specified, using default %s" % tcname)
             else:
                 raise EasyBuildError("No toolchain name specified, no default found.")
         elif tcname in tcnames:
             self.log.debug("Toolchain '%s' is supported in easyconfig." % tcname)
         else:
-            raise EasyBuildError("Toolchain '%s' not supported in easyconfig (only %s)", tcname, tcnames)
+            raise EasyBuildError(
+                "Toolchain '%s' not supported in easyconfig (only %s)", tcname, tcnames
+            )
 
-        tcs = [tc for tc in self.supported['toolchains'] if tc.tc_name == tcname]
+        tcs = [tc for tc in self.supported["toolchains"] if tc.tc_name == tcname]
         if tcversion is None:
-            if 'toolchain' in self.default and 'version' in self.default['toolchain']:
-                tcversion = self.default['toolchain']['version']
-                self.log.debug("No toolchain version specified, using default %s" % tcversion)
+            if "toolchain" in self.default and "version" in self.default["toolchain"]:
+                tcversion = self.default["toolchain"]["version"]
+                self.log.debug(
+                    "No toolchain version specified, using default %s" % tcversion
+                )
             else:
-                raise EasyBuildError("No toolchain version specified, no default found.")
+                raise EasyBuildError(
+                    "No toolchain version specified, no default found."
+                )
         elif any([tc.test(tcname, tcversion) for tc in tcs]):
-            self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
+            self.log.debug(
+                "Toolchain '%s' version '%s' is supported in easyconfig"
+                % (tcname, tcversion)
+            )
         else:
-            raise EasyBuildError("Toolchain '%s' version '%s' not supported in easyconfig (only %s)",
-                                 tcname, tcversion, tcs)
+            raise EasyBuildError(
+                "Toolchain '%s' version '%s' not supported in easyconfig (only %s)",
+                tcname,
+                tcversion,
+                tcs,
+            )
 
-        self.log.debug('version %s, tcversion %s, tcname %s', version, tcname, tcversion)
+        self.log.debug(
+            "version %s, tcversion %s, tcname %s", version, tcname, tcversion
+        )
 
         return (version, tcname, tcversion)
 
@@ -589,8 +728,13 @@ class EBConfigObj(object):
         Return dictionary with specifications listed in sections applicable for specified info.
         """
 
-        version, tcname, tcversion = self.get_version_toolchain(version, tcname, tcversion)
-        self.log.debug('Squashing with version %s and toolchain %s' % (version, (tcname, tcversion)))
+        version, tcname, tcversion = self.get_version_toolchain(
+            version, tcname, tcversion
+        )
+        self.log.debug(
+            "Squashing with version %s and toolchain %s"
+            % (version, (tcname, tcversion))
+        )
         res = self.squash(version, tcname, tcversion)
 
         return res
@@ -598,15 +742,18 @@ class EBConfigObj(object):
 
 class EasyConfigFormat(object):
     """EasyConfigFormat class"""
-    VERSION = EasyVersion('0.0')  # dummy EasyVersion instance (shouldn't be None)
+
+    VERSION = EasyVersion("0.0")  # dummy EasyVersion instance (shouldn't be None)
     USABLE = False  # disable this class as usable format
 
     def __init__(self):
         """Initialise the EasyConfigFormat class"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        if not len(self.VERSION) == len(FORMAT_VERSION_TEMPLATE.split('.')):
-            raise EasyBuildError('Invalid version number %s (incorrect length)', self.VERSION)
+        if not len(self.VERSION) == len(FORMAT_VERSION_TEMPLATE.split(".")):
+            raise EasyBuildError(
+                "Invalid version number %s (incorrect length)", self.VERSION
+            )
 
         self.rawtext = None  # text version of the easyconfig
         self.comments = {}  # comments in easyconfig file
@@ -617,7 +764,7 @@ class EasyConfigFormat(object):
 
     def set_specifications(self, specs):
         """Set specifications."""
-        self.log.debug('Set copy of specs %s' % specs)
+        self.log.debug("Set copy of specs %s" % specs)
         self.specs = copy.deepcopy(specs)
 
     def get_config_dict(self):

@@ -30,7 +30,6 @@ from easybuild.base import fancylogger
 # minor adjustments:
 # * renamed to FrozenDict
 class FrozenDict(Mapping):
-
     def __init__(self, *args, **kwargs):
         self.__dict = dict(*args, **kwargs)
         self.__hash = None
@@ -48,7 +47,7 @@ class FrozenDict(Mapping):
         return len(self.__dict)
 
     def __repr__(self):
-        return '<FrozenDict %s>' % repr(self.__dict)
+        return "<FrozenDict %s>" % repr(self.__dict)
 
     def __hash__(self):
         if self.__hash is None:
@@ -72,7 +71,7 @@ class FrozenDictKnownKeys(FrozenDict):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         # support ignoring of unknown keys
-        ignore_unknown_keys = kwargs.pop('ignore_unknown_keys', False)
+        ignore_unknown_keys = kwargs.pop("ignore_unknown_keys", False)
 
         # handle unknown keys: either ignore them or raise an exception
         tmpdict = dict(*args, **kwargs)
@@ -80,11 +79,16 @@ class FrozenDictKnownKeys(FrozenDict):
         if unknown_keys:
             if ignore_unknown_keys:
                 for key in unknown_keys:
-                    self.log.debug("Ignoring unknown key '%s' (value '%s')" % (key, args[0][key]))
+                    self.log.debug(
+                        "Ignoring unknown key '%s' (value '%s')" % (key, args[0][key])
+                    )
                     # filter key out of dictionary before creating instance
                     del tmpdict[key]
             else:
-                msg = "Encountered unknown keys %s (known keys: %s)" % (unknown_keys, self.KNOWN_KEYS)
+                msg = "Encountered unknown keys %s (known keys: %s)" % (
+                    unknown_keys,
+                    self.KNOWN_KEYS,
+                )
                 self.log.raiseException(msg, exception=KeyError)
 
         super(FrozenDictKnownKeys, self).__init__(tmpdict)
@@ -99,4 +103,6 @@ class FrozenDictKnownKeys(FrozenDict):
                 raise KeyError(err)
             else:
                 tup = (key, self.__class__.__name__, self.KNOWN_KEYS)
-                raise KeyError("Unknown key '%s' for %s instance (known keys: %s)" % tup)
+                raise KeyError(
+                    "Unknown key '%s' for %s instance (known keys: %s)" % tup
+                )

@@ -98,62 +98,76 @@ DOCKER_OS_INSTALL_DEPS_TMPLS = {
 
 class DockerContainer(ContainerGenerator):
 
-    TOOLS = {'docker': None, 'sudo': None}
+    TOOLS = {"docker": None, "sudo": None}
 
-    RECIPE_FILE_NAME = 'Dockerfile'
+    RECIPE_FILE_NAME = "Dockerfile"
 
     def resolve_template(self):
         """Return template container recipe."""
 
         if self.container_template_recipe:
-            raise EasyBuildError("--container-template-recipe is not supported yet for Docker container images!")
+            raise EasyBuildError(
+                "--container-template-recipe is not supported yet for Docker container images!"
+            )
 
         if self.container_config:
-            return '\n\n'.join([
-                DOCKER_TMPL_HEADER % {'container_config': self.container_config},
-                DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_config],
-                DOCKER_INSTALL_EASYBUILD,
-                DOCKER_TMPL_FOOTER,
-            ])
+            return "\n\n".join(
+                [
+                    DOCKER_TMPL_HEADER % {"container_config": self.container_config},
+                    DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_config],
+                    DOCKER_INSTALL_EASYBUILD,
+                    DOCKER_TMPL_FOOTER,
+                ]
+            )
         else:
-            raise EasyBuildError("--container--config is required for Docker container images!")
+            raise EasyBuildError(
+                "--container--config is required for Docker container images!"
+            )
 
     def resolve_template_data(self):
         """Return template data for container recipe."""
 
         os_deps = det_os_deps(self.easyconfigs)
 
-        ec = self.easyconfigs[-1]['ec']
+        ec = self.easyconfigs[-1]["ec"]
 
-        init_modulepath = os.path.join("/app/modules/all", *self.mns.det_init_modulepaths(ec))
+        init_modulepath = os.path.join(
+            "/app/modules/all", *self.mns.det_init_modulepaths(ec)
+        )
 
-        mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
+        mod_names = [e["ec"].full_mod_name for e in self.easyconfigs]
 
-        eb_opts = [os.path.basename(e['spec']) for e in self.easyconfigs]
+        eb_opts = [os.path.basename(e["spec"]) for e in self.easyconfigs]
 
         return {
-            'os_deps': ' '.join(os_deps),
-            'eb_opts': ' '.join(eb_opts),
-            'init_modulepath': init_modulepath,
-            'mod_names': ' '.join(mod_names),
+            "os_deps": " ".join(os_deps),
+            "eb_opts": " ".join(eb_opts),
+            "init_modulepath": init_modulepath,
+            "mod_names": " ".join(mod_names),
         }
 
     def validate(self):
         """Perform validation of specified container configuration."""
         if self.container_config not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
-            raise EasyBuildError("Unsupported container config '%s'" % self.container_config)
+            raise EasyBuildError(
+                "Unsupported container config '%s'" % self.container_config
+            )
         super(DockerContainer, self).validate()
 
     def build_image(self, dockerfile):
-        ec = self.easyconfigs[-1]['ec']
+        ec = self.easyconfigs[-1]["ec"]
 
         module_name = self.mns.det_full_module_name(ec)
 
-        tempdir = tempfile.mkdtemp(prefix='easybuild-docker')
-        container_name = self.img_name or "%s:latest" % module_name.replace('/', '-')
-        docker_cmd = ' '.join(['sudo', 'docker', 'build', '-f', dockerfile, '-t', container_name, '.'])
+        tempdir = tempfile.mkdtemp(prefix="easybuild-docker")
+        container_name = self.img_name or "%s:latest" % module_name.replace("/", "-")
+        docker_cmd = " ".join(
+            ["sudo", "docker", "build", "-f", dockerfile, "-t", container_name, "."]
+        )
 
-        print_msg("Running '%s', you may need to enter your 'sudo' password..." % docker_cmd)
+        print_msg(
+            "Running '%s', you may need to enter your 'sudo' password..." % docker_cmd
+        )
         run_cmd(docker_cmd, path=tempdir, stream_output=True)
         print_msg("Docker image created at %s" % container_name, log=self.log)
 

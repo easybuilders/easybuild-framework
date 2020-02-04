@@ -37,5 +37,6 @@ class Iompi(IccIfort, OpenMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort) and OpenMPI.
     """
-    NAME = 'iompi'
+
+    NAME = "iompi"
     SUBTOOLCHAIN = IccIfort.NAME

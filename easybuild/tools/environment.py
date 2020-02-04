@@ -41,7 +41,7 @@ from easybuild.tools.utilities import shell_quote
 ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
 
 
-_log = fancylogger.getLogger('environment', fname=False)
+_log = fancylogger.getLogger("environment", fname=False)
 
 _changes = {}
 
@@ -52,10 +52,10 @@ def write_changes(filename):
     """
     script = None
     try:
-        script = open(filename, 'w')
+        script = open(filename, "w")
 
         for key in _changes:
-            script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
+            script.write("export %s=%s\n" % (key, shell_quote(_changes[key])))
 
         script.close()
     except IOError as err:
@@ -96,11 +96,13 @@ def setvar(key, value, verbose=True):
     _changes[key] = value
     _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
-    if verbose and build_option('extended_dry_run'):
+    if verbose and build_option("extended_dry_run"):
         quoted_value = shell_quote(value)
         if quoted_value[0] not in ['"', "'"]:
             quoted_value = '"%s"' % quoted_value
-        dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
+        dry_run_msg(
+            "  export %s=%s" % (key, quoted_value), silent=build_option("silent")
+        )
 
 
 def unset_env_vars(keys, verbose=True):
@@ -110,16 +112,23 @@ def unset_env_vars(keys, verbose=True):
     """
     old_environ = {}
 
-    if keys and verbose and build_option('extended_dry_run'):
-        dry_run_msg("Undefining environment variables:\n", silent=build_option('silent'))
+    if keys and verbose and build_option("extended_dry_run"):
+        dry_run_msg(
+            "Undefining environment variables:\n", silent=build_option("silent")
+        )
 
     for key in list(keys):
         if key in os.environ:
-            _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
+            _log.info(
+                "Unsetting environment variable %s (value: %s)" % (key, os.environ[key])
+            )
             old_environ[key] = os.environ[key]
             del os.environ[key]
-            if verbose and build_option('extended_dry_run'):
-                dry_run_msg("  unset %s  # value was: %s" % (key, old_environ[key]), silent=build_option('silent'))
+            if verbose and build_option("extended_dry_run"):
+                dry_run_msg(
+                    "  unset %s  # value was: %s" % (key, old_environ[key]),
+                    silent=build_option("silent"),
+                )
 
     return old_environ
 
@@ -130,7 +139,9 @@ def restore_env_vars(env_keys):
     """
     for key in env_keys:
         if env_keys[key] is not None:
-            _log.info("Restoring environment variable %s (value: %s)" % (key, env_keys[key]))
+            _log.info(
+                "Restoring environment variable %s (value: %s)" % (key, env_keys[key])
+            )
             os.environ[key] = env_keys[key]
 
 
@@ -140,11 +151,15 @@ def read_environment(env_vars, strict=False):
     :param env_vars: a dict with key a name, value a environment variable name
     :param strict: boolean, if True enforces that all specified environment variables are found
     """
-    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
+    result = dict(
+        [(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ]
+    )
 
     if not len(env_vars) == len(result):
-        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result])
-        msg = 'Following name/variable not found in environment: %s' % missing
+        missing = ",".join(
+            ["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result]
+        )
+        msg = "Following name/variable not found in environment: %s" % missing
         if strict:
             raise EasyBuildError(msg)
         else:
@@ -165,15 +180,27 @@ def modify_env(old, new, verbose=True):
         if key in old_keys:
             # hmm, smart checking with debug logging
             if not new[key] == old[key]:
-                _log.debug("Key in new environment found that is different from old one: %s (%s)", key, new[key])
+                _log.debug(
+                    "Key in new environment found that is different from old one: %s (%s)",
+                    key,
+                    new[key],
+                )
                 setvar(key, new[key], verbose=verbose)
         else:
-            _log.debug("Key in new environment found that is not in old one: %s (%s)", key, new[key])
+            _log.debug(
+                "Key in new environment found that is not in old one: %s (%s)",
+                key,
+                new[key],
+            )
             setvar(key, new[key], verbose=verbose)
 
     for key in old_keys:
         if key not in new_keys:
-            _log.debug("Key in old environment found that is not in new one: %s (%s)", key, old[key])
+            _log.debug(
+                "Key in old environment found that is not in new one: %s (%s)",
+                key,
+                old[key],
+            )
             os.unsetenv(key)
             del os.environ[key]
 
@@ -202,5 +229,5 @@ def sanitize_env():
     picking up non-stdlib Python packages (e.g., setuptools, vsc-base, ...), thanks to the magic of .pth files,
     cfr. https://docs.python.org/2/library/site.html .
     """
-    keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
+    keys_to_unset = [key for key in os.environ if key.startswith("PYTHON")]
     unset_env_vars(keys_to_unset, verbose=False)

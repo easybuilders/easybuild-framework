@@ -34,5 +34,6 @@ from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 class Iiqmpi(IccIfort, QLogicMPI):
     """Compiler toolchain with Intel compilers and QLogic MPI."""
-    NAME = 'iiqmpi'
+
+    NAME = "iiqmpi"
     SUBTOOLCHAIN = IccIfort.NAME

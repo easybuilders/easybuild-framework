@@ -45,13 +45,18 @@ from datetime import datetime
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import (
+    EasyBuildError,
+    dry_run_msg,
+    print_msg,
+    time_str_since,
+)
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import trace_msg
 
 
-_log = fancylogger.getLogger('run', fname=False)
+_log = fancylogger.getLogger("run", fname=False)
 
 
 errors_found_in_log = 0
@@ -79,7 +84,7 @@ def run_cmd_cache(func):
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
         # cache key is combination of command and input provided via stdin
-        key = (cmd, kwargs.get('inp', None))
+        key = (cmd, kwargs.get("inp", None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
         if isinstance(cmd, string_type) and key in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
@@ -118,14 +123,27 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
     # * in Python 2, .decode() returns a value of type 'unicode',
     #   but we really want a regular 'str' value (which is also why we use 'ignore' for encoding errors)
     # * in Python 3, .decode() returns a 'str' value when called on the 'bytes' value obtained from .read()
-    output = str(output.decode('ascii', 'ignore'))
+    output = str(output.decode("ascii", "ignore"))
 
     return output
 
 
 @run_cmd_cache
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None):
+def run_cmd(
+    cmd,
+    log_ok=True,
+    log_all=False,
+    simple=False,
+    inp=None,
+    regexp=True,
+    log_output=False,
+    path=None,
+    force_in_dry_run=False,
+    verbose=True,
+    shell=True,
+    trace=True,
+    stream_output=None,
+):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -147,25 +165,30 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if isinstance(cmd, string_type):
         cmd_msg = cmd.strip()
     elif isinstance(cmd, list):
-        cmd_msg = ' '.join(cmd)
+        cmd_msg = " ".join(cmd)
     else:
         raise EasyBuildError("Unknown command type ('%s'): %s", type(cmd), cmd)
 
-    if log_output or (trace and build_option('trace')):
+    if log_output or (trace and build_option("trace")):
         # collect output of running command in temporary log file, if desired
-        fd, cmd_log_fn = tempfile.mkstemp(suffix='.log', prefix='easybuild-run_cmd-')
+        fd, cmd_log_fn = tempfile.mkstemp(suffix=".log", prefix="easybuild-run_cmd-")
         os.close(fd)
         try:
-            cmd_log = open(cmd_log_fn, 'w')
+            cmd_log = open(cmd_log_fn, "w")
         except IOError as err:
-            raise EasyBuildError("Failed to open temporary log file for output of command: %s", err)
+            raise EasyBuildError(
+                "Failed to open temporary log file for output of command: %s", err
+            )
         _log.debug('run_cmd: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
-    if stream_output is None and build_option('logtostdout'):
-        _log.info("Auto-enabling streaming output of '%s' command because logging to stdout is enabled", cmd_msg)
+    if stream_output is None and build_option("logtostdout"):
+        _log.info(
+            "Auto-enabling streaming output of '%s' command because logging to stdout is enabled",
+            cmd_msg,
+        )
         stream_output = True
 
     if stream_output:
@@ -174,24 +197,26 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     start_time = datetime.now()
     if trace:
         trace_txt = "running command:\n"
-        trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[started at: %s]\n" % start_time.strftime("%Y-%m-%d %H:%M:%S")
         trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
-        trace_msg(trace_txt + '\t' + cmd_msg)
+        trace_msg(trace_txt + "\t" + cmd_msg)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
-    if not force_in_dry_run and build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option("extended_dry_run"):
         if path is None:
             path = cwd
         if verbose:
-            dry_run_msg("  running command \"%s\"" % cmd_msg, silent=build_option('silent'))
-            dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+            dry_run_msg(
+                '  running command "%s"' % cmd_msg, silent=build_option("silent")
+            )
+            dry_run_msg("  (in %s)" % path, silent=build_option("silent"))
 
         # make sure we get the type of the return value right
         if simple:
             return True
         else:
             # output, exit code
-            return ('', 0)
+            return ("", 0)
 
     try:
         if path:
@@ -210,16 +235,26 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if not shell:
         if isinstance(cmd, list):
             exec_cmd = None
-            cmd.insert(0, '/usr/bin/env')
+            cmd.insert(0, "/usr/bin/env")
         elif isinstance(cmd, string_type):
-            cmd = '/usr/bin/env %s' % cmd
+            cmd = "/usr/bin/env %s" % cmd
         else:
-            raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
+            raise EasyBuildError(
+                "Don't know how to prefix with /usr/bin/env for commands of type %s",
+                type(cmd),
+            )
 
-    _log.info('running cmd: %s ' % cmd)
+    _log.info("running cmd: %s " % cmd)
     try:
-        proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
+        proc = subprocess.Popen(
+            cmd,
+            shell=shell,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            close_fds=True,
+            executable=exec_cmd,
+        )
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
@@ -234,7 +269,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         read_size = 1024 * 8
 
     ec = proc.poll()
-    stdouterr = ''
+    stdouterr = ""
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
@@ -256,18 +291,33 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     stdouterr += output
 
     if trace:
-        trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
+        trace_msg(
+            "command completed: exit %s, ran in %s" % (ec, time_str_since(start_time))
+        )
 
     try:
         os.chdir(cwd)
     except OSError as err:
-        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
+        raise EasyBuildError(
+            "Failed to return to %s after executing command: %s", cwd, err
+        )
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None,
-               maxhits=50, trace=True):
+def run_cmd_qa(
+    cmd,
+    qa,
+    no_qa=None,
+    log_ok=True,
+    log_all=False,
+    simple=False,
+    regexp=True,
+    std_qa=None,
+    path=None,
+    maxhits=50,
+    trace=True,
+):
     """
     Run specified interactive command (in a subshell)
     :param cmd: command to run
@@ -284,36 +334,43 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     cwd = os.getcwd()
 
-    if log_all or (trace and build_option('trace')):
+    if log_all or (trace and build_option("trace")):
         # collect output of running command in temporary log file, if desired
-        fd, cmd_log_fn = tempfile.mkstemp(suffix='.log', prefix='easybuild-run_cmd_qa-')
+        fd, cmd_log_fn = tempfile.mkstemp(suffix=".log", prefix="easybuild-run_cmd_qa-")
         os.close(fd)
         try:
-            cmd_log = open(cmd_log_fn, 'w')
+            cmd_log = open(cmd_log_fn, "w")
         except IOError as err:
-            raise EasyBuildError("Failed to open temporary log file for output of interactive command: %s", err)
-        _log.debug('run_cmd_qa: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+            raise EasyBuildError(
+                "Failed to open temporary log file for output of interactive command: %s",
+                err,
+            )
+        _log.debug(
+            'run_cmd_qa: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn)
+        )
     else:
         cmd_log_fn, cmd_log = None, None
 
     start_time = datetime.now()
     if trace:
         trace_txt = "running interactive command:\n"
-        trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[started at: %s]\n" % start_time.strftime("%Y-%m-%d %H:%M:%S")
         trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
-        trace_msg(trace_txt + '\t' + cmd.strip())
+        trace_msg(trace_txt + "\t" + cmd.strip())
 
     # early exit in 'dry run' mode, after printing the command that would be run
-    if build_option('extended_dry_run'):
+    if build_option("extended_dry_run"):
         if path is None:
             path = cwd
-        dry_run_msg("  running interactive command \"%s\"" % cmd, silent=build_option('silent'))
-        dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+        dry_run_msg(
+            '  running interactive command "%s"' % cmd, silent=build_option("silent")
+        )
+        dry_run_msg("  (in %s)" % path, silent=build_option("silent"))
         if simple:
             return True
         else:
             # output, exit code
-            return ('', 0)
+            return ("", 0)
 
     try:
         if path:
@@ -334,28 +391,36 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     def escape_special(string):
         return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
 
-    split = '[\s\n]+'
+    split = "[\s\n]+"
     regSplit = re.compile(r"" + split)
 
     def process_QA(q, a_s):
         splitq = [escape_special(x) for x in regSplit.split(q)]
-        regQtxt = split.join(splitq) + split.rstrip('+') + "*$"
+        regQtxt = split.join(splitq) + split.rstrip("+") + "*$"
         # add optional split at the end
-        for i in [idx for idx, a in enumerate(a_s) if not a.endswith('\n')]:
-            a_s[i] += '\n'
+        for i in [idx for idx, a in enumerate(a_s) if not a.endswith("\n")]:
+            a_s[i] += "\n"
         regQ = re.compile(r"" + regQtxt)
         if regQ.search(q):
             return (a_s, regQ)
         else:
-            raise EasyBuildError("runqanda: Question %s converted in %s does not match itself", q, regQtxt)
+            raise EasyBuildError(
+                "runqanda: Question %s converted in %s does not match itself",
+                q,
+                regQtxt,
+            )
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
         if isinstance(answers, string_type):
             answers = [answers]
         elif not isinstance(answers, list):
-            raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",
-                                 question, type(answers), answers)
+            raise EasyBuildError(
+                "Invalid type for answer on %s, no string or list: %s (%s)",
+                question,
+                type(answers),
+                answers,
+            )
         # list is manipulated when answering matching question, so return a copy
         return answers[:]
 
@@ -372,8 +437,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         for question, answers in std_qa.items():
             regQ = re.compile(r"" + question + r"[\s\n]*$")
             answers = check_answers_list(answers)
-            for i in [idx for idx, a in enumerate(answers) if not a.endswith('\n')]:
-                answers[i] += '\n'
+            for i in [idx for idx, a in enumerate(answers) if not a.endswith("\n")]:
+                answers[i] += "\n"
             new_std_qa[regQ] = answers
             _log.debug("new_std_qa[%s]: %s" % (regQ.pattern, new_std_qa[regQ]))
 
@@ -392,13 +457,20 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
 
     try:
-        proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
-                                  stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
+        proc = asyncprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=asyncprocess.PIPE,
+            stderr=asyncprocess.STDOUT,
+            stdin=asyncprocess.PIPE,
+            close_fds=True,
+            executable="/bin/bash",
+        )
     except OSError as err:
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
     ec = proc.poll()
-    stdout_err = ''
+    stdout_err = ""
     old_len_out = -1
     hit_count = 0
 
@@ -423,9 +495,18 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 # cycle through list of answers
                 last_answer = answers.pop(0)
                 answers.append(last_answer)
-                _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
+                _log.debug(
+                    "List of answers for question %s after cycling: %s",
+                    question.pattern,
+                    answers,
+                )
 
-                _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
+                _log.debug(
+                    "run_cmd_qa answer %s question %s out %s",
+                    fa,
+                    question.pattern,
+                    stdout_err[-50:],
+                )
                 asyncprocess.send_all(proc, fa)
                 hit = True
                 break
@@ -437,9 +518,18 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     # cycle through list of answers
                     last_answer = answers.pop(0)
                     answers.append(last_answer)
-                    _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
+                    _log.debug(
+                        "List of answers for question %s after cycling: %s",
+                        question.pattern,
+                        answers,
+                    )
 
-                    _log.debug("run_cmd_qa answer %s std question %s out %s", fa, question.pattern, stdout_err[-50:])
+                    _log.debug(
+                        "run_cmd_qa answer %s std question %s out %s",
+                        fa,
+                        question.pattern,
+                        stdout_err[-50:],
+                    )
                     asyncprocess.send_all(proc, fa)
                     hit = True
                     break
@@ -450,7 +540,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     noqa = False
                     for r in new_no_qa:
                         if r.search(stdout_err):
-                            _log.debug("runqanda: noQandA found for out %s", stdout_err[-50:])
+                            _log.debug(
+                                "runqanda: noQandA found for out %s", stdout_err[-50:]
+                            )
                             noqa = True
                     if not noqa:
                         hit_count += 1
@@ -465,10 +557,16 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 os.killpg(proc.pid, signal.SIGKILL)
                 os.kill(proc.pid, signal.SIGKILL)
             except OSError as err:
-                _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
+                _log.debug(
+                    "run_cmd_qa exception caught when killing child process: %s", err
+                )
             _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
-            raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
-                                 cmd, maxhits, stdout_err[-500:])
+            raise EasyBuildError(
+                "run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
+                cmd,
+                maxhits,
+                stdout_err[-500:],
+            )
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -486,12 +584,17 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
 
     if trace:
-        trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
+        trace_msg(
+            "interactive command completed: exit %s, ran in %s"
+            % (ec, time_str_since(start_time))
+        )
 
     try:
         os.chdir(cwd)
     except OSError as err:
-        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
+        raise EasyBuildError(
+            "Failed to return to %s after executing command: %s", cwd, err
+        )
 
     return parse_cmd_output(cmd, stdout_err, ec, simple, log_all, log_ok, regexp)
 
@@ -526,20 +629,34 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
         if check_ec:
-            raise EasyBuildError('cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
+            raise EasyBuildError(
+                'cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr
+            )
         else:
-            _log.warning('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.warning(
+                'cmd "%s" exited with exit code %s and output:\n%s'
+                % (cmd, ec, stdouterr)
+            )
     elif not ec:
         if log_all:
-            _log.info('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.info(
+                'cmd "%s" exited with exit code %s and output:\n%s'
+                % (cmd, ec, stdouterr)
+            )
         else:
-            _log.debug('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
+            _log.debug(
+                'cmd "%s" exited with exit code %s and output:\n%s'
+                % (cmd, ec, stdouterr)
+            )
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
     if use_regexp or regexp:
         res = parse_log_for_error(stdouterr, regexp, msg="Command used: %s" % cmd)
         if len(res) > 0:
-            message = "Found %s errors in command output (output: %s)" % (len(res), "\n\t".join([r[0] for r in res]))
+            message = "Found %s errors in command output (output: %s)" % (
+                len(res),
+                "\n\t".join([r[0] for r in res]),
+            )
             if use_regexp:
                 raise EasyBuildError(message)
             else:
@@ -567,7 +684,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
 
     if regExp and type(regExp) == bool:
         regExp = r"(?<![(,-]|\w)(?:error|segmentation fault|failed)(?![(,-]|\.?\w)"
-        _log.debug('Using default regular expression: %s' % regExp)
+        _log.debug("Using default regular expression: %s" % regExp)
     elif type(regExp) == str:
         pass
     else:
@@ -576,7 +693,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     reg = re.compile(regExp, re.I)
 
     res = []
-    for l in txt.split('\n'):
+    for l in txt.split("\n"):
         r = reg.search(l)
         if r:
             res.append([l, r.groups()])
@@ -585,8 +702,10 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     if stdout and res:
         if msg:
             _log.info("parse_log_for_error msg: %s" % msg)
-        _log.info("parse_log_for_error (some may be harmless) regExp %s found:\n%s" %
-                  (regExp, '\n'.join([x[0] for x in res])))
+        _log.info(
+            "parse_log_for_error (some may be harmless) regExp %s found:\n%s"
+            % (regExp, "\n".join([x[0] for x in res]))
+        )
 
     return res
 
@@ -618,17 +737,24 @@ def extract_errors_from_log(log_txt, reg_exps):
                 raise TypeError("Incorrect type of value, expected string or 2-tuple")
 
             if not isinstance(reg_exp, str):
-                raise TypeError("Regular expressions must be passed as string, got %s" % type(reg_exp))
+                raise TypeError(
+                    "Regular expressions must be passed as string, got %s"
+                    % type(reg_exp)
+                )
             if action not in actions:
                 raise TypeError("action must be one of %s, got %s" % (actions, action))
 
             re_tuples.append((re.compile(reg_exp), action))
         except Exception as err:
-            raise EasyBuildError("Invalid input: No regexp or tuple of regexp and action '%s': %s", str(cur), err)
+            raise EasyBuildError(
+                "Invalid input: No regexp or tuple of regexp and action '%s': %s",
+                str(cur),
+                err,
+            )
 
     warnings = []
     errors = []
-    for line in log_txt.split('\n'):
+    for line in log_txt.split("\n"):
         for reg_exp, action in re_tuples:
             if reg_exp.search(line):
                 if action == ERROR:
@@ -651,8 +777,14 @@ def check_log_for_errors(log_txt, reg_exps):
 
     errors_found_in_log += len(warnings) + len(errors)
     if warnings:
-        _log.warning("Found %s potential error(s) in command output (output: %s)",
-                     len(warnings), "\n\t".join(warnings))
+        _log.warning(
+            "Found %s potential error(s) in command output (output: %s)",
+            len(warnings),
+            "\n\t".join(warnings),
+        )
     if errors:
-        raise EasyBuildError("Found %s error(s) in command output (output: %s)",
-                             len(errors), "\n\t".join(errors))
+        raise EasyBuildError(
+            "Found %s error(s) in command output (output: %s)",
+            len(errors),
+            "\n\t".join(errors),
+        )

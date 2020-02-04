@@ -63,9 +63,17 @@ class ToolchainOptions(dict):
         self.log.debug("Using toolchain options %s", options)
         for name, value in options.items():
             if not isinstance(value, (list, tuple,)) and len(value) == 2:
-                raise EasyBuildError("_add_options: option name %s has to be 2 element list (%s)", name, value)
+                raise EasyBuildError(
+                    "_add_options: option name %s has to be 2 element list (%s)",
+                    name,
+                    value,
+                )
             if name in self:
-                self.log.devel("_add_options: redefining previous name %s (previous value %s)", name, self.get(name))
+                self.log.devel(
+                    "_add_options: redefining previous name %s (previous value %s)",
+                    name,
+                    self.get(name),
+                )
             self.__setitem__(name, value[0])
             self.description.__setitem__(name, value[1])
 
@@ -75,10 +83,15 @@ class ToolchainOptions(dict):
         """
         for name in options_map.keys():
             if name not in self:
-                if name.startswith('_opt_'):
-                    self.log.devel("_add_options_map: no option with name %s defined, but allowed", name)
+                if name.startswith("_opt_"):
+                    self.log.devel(
+                        "_add_options_map: no option with name %s defined, but allowed",
+                        name,
+                    )
                 else:
-                    raise EasyBuildError("No toolchain option with name %s defined", name)
+                    raise EasyBuildError(
+                        "No toolchain option with name %s defined", name
+                    )
 
         self.options_map.update(options_map)
 
@@ -88,7 +101,7 @@ class ToolchainOptions(dict):
         if value is None and name not in self.options_map:
             msg = "option: option with name %s returns None" % name
             # Empty options starting with _opt_ are allowed, so don't warn
-            if name.startswith('_opt_'):
+            if name.startswith("_opt_"):
                 self.log.devel(msg)
             else:
                 self.log.warning(msg)
@@ -98,10 +111,9 @@ class ToolchainOptions(dict):
 
             if templatedict is None:
                 templatedict = {}
-            templatedict.update({
-                'opt': name,
-                'value': value,
-            })
+            templatedict.update(
+                {"opt": name, "value": value,}
+            )
 
             if isinstance(res, string_type):
                 # allow for template

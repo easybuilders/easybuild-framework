@@ -35,5 +35,6 @@ from easybuild.toolchains.mpi.spectrummpi import SpectrumMPI
 
 class Gsmpi(GccToolchain, SpectrumMPI):
     """Compiler toolchain with GCC and SpectrumMPI."""
-    NAME = 'gsmpi'
+
+    NAME = "gsmpi"
     SUBTOOLCHAIN = GccToolchain.NAME

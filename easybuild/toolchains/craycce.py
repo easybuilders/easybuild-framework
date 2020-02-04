@@ -36,5 +36,6 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class CrayCCE(CrayPECray, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
-    NAME = 'CrayCCE'
+
+    NAME = "CrayCCE"
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

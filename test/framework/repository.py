@@ -55,7 +55,7 @@ class RepositoryTest(EnhancedTestCase):
         """Set up test."""
         super(RepositoryTest, self).setUp()
 
-        self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
+        self.path = tempfile.mkdtemp(prefix="easybuild-repo-")
         shutil.rmtree(self.path, True)
 
     def test_filerepo(self):
@@ -64,7 +64,7 @@ class RepositoryTest(EnhancedTestCase):
         repo.init()
         self.assertEqual(repo.wc, self.path)
 
-        subdir = 'sub/dir'
+        subdir = "sub/dir"
         repo = FileRepository(self.path, subdir)
         repo.init()
         self.assertEqual(repo.wc, self.path)
@@ -79,14 +79,14 @@ class RepositoryTest(EnhancedTestCase):
             print("(skipping GitRepository test)")
             return
 
-        test_repo_url = 'https://github.com/hpcugent/testrepository'
+        test_repo_url = "https://github.com/hpcugent/testrepository"
 
         # URL
         repo = GitRepository(test_repo_url)
         try:
             repo.init()
-            self.assertEqual(os.path.basename(repo.wc), 'testrepository')
-            self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
+            self.assertEqual(os.path.basename(repo.wc), "testrepository")
+            self.assertTrue(os.path.exists(os.path.join(repo.wc, "README.md")))
             shutil.rmtree(repo.wc)
         except EasyBuildError as err:
             print("ignoring failed subtest in test_gitrepo, testing offline?")
@@ -99,15 +99,28 @@ class RepositoryTest(EnhancedTestCase):
 
         # skip remainder of test if creating bare git repo didn't work
         if ec == 0:
-            repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
+            repo = GitRepository(os.path.join(tmpdir, "testrepository.git"))
             repo.init()
-            toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-            repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, None)
+            toy_ec_file = os.path.join(
+                os.path.dirname(__file__),
+                "easyconfigs",
+                "test_ecs",
+                "t",
+                "toy",
+                "toy-0.0.eb",
+            )
+            repo.add_easyconfig(toy_ec_file, "test", "1.0", {}, None)
             repo.commit("toy/0.0")
 
-            log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
-            logmsg = repo.client.log('HEAD^!')
-            self.assertTrue(log_regex.search(logmsg), "Pattern '%s' found in %s" % (log_regex.pattern, logmsg))
+            log_regex = re.compile(
+                r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION,
+                re.M,
+            )
+            logmsg = repo.client.log("HEAD^!")
+            self.assertTrue(
+                log_regex.search(logmsg),
+                "Pattern '%s' found in %s" % (log_regex.pattern, logmsg),
+            )
 
             shutil.rmtree(repo.wc)
             shutil.rmtree(tmpdir)
@@ -122,11 +135,11 @@ class RepositoryTest(EnhancedTestCase):
             return
 
         # GitHub also supports SVN
-        test_repo_url = 'https://github.com/hpcugent/testrepository'
+        test_repo_url = "https://github.com/hpcugent/testrepository"
 
         repo = SvnRepository(test_repo_url)
         repo.init()
-        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
+        self.assertTrue(os.path.exists(os.path.join(repo.wc, "trunk", "README.md")))
         shutil.rmtree(repo.wc)
 
     # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
@@ -143,30 +156,32 @@ class RepositoryTest(EnhancedTestCase):
             return
 
         # GitHub also supports SVN
-        test_repo_url = 'https://kehoste@bitbucket.org/kehoste/testrepository'
+        test_repo_url = "https://kehoste@bitbucket.org/kehoste/testrepository"
 
         repo = HgRepository(test_repo_url)
         repo.init()
-        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README')))
+        self.assertTrue(os.path.exists(os.path.join(repo.wc, "README")))
         shutil.rmtree(repo.wc)
 
     def test_init_repository(self):
         """Test use of init_repository function."""
-        repo = init_repository('FileRepository', self.path)
+        repo = init_repository("FileRepository", self.path)
         self.assertEqual(repo.wc, self.path)
 
-        repo = init_repository('FileRepository', [self.path])
+        repo = init_repository("FileRepository", [self.path])
         self.assertEqual(repo.wc, self.path)
 
-        subdir = 'sub/dir'
-        repo = init_repository('FileRepository', [self.path, subdir])
+        subdir = "sub/dir"
+        repo = init_repository("FileRepository", [self.path, subdir])
         self.assertEqual(repo.wc, self.path)
         self.assertEqual(repo.subdir, subdir)
 
     def test_add_easyconfig(self):
         """Test use of add_easyconfig method"""
-        repo = init_repository('FileRepository', self.path)
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        repo = init_repository("FileRepository", self.path)
+        test_easyconfigs = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "easyconfigs"
+        )
 
         def check_ec(path, expected_buildstats):
             """Check easyconfig at specified path"""
@@ -175,27 +190,37 @@ class RepositoryTest(EnhancedTestCase):
             self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
             self.assertTrue("# Build statistics" in ectxt)
             ecdict = EasyConfigParser(path).get_config_dict()
-            self.assertEqual(ecdict['buildstats'], expected_buildstats)
+            self.assertEqual(ecdict["buildstats"], expected_buildstats)
 
-        toy_eb_file = os.path.join(test_easyconfigs, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_eb_file = os.path.join(
+            test_easyconfigs, "test_ecs", "t", "toy", "toy-0.0.eb"
+        )
 
-        path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23}, None)
-        check_ec(path, [{'time': 1.23}])
+        path = repo.add_easyconfig(toy_eb_file, "test", "1.0", {"time": 1.23}, None)
+        check_ec(path, [{"time": 1.23}])
 
-        path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
-        check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+        path = repo.add_easyconfig(
+            toy_eb_file,
+            "test",
+            "1.0",
+            {"time": 1.23, "size": 123},
+            [{"time": 0.9, "size": 2}],
+        )
+        check_ec(path, [{"time": 0.9, "size": 2}, {"time": 1.23, "size": 123}])
 
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        if 'yaml' in sys.modules:
-            toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
-            check_ec(path, [{'time': 1.23}])
+        if "yaml" in sys.modules:
+            toy_yeb_file = os.path.join(test_easyconfigs, "yeb", "toy-0.0.yeb")
+            path = repo.add_easyconfig(
+                toy_yeb_file, "test", "1.0", {"time": 1.23}, None
+            )
+            check_ec(path, [{"time": 1.23}])
 
-            stats1 = {'time': 1.23, 'size': 123}
-            stats2 = [{'time': 0.9, 'size': 2}]
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', stats1, stats2)
+            stats1 = {"time": 1.23, "size": 123}
+            stats2 = [{"time": 0.9, "size": 2}]
+            path = repo.add_easyconfig(toy_yeb_file, "test", "1.0", stats1, stats2)
             check_ec(path, stats2 + [stats1])
 
             easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
@@ -214,6 +239,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

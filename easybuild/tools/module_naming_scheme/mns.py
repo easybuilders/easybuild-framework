@@ -36,11 +36,13 @@ from easybuild.tools.config import Singleton
 from easybuild.tools.py2vs3 import create_base_metaclass
 
 
-DEVEL_MODULE_SUFFIX = '-easybuild-devel'
+DEVEL_MODULE_SUFFIX = "-easybuild-devel"
 
 
 # singleton metaclass: only one instance is created
-BaseModuleNamingScheme = create_base_metaclass('BaseModuleNamingScheme', Singleton, object)
+BaseModuleNamingScheme = create_base_metaclass(
+    "BaseModuleNamingScheme", Singleton, object
+)
 
 
 class ModuleNamingScheme(BaseModuleNamingScheme):
@@ -57,8 +59,10 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         if self.REQUIRED_KEYS is not None:
             return set(keys).issuperset(set(self.REQUIRED_KEYS))
         else:
-            raise EasyBuildError("Constant REQUIRED_KEYS is not defined, "
-                                 "should specify required easyconfig parameters.")
+            raise EasyBuildError(
+                "Constant REQUIRED_KEYS is not defined, "
+                "should specify required easyconfig parameters."
+            )
 
     def requires_toolchain_details(self):
         """
@@ -110,14 +114,14 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         :return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
         """
         # by default: no subdirectory
-        return ''
+        return ""
 
     def det_module_symlink_paths(self, ec):
         """
         Determine list of paths in which symlinks to module files must be created.
         """
         # by default: make a symlink from moduleclass subdirectory of $MODULEPATH
-        return [ec['moduleclass']]
+        return [ec["moduleclass"]]
 
     def det_modpath_extensions(self, ec):
         """
@@ -162,11 +166,16 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
             <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^%s(/\S+)?$' % re.escape(name))
+        modname_regex = re.compile("^%s(/\S+)?$" % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
-        self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",
-                       short_modname, name, modname_regex.pattern, res)
+        self.log.debug(
+            "Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",
+            short_modname,
+            name,
+            modname_regex.pattern,
+            res,
+        )
 
         return res
 

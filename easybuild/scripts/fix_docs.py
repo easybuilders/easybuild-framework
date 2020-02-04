@@ -47,7 +47,7 @@ py_files = []
 
 for basename, _, filenames in os.walk(path):
     for fn in filenames:
-        if os.path.splitext(fn)[1] == '.py':
+        if os.path.splitext(fn)[1] == ".py":
             py_files.append(os.path.join(basename, fn))
 
 for tmp in py_files:
@@ -57,7 +57,7 @@ for tmp in py_files:
         continue
     with open(tmp) as f:
         temp = "tmp_file.py"
-        out = open(temp, 'w')
+        out = open(temp, "w")
         for line in f:
             if "@author" in line:
                 out.write(re.sub(r"@author: (.*)", r":author: \1", line))

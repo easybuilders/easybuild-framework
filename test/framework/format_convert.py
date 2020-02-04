@@ -33,7 +33,10 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.format.convert import Dependency
-from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
+from easybuild.framework.easyconfig.format.version import (
+    VersionOperator,
+    ToolchainVersionOperator,
+)
 
 
 class ConvertTest(EnhancedTestCase):
@@ -41,20 +44,20 @@ class ConvertTest(EnhancedTestCase):
 
     def test_dependency(self):
         """Test Dependency class"""
-        versop_str = '>= 1.5'
-        tc_versop_str = 'GCC >= 3.0'
+        versop_str = ">= 1.5"
+        tc_versop_str = "GCC >= 3.0"
 
         versop = VersionOperator(versop_str)
         tc_versop = ToolchainVersionOperator(tc_versop_str)
 
         txt = Dependency.SEPARATOR_DEP.join([versop_str])
-        dest = {'versop': versop}
+        dest = {"versop": versop}
         res = Dependency(txt)
         self.assertEqual(dest, res)
         self.assertEqual(str(res), txt)
 
         txt = Dependency.SEPARATOR_DEP.join([versop_str, tc_versop_str])
-        dest = {'versop': versop, 'tc_versop': tc_versop}
+        dest = {"versop": versop, "tc_versop": tc_versop}
         res = Dependency(txt)
         self.assertEqual(dest, res)
         self.assertEqual(str(res), txt)
@@ -65,6 +68,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(ConvertTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

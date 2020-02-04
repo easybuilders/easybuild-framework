@@ -14,6 +14,7 @@ TC_CONSTANT_XLCXLF = "xlcxlf"
 
 class XLCXLFToolchain(IBMXL):
     """Simple toolchain with just the IBM XL C and FORTRAN compilers."""
-    NAME = 'xlcxlf'
-    COMPILER_MODULE_NAME = ['xlc', 'xlf']
+
+    NAME = "xlcxlf"
+    COMPILER_MODULE_NAME = ["xlc", "xlf"]
     COMPILER_FAMILY = TC_CONSTANT_XLCXLF

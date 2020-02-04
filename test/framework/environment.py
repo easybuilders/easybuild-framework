@@ -41,50 +41,50 @@ class EnvironmentTest(EnhancedTestCase):
     def test_setvar(self):
         """Test setvar function."""
         self.mock_stdout(True)
-        env.setvar('FOO', 'bar')
+        env.setvar("FOO", "bar")
         txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertEqual(os.getenv('FOO'), 'bar')
-        self.assertEqual(os.environ['FOO'], 'bar')
+        self.assertEqual(os.getenv("FOO"), "bar")
+        self.assertEqual(os.environ["FOO"], "bar")
         # no printing if dry run is not enabled
-        self.assertEqual(txt, '')
+        self.assertEqual(txt, "")
 
         build_options = {
-            'extended_dry_run': True,
-            'silent': False,
+            "extended_dry_run": True,
+            "silent": False,
         }
         init_config(build_options=build_options)
         self.mock_stdout(True)
-        env.setvar('FOO', 'foobaz')
+        env.setvar("FOO", "foobaz")
         txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertEqual(os.getenv('FOO'), 'foobaz')
-        self.assertEqual(os.environ['FOO'], 'foobaz')
+        self.assertEqual(os.getenv("FOO"), "foobaz")
+        self.assertEqual(os.environ["FOO"], "foobaz")
         self.assertEqual(txt, "  export FOO='foobaz'\n")
 
         # disabling verbose
         self.mock_stdout(True)
-        env.setvar('FOO', 'barfoo', verbose=False)
+        env.setvar("FOO", "barfoo", verbose=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertEqual(os.getenv('FOO'), 'barfoo')
-        self.assertEqual(os.environ['FOO'], 'barfoo')
-        self.assertEqual(txt, '')
+        self.assertEqual(os.getenv("FOO"), "barfoo")
+        self.assertEqual(os.environ["FOO"], "barfoo")
+        self.assertEqual(txt, "")
 
     def test_modify_env(self):
         """Test for modify_env function."""
 
         old_env_vars = {
-            'TEST_ENV_VAR_TO_UNSET1': 'foobar',
-            'TEST_ENV_VAR_TO_UNSET2': 'value does not matter',
-            'TEST_COMMON_ENV_VAR_CHANGED': 'old_value',
-            'TEST_COMMON_ENV_VAR_SAME_VALUE': 'this_value_stays',
+            "TEST_ENV_VAR_TO_UNSET1": "foobar",
+            "TEST_ENV_VAR_TO_UNSET2": "value does not matter",
+            "TEST_COMMON_ENV_VAR_CHANGED": "old_value",
+            "TEST_COMMON_ENV_VAR_SAME_VALUE": "this_value_stays",
         }
         new_env_vars = {
-            'TEST_COMMON_ENV_VAR_CHANGED': 'new_value',
-            'TEST_NEW_ENV_VAR1': '1',
-            'TEST_NEW_ENV_VAR2': 'two 2 two',
-            'TEST_COMMON_ENV_VAR_SAME_VALUE': 'this_value_stays',
+            "TEST_COMMON_ENV_VAR_CHANGED": "new_value",
+            "TEST_NEW_ENV_VAR1": "1",
+            "TEST_NEW_ENV_VAR2": "two 2 two",
+            "TEST_COMMON_ENV_VAR_SAME_VALUE": "this_value_stays",
         }
 
         # prepare test environment first:
@@ -97,12 +97,14 @@ class EnvironmentTest(EnhancedTestCase):
 
         env.modify_env(os.environ, new_env_vars)
 
-        self.assertEqual(os.environ.get('TEST_ENV_VAR_TO_UNSET1'), None)
-        self.assertEqual(os.environ.get('TEST_ENV_VAR_TO_UNSET2'), None)
-        self.assertEqual(os.environ.get('TEST_COMMON_ENV_VAR_CHANGED'), 'new_value')
-        self.assertEqual(os.environ.get('TEST_COMMON_ENV_VAR_SAME_VALUE'), 'this_value_stays')
-        self.assertEqual(os.environ.get('TEST_NEW_ENV_VAR1'), '1')
-        self.assertEqual(os.environ.get('TEST_NEW_ENV_VAR2'), 'two 2 two')
+        self.assertEqual(os.environ.get("TEST_ENV_VAR_TO_UNSET1"), None)
+        self.assertEqual(os.environ.get("TEST_ENV_VAR_TO_UNSET2"), None)
+        self.assertEqual(os.environ.get("TEST_COMMON_ENV_VAR_CHANGED"), "new_value")
+        self.assertEqual(
+            os.environ.get("TEST_COMMON_ENV_VAR_SAME_VALUE"), "this_value_stays"
+        )
+        self.assertEqual(os.environ.get("TEST_NEW_ENV_VAR1"), "1")
+        self.assertEqual(os.environ.get("TEST_NEW_ENV_VAR2"), "two 2 two")
 
         # extreme test case: empty entire environment (original env is restored for next tests)
         env.modify_env(os.environ, {})
@@ -110,24 +112,24 @@ class EnvironmentTest(EnhancedTestCase):
     def test_unset_env_vars(self):
         """Test unset_env_vars function."""
 
-        os.environ['TEST_ENV_VAR'] = 'test123'
+        os.environ["TEST_ENV_VAR"] = "test123"
         # it's fair to assume $HOME will always be set
-        home = os.getenv('HOME')
+        home = os.getenv("HOME")
         self.assertTrue(home)
 
-        key_not_set = 'NO_SUCH_ENV_VAR'
+        key_not_set = "NO_SUCH_ENV_VAR"
         if key_not_set in os.environ:
             del os.environ[key_not_set]
 
-        res = env.unset_env_vars(['HOME', 'NO_SUCH_ENV_VAR', 'TEST_ENV_VAR'])
+        res = env.unset_env_vars(["HOME", "NO_SUCH_ENV_VAR", "TEST_ENV_VAR"])
 
-        self.assertFalse('HOME' in os.environ)
-        self.assertFalse('NO_SUCH_ENV_VAR' in os.environ)
-        self.assertFalse('TEST_ENV_VAR' in os.environ)
+        self.assertFalse("HOME" in os.environ)
+        self.assertFalse("NO_SUCH_ENV_VAR" in os.environ)
+        self.assertFalse("TEST_ENV_VAR" in os.environ)
 
         expected = {
-            'HOME': home,
-            'TEST_ENV_VAR': 'test123',
+            "HOME": home,
+            "TEST_ENV_VAR": "test123",
         }
         self.assertEqual(res, expected)
 
@@ -137,6 +139,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

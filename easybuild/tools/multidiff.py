@@ -50,25 +50,26 @@ RED_BACK = "\033[0;41m"
 END_COLOR = "\033[0m"
 
 # meaning characters in diff context
-HAT = '^'
-MINUS = '-'
-PLUS = '+'
-SPACE = ' '
-QUESTIONMARK = '?'
+HAT = "^"
+MINUS = "-"
+PLUS = "+"
+SPACE = " "
+QUESTIONMARK = "?"
 
-END_LONG_LINE = '...'
+END_LONG_LINE = "..."
 
 # restrict displaying of differences to limited number of groups
 MAX_DIFF_GROUPS = 3
 
 
-_log = fancylogger.getLogger('multidiff', fname=False)
+_log = fancylogger.getLogger("multidiff", fname=False)
 
 
 class MultiDiff(object):
     """
     Class representing a multi-diff.
     """
+
     def __init__(self, base_fn, base_lines, files, colored=True):
         """
         MultiDiff constructor
@@ -93,14 +94,16 @@ class MultiDiff(object):
         # register (diff_line, meta, squigly_line) tuple for specified line number and determined key
         key = diff_line[0]
         if key not in [MINUS, PLUS]:
-            raise EasyBuildError("diff line starts with unexpected character: %s", diff_line)
+            raise EasyBuildError(
+                "diff line starts with unexpected character: %s", diff_line
+            )
         line_key_tuples = self.diff_info.setdefault(line_no, {}).setdefault(key, [])
         line_key_tuples.append((diff_line, meta, squigly_line))
 
     def color_line(self, line, color):
         """Create colored version of given line, with given color, if color mode is enabled."""
         if self.colored:
-            line = ''.join([color, line, END_COLOR])
+            line = "".join([color, line, END_COLOR])
         return line
 
     def merge_squigly(self, squigly1, squigly2):
@@ -114,7 +117,7 @@ class MultiDiff(object):
             if base[i] in [HAT, SPACE] and base[i] != char:
                 base[i] = char
 
-        return ''.join(base)
+        return "".join(base)
 
     def colorize(self, line, squigly):
         """Add colors to the diff line based on the squigly line."""
@@ -123,7 +126,7 @@ class MultiDiff(object):
 
         # must be a list so we can insert stuff
         chars = list(line)
-        flag = ' '
+        flag = " "
         offset = 0
         color_map = {
             HAT: GREEN_BACK if line.startswith(PLUS) else RED_BACK,
@@ -141,10 +144,10 @@ class MultiDiff(object):
                     flag = squigly_char
             chars.insert(len(squigly) + offset, END_COLOR)
         else:
-            chars.insert(0, color_map.get(line[0], ''))
+            chars.insert(0, color_map.get(line[0], ""))
             chars.append(END_COLOR)
 
-        return ''.join(chars)
+        return "".join(chars)
 
     def get_line(self, line_no):
         """
@@ -163,7 +166,9 @@ class MultiDiff(object):
                     if squigly_line:
                         # merge squigly lines
                         if diff_line in squigly_dict:
-                            squigly_line = self.merge_squigly(squigly_line, squigly_dict[diff_line])
+                            squigly_line = self.merge_squigly(
+                                squigly_line, squigly_dict[diff_line]
+                            )
                         squigly_dict[diff_line] = squigly_line
                     lines.add(diff_line)
                     # track meta info (which filenames are relevant)
@@ -172,12 +177,14 @@ class MultiDiff(object):
             # sort lines with most changes last;
             # sort lines with equal number of changes alphabetically to ensure consistent output;
             # limit number to MAX_DIFF_GROUPS
-            lines = sorted(lines, key=lambda line: (len(changes_dict[line]), line))[:MAX_DIFF_GROUPS]
+            lines = sorted(lines, key=lambda line: (len(changes_dict[line]), line))[
+                :MAX_DIFF_GROUPS
+            ]
 
             for diff_line in lines:
 
-                squigly_line = squigly_dict.get(diff_line, '')
-                line = ['%s %s' % (line_no, self.colorize(diff_line, squigly_line))]
+                squigly_line = squigly_dict.get(diff_line, "")
+                line = ["%s %s" % (line_no, self.colorize(diff_line, squigly_line))]
 
                 # mention to how may files this diff applies
                 files = changes_dict[diff_line]
@@ -186,18 +193,18 @@ class MultiDiff(object):
 
                 # list files to which this diff applies (don't list all files)
                 if len(files) != num_files:
-                    line.append(', '.join(files))
+                    line.append(", ".join(files))
 
-                output.append(' '.join(line))
+                output.append(" ".join(line))
 
                 # prepend spaces to match line number length in non-color mode
                 if not self.colored and squigly_line:
-                    prepend = ' ' * (2 + int(math.log10(line_no)))
-                    output.append(''.join([prepend, squigly_line]))
+                    prepend = " " * (2 + int(math.log10(line_no)))
+                    output.append("".join([prepend, squigly_line]))
 
         # print seperator only if needed
         if diff_dict and not self.diff_info.get(line_no + 1, {}):
-            output.extend([' ', '-' * SEP_WIDTH, ' '])
+            output.extend([" ", "-" * SEP_WIDTH, " "])
 
         return output
 
@@ -205,6 +212,7 @@ class MultiDiff(object):
         """
         Create a string representation of this multi-diff
         """
+
         def limit(text, length):
             """Limit text to specified length, terminate color mode and add END_LONG_LINE if trimmed."""
             if len(text) > length:
@@ -219,25 +227,25 @@ class MultiDiff(object):
         _, term_width = det_terminal_size()
 
         base = self.color_line(self.base_fn, PURPLE)
-        filenames = ', '.join(map(os.path.basename, self.files))
+        filenames = ", ".join(map(os.path.basename, self.files))
         output = [
             "Comparing %s with %s" % (base, filenames),
-            '=' * SEP_WIDTH,
+            "=" * SEP_WIDTH,
         ]
 
         diff = False
         for i in range(len(self.base_lines)):
             lines = [line for line in self.get_line(i) if line]
             if lines:
-                output.append('\n'.join([limit(line, term_width) for line in lines]))
+                output.append("\n".join([limit(line, term_width) for line in lines]))
                 diff = True
 
         if not diff:
             output.append("(no diff)")
 
-        output.append('=' * SEP_WIDTH)
+        output.append("=" * SEP_WIDTH)
 
-        return '\n'.join(output)
+        return "\n".join(output)
 
 
 def multidiff(base, files, colored=True):
@@ -249,12 +257,12 @@ def multidiff(base, files, colored=True):
     :return: text with multidiff overview
     """
     differ = difflib.Differ()
-    base_lines = read_file(base).split('\n')
+    base_lines = read_file(base).split("\n")
     mdiff = MultiDiff(os.path.basename(base), base_lines, files, colored=colored)
 
     # use the MultiDiff class to store the information
     for filepath in files:
-        lines = read_file(filepath).split('\n')
+        lines = read_file(filepath).split("\n")
         diff = differ.compare(lines, base_lines)
         filename = os.path.basename(filepath)
 
@@ -289,6 +297,11 @@ def multidiff(base, files, colored=True):
         # construct the multi-diff based on the constructed dict
         for line_no in local_diff:
             for (line, filename) in local_diff[line_no]:
-                mdiff.parse_line(line_no, line.rstrip(), filename, squigly_dict.get(line, '').rstrip())
+                mdiff.parse_line(
+                    line_no,
+                    line.rstrip(),
+                    filename,
+                    squigly_dict.get(line, "").rstrip(),
+                )
 
     return str(mdiff)

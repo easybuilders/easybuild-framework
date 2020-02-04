@@ -38,16 +38,21 @@ TC_CONSTANT_QLOGICMPI = "QLogicMPI"
 
 class QLogicMPI(Mpich2):
     """QLogicMPI MPI class"""
+
     MPI_MODULE_NAME = ["QLogicMPI"]
     MPI_FAMILY = TC_CONSTANT_QLOGICMPI
 
-    MPI_LIBRARY_NAME = 'mpich'
+    MPI_LIBRARY_NAME = "mpich"
 
     # qlogic has separate -m32 / -m64 option to mpicc/.. --> only one
 
     def _set_mpi_compiler_variables(self):
         """Add MPICH_CCC variable to set."""
 
-        self.variables.nappend("MPICH_CCC", str(self.variables['CXX'].get_first()), var_class=CommandFlagList)
+        self.variables.nappend(
+            "MPICH_CCC",
+            str(self.variables["CXX"].get_first()),
+            var_class=CommandFlagList,
+        )
 
         super(QLogicMPI, self)._set_mpi_compiler_variables()

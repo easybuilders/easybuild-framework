@@ -49,7 +49,7 @@ from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.utilities import only_if_module_is_available
 
 
-_log = fancylogger.getLogger('svnrepo', fname=False)
+_log = fancylogger.getLogger("svnrepo", fname=False)
 
 
 # optional Python packages, these might be missing
@@ -58,7 +58,10 @@ _log = fancylogger.getLogger('svnrepo', fname=False)
 # PySVN
 try:
     import pysvn  # @UnusedImport
-    from pysvn import ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
+    from pysvn import (
+        ClientError,
+    )  # IGNORE:E0611 pysvn fails to recognize ClientError is available
+
     HAVE_PYSVN = True
 except ImportError:
     _log.debug("Failed to import pysvn module")
@@ -70,13 +73,15 @@ class SvnRepository(FileRepository):
     Class for svn repositories
     """
 
-    DESCRIPTION = ("An SVN repository. The 1st argument contains the "
-                   "subversion repository location, this can be a directory or an URL. "
-                   "The 2nd argument is a path inside the repository where to save the files.")
+    DESCRIPTION = (
+        "An SVN repository. The 1st argument contains the "
+        "subversion repository location, this can be a directory or an URL. "
+        "The 2nd argument is a path inside the repository where to save the files."
+    )
 
     USABLE = HAVE_PYSVN
 
-    @only_if_module_is_available('pysvn', url='http://pysvn.tigris.org/')
+    @only_if_module_is_available("pysvn", url="http://pysvn.tigris.org/")
     def __init__(self, *args):
         """
         Set self.client to None. Real logic is in setup_repo and create_working_copy
@@ -100,7 +105,9 @@ class SvnRepository(FileRepository):
 
         try:
             if not self.client.is_url(self.repo):
-                raise EasyBuildError("Provided repository %s is not a valid svn url", self.repo)
+                raise EasyBuildError(
+                    "Provided repository %s is not a valid svn url", self.repo
+                )
         except ClientError:
             raise EasyBuildError("Can't connect to svn repository %s", self.repo)
 
@@ -108,7 +115,7 @@ class SvnRepository(FileRepository):
         """
         Create SVN working copy.
         """
-        self.wc = tempfile.mkdtemp(prefix='svn-wc-')
+        self.wc = tempfile.mkdtemp(prefix="svn-wc-")
 
         # check if tmppath exists
         # this will trigger an error if it does not exist
@@ -124,7 +131,9 @@ class SvnRepository(FileRepository):
             raise EasyBuildError("Update in wc %s went wrong", self.wc)
 
         if len(res) == 0:
-            raise EasyBuildError("Update returned empy list (working copy: %s)", self.wc)
+            raise EasyBuildError(
+                "Update returned empy list (working copy: %s)", self.wc
+            )
 
         if res[0].number == -1:
             # revision number of update is -1
@@ -133,7 +142,9 @@ class SvnRepository(FileRepository):
                 res = self.client.checkout(self.repo, self.wc)
                 self.log.debug("Checked out revision %s in %s" % (res.number, self.wc))
             except ClientError as err:
-                raise EasyBuildError("Checkout of path / in working copy %s went wrong: %s", self.wc, err)
+                raise EasyBuildError(
+                    "Checkout of path / in working copy %s went wrong: %s", self.wc, err
+                )
 
     def stage_file(self, path):
         """
@@ -143,7 +154,10 @@ class SvnRepository(FileRepository):
         """
         if self.client and not self.client.status(path)[0].is_versioned:
             # add it to version control
-            self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (path, self.wc, os.getcwd()))
+            self.log.debug(
+                "Going to add %s (working copy: %s, cwd %s)"
+                % (path, self.wc, os.getcwd())
+            )
             self.client.add(path)
 
     def add_easyconfig(self, cfg, name, version, stats, previous_stats):
@@ -157,7 +171,9 @@ class SvnRepository(FileRepository):
         :param previous: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(SvnRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super(SvnRepository, self).add_easyconfig(
+            cfg, name, version, stats, previous_stats
+        )
         self.stage_file(path)
         return path
 
@@ -177,13 +193,20 @@ class SvnRepository(FileRepository):
         """
         Commit working copy to SVN repository
         """
-        tup = (socket.gethostname(), time.strftime("%Y-%m-%d_%H-%M-%S"), getpass.getuser(), msg)
+        tup = (
+            socket.gethostname(),
+            time.strftime("%Y-%m-%d_%H-%M-%S"),
+            getpass.getuser(),
+            msg,
+        )
         completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % tup
 
         try:
             self.client.checkin(self.wc, completemsg, recurse=True)
         except ClientError as err:
-            raise EasyBuildError("Commit from working copy %s (msg: %s) failed: %s", self.wc, msg, err)
+            raise EasyBuildError(
+                "Commit from working copy %s (msg: %s) failed: %s", self.wc, msg, err
+            )
 
     def cleanup(self):
         """

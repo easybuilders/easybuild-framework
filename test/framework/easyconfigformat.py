@@ -29,7 +29,10 @@ Unit tests for easyconfig/format/format.py
 """
 import sys
 
-from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
+from easybuild.framework.easyconfig.format.format import (
+    FORMAT_VERSION_HEADER_TEMPLATE,
+    FORMAT_VERSION_REGEXP,
+)
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
@@ -39,18 +42,20 @@ class EasyConfigFormatTest(EnhancedTestCase):
 
     def test_parser_version_regex(self):
         """Trivial parser test"""
-        version = {'major': 1, 'minor': 0}
+        version = {"major": 1, "minor": 0}
         txt = FORMAT_VERSION_HEADER_TEMPLATE % version
         res = FORMAT_VERSION_REGEXP.search(txt).groupdict()
-        self.assertEqual(version['major'], int(res['major']))
-        self.assertEqual(version['minor'], int(res['minor']))
+        self.assertEqual(version["major"], int(res["major"]))
+        self.assertEqual(version["minor"], int(res["minor"]))
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigFormatTest, sys.argv[1:])
+    return TestLoaderFiltered().loadTestsFromTestCase(
+        EasyConfigFormatTest, sys.argv[1:]
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

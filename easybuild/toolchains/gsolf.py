@@ -35,7 +35,9 @@ from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
+
 class Gsolf(Gsmpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, SpectrumMPI, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'gsolf'
+
+    NAME = "gsolf"
     SUBTOOLCHAIN = [Gsmpi.NAME, Golf.NAME]

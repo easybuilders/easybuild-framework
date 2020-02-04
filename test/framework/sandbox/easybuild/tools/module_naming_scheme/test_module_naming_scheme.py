@@ -36,7 +36,7 @@ from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 class TestModuleNamingScheme(ModuleNamingScheme):
     """Class implementing a simple module naming scheme for testing purposes."""
 
-    REQUIRED_KEYS = ['name', 'version', 'toolchain']
+    REQUIRED_KEYS = ["name", "version", "toolchain"]
 
     def det_full_module_name(self, ec):
         """
@@ -46,24 +46,24 @@ class TestModuleNamingScheme(ModuleNamingScheme):
 
         @return: string with full module name, e.g.: 'gzip/1.5', 'intel/intelmpi/gzip'/1.5'
         """
-        if ec['toolchain']['name'] == 'foss':
-            mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])
-        elif ec['toolchain']['name'] == 'GCC':
-            mod_name = os.path.join('gnu', ec['name'], ec['version'])
-        elif ec['toolchain']['name'] == 'intel':
-            mod_name = os.path.join('intel', 'intelmpi', ec['name'], ec['version'])
+        if ec["toolchain"]["name"] == "foss":
+            mod_name = os.path.join("gnu", "openmpi", ec["name"], ec["version"])
+        elif ec["toolchain"]["name"] == "GCC":
+            mod_name = os.path.join("gnu", ec["name"], ec["version"])
+        elif ec["toolchain"]["name"] == "intel":
+            mod_name = os.path.join("intel", "intelmpi", ec["name"], ec["version"])
         else:
-            mod_name = os.path.join(ec['name'], ec['version'])
+            mod_name = os.path.join(ec["name"], ec["version"])
         return mod_name
 
     def det_module_symlink_paths(self, ec):
         """
         Determine list of paths in which symlinks to module files must be created.
         """
-        return [ec['moduleclass'].upper(), ec['name'].lower()[0]]
+        return [ec["moduleclass"].upper(), ec["name"].lower()[0]]
 
     def is_short_modname_for(self, modname, name):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         """
-        return modname.find('%s' % name) != -1
+        return modname.find("%s" % name) != -1

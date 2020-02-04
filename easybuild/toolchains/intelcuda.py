@@ -38,6 +38,6 @@ class Intelcuda(Iimpic, IntelMKL, IntelFFTW):
     """Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
         Intel Math Kernel Library (MKL), Intel FFTW wrappers and CUDA"""
 
-    NAME = 'intelcuda'
+    NAME = "intelcuda"
 
     SUBTOOLCHAIN = [Iimpic.NAME, Iimklc.NAME]

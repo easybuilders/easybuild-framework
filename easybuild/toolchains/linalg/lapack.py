@@ -32,11 +32,12 @@ Support for LAPACK as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
-TC_CONSTANT_LAPACK = 'LAPACK'
+TC_CONSTANT_LAPACK = "LAPACK"
 
 
 class Lapack(LinAlg):
     """Trivial class, provides LAPACK support."""
-    LAPACK_MODULE_NAME = ['LAPACK']
-    LAPACK_LIB = ['lapack']
+
+    LAPACK_MODULE_NAME = ["LAPACK"]
+    LAPACK_LIB = ["lapack"]
     LAPACK_FAMILY = TC_CONSTANT_LAPACK

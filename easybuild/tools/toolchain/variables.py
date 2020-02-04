@@ -35,16 +35,19 @@ from easybuild.tools.variables import StrList, AbsPathList
 
 class IncludePaths(AbsPathList):
     """Absolute path to directory containing include files"""
-    PREFIX = '-I'
+
+    PREFIX = "-I"
 
 
 class LinkLibraryPaths(AbsPathList):
     """Absolute path to directory containing libraries"""
-    PREFIX = '-L'
+
+    PREFIX = "-L"
 
 
 class FlagList(StrList):
     """Flag list"""
+
     PREFIX = "-"
 
 
@@ -54,6 +57,7 @@ class CommandFlagList(FlagList):
         First of the list has no prefix (i.e. the executable)
         The remainder of the options are considered flags
     """
+
     def _str_self(self):
         """Like a regular flag list, but set first element to original value"""
         tmp_str = [self.str_convert(x) for x in self if self._str_ok(x)]
@@ -64,15 +68,20 @@ class CommandFlagList(FlagList):
 
 class LibraryList(StrList):
     """Link library list"""
+
     PREFIX = "-l"
 
     SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
 
     JOIN_BEGIN_END = True
 
-    def set_packed_linker_options(self, separator=',', separator_begin_end=',', prefix=None, prefix_begin_end=None):
+    def set_packed_linker_options(
+        self, separator=",", separator_begin_end=",", prefix=None, prefix_begin_end=None
+    ):
         """Use packed linker options format"""
-        if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.END, LinkerFlagList):
+        if isinstance(self.BEGIN, LinkerFlagList) and isinstance(
+            self.END, LinkerFlagList
+        ):
             self.log.devel("sanitize: PACKED_LINKER_OPTIONS")
 
             self.BEGIN.PACKED_LINKER_OPTIONS = True
@@ -90,7 +99,13 @@ class LibraryList(StrList):
             if prefix is not None:
                 self.PREFIX = prefix
 
-    def change(self, separator=None, separator_begin_end=None, prefix=None, prefix_begin_end=None):
+    def change(
+        self,
+        separator=None,
+        separator_begin_end=None,
+        prefix=None,
+        prefix_begin_end=None,
+    ):
         """Change prefix and/or separator of base and/or BEGIN/END"""
         if separator is not None:
             self.SEPARATOR = separator
@@ -112,16 +127,17 @@ class LibraryList(StrList):
 
 class CommaStaticLibs(LibraryList):
     """Comma-separated list"""
-    SEPARATOR = ','
 
-    PREFIX = 'lib'
-    SUFFIX = '.a'
+    SEPARATOR = ","
+
+    PREFIX = "lib"
+    SUFFIX = ".a"
 
 
 class LinkerFlagList(StrList):
     """Linker flags"""
 
-    PREFIX = '-Wl,'
+    PREFIX = "-Wl,"
 
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
@@ -142,23 +158,33 @@ class LinkerFlagList(StrList):
                 else:
                     self.insert(idx, toggle_map[name])
             else:
-                raise EasyBuildError("%s name %s not found in map %s", descr, name, toggle_map)
+                raise EasyBuildError(
+                    "%s name %s not found in map %s", descr, name, toggle_map
+                )
 
     def toggle_startgroup(self):
         """Append start group"""
-        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'start', 'toggle_startgroup', idx=None)
+        self._toggle_map(
+            self.LINKER_TOGGLE_START_STOP_GROUP, "start", "toggle_startgroup", idx=None
+        )
 
     def toggle_stopgroup(self):
         """Append stop group"""
-        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'stop', 'toggle_stopgroup', idx=0)
+        self._toggle_map(
+            self.LINKER_TOGGLE_START_STOP_GROUP, "stop", "toggle_stopgroup", idx=0
+        )
 
     def toggle_static(self):
         """Append static linking flags"""
-        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'static', 'toggle_static', idx=0)
+        self._toggle_map(
+            self.LINKER_TOGGLE_STATIC_DYNAMIC, "static", "toggle_static", idx=0
+        )
 
     def toggle_dynamic(self):
         """Append dynamic linking flags"""
-        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic', idx=None)
+        self._toggle_map(
+            self.LINKER_TOGGLE_STATIC_DYNAMIC, "dynamic", "toggle_dynamic", idx=None
+        )
 
     def sanitize(self):
         # TODO: rewrite to avoid changing constants
@@ -170,9 +196,11 @@ class LinkerFlagList(StrList):
             if self.IS_BEGIN and self.SEPARATOR:
                 self.BEGIN = str(self.PREFIX).rstrip(self.SEPARATOR)
             self.PREFIX = None
-            self.log.devel("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s",
-                           self.IS_BEGIN, self.PREFIX, self.BEGIN)
+            self.log.devel(
+                "sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s",
+                self.IS_BEGIN,
+                self.PREFIX,
+                self.BEGIN,
+            )
 
         super(LinkerFlagList, self).sanitize()
-
-

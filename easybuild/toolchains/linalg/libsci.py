@@ -35,12 +35,13 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
-CRAY_LIBSCI_MODULE_NAME = 'cray-libsci'
-TC_CONSTANT_CRAY_LIBSCI = 'CrayLibSci'
+CRAY_LIBSCI_MODULE_NAME = "cray-libsci"
+TC_CONSTANT_CRAY_LIBSCI = "CrayLibSci"
 
 
 class LibSci(LinAlg):
     """Support for Cray's LibSci library, which provides BLAS/LAPACK support."""
+
     # BLAS/LAPACK support
     # via cray-libsci module, which gets loaded via the PrgEnv module
     # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
@@ -48,8 +49,8 @@ class LibSci(LinAlg):
 
     # no need to specify libraries, compiler driver takes care of linking the right libraries
     # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
-    BLAS_LIB = ['']
-    BLAS_LIB_MT = ['']
+    BLAS_LIB = [""]
+    BLAS_LIB_MT = [""]
     BLAS_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     LAPACK_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]
@@ -61,14 +62,18 @@ class LibSci(LinAlg):
 
     def _get_software_root(self, name):
         """Get install prefix for specified software name; special treatment for Cray modules."""
-        if name == 'cray-libsci':
+        if name == "cray-libsci":
             # Cray-provided LibSci module
-            env_var = 'CRAY_LIBSCI_PREFIX_DIR'
+            env_var = "CRAY_LIBSCI_PREFIX_DIR"
             root = os.getenv(env_var, None)
             if root is None:
-                raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
+                raise EasyBuildError(
+                    "Failed to determine install prefix for %s via $%s", name, env_var
+                )
             else:
-                self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
+                self.log.debug(
+                    "Obtained install prefix for %s via $%s: %s", name, env_var, root
+                )
         else:
             root = super(LibSci, self)._get_software_root(name)
 
@@ -89,6 +94,6 @@ class LibSci(LinAlg):
         and thus is not a direct toolchain component.
         """
         tc_def = super(LibSci, self).definition()
-        tc_def['BLAS'] = []
-        tc_def['LAPACK'] = []
+        tc_def["BLAS"] = []
+        tc_def["LAPACK"] = []
         return tc_def

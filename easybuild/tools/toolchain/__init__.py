@@ -29,4 +29,7 @@ Declaration of tools.toolchain namespace.
 :author: Kenneth Hoste (Ghent University)
 """
 import os
-__path__ = __import__('pkgutil').extend_path([os.path.abspath(p) for p in __path__], __name__)
+
+__path__ = __import__("pkgutil").extend_path(
+    [os.path.abspath(p) for p in __path__], __name__
+)

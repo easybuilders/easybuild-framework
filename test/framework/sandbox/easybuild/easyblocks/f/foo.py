@@ -41,8 +41,12 @@ class EB_foo(EasyBlock):
         if more_extra_vars is None:
             more_extra_vars = {}
         extra_vars = {
-            'foo_extra1': [None, "first foo-specific easyconfig parameter (mandatory)", MANDATORY],
-            'foo_extra2': ['FOO', "second foo-specific easyconfig parameter", CUSTOM],
+            "foo_extra1": [
+                None,
+                "first foo-specific easyconfig parameter (mandatory)",
+                MANDATORY,
+            ],
+            "foo_extra2": ["FOO", "second foo-specific easyconfig parameter", CUSTOM],
         }
         extra_vars.update(more_extra_vars)
         return EasyBlock.extra_options(extra_vars)

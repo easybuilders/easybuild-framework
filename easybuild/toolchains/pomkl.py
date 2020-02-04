@@ -42,5 +42,6 @@ class Pomkl(Pompi, IntelMKL, IntelFFTW):
     Compiler toolchain with PGI compilers, OpenMPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'pomkl'
+
+    NAME = "pomkl"
     SUBTOOLCHAIN = [Pompi.NAME, Pmkl.NAME]

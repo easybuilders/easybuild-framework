@@ -40,10 +40,11 @@ TC_CONSTANT_INTELMPI = "IntelMPI"
 
 class IntelMPI(Mpich2):
     """Intel MPI class"""
-    MPI_MODULE_NAME = ['impi']
+
+    MPI_MODULE_NAME = ["impi"]
     MPI_FAMILY = TC_CONSTANT_INTELMPI
 
-    MPI_LIBRARY_NAME = 'mpi'
+    MPI_LIBRARY_NAME = "mpi"
 
     # echo "   1. Command line option:  -cc=<compiler_name>"
     # echo "   2. Environment variable: I_MPI_CC (current value '$I_MPI_CC')"
@@ -55,25 +56,29 @@ class IntelMPI(Mpich2):
         """Add I_MPI_XXX variables to set."""
 
         if self.comp_family() == toolchain.INTELCOMP:
-            self.MPI_COMPILER_MPICC = 'mpiicc'
-            self.MPI_COMPILER_MPICXX = 'mpiicpc'
-            self.MPI_COMPILER_MPIF77 = 'mpiifort'
-            self.MPI_COMPILER_MPIF90 = 'mpiifort'
-            self.MPI_COMPILER_MPIFC = 'mpiifort'
+            self.MPI_COMPILER_MPICC = "mpiicc"
+            self.MPI_COMPILER_MPICXX = "mpiicpc"
+            self.MPI_COMPILER_MPIF77 = "mpiifort"
+            self.MPI_COMPILER_MPIF90 = "mpiifort"
+            self.MPI_COMPILER_MPIFC = "mpiifort"
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:
-            self.variables.nappend('I_MPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+            self.variables.nappend(
+                "I_MPI_%s" % var,
+                str(self.variables[var].get_first()),
+                var_class=CommandFlagList,
+            )
 
         super(IntelMPI, self)._set_mpi_compiler_variables()
 
-    MPI_LINK_INFO_OPTION = '-show'
+    MPI_LINK_INFO_OPTION = "-show"
 
     def set_variables(self):
         """Intel MPI-specific updates to variables."""
         super(IntelMPI, self).set_variables()
         # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
-        if self.options.get('openmp', None) and self.options.get('usempi', None):
-            mt_mpi_option = ['mt_mpi']
+        if self.options.get("openmp", None) and self.options.get("usempi", None):
+            mt_mpi_option = ["mt_mpi"]
             for flags_var, _ in COMPILER_FLAGS:
                 self.variables.nappend(flags_var, mt_mpi_option)

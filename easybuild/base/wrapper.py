@@ -13,10 +13,10 @@ class WrapperMeta(type):
     """Metaclass for type wrappers."""
 
     def __init__(cls, name, bases, dct):
-
         def make_proxy(name):
             def proxy(self, *args):  # pylint:disable=unused-argument
                 return getattr(self._obj, name)
+
             return proxy
 
         # create proxies for wrapped object's double-underscore attributes
@@ -33,6 +33,7 @@ class Wrapper(mk_wrapper_baseclass(WrapperMeta)):
     """
     Wrapper class that provides proxy access to an instance of some internal instance.
     """
+
     __wraps__ = None
     __ignore__ = "class mro new init setattr getattr getattribute"
 

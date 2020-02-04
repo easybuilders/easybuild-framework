@@ -43,21 +43,23 @@ class AsyncProcessTest(EnhancedTestCase):
     def setUp(self):
         """ setup a basic shell """
         super(AsyncProcessTest, self).setUp()
-        self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
+        self.shell = Popen(
+            "sh", stdin=p.PIPE, stdout=p.PIPE, shell=True, executable="/bin/bash"
+        )
 
     def runTest(self):
         """ try echoing some text and see if it comes back out """
         p.send_all(self.shell, "echo hello\n")
         time.sleep(0.1)
-        self.assertEqual(p.recv_some(self.shell), b'hello\n')
+        self.assertEqual(p.recv_some(self.shell), b"hello\n")
 
         p.send_all(self.shell, "echo hello world\n")
         time.sleep(0.1)
-        self.assertEqual(p.recv_some(self.shell), b'hello world\n')
+        self.assertEqual(p.recv_some(self.shell), b"hello world\n")
 
         p.send_all(self.shell, "exit\n")
         time.sleep(0.1)
-        self.assertEqual(b'', p.recv_some(self.shell, e=0))
+        self.assertEqual(b"", p.recv_some(self.shell, e=0))
         self.assertRaises(Exception, p.recv_some, self.shell)
 
     def tearDown(self):
@@ -70,6 +72,6 @@ def suite():
     return TestSuite([AsyncProcessTest()])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

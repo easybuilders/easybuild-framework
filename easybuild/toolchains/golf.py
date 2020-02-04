@@ -36,6 +36,7 @@ from easybuild.toolchains.linalg.openblas import OpenBLAS
 
 class Golf(GccToolchain, OpenBLAS, Fftw):
     """Compiler toolchain with GCC, OpenBLAS, and FFTW."""
-    NAME = 'golf'
+
+    NAME = "golf"
     SUBTOOLCHAIN = GccToolchain.NAME
     OPTIONAL = True

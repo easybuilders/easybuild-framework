@@ -33,5 +33,6 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class CrayPGI(CrayPEPGI, CrayMPICH):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (PGI) (PrgEnv-pgi)."""
-    NAME = 'CrayPGI'
+
+    NAME = "CrayPGI"
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

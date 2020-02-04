@@ -41,5 +41,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Gmpolf(Gmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'gmpolf'
+
+    NAME = "gmpolf"
     SUBTOOLCHAIN = [Gmpich.NAME, Golf.NAME]

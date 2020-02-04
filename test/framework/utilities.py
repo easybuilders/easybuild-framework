@@ -62,20 +62,20 @@ from easybuild.tools.py2vs3 import reload
 
 # clean up environment from unwanted $EASYBUILD_X env vars
 for key in os.environ.keys():
-    if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
+    if key.startswith("%s_" % CONFIG_ENV_VAR_PREFIX):
         del os.environ[key]
 
 # ignore any existing configuration files
 go = EasyBuildOptions(go_useconfigfiles=False)
-os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
+os.environ["EASYBUILD_IGNORECONFIGFILES"] = ",".join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
-test_env_var_prefix = 'TEST_EASYBUILD_'
+test_env_var_prefix = "TEST_EASYBUILD_"
 for key in os.environ.keys():
     if key.startswith(test_env_var_prefix):
         val = os.environ[key]
         del os.environ[key]
-        newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
+        newkey = "%s_%s" % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix) :])
         os.environ[newkey] = val
 
 
@@ -101,7 +101,7 @@ class EnhancedTestCase(TestCase):
         self.test_prefix = set_tmpdir()
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        fd, self.logfile = tempfile.mkstemp(suffix=".log", prefix="eb-test-")
         os.close(fd)
         self.cwd = os.getcwd()
 
@@ -113,25 +113,28 @@ class EnhancedTestCase(TestCase):
 
         testdir = os.path.dirname(os.path.abspath(__file__))
 
-        self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
-        os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
-        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
+        self.test_sourcepath = os.path.join(testdir, "sandbox", "sources")
+        os.environ["EASYBUILD_SOURCEPATH"] = self.test_sourcepath
+        os.environ["EASYBUILD_PREFIX"] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
-        os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
+        os.environ["EASYBUILD_BUILDPATH"] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
-        os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
+        os.environ["EASYBUILD_INSTALLPATH"] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
+        os.environ["EASYBUILD_ROBOT_PATHS"] = os.path.join(
+            testdir, "easyconfigs", "test_ecs"
+        )
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
         self.orig_current_version = eb_build_log.CURRENT_VERSION
-        os.environ['EASYBUILD_DEPRECATED'] = '10000000'
+        os.environ["EASYBUILD_DEPRECATED"] = "10000000"
 
         init_config()
 
         import easybuild
+
         # try to import easybuild.easyblocks(.generic) packages
         # it's OK if it fails here, but important to import first before fiddling with sys.path
         try:
@@ -141,7 +144,7 @@ class EnhancedTestCase(TestCase):
             pass
 
         # add sandbox to Python search path, update namespace packages
-        sys.path.append(os.path.join(testdir, 'sandbox'))
+        sys.path.append(os.path.join(testdir, "sandbox"))
 
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
         # this relates to the other 'reload' statements below
@@ -153,20 +156,26 @@ class EnhancedTestCase(TestCase):
 
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
         for path in sys.path[:]:
-            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                if not os.path.samefile(path, os.path.join(testdir, 'sandbox')):
+            if os.path.exists(
+                os.path.join(path, "easybuild", "easyblocks", "__init__.py")
+            ):
+                if not os.path.samefile(path, os.path.join(testdir, "sandbox")):
                     sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
-        easybuild.__path__.insert(0, os.path.join(testdir, 'sandbox', 'easybuild'))
+        easybuild.__path__.insert(0, os.path.join(testdir, "sandbox", "easybuild"))
         import easybuild.easyblocks
-        test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        test_easyblocks_path = os.path.join(
+            testdir, "sandbox", "easybuild", "easyblocks"
+        )
         easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
         reload(easybuild.easyblocks)
 
         import easybuild.easyblocks.generic
-        test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
+
+        test_easyblocks_path = os.path.join(test_easyblocks_path, "generic")
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
         reload(easybuild.easyblocks.generic)
 
@@ -174,17 +183,17 @@ class EnhancedTestCase(TestCase):
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
         # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/1685
-        self.env_path = os.environ.get('PATH')
-        self.env_pythonpath = os.environ.get('PYTHONPATH')
+        self.env_path = os.environ.get("PATH")
+        self.env_pythonpath = os.environ.get("PYTHONPATH")
 
         self.modtool = modules_tool()
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
+        self.reset_modulepath([os.path.join(testdir, "modules")])
         reset_module_caches()
 
     def allow_deprecated_behaviour(self):
         """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
-        if 'EASYBUILD_DEPRECATED' in os.environ:
-            del os.environ['EASYBUILD_DEPRECATED']
+        if "EASYBUILD_DEPRECATED" in os.environ:
+            del os.environ["EASYBUILD_DEPRECATED"]
         eb_build_log.CURRENT_VERSION = self.orig_current_version
 
     def tearDown(self):
@@ -204,8 +213,10 @@ class EnhancedTestCase(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
         import easybuild.easyblocks
+
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
+
         reload(easybuild.easyblocks.generic)
 
         # remove any log handlers that were added (so that log files can be effectively removed)
@@ -222,7 +233,7 @@ class EnhancedTestCase(TestCase):
             pass
 
         # restore original 'parent' tmpdir
-        for var in ['TMPDIR', 'TEMP', 'TMP']:
+        for var in ["TMPDIR", "TEMP", "TMP"]:
             os.environ[var] = self.orig_tmpdir
 
         # reset to make sure tempfile picks up new temporary directory to use
@@ -233,9 +244,9 @@ class EnhancedTestCase(TestCase):
         Restore $PATH & $PYTHONPATH in environment using saved values.
         """
         if self.env_path is not None:
-            os.environ['PATH'] = self.env_path
+            os.environ["PATH"] = self.env_path
         if self.env_pythonpath is not None:
-            os.environ['PYTHONPATH'] = self.env_pythonpath
+            os.environ["PYTHONPATH"] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
@@ -244,14 +255,25 @@ class EnhancedTestCase(TestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        if 'MODULEPATH' in os.environ:
-            del os.environ['MODULEPATH']
+        if "MODULEPATH" in os.environ:
+            del os.environ["MODULEPATH"]
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()
 
-    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True):
+    def eb_main(
+        self,
+        args,
+        do_build=False,
+        return_error=False,
+        logfile=None,
+        verbose=False,
+        raise_error=False,
+        reset_env=True,
+        raise_systemexit=False,
+        testing=True,
+        redo_init_config=True,
+    ):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -260,14 +282,20 @@ class EnhancedTestCase(TestCase):
             logfile = self.logfile
         # clear log file
         if logfile:
-            f = open(logfile, 'w')
-            f.write('')
+            f = open(logfile, "w")
+            f.write("")
             f.close()
 
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
+            main(
+                args=args,
+                logfile=logfile,
+                do_build=do_build,
+                testing=testing,
+                modtool=self.modtool,
+            )
         except SystemExit as err:
             if raise_systemexit:
                 raise err
@@ -303,77 +331,108 @@ class EnhancedTestCase(TestCase):
 
     def setup_hierarchical_modules(self):
         """Setup hierarchical modules to run tests on."""
-        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        mod_prefix = os.path.join(self.test_installpath, "modules", "all")
 
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
-        for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
+        for mod_subdir in ["Core", "Compiler", "MPI"]:
+            src_mod_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "modules", mod_subdir
+            )
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
         # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        self.reset_modulepath([mod_prefix, os.path.join(mod_prefix, 'Core')])
+        self.reset_modulepath([mod_prefix, os.path.join(mod_prefix, "Core")])
 
         # tweak use statements in modules to ensure correct paths
-        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
+        mpi_pref = os.path.join(
+            mod_prefix, "MPI", "GCC", "6.4.0-2.28", "OpenMPI", "2.1.2"
+        )
         for modfile in [
-            os.path.join(mod_prefix, 'Core', 'GCC', '6.4.0-2.28'),
-            os.path.join(mod_prefix, 'Core', 'GCC', '4.9.3-2.25'),
-            os.path.join(mod_prefix, 'Core', 'icc', '2016.1.150-GCC-4.9.3-2.25'),
-            os.path.join(mod_prefix, 'Core', 'ifort', '2016.1.150-GCC-4.9.3-2.25'),
-            os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
-            os.path.join(mod_prefix, 'Compiler', 'intel', '2016.1.150-GCC-4.9.3-2.25', 'impi', '5.1.2.150'),
-            os.path.join(mpi_pref, 'FFTW', '3.3.7'),
-            os.path.join(mpi_pref, 'OpenBLAS', '0.2.20'),
-            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.20'),
+            os.path.join(mod_prefix, "Core", "GCC", "6.4.0-2.28"),
+            os.path.join(mod_prefix, "Core", "GCC", "4.9.3-2.25"),
+            os.path.join(mod_prefix, "Core", "icc", "2016.1.150-GCC-4.9.3-2.25"),
+            os.path.join(mod_prefix, "Core", "ifort", "2016.1.150-GCC-4.9.3-2.25"),
+            os.path.join(
+                mod_prefix, "Compiler", "GCC", "6.4.0-2.28", "OpenMPI", "2.1.2"
+            ),
+            os.path.join(
+                mod_prefix,
+                "Compiler",
+                "intel",
+                "2016.1.150-GCC-4.9.3-2.25",
+                "impi",
+                "5.1.2.150",
+            ),
+            os.path.join(mpi_pref, "FFTW", "3.3.7"),
+            os.path.join(mpi_pref, "OpenBLAS", "0.2.20"),
+            os.path.join(mpi_pref, "ScaLAPACK", "2.0.2-OpenBLAS-0.2.20"),
         ]:
             for line in fileinput.input(modfile, inplace=1):
-                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
-                              r"\1%s/modules/all" % self.test_installpath,
-                              line)
+                line = re.sub(
+                    r"(module\s*use\s*)/tmp/modules/all",
+                    r"\1%s/modules/all" % self.test_installpath,
+                    line,
+                )
                 sys.stdout.write(line)
 
         # make sure paths for 'module use' commands exist; required for modulecmd
         mod_subdirs = [
-            os.path.join('Compiler', 'GCC', '6.4.0-2.28'),
-            os.path.join('Compiler', 'GCC', '4.9.3-2.25'),
-            os.path.join('Compiler', 'intel', '2016.1.150-GCC-4.9.3-2.25'),
-            os.path.join('MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'),
-            os.path.join('MPI', 'intel', '2016.1.150-GCC-4.9.3-2.25', 'impi', '5.1.2.150'),
+            os.path.join("Compiler", "GCC", "6.4.0-2.28"),
+            os.path.join("Compiler", "GCC", "4.9.3-2.25"),
+            os.path.join("Compiler", "intel", "2016.1.150-GCC-4.9.3-2.25"),
+            os.path.join("MPI", "GCC", "6.4.0-2.28", "OpenMPI", "2.1.2"),
+            os.path.join(
+                "MPI", "intel", "2016.1.150-GCC-4.9.3-2.25", "impi", "5.1.2.150"
+            ),
         ]
         for mod_subdir in mod_subdirs:
             mkdir(os.path.join(mod_prefix, mod_subdir), parents=True)
 
     def setup_categorized_hmns_modules(self):
         """Setup categorized hierarchical modules to run tests on."""
-        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        mod_prefix = os.path.join(self.test_installpath, "modules", "all")
 
         # simply copy module files under 'CategorizedHMNS/{Core,Compiler,MPI}' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
-        for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                        'modules', 'CategorizedHMNS', mod_subdir)
+        for mod_subdir in ["Core", "Compiler", "MPI"]:
+            src_mod_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "modules",
+                "CategorizedHMNS",
+                mod_subdir,
+            )
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make C/Tcl modules happy
-        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
-        mkdir(os.path.join(mpi_pref, 'base'))
+        mpi_pref = os.path.join(
+            mod_prefix, "MPI", "GCC", "6.4.0-2.28", "OpenMPI", "2.1.2"
+        )
+        mkdir(os.path.join(mpi_pref, "base"))
 
         # make sure only modules in the CategorizedHMNS are available
-        self.reset_modulepath([os.path.join(mod_prefix, 'Core', 'compiler'),
-                               os.path.join(mod_prefix, 'Core', 'toolchain')])
+        self.reset_modulepath(
+            [
+                os.path.join(mod_prefix, "Core", "compiler"),
+                os.path.join(mod_prefix, "Core", "toolchain"),
+            ]
+        )
 
         # tweak use statements in modules to ensure correct paths
         for modfile in [
-            os.path.join(mod_prefix, 'Core', 'compiler', 'GCC', '6.4.0-2.28'),
-            os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'mpi', 'OpenMPI', '2.1.2'),
+            os.path.join(mod_prefix, "Core", "compiler", "GCC", "6.4.0-2.28"),
+            os.path.join(
+                mod_prefix, "Compiler", "GCC", "6.4.0-2.28", "mpi", "OpenMPI", "2.1.2"
+            ),
         ]:
             for line in fileinput.input(modfile, inplace=1):
-                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
-                              r"\1%s/modules/all" % self.test_installpath,
-                              line)
+                line = re.sub(
+                    r"(module\s*use\s*)/tmp/modules/all",
+                    r"\1%s/modules/all" % self.test_installpath,
+                    line,
+                )
                 sys.stdout.write(line)
 
 
@@ -391,13 +450,21 @@ class TestLoaderFiltered(unittest.TestLoader):
                 if any(filt in test_case_name for filt in filters):
                     retained_test_names.append(test_case_name)
 
-            retained_tests = ', '.join(retained_test_names)
-            tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
+            retained_tests = ", ".join(retained_test_names)
+            tup = (
+                test_case_class.__name__,
+                "|".join(filters),
+                len(retained_test_names),
+                test_cnt,
+                retained_tests,
+            )
             print("Filtered %s tests using '%s', retained %d/%d tests: %s" % tup)
 
             test_cases = [test_case_class(t) for t in retained_test_names]
         else:
-            test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
+            test_cases = [
+                test_case_class(test_case_name) for test_case_name in test_case_names
+            ]
 
         return self.suiteClass(test_cases)
 
@@ -425,20 +492,20 @@ def init_config(args=None, build_options=None, with_include=True):
 
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    config.init(eb_go.options, eb_go.get_options_by_section("config"))
 
     # initialize build options
     if build_options is None:
         build_options = {}
 
     default_build_options = {
-        'extended_dry_run': False,
-        'external_modules_metadata': ConfigObj(),
-        'local_var_naming_check': 'error',
-        'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
-        'suffix_modules_path': GENERAL_CLASS,
-        'valid_module_classes': module_classes(),
-        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
+        "extended_dry_run": False,
+        "external_modules_metadata": ConfigObj(),
+        "local_var_naming_check": "error",
+        "silence_deprecation_warnings": eb_go.options.silence_deprecation_warnings,
+        "suffix_modules_path": GENERAL_CLASS,
+        "valid_module_classes": module_classes(),
+        "valid_stops": [x[0] for x in EasyBlock.get_steps()],
     }
     for key in default_build_options:
         if key not in build_options:
@@ -457,9 +524,9 @@ def find_full_path(base_path, trim=(lambda x: x)):
 
     full_path = None
 
-    pythonpath = os.getenv('PYTHONPATH')
+    pythonpath = os.getenv("PYTHONPATH")
     if pythonpath:
-        pythonpath = pythonpath.split(':')
+        pythonpath = pythonpath.split(":")
     else:
         pythonpath = []
     for path in sys.path + pythonpath:

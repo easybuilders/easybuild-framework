@@ -33,11 +33,14 @@ from distutils.util import strtobool
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
-from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.framework.easyconfig.format.format import (
+    SANITY_CHECK_PATHS_DIRS,
+    SANITY_CHECK_PATHS_FILES,
+)
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import string_type
 
-_log = fancylogger.getLogger('easyconfig.types', fname=False)
+_log = fancylogger.getLogger("easyconfig.types", fname=False)
 
 
 def as_hashable(dict_value):
@@ -65,8 +68,11 @@ def check_element_types(elems, allowed_types):
         if isinstance(allowed_types, (list, tuple)):
             elems_and_allowed_types = [(elem, allowed_types) for elem in elems]
         else:
-            raise EasyBuildError("Don't know how to combine value of type %s with allowed types of type %s",
-                                 type(elems), type(allowed_types))
+            raise EasyBuildError(
+                "Don't know how to combine value of type %s with allowed types of type %s",
+                type(elems),
+                type(allowed_types),
+            )
     elif isinstance(elems, dict):
         # allowed_types can be a tuple representation of a dict, or a flat list of types
 
@@ -87,9 +93,15 @@ def check_element_types(elems, allowed_types):
                     # if key has no known allowed types, use empty list of allowed types to yield False check result
                     elems_and_allowed_types.append((val, []))
         else:
-            raise EasyBuildError("Unknown type of allowed types specification: %s", type(allowed_types))
+            raise EasyBuildError(
+                "Unknown type of allowed types specification: %s", type(allowed_types)
+            )
     else:
-        raise EasyBuildError("Don't know how to check element types for value of type %s: %s", type(elems), elems)
+        raise EasyBuildError(
+            "Don't know how to check element types for value of type %s: %s",
+            type(elems),
+            elems,
+        )
 
     # check whether all element types are allowed types
     res = True
@@ -106,7 +118,11 @@ def check_key_types(val, allowed_types):
         for key in val.keys():
             res &= any(is_value_of_type(key, t) for t in allowed_types)
     else:
-        _log.debug("Specified value %s (type: %s) is not a dict, so key types check failed", val, type(val))
+        _log.debug(
+            "Specified value %s (type: %s) is not a dict, so key types check failed",
+            val,
+            type(val),
+        )
         res = False
 
     return res
@@ -117,7 +133,11 @@ def check_known_keys(val, allowed_keys):
     if isinstance(val, dict):
         res = all(key in allowed_keys for key in val.keys())
     else:
-        _log.debug("Specified value %s (type: %s) is not a dict, so known keys check failed", val, type(val))
+        _log.debug(
+            "Specified value %s (type: %s) is not a dict, so known keys check failed",
+            val,
+            type(val),
+        )
         res = False
     return res
 
@@ -128,7 +148,11 @@ def check_required_keys(val, required_keys):
         keys = val.keys()
         res = all(key in keys for key in required_keys)
     else:
-        _log.debug("Specified value %s (type: %s) is not a dict, so known keys check failed", val, type(val))
+        _log.debug(
+            "Specified value %s (type: %s) is not a dict, so known keys check failed",
+            val,
+            type(val),
+        )
         res = False
     return res
 
@@ -155,35 +179,67 @@ def is_value_of_type(value, expected_type):
         # first step: check parent type
         type_ok = isinstance(value, parent_type)
         if type_ok:
-            _log.debug("Parent type of value %s matches %s, going in...", value, parent_type)
+            _log.debug(
+                "Parent type of value %s matches %s, going in...", value, parent_type
+            )
             # second step: check additional type requirements
             extra_req_checkers = {
-                'elem_types': lambda val: check_element_types(val, extra_reqs['elem_types']),
+                "elem_types": lambda val: check_element_types(
+                    val, extra_reqs["elem_types"]
+                ),
             }
             if parent_type == dict:
-                extra_req_checkers.update({
-                    'key_types': lambda val: check_key_types(val, extra_reqs['key_types']),
-                    'opt_keys': lambda val: check_known_keys(val, extra_reqs['opt_keys'] + extra_reqs['req_keys']),
-                    'req_keys': lambda val: check_required_keys(val, extra_reqs['req_keys']),
-                })
+                extra_req_checkers.update(
+                    {
+                        "key_types": lambda val: check_key_types(
+                            val, extra_reqs["key_types"]
+                        ),
+                        "opt_keys": lambda val: check_known_keys(
+                            val, extra_reqs["opt_keys"] + extra_reqs["req_keys"]
+                        ),
+                        "req_keys": lambda val: check_required_keys(
+                            val, extra_reqs["req_keys"]
+                        ),
+                    }
+                )
 
             for er_key in extra_reqs:
                 if er_key in extra_req_checkers:
                     check_ok = extra_req_checkers[er_key](value)
-                    msg = ('FAILED', 'passed')[check_ok]
+                    msg = ("FAILED", "passed")[check_ok]
                     type_ok &= check_ok
-                    _log.debug("Check for %s requirement (%s) %s for %s", er_key, extra_reqs[er_key], msg, value)
+                    _log.debug(
+                        "Check for %s requirement (%s) %s for %s",
+                        er_key,
+                        extra_reqs[er_key],
+                        msg,
+                        value,
+                    )
                 else:
-                    raise EasyBuildError("Unknown type requirement specified: %s", er_key)
+                    raise EasyBuildError(
+                        "Unknown type requirement specified: %s", er_key
+                    )
 
-            msg = ('FAILED', 'passed')[type_ok]
-            _log.debug("Non-trivial value type checking of easyconfig value '%s': %s", value, msg)
+            msg = ("FAILED", "passed")[type_ok]
+            _log.debug(
+                "Non-trivial value type checking of easyconfig value '%s': %s",
+                value,
+                msg,
+            )
 
         else:
-            _log.debug("Parent type of value %s doesn't match %s: %s", value, parent_type, type(value))
+            _log.debug(
+                "Parent type of value %s doesn't match %s: %s",
+                value,
+                parent_type,
+                type(value),
+            )
 
     else:
-        raise EasyBuildError("Don't know how to check whether specified value is of type %s", expected_type)
+        raise EasyBuildError(
+            "Don't know how to check whether specified value is of type %s",
+            expected_type,
+        )
 
     return type_ok
 
@@ -201,7 +257,10 @@ def check_type_of_param_value(key, val, auto_convert=False):
 
     # check value type
     if expected_type is None:
-        _log.debug("No type specified for easyconfig parameter '%s', so skipping type check.", key)
+        _log.debug(
+            "No type specified for easyconfig parameter '%s', so skipping type check.",
+            key,
+        )
         type_ok = True
 
     else:
@@ -212,13 +271,19 @@ def check_type_of_param_value(key, val, auto_convert=False):
         _log.debug("Value type check passed for %s parameter value: %s", key, val)
         newval = val
     elif auto_convert:
-        _log.debug("Value type check for %s parameter value failed, going to try to automatically convert to %s",
-                   key, expected_type)
+        _log.debug(
+            "Value type check for %s parameter value failed, going to try to automatically convert to %s",
+            key,
+            expected_type,
+        )
         # convert_value_type will raise an error if the conversion fails
         newval = convert_value_type(val, expected_type)
         type_ok = True
     else:
-        _log.debug("Value type check for %s parameter value failed, auto-conversion of type not enabled", key)
+        _log.debug(
+            "Value type check for %s parameter value failed, auto-conversion of type not enabled",
+            key,
+        )
 
     return type_ok, newval
 
@@ -233,27 +298,55 @@ def convert_value_type(val, typ):
     res = None
 
     if typ in EASY_TYPES and isinstance(val, typ):
-        _log.debug("Value %s is already of specified target type %s, no conversion needed", val, typ)
+        _log.debug(
+            "Value %s is already of specified target type %s, no conversion needed",
+            val,
+            typ,
+        )
         res = val
 
     elif typ in CHECKABLE_TYPES and is_value_of_type(val, typ):
-        _log.debug("Value %s is already of specified non-trivial target type %s, no conversion needed", val, typ)
+        _log.debug(
+            "Value %s is already of specified non-trivial target type %s, no conversion needed",
+            val,
+            typ,
+        )
         res = val
 
     elif typ in TYPE_CONVERSION_FUNCTIONS:
         func = TYPE_CONVERSION_FUNCTIONS[typ]
-        _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
+        _log.debug(
+            "Trying to convert value %s (type: %s) to %s using %s",
+            val,
+            type(val),
+            typ,
+            func,
+        )
         try:
             res = func(val)
             _log.debug("Type conversion seems to have worked, new type: %s", type(res))
         except Exception as err:
-            raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s", val, type(val), typ, func, err)
+            raise EasyBuildError(
+                "Converting type of %s (%s) to %s using %s failed: %s",
+                val,
+                type(val),
+                typ,
+                func,
+                err,
+            )
 
         if not isinstance(res, typ):
-            raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s", val, typ, type(res))
+            raise EasyBuildError(
+                "Converting value %s to type %s didn't work as expected: got %s",
+                val,
+                typ,
+                type(res),
+            )
 
     else:
-        raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
+        raise EasyBuildError(
+            "No conversion function available (yet) for target type %s", typ
+        )
 
     return res
 
@@ -271,36 +364,53 @@ def to_toolchain_dict(spec):
     """
     # check if spec is a string or a list of two values; else, it can not be converted
     if isinstance(spec, string_type):
-        spec = spec.split(',')
+        spec = spec.split(",")
 
     if isinstance(spec, (list, tuple)):
         # 2-element list
         if len(spec) == 2:
-            res = {'name': spec[0].strip(), 'version': spec[1].strip()}
+            res = {"name": spec[0].strip(), "version": spec[1].strip()}
         # 3-element list
         elif len(spec) == 3:
-            res = {'name': spec[0].strip(), 'version': spec[1].strip(), 'hidden': strtobool(spec[2].strip())}
+            res = {
+                "name": spec[0].strip(),
+                "version": spec[1].strip(),
+                "hidden": strtobool(spec[2].strip()),
+            }
         else:
-            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 or 3 elements", spec)
+            raise EasyBuildError(
+                "Can not convert list %s to toolchain dict. Expected 2 or 3 elements",
+                spec,
+            )
 
     elif isinstance(spec, dict):
         # already a dict, check keys
         sorted_keys = sorted(spec.keys())
-        if sorted_keys == ['name', 'version'] or sorted_keys == ['hidden', 'name', 'version']:
+        if sorted_keys == ["name", "version"] or sorted_keys == [
+            "hidden",
+            "name",
+            "version",
+        ]:
             res = spec
         else:
-            raise EasyBuildError("Incorrect set of keys in provided dictionary, should be only name/version/hidden: %s",
-                                 spec)
+            raise EasyBuildError(
+                "Incorrect set of keys in provided dictionary, should be only name/version/hidden: %s",
+                spec,
+            )
 
     else:
-        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", spec, type(spec))
+        raise EasyBuildError(
+            "Conversion of %s (type %s) to toolchain dict is not supported",
+            spec,
+            type(spec),
+        )
 
     return res
 
 
 def to_name_version_dict(spec):
     """No longer supported, replaced by to_toolchain_dict."""
-    _log.nosupport("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
+    _log.nosupport("to_name_version_dict; use to_toolchain_dict instead.", "3.0")
 
 
 def to_list_of_strings(value):
@@ -319,7 +429,9 @@ def to_list_of_strings(value):
     elif isinstance(value, tuple) and all(isinstance(s, string_type) for s in value):
         res = list(value)
     else:
-        raise EasyBuildError("Don't know how to convert provided value to a list of strings: %s", value)
+        raise EasyBuildError(
+            "Don't know how to convert provided value to a list of strings: %s", value
+        )
 
     return res
 
@@ -336,7 +448,9 @@ def to_list_of_strings_and_tuples(spec):
     str_tup_list = []
 
     if not isinstance(spec, (list, tuple)):
-        raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
+        raise EasyBuildError(
+            "Expected value to be a list, found %s (%s)", spec, type(spec)
+        )
 
     for elem in spec:
         if isinstance(elem, (string_type, tuple)):
@@ -344,7 +458,11 @@ def to_list_of_strings_and_tuples(spec):
         elif isinstance(elem, list):
             str_tup_list.append(tuple(elem))
         else:
-            raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
+            raise EasyBuildError(
+                "Expected elements to be of type string, tuple or list, got %s (%s)",
+                elem,
+                type(elem),
+            )
 
     return str_tup_list
 
@@ -359,7 +477,9 @@ def to_sanity_check_paths_dict(spec):
         {'files': ['file1', ('file2a', 'file2b')], 'dirs': ['foo/bar']}
     """
     if not isinstance(spec, dict):
-        raise EasyBuildError("Expected value to be a dict, found %s (%s)", spec, type(spec))
+        raise EasyBuildError(
+            "Expected value to be a dict, found %s (%s)", spec, type(spec)
+        )
 
     sanity_check_dict = {}
     for key in spec:
@@ -387,48 +507,65 @@ def to_dependency(dep):
     if isinstance(dep, dict):
         depspec = {}
 
-        if dep.get('external_module', False):
-            expected_keys = ['external_module', 'name']
+        if dep.get("external_module", False):
+            expected_keys = ["external_module", "name"]
             if sorted(dep.keys()) == expected_keys:
-                depspec.update({
-                    'external_module': True,
-                    'full_mod_name': dep['name'],
-                    'name': None,
-                    'short_mod_name': dep['name'],
-                    'version': None,
-                })
+                depspec.update(
+                    {
+                        "external_module": True,
+                        "full_mod_name": dep["name"],
+                        "name": None,
+                        "short_mod_name": dep["name"],
+                        "version": None,
+                    }
+                )
             else:
-                raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
+                raise EasyBuildError(
+                    "Unexpected format for dependency marked as external module: %s",
+                    dep,
+                )
 
         else:
             dep_keys = list(dep.keys())
 
             # need to handle name/version keys first, to avoid relying on order in which keys are processed...
-            for key in ['name', 'version']:
+            for key in ["name", "version"]:
                 if key in dep:
                     depspec[key] = str(dep[key])
                     dep_keys.remove(key)
 
             for key in dep_keys:
-                if key == 'versionsuffix':
+                if key == "versionsuffix":
                     depspec[key] = str(dep[key])
-                elif key == 'toolchain':
-                    depspec['toolchain'] = to_toolchain_dict(dep[key])
-                elif not ('name' in depspec and 'version' in depspec):
-                    depspec.update({'name': key, 'version': str(dep[key])})
+                elif key == "toolchain":
+                    depspec["toolchain"] = to_toolchain_dict(dep[key])
+                elif not ("name" in depspec and "version" in depspec):
+                    depspec.update({"name": key, "version": str(dep[key])})
                 else:
-                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, dep[key])
+                    raise EasyBuildError(
+                        "Found unexpected (key, value) pair: %s, %s", key, dep[key]
+                    )
 
-            if not ('name' in depspec and 'version' in depspec):
-                raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
+            if not ("name" in depspec and "version" in depspec):
+                raise EasyBuildError(
+                    "Can not parse dependency without name and version: %s", dep
+                )
 
     else:
         # pass down value untouched, let EasyConfig._parse_dependency handle it
         depspec = dep
         if isinstance(dep, (tuple, list)):
-            _log.debug("Passing down dependency value of type %s without touching it: %s", type(dep), dep)
+            _log.debug(
+                "Passing down dependency value of type %s without touching it: %s",
+                type(dep),
+                dep,
+            )
         else:
-            _log.warning("Unknown type of value in to_dependency %s; passing value down as is: %s", type(dep), dep)
+            _log.warning(
+                "Unknown type of value in to_dependency %s; passing value down as is: %s",
+                type(dep),
+                dep,
+            )
 
     return depspec
 
@@ -453,7 +590,9 @@ def to_checksums(checksums):
             res.append(checksum)
         elif isinstance(checksum, (list, tuple)):
             # 2 elements + only string/int values => a checksum tuple
-            if len(checksum) == 2 and all(isinstance(x, (string_type, int)) for x in checksum):
+            if len(checksum) == 2 and all(
+                isinstance(x, (string_type, int)) for x in checksum
+            ):
                 res.append(tuple(checksum))
             else:
                 res.append(to_checksums(checksum))
@@ -477,10 +616,14 @@ def ensure_iterable_license_specs(specs):
         license_specs = [None]
     elif isinstance(specs, string_type):
         license_specs = [specs]
-    elif isinstance(specs, (list, tuple)) and all(isinstance(x, string_type) for x in specs):
+    elif isinstance(specs, (list, tuple)) and all(
+        isinstance(x, string_type) for x in specs
+    ):
         license_specs = list(specs)
     else:
-        msg = "Unsupported type %s for easyconfig parameter 'license_file'! " % type(specs)
+        msg = "Unsupported type %s for easyconfig parameter 'license_file'! " % type(
+            specs
+        )
         msg += "Can either be None, a string, or a tuple/list of strings."
         raise EasyBuildError(msg)
 
@@ -490,71 +633,95 @@ def ensure_iterable_license_specs(specs):
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 # specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
-TOOLCHAIN_DICT = (dict, as_hashable({
-    'elem_types': {
-        'hidden': [bool],
-        'name': [str],
-        'version': [str],
-    },
-    'opt_keys': ['hidden'],
-    'req_keys': ['name', 'version'],
-}))
-DEPENDENCY_DICT = (dict, as_hashable({
-    'elem_types': {
-        'full_mod_name': [str],
-        'name': [str],
-        'short_mod_name': [str],
-        'toolchain': [TOOLCHAIN_DICT],
-        'version': [str],
-        'versionsuffix': [str],
-    },
-    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
-    'req_keys': ['name', 'version'],
-}))
-DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
+TOOLCHAIN_DICT = (
+    dict,
+    as_hashable(
+        {
+            "elem_types": {"hidden": [bool], "name": [str], "version": [str],},
+            "opt_keys": ["hidden"],
+            "req_keys": ["name", "version"],
+        }
+    ),
+)
+DEPENDENCY_DICT = (
+    dict,
+    as_hashable(
+        {
+            "elem_types": {
+                "full_mod_name": [str],
+                "name": [str],
+                "short_mod_name": [str],
+                "toolchain": [TOOLCHAIN_DICT],
+                "version": [str],
+                "versionsuffix": [str],
+            },
+            "opt_keys": [
+                "full_mod_name",
+                "short_mod_name",
+                "toolchain",
+                "versionsuffix",
+            ],
+            "req_keys": ["name", "version"],
+        }
+    ),
+)
+DEPENDENCIES = (list, as_hashable({"elem_types": [DEPENDENCY_DICT]}))
 
-TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
-LIST_OF_STRINGS = (list, as_hashable({'elem_types': [str]}))
-STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
-STRING_DICT = (dict, as_hashable(
-    {
-        'elem_types': [str],
-        'key_types': [str],
-    }
-))
-SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
-    'elem_types': {
-        SANITY_CHECK_PATHS_FILES: [STRING_OR_TUPLE_LIST],
-        SANITY_CHECK_PATHS_DIRS: [STRING_OR_TUPLE_LIST],
-    },
-    'opt_keys': [],
-    'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
-}))
+TUPLE_OF_STRINGS = (tuple, as_hashable({"elem_types": [str]}))
+LIST_OF_STRINGS = (list, as_hashable({"elem_types": [str]}))
+STRING_OR_TUPLE_LIST = (list, as_hashable({"elem_types": [str, TUPLE_OF_STRINGS]}))
+STRING_DICT = (dict, as_hashable({"elem_types": [str], "key_types": [str],}))
+SANITY_CHECK_PATHS_DICT = (
+    dict,
+    as_hashable(
+        {
+            "elem_types": {
+                SANITY_CHECK_PATHS_FILES: [STRING_OR_TUPLE_LIST],
+                SANITY_CHECK_PATHS_DIRS: [STRING_OR_TUPLE_LIST],
+            },
+            "opt_keys": [],
+            "req_keys": [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
+        }
+    ),
+)
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
 # a single checksum value (string)
 # a single checksum value of a specified type (2-tuple, 1st element is checksum type, 2nd element is checksum)
 # a list of checksums (of different types, perhaps different formats), which should *all* be valid
 # a dictionary with a mapping from filename to checksum value
-CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
-CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
+CHECKSUM_LIST = (list, as_hashable({"elem_types": [str, tuple, STRING_DICT]}))
+CHECKSUMS = (
+    list,
+    as_hashable({"elem_types": [str, tuple, STRING_DICT, CHECKSUM_LIST]}),
+)
 
-CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
-                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [
+    CHECKSUM_LIST,
+    CHECKSUMS,
+    DEPENDENCIES,
+    DEPENDENCY_DICT,
+    LIST_OF_STRINGS,
+    SANITY_CHECK_PATHS_DICT,
+    STRING_DICT,
+    STRING_OR_TUPLE_LIST,
+    TOOLCHAIN_DICT,
+    TUPLE_OF_STRINGS,
+]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
-    'checksums': CHECKSUMS,
-    'docurls': LIST_OF_STRINGS,
-    'name': string_type,
-    'osdependencies': STRING_OR_TUPLE_LIST,
-    'patches': STRING_OR_TUPLE_LIST,
-    'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
-    'toolchain': TOOLCHAIN_DICT,
-    'version': string_type,
+    "checksums": CHECKSUMS,
+    "docurls": LIST_OF_STRINGS,
+    "name": string_type,
+    "osdependencies": STRING_OR_TUPLE_LIST,
+    "patches": STRING_OR_TUPLE_LIST,
+    "sanity_check_paths": SANITY_CHECK_PATHS_DICT,
+    "toolchain": TOOLCHAIN_DICT,
+    "version": string_type,
 }
 # add all dependency types as dependencies
 for dep in DEPENDENCY_PARAMETERS:

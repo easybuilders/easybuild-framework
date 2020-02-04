@@ -40,13 +40,20 @@ except ImportError:
     from sha import sha as sha1
 
 
-_log = fancylogger.getLogger('TestModuleNamingSchemeMore', fname=False)
+_log = fancylogger.getLogger("TestModuleNamingSchemeMore", fname=False)
 
 
 class TestModuleNamingSchemeMore(ModuleNamingScheme):
     """Class implementing a test module naming scheme that uses some 'unusual' easyconfig parameters."""
 
-    REQUIRED_KEYS = ['name', 'version', 'toolchain', 'moduleclass', 'sources', 'description']
+    REQUIRED_KEYS = [
+        "name",
+        "version",
+        "toolchain",
+        "moduleclass",
+        "sources",
+        "description",
+    ]
 
     def det_full_module_name(self, ec):
         """
@@ -57,17 +64,17 @@ class TestModuleNamingSchemeMore(ModuleNamingScheme):
 
         @return: string with full module name, e.g.: GCC/068d21a1331fc0295c3cb7e048430fa33a89fe69
         """
-        res = ''
+        res = ""
         for key in self.REQUIRED_KEYS:
             if isinstance(ec[key], dict):
-                res += '%s=>' % key
+                res += "%s=>" % key
                 for item_key in sorted(ec[key].keys()):
-                    res += '%s:%s,' % (item_key, ec[key][item_key])
+                    res += "%s:%s," % (item_key, ec[key][item_key])
             else:
                 res += str(ec[key])
         ec_sha1 = sha1(res.encode()).hexdigest()
         _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
-        return os.path.join(ec['name'], ec_sha1)
+        return os.path.join(ec["name"], ec_sha1)
 
     def is_short_modname_for(self, modname, name):
         """

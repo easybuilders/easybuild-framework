@@ -38,5 +38,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Goblf(Gompi, Blis, Lapack, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW."""
-    NAME = 'goblf'
+
+    NAME = "goblf"
     SUBTOOLCHAIN = Gompi.NAME

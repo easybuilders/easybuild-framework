@@ -37,5 +37,6 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 class Cgompi(ClangGcc, OpenMPI):
     """Compiler toolchain with Clang, GFortran and OpenMPI."""
-    NAME = 'cgompi'
+
+    NAME = "cgompi"
     SUBTOOLCHAIN = ClangGcc.NAME

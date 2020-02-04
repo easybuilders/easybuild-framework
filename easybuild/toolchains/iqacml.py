@@ -36,5 +36,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Iqacml(Iiqmpi, Acml, ScaLAPACK, Fftw):
     """Compiler toolchain with Intel compilers, QLogic MPI, ACML, ScaLAPACK and FFTW."""
-    NAME = 'iqacml'
+
+    NAME = "iqacml"
     SUBTOOLCHAIN = Iiqmpi.NAME

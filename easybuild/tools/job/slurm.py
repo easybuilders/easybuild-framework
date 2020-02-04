@@ -32,13 +32,17 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
+from easybuild.tools.config import (
+    JOB_DEPS_TYPE_ABORT_ON_ERROR,
+    JOB_DEPS_TYPE_ALWAYS_RUN,
+    build_option,
+)
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.filetools import which
 from easybuild.tools.run import run_cmd
 
 
-_log = fancylogger.getLogger('slurm', fname=False)
+_log = fancylogger.getLogger("slurm", fname=False)
 
 
 class Slurm(JobBackend):
@@ -47,20 +51,20 @@ class Slurm(JobBackend):
     """
 
     # Oldest version tested, may also work with earlier releases
-    REQ_VERSION = '16.05'
+    REQ_VERSION = "16.05"
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
 
         # early check for required commands
-        for cmd in ['sbatch', 'scontrol']:
+        for cmd in ["sbatch", "scontrol"]:
             path = which(cmd)
             if path is None:
                 raise EasyBuildError("Required command '%s' not found", cmd)
 
         super(Slurm, self).__init__(*args, **kwargs)
 
-        job_deps_type = build_option('job_deps_type')
+        job_deps_type = build_option("job_deps_type")
         if job_deps_type is None:
             job_deps_type = JOB_DEPS_TYPE_ABORT_ON_ERROR
             self.log.info("Using default job dependency type: %s", job_deps_type)
@@ -68,21 +72,26 @@ class Slurm(JobBackend):
             self.log.info("Using specified job dependency type: %s", job_deps_type)
 
         if job_deps_type == JOB_DEPS_TYPE_ABORT_ON_ERROR:
-            self.job_deps_type = 'afterok'
+            self.job_deps_type = "afterok"
         elif job_deps_type == JOB_DEPS_TYPE_ALWAYS_RUN:
-            self.job_deps_type = 'afterany'
+            self.job_deps_type = "afterany"
         else:
-            raise EasyBuildError("Unknown job dependency type specified: %s", job_deps_type)
+            raise EasyBuildError(
+                "Unknown job dependency type specified: %s", job_deps_type
+            )
 
     def _check_version(self):
         """Check whether version of Slurm complies with required version."""
         (out, _) = run_cmd("sbatch --version", trace=False)
-        slurm_ver = out.strip().split(' ')[-1]
+        slurm_ver = out.strip().split(" ")[-1]
         self.log.info("Found Slurm version %s", slurm_ver)
 
         if LooseVersion(slurm_ver) < LooseVersion(self.REQ_VERSION):
-            raise EasyBuildError("Found Slurm version %s, but version %s or more recent is required",
-                                 slurm_ver, self.REQ_VERSION)
+            raise EasyBuildError(
+                "Found Slurm version %s, but version %s or more recent is required",
+                slurm_ver,
+                self.REQ_VERSION,
+            )
 
     def init(self):
         """
@@ -96,19 +105,21 @@ class Slurm(JobBackend):
 
         :param dependencies: jobs on which this job depends.
         """
-        submit_cmd = 'sbatch'
+        submit_cmd = "sbatch"
 
         if dependencies:
-            job.job_specs['dependency'] = self.job_deps_type + ':' + ':'.join(str(d.jobid) for d in dependencies)
+            job.job_specs["dependency"] = (
+                self.job_deps_type + ":" + ":".join(str(d.jobid) for d in dependencies)
+            )
             # make sure job that has invalid dependencies doesn't remain queued indefinitely
             submit_cmd += " --kill-on-invalid-dep=yes"
 
         # submit job with hold in place
-        job.job_specs['hold'] = True
+        job.job_specs["hold"] = True
 
         self.log.info("Submitting job with following specs: %s", job.job_specs)
         for key in sorted(job.job_specs):
-            if key in ['hold']:
+            if key in ["hold"]:
                 if job.job_specs[key]:
                     submit_cmd += " --%s" % key
             else:
@@ -120,10 +131,12 @@ class Slurm(JobBackend):
 
         res = jobid_regex.search(out)
         if res:
-            job.jobid = res.group('jobid')
+            job.jobid = res.group("jobid")
             self.log.info("Job submitted, got job ID %s", job.jobid)
         else:
-            raise EasyBuildError("Failed to determine job ID from output of submission command: %s", out)
+            raise EasyBuildError(
+                "Failed to determine job ID from output of submission command: %s", out
+            )
 
         self._submitted.append(job)
 
@@ -135,15 +148,23 @@ class Slurm(JobBackend):
         """
         job_ids = []
         for job in self._submitted:
-            if job.job_specs['hold']:
+            if job.job_specs["hold"]:
                 self.log.info("releasing user hold on job %s" % job.jobid)
                 job_ids.append(job.jobid)
 
         if job_ids:
-            run_cmd("scontrol release %s" % ' '.join(job_ids), trace=False)
+            run_cmd("scontrol release %s" % " ".join(job_ids), trace=False)
 
-        submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
-        print_msg("List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs), log=self.log)
+        submitted_jobs = "; ".join(
+            [
+                "%s (%s): %s" % (job.name, job.module, job.jobid)
+                for job in self._submitted
+            ]
+        )
+        print_msg(
+            "List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs),
+            log=self.log,
+        )
 
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """Create and return a job dict with the given parameters."""
@@ -162,27 +183,32 @@ class SlurmJob(object):
         self.name = name
 
         self.job_specs = {
-            'job-name': self.name,
+            "job-name": self.name,
             # pattern for output file for submitted job;
             # SLURM replaces %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAH)
             # %x (job name) replacement needs SLURM >= 17.02.1, thus we add name ourselves
-            'output': '%s-%%j.out' % self.name,
-            'wrap': self.script,
+            "output": "%s-%%j.out" % self.name,
+            "wrap": self.script,
         }
 
         if env_vars:
-            self.job_specs['export'] = ','.join(sorted(env_vars.keys()))
+            self.job_specs["export"] = ",".join(sorted(env_vars.keys()))
 
-        max_walltime = build_option('job_max_walltime')
+        max_walltime = build_option("job_max_walltime")
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
+            self.log.warning(
+                "Specified %s hours, but this is impossible. (resetting to %s)"
+                % (hours, max_walltime)
+            )
             hours = max_walltime
-        self.job_specs['time'] = hours * 60
+        self.job_specs["time"] = hours * 60
 
         if cores:
-            self.job_specs['nodes'] = 1
-            self.job_specs['ntasks'] = cores
+            self.job_specs["nodes"] = 1
+            self.job_specs["ntasks"] = cores
         else:
-            self.log.warning("Number of cores to request not specified, falling back to whatever Slurm does by default")
+            self.log.warning(
+                "Number of cores to request not specified, falling back to whatever Slurm does by default"
+            )

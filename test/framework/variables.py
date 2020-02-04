@@ -42,39 +42,41 @@ class VariablesTest(EnhancedTestCase):
 
     def test_variables(self):
         class TestVariables(Variables):
-            MAP_CLASS = {'FOO': CommaList}
+            MAP_CLASS = {"FOO": CommaList}
 
         v = TestVariables()
         self.assertEqual(str(v), "{}")
 
         # DEFAULTCLASS is StrList
-        v['BAR'] = range(3)
+        v["BAR"] = range(3)
         self.assertEqual(str(v), "{'BAR': [[0, 1, 2]]}")
-        self.assertEqual(str(v['BAR']), "0 1 2")
+        self.assertEqual(str(v["BAR"]), "0 1 2")
 
-        v['BAR'].append(StrList(range(10, 12)))
-        self.assertEqual(str(v['BAR']), "0 1 2 10 11")
+        v["BAR"].append(StrList(range(10, 12)))
+        self.assertEqual(str(v["BAR"]), "0 1 2 10 11")
 
-        v.nappend('BAR', 20)
-        self.assertEqual(str(v['BAR']), "0 1 2 10 11 20")
+        v.nappend("BAR", 20)
+        self.assertEqual(str(v["BAR"]), "0 1 2 10 11 20")
 
-        v.nappend_el('BAR', 30, idx=-2)
+        v.nappend_el("BAR", 30, idx=-2)
         self.assertEqual(str(v), "{'BAR': [[0, 1, 2], [10, 11, 30], [20]]}")
-        self.assertEqual(str(v['BAR']), '0 1 2 10 11 30 20')
+        self.assertEqual(str(v["BAR"]), "0 1 2 10 11 30 20")
 
-        v['FOO'] = range(3)
-        self.assertEqual(str(v['FOO']), "0,1,2")
+        v["FOO"] = range(3)
+        self.assertEqual(str(v["FOO"]), "0,1,2")
 
-        v['BARSTR'] = 'XYZ'
-        self.assertEqual(v['BARSTR'].__repr__(), "[['XYZ']]")
+        v["BARSTR"] = "XYZ"
+        self.assertEqual(v["BARSTR"].__repr__(), "[['XYZ']]")
 
-        v['BARINT'] = 0
-        self.assertEqual(v['BARINT'].__repr__(), "[[0]]")
+        v["BARINT"] = 0
+        self.assertEqual(v["BARINT"].__repr__(), "[[0]]")
 
-        v.join('BAR2', 'FOO', 'BARINT')
-        self.assertEqual(str(v['BAR2']), "0,1,2 0")
+        v.join("BAR2", "FOO", "BARINT")
+        self.assertEqual(str(v["BAR2"]), "0,1,2 0")
 
-        self.assertErrorRegex(Exception, 'not found in self', v.join, 'BAZ', 'DOESNOTEXIST')
+        self.assertErrorRegex(
+            Exception, "not found in self", v.join, "BAZ", "DOESNOTEXIST"
+        )
 
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")
@@ -82,12 +84,12 @@ class VariablesTest(EnhancedTestCase):
     def test_empty_variables(self):
         """Test playing around with empty variables."""
         v = Variables()
-        v.nappend('FOO', [])
-        self.assertEqual(v['FOO'], [])
-        v.join('BAR', 'FOO')
-        self.assertEqual(v['BAR'], [])
-        v.join('FOOBAR', 'BAR')
-        self.assertEqual(v['FOOBAR'], [])
+        v.nappend("FOO", [])
+        self.assertEqual(v["FOO"], [])
+        v.join("BAR", "FOO")
+        self.assertEqual(v["BAR"], [])
+        v.join("FOOBAR", "BAR")
+        self.assertEqual(v["FOOBAR"], [])
 
 
 def suite():
@@ -95,6 +97,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(VariablesTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

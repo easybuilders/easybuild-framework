@@ -39,15 +39,15 @@ class EasyBuildPNS(PackageNamingScheme):
     def name(self, ec):
         """Determine package name"""
         self.log.debug("Easyconfig dict passed to name() looks like: %s ", ec)
-        return '%s-%s' % (ec['name'], det_full_ec_version(ec))
+        return "%s-%s" % (ec["name"], det_full_ec_version(ec))
 
     def version(self, ec):
         """Determine package version: EasyBuild version used to build & install."""
         ebver = str(EASYBUILD_VERSION)
-        if ebver.endswith('dev'):
+        if ebver.endswith("dev"):
             # try and make sure that 'dev' EasyBuild version is not considered newer just because it's longer
             # (e.g., 2.2.0 vs 2.2.0dev)
             # cfr. http://rpm.org/ticket/56,
             # https://debian-handbook.info/browse/stable/sect.manipulating-packages-with-dpkg.html (see box in 5.4.3)
-            ebver.replace('dev', '~dev')
-        return 'eb-%s' % ebver
+            ebver.replace("dev", "~dev")
+        return "eb-%s" % ebver

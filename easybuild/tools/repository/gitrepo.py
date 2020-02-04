@@ -49,7 +49,7 @@ from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.utilities import only_if_module_is_available
 from easybuild.tools.version import VERSION
 
-_log = fancylogger.getLogger('gitrepo', fname=False)
+_log = fancylogger.getLogger("gitrepo", fname=False)
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -59,9 +59,10 @@ _log = fancylogger.getLogger('gitrepo', fname=False)
 try:
     import git
     from git import GitCommandError
+
     HAVE_GIT = True
 except ImportError:
-    _log.debug('Failed to import git module')
+    _log.debug("Failed to import git module")
     HAVE_GIT = False
 
 
@@ -69,13 +70,16 @@ class GitRepository(FileRepository):
     """
     Class for git repositories.
     """
-    DESCRIPTION = ("A non-empty bare git repository (created with 'git init --bare' or 'git clone --bare'). "
-                   "The 1st argument contains the git repository location, which can be a directory or an URL. "
-                   "The 2nd argument is a path inside the repository where to save the files.")
+
+    DESCRIPTION = (
+        "A non-empty bare git repository (created with 'git init --bare' or 'git clone --bare'). "
+        "The 1st argument contains the git repository location, which can be a directory or an URL. "
+        "The 2nd argument is a path inside the repository where to save the files."
+    )
 
     USABLE = HAVE_GIT
 
-    @only_if_module_is_available('git', pkgname='GitPython')
+    @only_if_module_is_available("git", pkgname="GitPython")
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
@@ -88,14 +92,14 @@ class GitRepository(FileRepository):
         """
         Set up git repository.
         """
-        self.wc = tempfile.mkdtemp(prefix='git-wc-')
+        self.wc = tempfile.mkdtemp(prefix="git-wc-")
 
     def create_working_copy(self):
         """
         Create git working copy.
         """
 
-        reponame = 'UNKNOWN'
+        reponame = "UNKNOWN"
         # try to get a copy of
         try:
             client = git.Git(self.wc)
@@ -104,7 +108,9 @@ class GitRepository(FileRepository):
             self.log.debug("rep name is %s" % reponame)
         except (git.GitCommandError, OSError) as err:
             # it might already have existed
-            self.log.warning("Git local repo initialization failed, it might already exist: %s", err)
+            self.log.warning(
+                "Git local repo initialization failed, it might already exist: %s", err
+            )
 
         # local repo should now exist, let's connect to it again
         try:
@@ -112,7 +118,9 @@ class GitRepository(FileRepository):
             self.log.debug("connectiong to git repo in %s" % self.wc)
             self.client = git.Git(self.wc)
         except (git.GitCommandError, OSError) as err:
-            raise EasyBuildError("Could not create a local git repo in wc %s: %s", self.wc, err)
+            raise EasyBuildError(
+                "Could not create a local git repo in wc %s: %s", self.wc, err
+            )
 
         # try to get the remote data in the local repo
         try:
@@ -143,7 +151,9 @@ class GitRepository(FileRepository):
         :param previous: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(GitRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super(GitRepository, self).add_easyconfig(
+            cfg, name, version, stats, previous_stats
+        )
         self.stage_file(path)
         return path
 
@@ -166,21 +176,37 @@ class GitRepository(FileRepository):
         host = socket.gethostname()
         timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
         user = getpass.getuser()
-        completemsg = "%s with EasyBuild v%s @ %s (time: %s, user: %s)" % (msg, VERSION, host, timestamp, user)
+        completemsg = "%s with EasyBuild v%s @ %s (time: %s, user: %s)" % (
+            msg,
+            VERSION,
+            host,
+            timestamp,
+            user,
+        )
         self.log.debug("committing in git with message: %s" % msg)
 
         self.log.debug("git status: %s" % self.client.status())
         try:
-            self.client.commit('-am %s' % completemsg)
-            self.log.debug("succesfull commit: %s", self.client.log('HEAD^!'))
+            self.client.commit("-am %s" % completemsg)
+            self.log.debug("succesfull commit: %s", self.client.log("HEAD^!"))
         except GitCommandError as err:
-            self.log.warning("Commit from working copy %s failed, empty commit? (msg: %s): %s", self.wc, msg, err)
+            self.log.warning(
+                "Commit from working copy %s failed, empty commit? (msg: %s): %s",
+                self.wc,
+                msg,
+                err,
+            )
         try:
             info = self.client.push()
             self.log.debug("push info: %s ", info)
         except GitCommandError as err:
-            self.log.warning("Push from working copy %s to remote %s failed (msg: %s): %s",
-                             self.wc, self.repo, msg, err)
+            self.log.warning(
+                "Push from working copy %s to remote %s failed (msg: %s): %s",
+                self.wc,
+                self.repo,
+                msg,
+                err,
+            )
 
     def cleanup(self):
         """

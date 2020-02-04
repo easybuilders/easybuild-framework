@@ -46,7 +46,7 @@ from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
 
 
-_log = fancylogger.getLogger('parallelbuild', fname=False)
+_log = fancylogger.getLogger("parallelbuild", fname=False)
 
 
 def _to_key(dep):
@@ -54,7 +54,9 @@ def _to_key(dep):
     return ActiveMNS().det_full_module_name(dep)
 
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', prepare_first=True):
+def build_easyconfigs_in_parallel(
+    build_command, easyconfigs, output_dir="easybuild-build", prepare_first=True
+):
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
     Return list of jobs submitted.
@@ -77,7 +79,11 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     try:
         active_job_backend.init()
     except RuntimeError as err:
-        raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
+        raise EasyBuildError(
+            "connection to server failed (%s: %s), can't submit jobs.",
+            err.__class__.__name__,
+            err,
+        )
 
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
@@ -94,11 +100,17 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
             prepare_easyconfig(easyconfig)
 
         # the new job will only depend on already submitted jobs
-        _log.info("creating job for ec: %s" % easyconfig['ec'])
-        new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
+        _log.info("creating job for ec: %s" % easyconfig["ec"])
+        new_job = create_job(
+            active_job_backend, build_command, easyconfig, output_dir=output_dir
+        )
 
         # filter out dependencies marked as external modules
-        deps = [d for d in easyconfig['ec'].all_dependencies if not d.get('external_module', False)]
+        deps = [
+            d
+            for d in easyconfig["ec"].all_dependencies
+            if not d.get("external_module", False)
+        ]
 
         dep_mod_names = map(ActiveMNS().det_full_module_name, deps)
         job_deps = [module_to_job[dep] for dep in dep_mod_names if dep in module_to_job]
@@ -127,24 +139,29 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     curdir = os.getcwd()
 
     # regex pattern for options to ignore (help options can't reach here)
-    ignore_opts = re.compile('^--robot$|^--job$|^--try-.*$')
+    ignore_opts = re.compile("^--robot$|^--job$|^--try-.*$")
 
     # generate_cmd_line returns the options in form --longopt=value
-    opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
+    opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split("=")[0])]
 
     # compose string with command line options, properly quoted and with '%' characters escaped
-    opts_str = ' '.join(opts).replace('%', '%%')
+    opts_str = " ".join(opts).replace("%", "%%")
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
+    command = (
+        "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s"
+        % (curdir, opts_str)
+    )
     _log.info("Command template for jobs: %s" % command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
         return command
     else:
-        return build_easyconfigs_in_parallel(command, ordered_ecs, prepare_first=prepare_first)
+        return build_easyconfigs_in_parallel(
+            command, ordered_ecs, prepare_first=prepare_first
+        )
 
 
-def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build'):
+def create_job(job_backend, build_command, easyconfig, output_dir="easybuild-build"):
     """
     Creates a job to build a *single* easyconfig.
 
@@ -156,19 +173,19 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     returns the job
     """
     # obtain unique name based on name/easyconfig version tuple
-    ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
-    name = '-'.join(ec_tuple)
+    ec_tuple = (easyconfig["ec"]["name"], det_full_ec_version(easyconfig["ec"]))
+    name = "-".join(ec_tuple)
 
     # determine whether additional options need to be passed to the 'eb' command
-    add_opts = ''
-    if easyconfig['hidden']:
-        add_opts += ' --hidden'
+    add_opts = ""
+    if easyconfig["hidden"]:
+        add_opts += " --hidden"
 
     # create command based on build_command template
     command = build_command % {
-        'add_opts': add_opts,
-        'output_dir': os.path.join(os.path.abspath(output_dir), name),
-        'spec': easyconfig['spec'],
+        "add_opts": add_opts,
+        "output_dir": os.path.join(os.path.abspath(output_dir), name),
+        "spec": easyconfig["spec"],
     }
 
     # just use latest build stats
@@ -176,14 +193,14 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     buildstats = repo.get_buildstats(*ec_tuple)
     extra = {}
     if buildstats:
-        previous_time = buildstats[-1]['build_time']
-        extra['hours'] = int(math.ceil(previous_time * 2 / 60))
+        previous_time = buildstats[-1]["build_time"]
+        extra["hours"] = int(math.ceil(previous_time * 2 / 60))
 
-    if build_option('job_cores'):
-        extra['cores'] = build_option('job_cores')
+    if build_option("job_cores"):
+        extra["cores"] = build_option("job_cores")
 
     job = job_backend.make_job(command, name, **extra)
-    job.module = easyconfig['ec'].full_mod_name
+    job.module = easyconfig["ec"].full_mod_name
 
     return job
 

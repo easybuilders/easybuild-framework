@@ -15,4 +15,5 @@ class Xlompi(IBMXL, Mpich):
     """
     Compiler toolchain with IBM XL compilers (xlc/xlf) and MPICH.
     """
-    NAME = 'xlmpich'
+
+    NAME = "xlmpich"

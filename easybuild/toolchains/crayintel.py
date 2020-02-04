@@ -36,5 +36,6 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class CrayIntel(CrayPEIntel, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
-    NAME = 'CrayIntel'
+
+    NAME = "CrayIntel"
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

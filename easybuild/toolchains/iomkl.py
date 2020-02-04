@@ -41,5 +41,6 @@ class Iomkl(Iompi, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort), OpenMPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'iomkl'
+
+    NAME = "iomkl"
     SUBTOOLCHAIN = [Iompi.NAME, Iimkl.NAME]

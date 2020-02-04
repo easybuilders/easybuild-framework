@@ -37,7 +37,7 @@ from distutils.core import setup
 
 from easybuild.tools.version import VERSION
 
-API_VERSION = str(VERSION).split('.')[0]
+API_VERSION = str(VERSION).split(".")[0]
 
 
 # Utility function to read README file
@@ -58,21 +58,41 @@ def find_rel_test():
     os.chdir(basedir)
     res = []
     for subdir in ["sandbox", "easyconfigs", "modules"]:
-        res.extend([os.path.join(root, filename)
-                    for root, dirnames, filenames in os.walk(subdir)
-                    for filename in filenames if os.path.isfile(os.path.join(root, filename))])
+        res.extend(
+            [
+                os.path.join(root, filename)
+                for root, dirnames, filenames in os.walk(subdir)
+                for filename in filenames
+                if os.path.isfile(os.path.join(root, filename))
+            ]
+        )
     os.chdir(current)
     return res
 
 
 easybuild_packages = [
-    "easybuild", "easybuild.base",
-    "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
-    "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
-    "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
-    "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
-    "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
-    "easybuild.tools.py2vs3", "easybuild.tools.repository", "test.framework", "test",
+    "easybuild",
+    "easybuild.base",
+    "easybuild.framework",
+    "easybuild.framework.easyconfig",
+    "easybuild.framework.easyconfig.format",
+    "easybuild.toolchains",
+    "easybuild.toolchains.compiler",
+    "easybuild.toolchains.mpi",
+    "easybuild.toolchains.fft",
+    "easybuild.toolchains.linalg",
+    "easybuild.tools",
+    "easybuild.tools.containers",
+    "easybuild.tools.deprecated",
+    "easybuild.tools.job",
+    "easybuild.tools.toolchain",
+    "easybuild.tools.module_naming_scheme",
+    "easybuild.tools.package",
+    "easybuild.tools.package.package_naming_scheme",
+    "easybuild.tools.py2vs3",
+    "easybuild.tools.repository",
+    "test.framework",
+    "test",
 ]
 
 setup(
@@ -86,23 +106,23 @@ implement support for installing particular (groups of) software packages.""",
     keywords="software build building installation installing compilation HPC scientific",
     url="https://easybuilders.github.io/easybuild",
     packages=easybuild_packages,
-    package_dir={'test.framework': 'test/framework'},
-    package_data={'test.framework': find_rel_test()},
+    package_dir={"test.framework": "test/framework"},
+    package_data={"test.framework": find_rel_test()},
     scripts=[
-        'eb',
+        "eb",
         # bash completion
-        'optcomplete.bash',
-        'minimal_bash_completion.bash',
-        'eb_bash_completion.bash',
+        "optcomplete.bash",
+        "minimal_bash_completion.bash",
+        "eb_bash_completion.bash",
         # utility scripts
-        'easybuild/scripts/bootstrap_eb.py',
-        'easybuild/scripts/install_eb_dep.sh',
+        "easybuild/scripts/bootstrap_eb.py",
+        "easybuild/scripts/install_eb_dep.sh",
     ],
     data_files=[
-        ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
-        ('etc', glob.glob('etc/*')),
+        ("easybuild/scripts", glob.glob("easybuild/scripts/*")),
+        ("etc", glob.glob("etc/*")),
     ],
-    long_description=read('README.rst'),
+    long_description=read("README.rst"),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",

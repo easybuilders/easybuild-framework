@@ -34,7 +34,8 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class GccToolchain(GCCcore):
     """Simple toolchain with just the GCC compilers."""
-    NAME = 'GCC'
+
+    NAME = "GCC"
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
     OPTIONAL = False

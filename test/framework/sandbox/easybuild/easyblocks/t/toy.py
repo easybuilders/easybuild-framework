@@ -50,7 +50,11 @@ class EB_toy(ExtensionEasyBlock):
         if extra_vars is None:
             extra_vars = {}
 
-        extra_vars['make_module'] = [True, "Skip generating (final) module file", CUSTOM]
+        extra_vars["make_module"] = [
+            True,
+            "Skip generating (final) module file",
+            CUSTOM,
+        ]
 
         return ExtensionEasyBlock.extra_options(extra_vars)
 
@@ -58,23 +62,23 @@ class EB_toy(ExtensionEasyBlock):
         """Constructor"""
         super(EB_toy, self).__init__(*args, **kwargs)
 
-        setvar('TOY', '%s-%s' % (self.name, self.version))
+        setvar("TOY", "%s-%s" % (self.name, self.version))
 
     def prepare_for_extensions(self):
         """
         Prepare for installing toy extensions.
         """
         # insert new packages by building them with RPackage
-        self.cfg['exts_defaultclass'] = "Toy_Extension"
-        self.cfg['exts_filter'] = ("%(ext_name)s", "")
+        self.cfg["exts_defaultclass"] = "Toy_Extension"
+        self.cfg["exts_filter"] = ("%(ext_name)s", "")
 
     def run_all_steps(self, *args, **kwargs):
         """
         Tweak iterative easyconfig parameters.
         """
-        if isinstance(self.cfg['buildopts'], list):
+        if isinstance(self.cfg["buildopts"], list):
             # inject list of values for prebuildopts, same length as buildopts
-            self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
+            self.cfg["prebuildopts"] = ["echo hello && "] * len(self.cfg["buildopts"])
 
         return super(EB_toy, self).run_all_steps(*args, **kwargs)
 
@@ -83,40 +87,48 @@ class EB_toy(ExtensionEasyBlock):
         if name is None:
             name = self.name
         # make sure Python system dep is handled correctly when specified
-        if self.cfg['allow_system_deps']:
-            if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
-                raise EasyBuildError("Sanity check on allowed Python system dep failed.")
+        if self.cfg["allow_system_deps"]:
+            if (
+                get_software_root("Python") != "Python"
+                or get_software_version("Python") != platform.python_version()
+            ):
+                raise EasyBuildError(
+                    "Sanity check on allowed Python system dep failed."
+                )
 
         if os.path.exists("%s.source" % name):
-            os.rename('%s.source' % name, '%s.c' % name)
+            os.rename("%s.source" % name, "%s.c" % name)
 
     def build_step(self, name=None, buildopts=None):
         """Build toy."""
 
         if buildopts is None:
-            buildopts = self.cfg['buildopts']
+            buildopts = self.cfg["buildopts"]
 
         if name is None:
             name = self.name
-        run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s %(buildopts)s' % {
-            'name': name,
-            'prebuildopts': self.cfg['prebuildopts'],
-            'buildopts': buildopts,
-        })
+        run_cmd(
+            "%(prebuildopts)s gcc %(name)s.c -o %(name)s %(buildopts)s"
+            % {
+                "name": name,
+                "prebuildopts": self.cfg["prebuildopts"],
+                "buildopts": buildopts,
+            }
+        )
 
     def install_step(self, name=None):
         """Install toy."""
         if name is None:
             name = self.name
-        bindir = os.path.join(self.installdir, 'bin')
+        bindir = os.path.join(self.installdir, "bin")
         mkdir(bindir, parents=True)
-        for filename in glob.glob('%s_*' % name) + [name]:
+        for filename in glob.glob("%s_*" % name) + [name]:
             if os.path.exists(filename):
                 shutil.copy2(filename, bindir)
         # also install a dummy libtoy.a, to make the default sanity check happy
-        libdir = os.path.join(self.installdir, 'lib')
+        libdir = os.path.join(self.installdir, "lib")
         mkdir(libdir, parents=True)
-        f = open(os.path.join(libdir, 'lib%s.a' % name), 'w')
+        f = open(os.path.join(libdir, "lib%s.a" % name), "w")
         f.write(name.upper())
         f.close()
 
@@ -129,7 +141,7 @@ class EB_toy(ExtensionEasyBlock):
 
     def make_module_step(self, fake=False):
         """Generate module file."""
-        if self.cfg.get('make_module', True) or fake:
+        if self.cfg.get("make_module", True) or fake:
             modpath = super(EB_toy, self).make_module_step(fake=fake)
         else:
             modpath = self.module_generator.get_modules_path(fake=fake)
@@ -139,5 +151,7 @@ class EB_toy(ExtensionEasyBlock):
     def make_module_extra(self):
         """Extra stuff for toy module"""
         txt = super(EB_toy, self).make_module_extra()
-        txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
+        txt += self.module_generator.set_environment(
+            "TOY", os.getenv("TOY", "<TOY_env_var_not_defined>")
+        )
         return txt

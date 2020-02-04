@@ -36,5 +36,6 @@ from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 class Gimpic(GccCUDA, IntelMPI):
     """Compiler toolchain with GCC+CUDA and IntelMPI."""
-    NAME = 'gimpic'
+
+    NAME = "gimpic"
     SUBTOOLCHAIN = GccCUDA.NAME

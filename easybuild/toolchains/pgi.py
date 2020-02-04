@@ -38,7 +38,8 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class PgiToolchain(Pgi):
     """Simple toolchain with just the PGI compilers."""
-    NAME = 'PGI'
+
+    NAME = "PGI"
     # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
     # in particular in a hierarchical module naming scheme
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]

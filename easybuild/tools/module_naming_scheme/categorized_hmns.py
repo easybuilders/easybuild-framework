@@ -52,7 +52,7 @@ class CategorizedHMNS(HierarchicalMNS):
     of the hierarchy.
     """
 
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ["name", "version", "versionsuffix", "toolchain", "moduleclass"]
 
     def det_module_subdir(self, ec):
         """
@@ -65,7 +65,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Examples:
         Core/compiler, Compiler/GCC/4.8.3/mpi, MPI/GCC/4.8.3/OpenMPI/1.6.5/bio
         """
-        moduleclass = ec['moduleclass']
+        moduleclass = ec["moduleclass"]
         basedir = super(CategorizedHMNS, self).det_module_subdir(ec)
 
         return os.path.join(basedir, moduleclass)
@@ -111,7 +111,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Returns a list of paths where all known (valid) module classes have
         been added to each of the given base paths.
         """
-        valid_module_classes = build_option('valid_module_classes')
+        valid_module_classes = build_option("valid_module_classes")
 
         paths = []
         for path in basepaths:

@@ -33,4 +33,5 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 class SpectrumMPI(OpenMPI):
     """Spectrum MPI class"""
-    MPI_MODULE_NAME = ['SpectrumMPI']
+
+    MPI_MODULE_NAME = ["SpectrumMPI"]

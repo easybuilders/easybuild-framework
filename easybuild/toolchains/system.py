@@ -34,4 +34,5 @@ from easybuild.toolchains.compiler.systemcompiler import SystemCompiler
 
 class SystemToolchain(SystemCompiler):
     """System toolchain."""
+
     NAME = SYSTEM_TOOLCHAIN_NAME

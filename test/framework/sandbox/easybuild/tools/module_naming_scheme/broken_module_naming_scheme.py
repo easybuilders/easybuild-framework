@@ -31,7 +31,7 @@ Implementation of a broken test module naming scheme.
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 
-UNKNOWN_KEY = 'nosucheasyconfigparameteravailable'
+UNKNOWN_KEY = "nosucheasyconfigparameteravailable"
 
 
 class BrokenModuleNamingScheme(ModuleNamingScheme):

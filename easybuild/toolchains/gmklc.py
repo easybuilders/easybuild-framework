@@ -43,6 +43,7 @@ class Gmklc(GccCUDA, Gmkl, IntelMKL, IntelFFTW):
     Compiler toolchain with GCC, Intel Math Kernel Library (MKL)
     and Intel FFTW wrappers and CUDA.
     """
-    NAME = 'gmklc'
+
+    NAME = "gmklc"
     SUBTOOLCHAIN = [GccCUDA.NAME, Gmkl.NAME]
     OPTIONAL = True

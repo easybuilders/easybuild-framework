@@ -34,7 +34,8 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class GCCcore(Gcc):
     """Compiler-only toolchain, including only GCC and binutils."""
-    NAME = 'GCCcore'
+
+    NAME = "GCCcore"
     # Replace the default compiler module name with our own
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

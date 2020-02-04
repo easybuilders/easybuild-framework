@@ -36,17 +36,23 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import EasyConfigFormat
-from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import (
+    build_easyconfig_constants_dict,
+)
 from easybuild.tools.py2vs3 import string_type
-from easybuild.tools.utilities import INDENT_4SPACES, only_if_module_is_available, quote_str
+from easybuild.tools.utilities import (
+    INDENT_4SPACES,
+    only_if_module_is_available,
+    quote_str,
+)
 
 
-_log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
+_log = fancylogger.getLogger("easyconfig.format.yeb", fname=False)
 
 
-YAML_DIR = r'%YAML'
-YAML_SEP = '---'
-YEB_FORMAT_EXTENSION = '.yeb'
+YAML_DIR = r"%YAML"
+YAML_SEP = "---"
+YEB_FORMAT_EXTENSION = ".yeb"
 YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 
 
@@ -58,22 +64,24 @@ def yaml_join(loader, node):
     :param node: the YAML (sequence) node
     """
     seq = loader.construct_sequence(node)
-    return ''.join([str(i) for i in seq])
+    return "".join([str(i) for i in seq])
 
 
 try:
     import yaml
+
     # register the tag handlers
-    if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
-        yaml.add_constructor('!join', yaml_join)
+    if LooseVersion(platform.python_version()) < LooseVersion(u"2.7"):
+        yaml.add_constructor("!join", yaml_join)
     else:
-        yaml.add_constructor(u'!join', yaml_join, Loader=yaml.SafeLoader)
+        yaml.add_constructor(u"!join", yaml_join, Loader=yaml.SafeLoader)
 except ImportError:
     pass
 
 
 class FormatYeb(EasyConfigFormat):
     """Support for easyconfig YAML format"""
+
     USABLE = True
 
     def __init__(self):
@@ -83,7 +91,9 @@ class FormatYeb(EasyConfigFormat):
 
     def validate(self):
         """Format validation"""
-        _log.info(".yeb format validation isn't implemented (yet) - validation always passes")
+        _log.info(
+            ".yeb format validation isn't implemented (yet) - validation always passes"
+        )
         return True
 
     def get_config_dict(self):
@@ -92,13 +102,13 @@ class FormatYeb(EasyConfigFormat):
         """
         return self.parsed_yeb
 
-    @only_if_module_is_available('yaml')
+    @only_if_module_is_available("yaml")
     def parse(self, txt):
         """
         Process YAML file
         """
         txt = self._inject_constants_dict(txt)
-        if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
+        if LooseVersion(platform.python_version()) < LooseVersion(u"2.7"):
             self.parsed_yeb = yaml.load(txt)
         else:
             self.parsed_yeb = yaml.load(txt, Loader=yaml.SafeLoader)
@@ -115,14 +125,16 @@ class FormatYeb(EasyConfigFormat):
         yaml_header = []
         for i, line in enumerate(lines):
             if line.startswith(YAML_DIR):
-                if lines[i+1].startswith(YAML_SEP):
+                if lines[i + 1].startswith(YAML_SEP):
                     yaml_header.extend([lines.pop(i), lines.pop(i)])
 
-        injected_constants = ['__CONSTANTS__: ']
+        injected_constants = ["__CONSTANTS__: "]
         for key, value in constants_dict.items():
-            injected_constants.append('%s- &%s %s' % (INDENT_4SPACES, key, quote_str(value)))
+            injected_constants.append(
+                "%s- &%s %s" % (INDENT_4SPACES, key, quote_str(value))
+            )
 
-        full_txt = '\n'.join(yaml_header + injected_constants + lines)
+        full_txt = "\n".join(yaml_header + injected_constants + lines)
 
         return full_txt
 
@@ -146,7 +158,7 @@ def is_yeb_format(filename, rawcontent):
     else:
         # if one line like 'name: ' is found, this must be YAML format
         for line in rawcontent.splitlines():
-            if line.startswith('name: '):
+            if line.startswith("name: "):
                 isyeb = True
     return isyeb
 

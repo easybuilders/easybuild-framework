@@ -39,7 +39,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
-_log = fancylogger.getLogger('repository', fname=False)
+_log = fancylogger.getLogger("repository", fname=False)
 
 
 class Repository(object):
@@ -51,7 +51,7 @@ class Repository(object):
 
     USABLE = True  # can the Repository be used?
 
-    def __init__(self, repo_path, subdir=''):
+    def __init__(self, repo_path, subdir=""):
         """
         Initialize a repository. self.repo and self.subdir will be set.
         self.wc will be set to None.
@@ -143,12 +143,20 @@ def avail_repositories(check_useable=True):
     Return all available repositories.
         check_useable: boolean, if True, only return usable repositories
     """
-    import_available_modules('easybuild.tools.repository')
+    import_available_modules("easybuild.tools.repository")
 
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
+    class_dict = dict(
+        [
+            (x.__name__, x)
+            for x in get_subclasses(Repository)
+            if x.USABLE or not check_useable
+        ]
+    )
 
-    if 'FileRepository' not in class_dict:
-        raise EasyBuildError("avail_repositories: FileRepository missing from list of repositories")
+    if "FileRepository" not in class_dict:
+        raise EasyBuildError(
+            "avail_repositories: FileRepository missing from list of repositories"
+        )
 
     return class_dict
 
@@ -163,16 +171,29 @@ def init_repository(repository, repository_path):
         try:
             if isinstance(repository_path, string_type):
                 inited_repo = repo(repository_path)
-            elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
+            elif (
+                isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2
+            ):
                 inited_repo = repo(*repository_path)
             else:
-                raise EasyBuildError("repository_path should be a string or list/tuple of maximum 2 elements "
-                                     "(current: %s, type %s)", repository_path, type(repository_path))
+                raise EasyBuildError(
+                    "repository_path should be a string or list/tuple of maximum 2 elements "
+                    "(current: %s, type %s)",
+                    repository_path,
+                    type(repository_path),
+                )
         except Exception as err:
-            raise EasyBuildError("Failed to create a repository instance for %s (class %s) with args %s (msg: %s)",
-                                 repository, repo.__name__, repository_path, err)
+            raise EasyBuildError(
+                "Failed to create a repository instance for %s (class %s) with args %s (msg: %s)",
+                repository,
+                repo.__name__,
+                repository_path,
+                err,
+            )
     else:
-        raise EasyBuildError("Unknown typo of repository spec: %s (type %s)", repo, type(repo))
+        raise EasyBuildError(
+            "Unknown typo of repository spec: %s (type %s)", repo, type(repo)
+        )
 
     inited_repo.init()
     return inited_repo

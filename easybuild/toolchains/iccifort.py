@@ -36,12 +36,13 @@ from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
-ICCIFORT_COMPONENTS = ('icc', 'ifort')
+ICCIFORT_COMPONENTS = ("icc", "ifort")
 
 
 class IccIfort(IntelIccIfort):
     """Compiler toolchain with Intel compilers (icc/ifort)."""
-    NAME = 'iccifort'
+
+    NAME = "iccifort"
     # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
     # in particular in a hierarchical module naming scheme
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
@@ -53,11 +54,13 @@ class IccIfort(IntelIccIfort):
         # need to transform a version like '2016a' with something that is safe to compare with '2016.01'
         # comparing subversions that include letters causes TypeErrors in Python 3
         # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
-        version = self.version.replace('a', '.01').replace('b', '.07')
+        version = self.version.replace("a", ".01").replace("b", ".07")
 
         # iccifort toolchains older than iccifort/2016.1.150-* are deprecated
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
-        if re.match('^[0-9]', version) and LooseVersion(version) < LooseVersion('2016.1'):
+        if re.match("^[0-9]", version) and LooseVersion(version) < LooseVersion(
+            "2016.1"
+        ):
             deprecated = True
         else:
             deprecated = False
@@ -73,10 +76,15 @@ class IccIfort(IntelIccIfort):
         # as long as the corresponding $EBROOT* and $EBVERSION* environment variables are defined, it should be OK
         if not res:
             if name in ICCIFORT_COMPONENTS:
-                self.log.info("Checking whether %s is a toolchain component even though it is not a dependency", name)
+                self.log.info(
+                    "Checking whether %s is a toolchain component even though it is not a dependency",
+                    name,
+                )
                 root = get_software_root(name)
                 version = get_software_version(name)
-                self.log.info("%s installation prefix: %s; version: %s", name, root, version)
+                self.log.info(
+                    "%s installation prefix: %s; version: %s", name, root, version
+                )
                 if root and version:
                     res = True
 

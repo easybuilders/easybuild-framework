@@ -39,17 +39,25 @@ import json
 from functools import partial
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, json_loads, string_type, urlencode
+from easybuild.tools.py2vs3 import (
+    HTTPSHandler,
+    Request,
+    build_opener,
+    json_loads,
+    string_type,
+    urlencode,
+)
 
 
 class Client(object):
     """An implementation of a REST client"""
-    DELETE = 'DELETE'
-    GET = 'GET'
-    HEAD = 'HEAD'
-    PATCH = 'PATCH'
-    POST = 'POST'
-    PUT = 'PUT'
+
+    DELETE = "DELETE"
+    GET = "GET"
+    HEAD = "HEAD"
+    PATCH = "PATCH"
+    POST = "POST"
+    PUT = "PUT"
 
     HTTP_METHODS = (
         DELETE,
@@ -60,10 +68,18 @@ class Client(object):
         PUT,
     )
 
-    USER_AGENT = 'vsc-rest-client'
+    USER_AGENT = "vsc-rest-client"
 
-    def __init__(self, url, username=None, password=None, token=None, token_type='Token', user_agent=None,
-                 append_slash=False):
+    def __init__(
+        self,
+        url,
+        username=None,
+        password=None,
+        token=None,
+        token_type="Token",
+        user_agent=None,
+        append_slash=False,
+    ):
         """
         Create a Client object,
         this client can consume a REST api hosted at host/endpoint
@@ -88,19 +104,24 @@ class Client(object):
 
         if username is not None:
             if password is None and token is None:
-                raise TypeError("You need a password or an OAuth token to authenticate as " + username)
+                raise TypeError(
+                    "You need a password or an OAuth token to authenticate as "
+                    + username
+                )
             if password is not None and token is not None:
-                raise TypeError("You cannot use both password and OAuth token authenication")
+                raise TypeError(
+                    "You cannot use both password and OAuth token authenication"
+                )
 
         if password is not None:
             self.auth_header = self.hash_pass(password, username)
         elif token is not None:
-            self.auth_header = '%s %s' % (token_type, token)
+            self.auth_header = "%s %s" % (token_type, token)
 
     def _append_slash_to(self, url):
         """Append slash to specified URL, if desired and needed."""
-        if self.append_slash and not url.endswith('/'):
-            url += '/'
+        if self.append_slash and not url.endswith("/"):
+            url += "/"
         return url
 
     def get(self, url, headers=None, **params):
@@ -125,7 +146,9 @@ class Client(object):
         Parameters is a dictionary that will will be urlencoded
         """
         url = self._append_slash_to(url) + self.urlencode(params)
-        return self.request(self.DELETE, url, json.dumps(body), headers, content_type='application/json')
+        return self.request(
+            self.DELETE, url, json.dumps(body), headers, content_type="application/json"
+        )
 
     def post(self, url, body=None, headers=None, **params):
         """
@@ -133,7 +156,9 @@ class Client(object):
         Parameters is a dictionary that will will be urlencoded
         """
         url = self._append_slash_to(url) + self.urlencode(params)
-        return self.request(self.POST, url, json.dumps(body), headers, content_type='application/json')
+        return self.request(
+            self.POST, url, json.dumps(body), headers, content_type="application/json"
+        )
 
     def put(self, url, body=None, headers=None, **params):
         """
@@ -141,7 +166,9 @@ class Client(object):
         Parameters is a dictionary that will will be urlencoded
         """
         url = self._append_slash_to(url) + self.urlencode(params)
-        return self.request(self.PUT, url, json.dumps(body), headers, content_type='application/json')
+        return self.request(
+            self.PUT, url, json.dumps(body), headers, content_type="application/json"
+        )
 
     def patch(self, url, body=None, headers=None, **params):
         """
@@ -149,7 +176,9 @@ class Client(object):
         Parameters is a dictionary that will will be urlencoded
         """
         url = self._append_slash_to(url) + self.urlencode(params)
-        return self.request(self.PATCH, url, json.dumps(body), headers, content_type='application/json')
+        return self.request(
+            self.PATCH, url, json.dumps(body), headers, content_type="application/json"
+        )
 
     def request(self, method, url, body, headers, content_type=None):
         """Low-level networking. All HTTP-method methods call this"""
@@ -157,12 +186,14 @@ class Client(object):
             headers = {}
 
         if content_type is not None:
-            headers['Content-Type'] = content_type
+            headers["Content-Type"] = content_type
 
         if self.auth_header is not None:
-            headers['Authorization'] = self.auth_header
-        headers['User-Agent'] = self.user_agent
-        fancylogger.getLogger().debug('cli request: %s, %s, %s, %s', method, url, body, headers)
+            headers["Authorization"] = self.auth_header
+        headers["User-Agent"] = self.user_agent
+        fancylogger.getLogger().debug(
+            "cli request: %s, %s, %s, %s", method, url, body, headers
+        )
         # TODO: in recent python: Context manager
         conn = self.get_connection(method, url, body, headers)
         status = conn.code
@@ -174,43 +205,43 @@ class Client(object):
                 pybody = json_loads(body)
             except ValueError:
                 pybody = body
-        fancylogger.getLogger().debug('reponse len: %s ', len(pybody))
+        fancylogger.getLogger().debug("reponse len: %s ", len(pybody))
         conn.close()
         return status, pybody
 
     def urlencode(self, params):
         if not params:
-            return ''
-        return '?' + urlencode(params)
+            return ""
+        return "?" + urlencode(params)
 
     def hash_pass(self, password, username=None):
         if not username:
             username = self.username
-        return 'Basic ' + base64.b64encode('%s:%s' % (username, password)).strip()
+        return "Basic " + base64.b64encode("%s:%s" % (username, password)).strip()
 
     def get_connection(self, method, url, body, headers):
-        if not self.url.endswith('/') and not url.startswith('/'):
-            sep = '/'
+        if not self.url.endswith("/") and not url.startswith("/"):
+            sep = "/"
         else:
-            sep = ''
+            sep = ""
 
         # value passed to 'data' must be a 'bytes' value (not 'str') in Python 3.x, but a string value in Python 2
         # hence, we encode the value obtained (if needed)
         # this doesn't affect the value type in Python 2, and makes it a 'bytes' value in Python 3
         if isinstance(body, string_type):
-            body = body.encode('utf-8')
+            body = body.encode("utf-8")
 
         request = Request(self.url + sep + url, data=body)
         for header, value in headers.items():
             request.add_header(header, value)
         request.get_method = lambda: method
-        fancylogger.getLogger().debug('opening request:  %s%s%s', self.url, sep, url)
+        fancylogger.getLogger().debug("opening request:  %s%s%s", self.url, sep, url)
         connection = self.opener.open(request)
         return connection
 
 
 class RequestBuilder(object):
-    '''RequestBuilder(client).path.to.resource.method(...)
+    """RequestBuilder(client).path.to.resource.method(...)
         stands for
     RequestBuilder(client).client.method('path/to/resource, ...)
 
@@ -220,11 +251,12 @@ class RequestBuilder(object):
     bad status from github.com. (Or maybe an httplib.error...)
 
     To understand the method(...) calls, check out github.client.Client.
-    '''
+    """
+
     def __init__(self, client):
         """Constructor"""
         self.client = client
-        self.url = ''
+        self.url = ""
 
     def __getattr__(self, key):
         """
@@ -241,19 +273,22 @@ class RequestBuilder(object):
             mfun = getattr(self.client, key)
             fun = partial(mfun, url=self.url)
             return fun
-        self.url += '/' + key
+        self.url += "/" + key
         return self
 
     __getitem__ = __getattr__
 
     def __str__(self):
-        '''If you ever stringify this, you've (probably) messed up
+        """If you ever stringify this, you've (probably) messed up
         somewhere. So let's give a semi-helpful message.
-        '''
-        return "I don't know about %s, You probably want to do a get or other http request, use .get()" % self.url
+        """
+        return (
+            "I don't know about %s, You probably want to do a get or other http request, use .get()"
+            % self.url
+        )
 
     def __repr__(self):
-        return '%s: %s' % (self.__class__, self.url)
+        return "%s: %s" % (self.__class__, self.url)
 
 
 class RestClient(object):
@@ -281,6 +316,7 @@ class RestClient(object):
     try to validate the url you feed it. On the other hand, it
     automatically supports the full API--so why should you care?
     """
+
     def __init__(self, *args, **kwargs):
         """We create a client with the given arguments"""
         self.client = Client(*args, **kwargs)

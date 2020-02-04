@@ -37,6 +37,7 @@ from easybuild.tools.config import build_option
 
 class PackageNamingScheme(object):
     """Abstract class for package naming schemes"""
+
     __metaclass__ = ABCMeta
 
     def __init__(self):
@@ -55,4 +56,4 @@ class PackageNamingScheme(object):
 
     def release(self, ec=None):
         """Determine package release"""
-        return build_option('package_release')
+        return build_option("package_release")

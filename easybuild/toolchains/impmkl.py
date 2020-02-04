@@ -34,10 +34,12 @@ from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
+
 class Impmkl(Impich, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), MPICH,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'impmkl'
+
+    NAME = "impmkl"
     SUBTOOLCHAIN = [Impich.NAME, Iimkl.NAME]

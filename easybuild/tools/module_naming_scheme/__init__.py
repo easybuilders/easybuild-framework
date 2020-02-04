@@ -28,4 +28,4 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 :author: Jens Timmerman (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)

@@ -15,4 +15,5 @@ class Xlompi(IBMXL, Mvapich2):
     """
     Compiler toolchain with IBM XL compilers (xlc/xlf) and MPICH.
     """
-    NAME = 'xlmvapich2'
+
+    NAME = "xlmvapich2"

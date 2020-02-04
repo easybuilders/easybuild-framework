@@ -33,14 +33,15 @@ from easybuild.toolchains.mpi.mpich import Mpich
 
 class Psmpi(Mpich):
     """Parastation MPI class"""
-    MPI_MODULE_NAME = ['psmpi']
+
+    MPI_MODULE_NAME = ["psmpi"]
 
     def _set_mpi_compiler_variables(self):
         """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
 
         # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
-        self.MPI_COMPILER_MPIF77 = 'mpif77'
-        self.MPI_COMPILER_MPIF90 = 'mpif90'
-        self.MPI_COMPILER_MPIFC = 'mpif90'
+        self.MPI_COMPILER_MPIF77 = "mpif77"
+        self.MPI_COMPILER_MPIF90 = "mpif90"
+        self.MPI_COMPILER_MPIFC = "mpif90"
 
         super(Psmpi, self)._set_mpi_compiler_variables()

@@ -43,6 +43,7 @@ class Iimklc(IccIfortCUDA, Iimkl, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort),
     CUDA, Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'iimklc'
+
+    NAME = "iimklc"
     SUBTOOLCHAIN = [IccIfortCUDA.NAME, Iimkl.NAME]
     OPTIONAL = True

@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 
-_log = fancylogger.getLogger('hgrepo', fname=False)
+_log = fancylogger.getLogger("hgrepo", fname=False)
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -60,9 +60,10 @@ try:
     from hglib.error import CommandError as HgCommandError
     from hglib.error import ResponseError as HgResponseError
     from hglib.error import ServerError as HgServerError
+
     HAVE_HG = True
 except ImportError:
-    _log.debug('Failed to import hglib module')
+    _log.debug("Failed to import hglib module")
     HAVE_HG = False
 
 
@@ -70,9 +71,12 @@ class HgRepository(FileRepository):
     """
     Class for hg repositories.
     """
-    DESCRIPTION = ("A non-empty mercurial repository (created with 'hg init' or 'hg clone'). "
-                   "The 1st argument contains the mercurial repository location, which can be a directory or an URL. "
-                   "The 2nd argument is ignored.")
+
+    DESCRIPTION = (
+        "A non-empty mercurial repository (created with 'hg init' or 'hg clone'). "
+        "The 1st argument contains the mercurial repository location, which can be a directory or an URL. "
+        "The 2nd argument is ignored."
+    )
 
     USABLE = HAVE_HG
 
@@ -89,9 +93,11 @@ class HgRepository(FileRepository):
         Set up mercurial repository.
         """
         if not HAVE_HG:
-            raise EasyBuildError("python-hglib is not available, which is required for Mercurial support.")
+            raise EasyBuildError(
+                "python-hglib is not available, which is required for Mercurial support."
+            )
 
-        self.wc = tempfile.mkdtemp(prefix='hg-wc-')
+        self.wc = tempfile.mkdtemp(prefix="hg-wc-")
 
     def create_working_copy(self):
         """
@@ -104,7 +110,10 @@ class HgRepository(FileRepository):
             self.log.debug("repo %s cloned in %s" % (self.repo, self.wc))
         except (HgCommandError, OSError) as err:
             # it might already have existed
-            self.log.warning("Mercurial local repo initialization failed, it might already exist: %s" % err)
+            self.log.warning(
+                "Mercurial local repo initialization failed, it might already exist: %s"
+                % err
+            )
 
         # local repo should now exist, let's connect to it again
         try:
@@ -115,13 +124,21 @@ class HgRepository(FileRepository):
         except (HgCapabilityError, HgResponseError) as err:
             raise EasyBuildError("Server response: %s", err)
         except (OSError, ValueError) as err:
-            raise EasyBuildError("Could not create a local mercurial repo in wc %s: %s", self.wc, err)
+            raise EasyBuildError(
+                "Could not create a local mercurial repo in wc %s: %s", self.wc, err
+            )
 
         # try to get the remote data in the local repo
         try:
             self.client.pull()
             self.log.debug("pulled succesfully in %s" % self.wc)
-        except (HgCommandError, HgServerError, HgResponseError, OSError, ValueError) as err:
+        except (
+            HgCommandError,
+            HgServerError,
+            HgResponseError,
+            OSError,
+            ValueError,
+        ) as err:
             raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
     def stage_file(self, path):
@@ -146,7 +163,9 @@ class HgRepository(FileRepository):
         :param previous: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(HgRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super(HgRepository, self).add_easyconfig(
+            cfg, name, version, stats, previous_stats
+        )
         self.stage_file(path)
         return path
 
@@ -176,7 +195,10 @@ class HgRepository(FileRepository):
             self.client.commit('"%s"' % completemsg, user=user)
             self.log.debug("succesfull commit")
         except (HgCommandError, HgServerError, HgResponseError, ValueError) as err:
-            self.log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
+            self.log.warning(
+                "Commit from working copy %s (msg: %s) failed, empty commit?\n%s"
+                % (self.wc, msg, err)
+            )
         try:
             if self.client.push():
                 info = "pushed"
@@ -185,7 +207,9 @@ class HgRepository(FileRepository):
             self.log.debug("push info: %s " % info)
         except (HgCommandError, HgServerError, HgResponseError, ValueError) as err:
             tup = (self.wc, self.repo, msg, err)
-            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % tup)
+            self.log.warning(
+                "Push from working copy %s to remote %s (msg: %s) failed: %s" % tup
+            )
 
     def cleanup(self):
         """

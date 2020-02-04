@@ -39,6 +39,10 @@ class EB_toytoy(EB_toy):
     def extra_options():
         """Custom easyconfig parameters for toytoy."""
         extra_vars = {
-            'toytoy_extra1': [None, "first toytoy-specific easyconfig parameter", CUSTOM],
-         }
+            "toytoy_extra1": [
+                None,
+                "first toytoy-specific easyconfig parameter",
+                CUSTOM,
+            ],
+        }
         return EB_toy.extra_options(extra_vars)

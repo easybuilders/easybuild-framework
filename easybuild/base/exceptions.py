@@ -72,7 +72,7 @@ class LoggedException(Exception):
     LOGGER_MODULE = fancylogger
     # name of logging method to use
     # must accept an argument of type string, i.e. the log message, and an optional list of formatting arguments
-    LOGGING_METHOD_NAME = 'error'
+    LOGGING_METHOD_NAME = "error"
     # list of top-level package names to use to format location info; None implies not to include location info
     LOC_INFO_TOP_PKG_NAMES = []
     # include location where error was raised from (enabled by default under 'python', disabled under 'python -O')
@@ -104,16 +104,20 @@ class LoggedException(Exception):
                 # determine short location of Python module where error was raised from,
                 # i.e. starting with an entry from LOC_INFO_TOP_PKG_NAMES
                 path_parts = frameinfo[1].split(os.path.sep)
-                if path_parts[0] == '':
+                if path_parts[0] == "":
                     path_parts[0] = os.path.sep
-                top_indices = [path_parts.index(n) for n in self.LOC_INFO_TOP_PKG_NAMES if n in path_parts]
-                relpath = os.path.join(*path_parts[max(top_indices or [0]):])
+                top_indices = [
+                    path_parts.index(n)
+                    for n in self.LOC_INFO_TOP_PKG_NAMES
+                    if n in path_parts
+                ]
+                relpath = os.path.join(*path_parts[max(top_indices or [0]) :])
 
                 # include location info at the end of the message
                 # for example: "Nope, giving up (at easybuild/tools/somemodule.py:123 in some_function)"
                 msg = "%s (at %s:%s in %s)" % (msg, relpath, frameinfo[2], frameinfo[3])
 
-        logger = kwargs.get('logger', None)
+        logger = kwargs.get("logger", None)
         # try to use logger defined in caller's environment
         if logger is None:
             logger = get_callers_logger()

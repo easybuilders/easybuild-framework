@@ -45,62 +45,62 @@ class IntelIccIfort(Compiler):
             should be done anyway (all icc versions come with matching ifort version)
     """
 
-    COMPILER_MODULE_NAME = ['icc', 'ifort']
+    COMPILER_MODULE_NAME = ["icc", "ifort"]
 
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
     COMPILER_UNIQUE_OPTS = {
-        'intel-static': (False, "Link Intel provided libraries statically"),
-        'no-icc': (False, "Don't set Intel specific macros"),
-        'error-unknown-option': (False, "Error instead of warning for unknown options"),
+        "intel-static": (False, "Link Intel provided libraries statically"),
+        "no-icc": (False, "Don't set Intel specific macros"),
+        "error-unknown-option": (False, "Error instead of warning for unknown options"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'i8': 'i8',
-        'r8': 'r8',
-        'optarch': 'xHost',
-        'ieee': 'fltconsistency',
-        'strict': ['fp-speculation=strict', 'fp-model strict'],
-        'precise': ['fp-model precise'],
-        'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
-        'loose': ['fp-model fast=1'],
-        'veryloose': ['fp-model fast=2'],
-        'vectorize': {False: 'no-vec', True: 'vec'},
-        'intel-static': 'static-intel',
-        'no-icc': 'no-icc',
-        'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
+        "i8": "i8",
+        "r8": "r8",
+        "optarch": "xHost",
+        "ieee": "fltconsistency",
+        "strict": ["fp-speculation=strict", "fp-model strict"],
+        "precise": ["fp-model precise"],
+        "defaultprec": ["ftz", "fp-speculation=safe", "fp-model source"],
+        "loose": ["fp-model fast=1"],
+        "veryloose": ["fp-model fast=2"],
+        "vectorize": {False: "no-vec", True: "vec"},
+        "intel-static": "static-intel",
+        "no-icc": "no-icc",
+        "error-unknown-option": "we10006",  # error at warning #10006: ignoring unknown option
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'xHost',
-        (systemtools.X86_64, systemtools.INTEL): 'xHost',
+        (systemtools.X86_64, systemtools.AMD): "xHost",
+        (systemtools.X86_64, systemtools.INTEL): "xHost",
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'xSSE2',
-        (systemtools.X86_64, systemtools.INTEL): 'xSSE2',
+        (systemtools.X86_64, systemtools.AMD): "xSSE2",
+        (systemtools.X86_64, systemtools.INTEL): "xSSE2",
     }
 
-    COMPILER_CC = 'icc'
-    COMPILER_CXX = 'icpc'
-    COMPILER_C_UNIQUE_FLAGS = ['intel-static', 'no-icc']
+    COMPILER_CC = "icc"
+    COMPILER_CXX = "icpc"
+    COMPILER_C_UNIQUE_FLAGS = ["intel-static", "no-icc"]
 
-    COMPILER_F77 = 'ifort'
-    COMPILER_F90 = 'ifort'
-    COMPILER_FC = 'ifort'
-    COMPILER_F_UNIQUE_FLAGS = ['intel-static']
+    COMPILER_F77 = "ifort"
+    COMPILER_F90 = "ifort"
+    COMPILER_FC = "ifort"
+    COMPILER_F_UNIQUE_FLAGS = ["intel-static"]
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
-        'static': '-Bstatic',
-        'dynamic':'-Bdynamic',
+        "static": "-Bstatic",
+        "dynamic": "-Bdynamic",
     }
 
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related
+    LIB_MULTITHREAD = ["iomp5", "pthread"]  # iomp5 is OpenMP related
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
-        class_constants = kwargs.setdefault('class_constants', [])
-        class_constants.append('LIB_MULTITHREAD')
+        class_constants = kwargs.setdefault("class_constants", [])
+        class_constants.append("LIB_MULTITHREAD")
 
         super(IntelIccIfort, self).__init__(*args, **kwargs)
 
@@ -108,26 +108,37 @@ class IntelIccIfort(Compiler):
         """Intel compilers-specific adjustments after setting compiler variables."""
         super(IntelIccIfort, self)._set_compiler_vars()
 
-        if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
-            raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
-                                 self.COMPILER_MODULE_NAME)
+        if not (
+            "icc" in self.COMPILER_MODULE_NAME and "ifort" in self.COMPILER_MODULE_NAME
+        ):
+            raise EasyBuildError(
+                "_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
+                self.COMPILER_MODULE_NAME,
+            )
 
         icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)[0:2]
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
+        icc_version, ifort_version = self.get_software_version(
+            self.COMPILER_MODULE_NAME
+        )[0:2]
 
         if not ifort_version == icc_version:
-            raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
-                                 icc_version, ifort_version)
+            raise EasyBuildError(
+                "_set_compiler_vars: mismatch between icc version %s and ifort version %s",
+                icc_version,
+                ifort_version,
+            )
 
-        if LooseVersion(icc_version) < LooseVersion('2011'):
+        if LooseVersion(icc_version) < LooseVersion("2011"):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        libpaths = ['intel64']
-        if self.options.get('32bit', None):
-            libpaths.append('ia32')
-        libpaths = ['lib/%s' % x for x in libpaths]
-        if LooseVersion(icc_version) > LooseVersion('2011.4') and LooseVersion(icc_version) < LooseVersion('2013_sp1'):
-            libpaths = ['compiler/%s' % x for x in libpaths]
+        libpaths = ["intel64"]
+        if self.options.get("32bit", None):
+            libpaths.append("ia32")
+        libpaths = ["lib/%s" % x for x in libpaths]
+        if LooseVersion(icc_version) > LooseVersion("2011.4") and LooseVersion(
+            icc_version
+        ) < LooseVersion("2013_sp1"):
+            libpaths = ["compiler/%s" % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
 
@@ -135,7 +146,7 @@ class IntelIccIfort(Compiler):
         """Set the variables."""
         # -fopenmp is not supported in old versions (11.x)
         icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
-        if LooseVersion(icc_version) < LooseVersion('12'):
-            self.options.options_map['openmp'] = 'openmp'
+        if LooseVersion(icc_version) < LooseVersion("12"):
+            self.options.options_map["openmp"] = "openmp"
 
         super(IntelIccIfort, self).set_variables()

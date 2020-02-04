@@ -39,5 +39,6 @@ class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'intel-para'
+
+    NAME = "intel-para"
     SUBTOOLCHAIN = [Ipsmpi.NAME, Iimkl.NAME]

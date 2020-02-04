@@ -32,7 +32,11 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-from easybuild.framework.easyconfig.licenses import License, LicenseVeryRestrictive, what_licenses
+from easybuild.framework.easyconfig.licenses import (
+    License,
+    LicenseVeryRestrictive,
+    what_licenses,
+)
 from easybuild.tools.py2vs3 import string_type
 
 
@@ -42,7 +46,7 @@ class LicenseTest(EnhancedTestCase):
     def test_common_ones(self):
         """Check if a number of common licenses can be found"""
         lics = what_licenses()
-        commonlicenses = ['LicenseVeryRestrictive', 'LicenseGPLv2', 'LicenseGPLv3']
+        commonlicenses = ["LicenseVeryRestrictive", "LicenseGPLv2", "LicenseGPLv3"]
         for lic in commonlicenses:
             self.assertTrue(lic in lics, "%s found in %s" % (lic, lics.keys()))
 
@@ -63,7 +67,7 @@ class LicenseTest(EnhancedTestCase):
         lics = what_licenses()
         for lic in lics:
             self.assertTrue(isinstance(lic, string_type))
-            self.assertTrue(lic.startswith('License'))
+            self.assertTrue(lic.startswith("License"))
             self.assertTrue(issubclass(lics[lic], License))
 
 
@@ -72,6 +76,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(LicenseTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

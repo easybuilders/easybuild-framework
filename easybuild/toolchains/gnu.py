@@ -34,5 +34,6 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class GNU(Gcc):
     """Compiler-only toolchain, including only GCC and binutils."""
-    NAME = 'GNU'
+
+    NAME = "GNU"
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

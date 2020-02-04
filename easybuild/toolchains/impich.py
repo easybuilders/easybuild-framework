@@ -34,5 +34,6 @@ class Impich(IccIfort, Mpich):
     """
     Compiler toolchain with Intel compilers (icc/ifort), MPICH.
     """
-    NAME = 'impich'
+
+    NAME = "impich"
     SUBTOOLCHAIN = IccIfort.NAME

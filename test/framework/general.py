@@ -37,7 +37,10 @@ import easybuild.framework
 import easybuild.tools.repository.filerepo
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, mkdir, read_file, write_file
-from easybuild.tools.utilities import import_available_modules, only_if_module_is_available
+from easybuild.tools.utilities import (
+    import_available_modules,
+    only_if_module_is_available,
+)
 
 
 class GeneralTest(EnhancedTestCase):
@@ -46,7 +49,9 @@ class GeneralTest(EnhancedTestCase):
     def test_error_reporting(self):
         """Make sure error reporting is done correctly (no more log.error, log.exception)."""
         # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
-        easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
+        easybuild_loc = os.path.dirname(
+            os.path.dirname(os.path.abspath(easybuild.framework.__file__))
+        )
 
         log_method_regexes = [
             re.compile("log\.error\("),
@@ -56,43 +61,47 @@ class GeneralTest(EnhancedTestCase):
 
         for dirpath, _, filenames in os.walk(easybuild_loc):
             # don't check Python modules in easybuild.base namespace (ingested vsc-base)
-            if not dirpath.endswith('easybuild/base'):
-                for filename in [f for f in filenames if f.endswith('.py')]:
+            if not dirpath.endswith("easybuild/base"):
+                for filename in [f for f in filenames if f.endswith(".py")]:
                     path = os.path.join(dirpath, filename)
                     txt = read_file(path)
                     for regex in log_method_regexes:
-                        self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+                        self.assertFalse(
+                            regex.search(txt),
+                            "No match for '%s' in %s" % (regex.pattern, path),
+                        )
 
     def test_only_if_module_is_available(self):
         """Test only_if_module_is_available decorator."""
-        @only_if_module_is_available('easybuild')
+
+        @only_if_module_is_available("easybuild")
         def foo():
             pass
 
         foo()
 
-        @only_if_module_is_available(('nosuchmoduleoutthere', 'easybuild'))
+        @only_if_module_is_available(("nosuchmoduleoutthere", "easybuild"))
         def foo2():
             pass
 
         foo2()
 
-        @only_if_module_is_available('nosuchmoduleoutthere', pkgname='nosuchpkg')
+        @only_if_module_is_available("nosuchmoduleoutthere", pkgname="nosuchpkg")
         def bar():
             pass
 
         err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
         self.assertErrorRegex(EasyBuildError, err_pat, bar)
 
-        @only_if_module_is_available(('nosuchmodule', 'anothernosuchmodule'))
+        @only_if_module_is_available(("nosuchmodule", "anothernosuchmodule"))
         def bar2():
             pass
 
         err_pat = "ImportError: None of the specified modules nosuchmodule, anothernosuchmodule is available"
         self.assertErrorRegex(EasyBuildError, err_pat, bar2)
 
-        class Foo():
-            @only_if_module_is_available('thisdoesnotexist', url='http://example.com')
+        class Foo:
+            @only_if_module_is_available("thisdoesnotexist", url="http://example.com")
             def foobar(self):
                 pass
 
@@ -102,7 +111,9 @@ class GeneralTest(EnhancedTestCase):
     def test_docstrings(self):
         """Make sure tags included in docstrings are correctly formatted."""
         # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
-        easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
+        easybuild_loc = os.path.dirname(
+            os.path.dirname(os.path.abspath(easybuild.framework.__file__))
+        )
 
         docstring_regexes = [
             re.compile("@author"),
@@ -111,20 +122,23 @@ class GeneralTest(EnhancedTestCase):
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):
-            for filename in [f for f in filenames if f.endswith('.py')]:
+            for filename in [f for f in filenames if f.endswith(".py")]:
                 # script that translates @param into :param ...: contains @param, so just skip that
-                if filename == 'fix_docs.py':
+                if filename == "fix_docs.py":
                     continue
 
                 path = os.path.join(dirpath, filename)
                 txt = read_file(path)
                 for regex in docstring_regexes:
-                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+                    self.assertFalse(
+                        regex.search(txt),
+                        "No match for '%s' in %s" % (regex.pattern, path),
+                    )
 
     def test_import_available_modules(self):
         """Test for import_available_modules function."""
 
-        res = import_available_modules('easybuild.tools.repository')
+        res = import_available_modules("easybuild.tools.repository")
         self.assertEqual(len(res), 5)
         # don't check all, since some required specific Python packages to be installed...
         self.assertTrue(easybuild.tools.repository.filerepo in res)
@@ -132,24 +146,25 @@ class GeneralTest(EnhancedTestCase):
         # replicate situation where import_available_modules failed when running in directory where modules are located
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2659
         #      and https://github.com/easybuilders/easybuild-framework/issues/2742
-        test123 = os.path.join(self.test_prefix, 'test123')
+        test123 = os.path.join(self.test_prefix, "test123")
         mkdir(test123)
-        write_file(os.path.join(test123, '__init__.py'), '')
-        write_file(os.path.join(test123, 'one.py'), '')
-        write_file(os.path.join(test123, 'two.py'), '')
-        write_file(os.path.join(test123, 'three.py'), '')
+        write_file(os.path.join(test123, "__init__.py"), "")
+        write_file(os.path.join(test123, "one.py"), "")
+        write_file(os.path.join(test123, "two.py"), "")
+        write_file(os.path.join(test123, "three.py"), "")
 
         # this test relies on having an empty entry in sys.path (which represents the current working directory)
         # may not be there (e.g. when testing with Python 3.7)
-        if '' not in sys.path:
-            sys.path.insert(0, '')
+        if "" not in sys.path:
+            sys.path.insert(0, "")
 
         change_dir(self.test_prefix)
-        res = import_available_modules('test123')
+        res = import_available_modules("test123")
 
         import test123.one
         import test123.two
         import test123.three
+
         self.assertEqual([test123.one, test123.three, test123.two], res)
 
 
@@ -158,6 +173,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

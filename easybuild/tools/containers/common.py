@@ -35,16 +35,18 @@ from easybuild.tools.config import build_option
 from easybuild.tools.containers.docker import DockerContainer  # noqa
 from easybuild.tools.containers.singularity import SingularityContainer  # noqa
 
-_log = fancylogger.getLogger('tools.containers.common')  # pylint: disable=C0103
+_log = fancylogger.getLogger("tools.containers.common")  # pylint: disable=C0103
 
 
 def containerize(easyconfigs):
     """
     Generate container recipe + (optionally) image
     """
-    _log.experimental("support for generating container recipes and images (--containerize/-C)")
+    _log.experimental(
+        "support for generating container recipes and images (--containerize/-C)"
+    )
 
-    container_type = build_option('container_type')
+    container_type = build_option("container_type")
 
     _log.info("Creating %s container", container_type)
 

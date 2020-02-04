@@ -29,10 +29,11 @@
 
 # is used (esp CUSTOM) in some easyblocks
 from easybuild.framework.easyconfig.default import ALL_CATEGORIES
+
 globals().update(ALL_CATEGORIES)
 
 # subdirectory (of 'easybuild' dir) in which easyconfig files are located in a package
-EASYCONFIGS_PKG_SUBDIR = 'easyconfigs'
+EASYCONFIGS_PKG_SUBDIR = "easyconfigs"
 
 # is used in some tools
 from easybuild.framework.easyconfig.easyconfig import EasyConfig

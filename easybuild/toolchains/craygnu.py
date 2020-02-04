@@ -36,5 +36,6 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
-    NAME = 'CrayGNU'
+
+    NAME = "CrayGNU"
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

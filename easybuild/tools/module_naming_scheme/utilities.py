@@ -38,10 +38,13 @@ import string
 from easybuild.base import fancylogger
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.py2vs3 import string_type
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
+from easybuild.tools.toolchain.toolchain import (
+    SYSTEM_TOOLCHAIN_NAME,
+    is_system_toolchain,
+)
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
-_log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
+_log = fancylogger.getLogger("module_naming_scheme.utilities", fname=False)
 
 
 def det_full_ec_version(ec):
@@ -51,16 +54,22 @@ def det_full_ec_version(ec):
     """
 
     ecver = None
-    toolchain = ec.get('toolchain', {'name': SYSTEM_TOOLCHAIN_NAME})
+    toolchain = ec.get("toolchain", {"name": SYSTEM_TOOLCHAIN_NAME})
 
     # determine main install version based on toolchain
-    if is_system_toolchain(toolchain['name']):
-        ecver = ec['version']
+    if is_system_toolchain(toolchain["name"]):
+        ecver = ec["version"]
     else:
-        ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
+        ecver = "%s-%s-%s" % (ec["version"], toolchain["name"], toolchain["version"])
 
     # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec.get('versionsuffix', '')] if x])
+    ecver = "".join(
+        [
+            x
+            for x in [ec.get("versionprefix", ""), ecver, ec.get("versionsuffix", "")]
+            if x
+        ]
+    )
 
     return ecver
 
@@ -70,7 +79,7 @@ def avail_module_naming_schemes():
     Returns a list of available module naming schemes.
     """
     # all ModuleNamingScheme subclasses available in easybuild.tools.module_naming_scheme namespace are eligible
-    import_available_modules('easybuild.tools.module_naming_scheme')
+    import_available_modules("easybuild.tools.module_naming_scheme")
 
     # construct name-to-class dict of available module naming scheme
     avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
@@ -82,7 +91,10 @@ def is_valid_module_name(mod_name):
     """Check whether the specified value is a valid module name."""
     # module name must be a string
     if not isinstance(mod_name, string_type):
-        _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
+        _log.warning(
+            "Wrong type for module name %s (%s), should be a string"
+            % (mod_name, type(mod_name))
+        )
         return False
     # module name must be relative path
     elif mod_name.startswith(os.path.sep):
@@ -95,9 +107,14 @@ def is_valid_module_name(mod_name):
     else:
         # check whether module name only contains printable characters, since it's used as a filename
         # (except for carriage-control characters \r, \x0b and \xoc)
-        invalid_chars = [x for x in mod_name if x not in string.printable or x in '\r\x0b\x0c']
+        invalid_chars = [
+            x for x in mod_name if x not in string.printable or x in "\r\x0b\x0c"
+        ]
         if len(invalid_chars) > 0:
-            _log.warning("Module name %s contains invalid characters: %s" % (mod_name, invalid_chars))
+            _log.warning(
+                "Module name %s contains invalid characters: %s"
+                % (mod_name, invalid_chars)
+            )
             return False
     _log.debug("Module name %s validated" % mod_name)
     return True
@@ -107,4 +124,4 @@ def det_hidden_modname(modname):
     """Determine the hidden equivalent of the specified module name."""
     moddir = os.path.dirname(modname)
     modfile = os.path.basename(modname)
-    return os.path.join(moddir, '.%s' % modfile).lstrip(os.path.sep)
+    return os.path.join(moddir, ".%s" % modfile).lstrip(os.path.sep)

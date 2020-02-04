@@ -88,12 +88,12 @@ class EasyBuildLibTest(TestCase):
         # run_cmd works fine if set_up_configuration was called first
         (out, ec) = run_cmd("echo hello")
         self.assertEqual(ec, 0)
-        self.assertEqual(out, 'hello\n')
+        self.assertEqual(out, "hello\n")
 
     def test_mkdir(self):
         """Test use of run_cmd function in the context of using EasyBuild framework as a library."""
 
-        test_dir = os.path.join(self.tmpdir, 'test123')
+        test_dir = os.path.join(self.tmpdir, "test123")
 
         error_pattern = "Undefined build option: .*"
         error_pattern += " Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
@@ -115,19 +115,23 @@ class EasyBuildLibTest(TestCase):
 
         self.configure()
 
-        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        test_mods_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "modules"
+        )
 
         modtool = modules_tool()
         modtool.use(test_mods_path)
-        self.assertTrue('GCC/6.4.0-2.28' in modtool.available())
-        modtool.load(['GCC/6.4.0-2.28'])
-        self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
+        self.assertTrue("GCC/6.4.0-2.28" in modtool.available())
+        modtool.load(["GCC/6.4.0-2.28"])
+        self.assertEqual(
+            modtool.list(), [{"default": None, "mod_name": "GCC/6.4.0-2.28"}]
+        )
 
 
 def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildLibTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

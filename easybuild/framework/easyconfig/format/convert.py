@@ -28,20 +28,24 @@ This module implements easyconfig specific formats and their conversions.
 
 :author: Stijn De Weirdt (Ghent University)
 """
-from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
+from easybuild.framework.easyconfig.format.version import (
+    VersionOperator,
+    ToolchainVersionOperator,
+)
 from easybuild.tools.convert import Convert
 
 
 class Dependency(Convert):
     """Handle dependency"""
-    SEPARATOR_DEP = ';'
+
+    SEPARATOR_DEP = ";"
     __wraps__ = dict
 
     def __init__(self, obj, name=None):
         """Convert pass object to a dependency, use specified name if provided."""
         super(Dependency, self).__init__(obj)
         if name is not None:
-            self['name'] = name
+            self["name"] = name
 
     def _from_string(self, txt):
         """Convert from string
@@ -51,44 +55,44 @@ class Dependency(Convert):
 
         items = self._split_string(txt, sep=self.SEPARATOR_DEP)
         if len(items) < 1 or len(items) > 2:
-            msg = 'Dependency has at least one element (a version operator string), '
-            msg += 'and at most 2 (2nd element the toolchain version operator string). '
-            msg += 'Separator %s.' % self.SEPARATOR_DEP
+            msg = "Dependency has at least one element (a version operator string), "
+            msg += "and at most 2 (2nd element the toolchain version operator string). "
+            msg += "Separator %s." % self.SEPARATOR_DEP
             raise ValueError(msg)
 
-        res['versop'] = VersionOperator(items[0])
+        res["versop"] = VersionOperator(items[0])
 
         if len(items) > 1:
-            res['tc_versop'] = ToolchainVersionOperator(items[1])
+            res["tc_versop"] = ToolchainVersionOperator(items[1])
 
         return res
 
     def __str__(self):
         """Return string"""
-        tmp = [str(self['versop'])]
-        if 'tc_versop' in self:
-            tmp.append(str(self['tc_versop']))
+        tmp = [str(self["versop"])]
+        if "tc_versop" in self:
+            tmp.append(str(self["tc_versop"]))
 
         return self.SEPARATOR_DEP.join(tmp)
 
     def name(self):
         """Get dependency name."""
-        return self.get('name', None)
+        return self.get("name", None)
 
     def version(self):
         """Get dependency version."""
-        if 'versop' in self:
-            return self['versop'].get_version_str()
+        if "versop" in self:
+            return self["versop"].get_version_str()
         else:
             return None
 
     def versionsuffix(self):
         """Get dependency versionsuffix (if any)."""
-        return self['versop'].suffix
+        return self["versop"].suffix
 
     def toolchain(self):
         """Get toolchain spec for dependency (if any)."""
-        if 'tc_versop' in self:
-            return self['tc_versop'].as_dict()
+        if "tc_versop" in self:
+            return self["tc_versop"].as_dict()
         else:
             return None

@@ -43,31 +43,87 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
+from easybuild.tools.build_log import (
+    EasyBuildError,
+    print_error,
+    print_msg,
+    stop_logging,
+)
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import (
+    fix_deprecated_easyconfigs,
+    verify_easyconfig_filename,
+)
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
-from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
-from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
+from easybuild.framework.easyconfig.tools import (
+    det_easyconfig_paths,
+    dump_env_script,
+    get_paths_for,
+)
+from easybuild.framework.easyconfig.tools import (
+    parse_easyconfigs,
+    review_pr,
+    run_contrib_checks,
+    skip_available,
+)
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.config import (
+    find_last_log,
+    get_repository,
+    get_repositorypath,
+    build_option,
+)
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, read_file, write_file
-from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
-from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
-from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
+from easybuild.tools.filetools import (
+    adjust_permissions,
+    cleanup,
+    copy_file,
+    copy_files,
+    read_file,
+    write_file,
+)
+from easybuild.tools.github import (
+    check_github,
+    close_pr,
+    new_branch_github,
+    find_easybuild_easyconfig,
+)
+from easybuild.tools.github import (
+    install_github_token,
+    list_prs,
+    new_pr,
+    new_pr_from_branch,
+    merge_pr,
+)
+from easybuild.tools.github import (
+    sync_branch_with_develop,
+    sync_pr_with_develop,
+    update_branch,
+    update_pr,
+)
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import (
+    check_conflicts,
+    dry_run,
+    missing_deps,
+    resolve_dependencies,
+    search_easyconfigs,
+)
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from easybuild.tools.testing import (
+    create_test_report,
+    overall_test_report,
+    regtest,
+    session_state,
+)
 
 _log = None
 
@@ -77,18 +133,26 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     generated, ec_file = obtain_ec_for(build_specs, robot_path, None)
     if generated:
         if try_to_generate:
-            print_msg("Generated an easyconfig file %s, going to use it now..." % ec_file, silent=testing)
+            print_msg(
+                "Generated an easyconfig file %s, going to use it now..." % ec_file,
+                silent=testing,
+            )
         else:
             # (try to) cleanup
             try:
                 os.remove(ec_file)
             except OSError as err:
-                _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
+                _log.warning(
+                    "Failed to remove generated easyconfig file %s: %s" % (ec_file, err)
+                )
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
-            raise EasyBuildError("Unable to find an easyconfig for the given specifications: %s; "
-                                 "to make EasyBuild try to generate a matching easyconfig, "
-                                 "use the --try-X options ", build_specs)
+            raise EasyBuildError(
+                "Unable to find an easyconfig for the given specifications: %s; "
+                "to make EasyBuild try to generate a matching easyconfig, "
+                "use the --try-X options ",
+                build_specs,
+            )
 
     return [(ec_file, generated)]
 
@@ -110,28 +174,32 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     for ec in ecs:
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
-            ec_res['log_file'] = app_log
-            if not ec_res['success']:
-                ec_res['err'] = EasyBuildError(err)
+            (ec_res["success"], app_log, err) = build_and_install_one(ec, init_env)
+            ec_res["log_file"] = app_log
+            if not ec_res["success"]:
+                ec_res["err"] = EasyBuildError(err)
         except Exception as err:
             # purposely catch all exceptions
-            ec_res['success'] = False
-            ec_res['err'] = err
-            ec_res['traceback'] = traceback.format_exc()
+            ec_res["success"] = False
+            ec_res["err"] = err
+            ec_res["traceback"] = traceback.format_exc()
 
         # keep track of success/total count
-        if ec_res['success']:
-            test_msg = "Successfully built %s" % ec['spec']
+        if ec_res["success"]:
+            test_msg = "Successfully built %s" % ec["spec"]
         else:
-            test_msg = "Build of %s failed" % ec['spec']
-            if 'err' in ec_res:
-                test_msg += " (err: %s)" % ec_res['err']
+            test_msg = "Build of %s failed" % ec["spec"]
+            if "err" in ec_res:
+                test_msg += " (err: %s)" % ec_res["err"]
 
         # dump test report next to log file
-        test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
-        if 'log_file' in ec_res and ec_res['log_file']:
-            test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
+        test_report_txt = create_test_report(
+            test_msg, [(ec, ec_res)], init_session_state
+        )
+        if "log_file" in ec_res and ec_res["log_file"]:
+            test_report_fp = "%s_test_report.md" % ".".join(
+                ec_res["log_file"].split(".")[:-1]
+            )
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
             if os.stat(parent_dir).st_mode & 0o200:
@@ -141,9 +209,9 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 write_file(test_report_fp, test_report_txt)
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
-        if not ec_res['success'] and exit_on_failure:
-            if 'traceback' in ec_res:
-                raise EasyBuildError(ec_res['traceback'])
+        if not ec_res["success"] and exit_on_failure:
+            if "traceback" in ec_res:
+                raise EasyBuildError(ec_res["traceback"])
             else:
                 raise EasyBuildError(test_msg)
 
@@ -159,16 +227,20 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     :return: boolean indicating whether or not any checks were actually performed
     """
     check_actions = {
-        'contribution': (check_contrib, run_contrib_checks),
-        'style': (check_style, cmdline_easyconfigs_style_check),
+        "contribution": (check_contrib, run_contrib_checks),
+        "style": (check_style, cmdline_easyconfigs_style_check),
     }
     for check_label, (run_check, check_function) in sorted(check_actions.items()):
         if run_check:
-            _log.info("Running %s checks on %d specified easyconfigs...", check_label, len(ecs))
+            _log.info(
+                "Running %s checks on %d specified easyconfigs...",
+                check_label,
+                len(ecs),
+            )
             if check_function(ecs):
                 print_msg("\n>> All %s checks PASSed!\n" % check_label, prefix=False)
             else:
-                print_msg('', prefix=False)
+                print_msg("", prefix=False)
                 raise EasyBuildError("One or more %s checks FAILED!" % check_label)
 
     return check_contrib or check_style
@@ -190,17 +262,28 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     # if $CDPATH is set, unset it, it'll only cause trouble...
     # see https://github.com/easybuilders/easybuild-framework/issues/2944
-    if 'CDPATH' in os.environ:
-        del os.environ['CDPATH']
+    if "CDPATH" in os.environ:
+        del os.environ["CDPATH"]
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
-    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    eb_go, cfg_settings = set_up_configuration(
+        args=args, logfile=logfile, testing=testing
+    )
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
+    (
+        build_specs,
+        _log,
+        logfile,
+        robot_path,
+        search_query,
+        eb_tmpdir,
+        try_to_generate,
+        tweaked_ecs_paths,
+    ) = cfg_settings
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
@@ -215,7 +298,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if options.last_log:
         # print location to last log file, and exit
-        last_log = find_last_log(logfile) or '(none)'
+        last_log = find_last_log(logfile) or "(none)"
         print_msg(last_log, log=_log, prefix=False)
 
     # check whether packaging is supported when it's being used
@@ -226,15 +309,19 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # search for easyconfigs, if a query is specified
     if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
+        search_easyconfigs(
+            search_query,
+            short=options.search_short,
+            filename_only=options.search_filename,
+            terse=options.terse,
+        )
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
 
     elif options.install_github_token:
-        install_github_token(options.github_user, silent=build_option('silent'))
+        install_github_token(options.github_user, silent=build_option("silent"))
 
     elif options.close_pr:
         close_pr(options.close_pr, motivation_msg=options.close_pr_msg)
@@ -249,11 +336,22 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
 
     elif options.list_installed_software:
-        detailed = options.list_installed_software == 'detailed'
-        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
+        detailed = options.list_installed_software == "detailed"
+        print(
+            list_software(
+                output_format=options.output_format,
+                detailed=detailed,
+                only_installed=True,
+            )
+        )
 
     elif options.list_software:
-        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
+        print(
+            list_software(
+                output_format=options.output_format,
+                detailed=options.list_software == "detailed",
+            )
+        )
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
@@ -273,20 +371,26 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
-    modlist = modtool.list()  # build options must be initialized first before 'module list' works
-    init_session_state.update({'easybuild_configuration': eb_config})
-    init_session_state.update({'module_list': modlist})
+    modlist = (
+        modtool.list()
+    )  # build options must be initialized first before 'module list' works
+    init_session_state.update({"easybuild_configuration": eb_config})
+    init_session_state.update({"module_list": modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
-        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
+        _log.warning(
+            "Failed to determine install path for easybuild-easyconfigs package."
+        )
 
     if options.install_latest_eb_release:
         if orig_paths:
-            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
-                                 "other easyconfigs")
+            raise EasyBuildError(
+                "Installing the latest EasyBuild release can not be combined with installing "
+                "other easyconfigs"
+            )
         else:
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
@@ -297,13 +401,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
-    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
+    pr_options = (
+        options.new_branch_github
+        or options.new_pr
+        or options.new_pr_from_branch
+        or options.preview_pr
+    )
+    pr_options = (
+        pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
+    )
     pr_options = pr_options or options.update_branch_github or options.update_pr
     no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
     # determine paths to easyconfigs
-    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+    determined_paths = det_easyconfig_paths(categorized_paths["easyconfigs"])
 
     if options.copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
 
@@ -326,44 +437,60 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in determined_paths]
-    elif 'name' in build_specs:
+    elif "name" in build_specs:
         # try to obtain or generate an easyconfig file via build specifications if a software name is provided
-        paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
+        paths = find_easyconfigs_by_specs(
+            build_specs, robot_path, try_to_generate, testing=testing
+        )
     elif any(no_ec_opts):
         paths = determined_paths
     else:
-        print_error("Please provide one or multiple easyconfig files, or use software build " +
-                    "options to make EasyBuild search for easyconfigs",
-                    log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+        print_error(
+            "Please provide one or multiple easyconfig files, or use software build "
+            + "options to make EasyBuild search for easyconfigs",
+            log=_log,
+            opt_parser=eb_go.parser,
+            exit_on_error=not testing,
+        )
     _log.debug("Paths: %s", paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         # fallback: easybuild-easyconfigs install path
-        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths, modtool)
+        regtest_ok = regtest(
+            [path[0] for path in paths] or easyconfigs_pkg_paths, modtool
+        )
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+    easyconfigs, generated_ecs = parse_easyconfigs(
+        paths, validate=not options.inject_checksums
+    )
 
     # handle --check-contrib & --check-style options
-    if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
+    if run_contrib_style_checks(
+        [ec["ec"] for ec in easyconfigs], options.check_contrib, options.check_style
+    ):
         clean_exit(logfile, eb_tmpdir, testing)
 
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
         _log.info("Verifying easyconfig filenames...")
         for easyconfig in easyconfigs:
-            verify_easyconfig_filename(easyconfig['spec'], easyconfig['ec'], parsed_ec=easyconfig['ec'])
+            verify_easyconfig_filename(
+                easyconfig["spec"], easyconfig["ec"], parsed_ec=easyconfig["ec"]
+            )
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs = tweak(
+            easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths
+        )
 
     if options.containerize:
         # if --containerize/-C create a container recipe (and optionally container image), and stop
@@ -374,17 +501,26 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
-    if not (forced or dry_run_mode or options.extended_dry_run or pr_options or options.inject_checksums):
+    if not (
+        forced
+        or dry_run_mode
+        or options.extended_dry_run
+        or pr_options
+        or options.inject_checksums
+    ):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
-                print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
+                print_msg(
+                    "%s is already installed (module found), skipping"
+                    % skipped_ec["full_mod_name"]
+                )
         easyconfigs = retained_ecs
 
     # keep track for which easyconfigs we should set the corresponding module as default
     if options.set_default_module:
         for easyconfig in easyconfigs:
-            easyconfig['ec'].set_default_module = True
+            easyconfig["ec"].set_default_module = True
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
@@ -445,7 +581,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         inject_checksums(ordered_ecs, options.inject_checksums)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
+    stop_options = [
+        options.check_conflicts,
+        dry_run_mode,
+        options.dump_env_script,
+        options.inject_checksums,
+    ]
     if any(no_ec_opts) or any(stop_options):
         clean_exit(logfile, eb_tmpdir, testing)
 
@@ -466,19 +607,28 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        ecs_with_res = build_and_install_software(
+            ordered_ecs, init_session_state, exit_on_failure=exit_on_failure
+        )
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
-    correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
+    correct_builds_cnt = len(
+        [ec_res for (_, ec_res) in ecs_with_res if ec_res.get("success", False)]
+    )
     overall_success = correct_builds_cnt == len(ordered_ecs)
-    success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg = "Build succeeded for %s out of %s" % (
+        correct_builds_cnt,
+        len(ordered_ecs),
+    )
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
 
     # dump/upload overall test report
-    test_report_msg = overall_test_report(ecs_with_res, len(paths), overall_success, success_msg, init_session_state)
+    test_report_msg = overall_test_report(
+        ecs_with_res, len(paths), overall_success, success_msg, init_session_state
+    )
     if test_report_msg is not None:
         print_msg(test_report_msg)
 
@@ -486,8 +636,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # cleanup and spec files
     for ec in easyconfigs:
-        if 'original_spec' in ec and os.path.isfile(ec['spec']):
-            os.remove(ec['spec'])
+        if "original_spec" in ec and os.path.isfile(ec["spec"]):
+            os.remove(ec["spec"])
 
     run_hook(END, hooks)
 

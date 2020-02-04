@@ -40,5 +40,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Gmvolf(Gmvapich2, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'gmvolf'
+
+    NAME = "gmvolf"
     SUBTOOLCHAIN = [Gmvapich2.NAME, Golf.NAME]

@@ -40,5 +40,6 @@ from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 class Gomklc(Gompic, IntelMKL, IntelFFTW):
     """Compiler toolchain with GCC, Open MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers and Cuda."""
-    NAME = 'gomklc'
+
+    NAME = "gomklc"
     SUBTOOLCHAIN = [Gompic.NAME, Gmklc.NAME]

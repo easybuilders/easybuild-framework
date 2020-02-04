@@ -39,17 +39,21 @@ class ToolchainVariables(Variables):
     Class to hold variable-like key/value pairs
     in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
     """
+
     MAP_CLASS = join_map_class(ALL_MAP_CLASSES)  # join_map_class strips explanation
     DEFAULT_CLASS = FlagList
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
 
-    def add_begin_end_linkerflags(self, lib, toggle_startstopgroup=False, toggle_staticdynamic=False):
+    def add_begin_end_linkerflags(
+        self, lib, toggle_startstopgroup=False, toggle_staticdynamic=False
+    ):
         """
         For given lib
             if toggle_startstopgroup: toggle begin/end group
             if toggle_staticdynamic: toggle static/dynamic
         """
+
         class LFL(LinkerFlagList):
             LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
             LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC

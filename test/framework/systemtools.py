@@ -39,15 +39,42 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
+from easybuild.tools.systemtools import (
+    CPU_ARCHITECTURES,
+    AARCH32,
+    AARCH64,
+    POWER,
+    X86_64,
+)
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import check_python_version, pick_dep_version
-from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
-from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
-from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
+from easybuild.tools.systemtools import (
+    det_parallelism,
+    get_avail_core_count,
+    get_cpu_architecture,
+    get_cpu_family,
+)
+from easybuild.tools.systemtools import (
+    get_cpu_features,
+    get_cpu_model,
+    get_cpu_speed,
+    get_cpu_vendor,
+)
+from easybuild.tools.systemtools import (
+    get_gcc_version,
+    get_glibc_version,
+    get_os_type,
+    get_os_name,
+    get_os_version,
+)
+from easybuild.tools.systemtools import (
+    get_platform_name,
+    get_shared_lib_ext,
+    get_system_info,
+    get_total_memory,
+)
 
 
 PROC_CPUINFO_TXT = None
@@ -280,7 +307,7 @@ MACHINE_NAME = None
 def mocked_read_file(fp):
     """Mocked version of read_file, with specified contents for known filenames."""
     known_fps = {
-        MAX_FREQ_FP:  '2850000',
+        MAX_FREQ_FP: "2850000",
         PROC_CPUINFO_FP: PROC_CPUINFO_TXT,
         PROC_MEMINFO_FP: PROC_MEMINFO_TXT,
     }
@@ -301,17 +328,17 @@ def mocked_run_cmd(cmd, **kwargs):
         "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
         "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
-        "sysctl -n hw.ncpu": '10',
-        "sysctl -n hw.memsize": '8589934592',
+        "sysctl -n hw.ncpu": "10",
+        "sysctl -n hw.memsize": "8589934592",
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.extfeatures": "SYSCALL XD 1GBPAGE EM64T LAHF LZCNT RDTSCP TSCI",
         "sysctl -n machdep.cpu.features": "FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C",
         "sysctl -n machdep.cpu.leaf7_features": "SMEP ERMS RDWRFSGS TSC_THREAD_OFFSET BMI1 AVX2 BMI2 INVPCID FPU_CSDS",
-        "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
-        "ulimit -u": '40',
+        "sysctl -n machdep.cpu.vendor": "GenuineIntel",
+        "ulimit -u": "40",
     }
     if cmd in known_cmds:
-        if 'simple' in kwargs and kwargs['simple']:
+        if "simple" in kwargs and kwargs["simple"]:
             return True
         else:
             return (known_cmds[cmd], 0)
@@ -321,7 +348,7 @@ def mocked_run_cmd(cmd, **kwargs):
 
 def mocked_uname():
     """Mocked version of platform.uname, with specified contents for known machine names."""
-    return ('Linux', 'localhost', '3.16', '3.16', MACHINE_NAME, '')
+    return ("Linux", "localhost", "3.16", "3.16", MACHINE_NAME, "")
 
 
 class SystemToolsTest(EnhancedTestCase):
@@ -354,7 +381,10 @@ class SystemToolsTest(EnhancedTestCase):
     def test_avail_core_count_native(self):
         """Test getting core count."""
         core_count = get_avail_core_count()
-        self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
+        self.assertTrue(
+            isinstance(core_count, int),
+            "core_count has type int: %s, %s" % (core_count, type(core_count)),
+        )
         self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
     def test_avail_core_count_linux(self):
@@ -386,18 +416,18 @@ class SystemToolsTest(EnhancedTestCase):
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
-        MACHINE_NAME = 'x86_64'
+        MACHINE_NAME = "x86_64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_model(), "Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz")
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
         self.assertEqual(get_cpu_model(), "Six-Core AMD Opteron(tm) Processor 2427")
 
-        MACHINE_NAME = 'ppc64'
+        MACHINE_NAME = "ppc64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_model(), "IBM,8205-E6C")
 
-        MACHINE_NAME = 'armv7l'
+        MACHINE_NAME = "armv7l"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_model(), "ARM Cortex-A7")
 
@@ -461,49 +491,212 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
-        expected = ['acpi', 'aes', 'aperfmperf', 'apic', 'arat', 'arch_perfmon', 'avx', 'bts', 'clflush', 'cmov',
-                    'constant_tsc', 'cx16', 'cx8', 'dca', 'de', 'ds_cpl', 'dtes64', 'dts', 'dts', 'ept', 'est',
-                    'flexpriority', 'fpu', 'fxsr', 'ht', 'ida', 'lahf_lm', 'lm', 'mca', 'mce', 'mmx', 'monitor',
-                    'msr', 'mtrr', 'nonstop_tsc', 'nx', 'pae', 'pat', 'pbe', 'pcid', 'pclmulqdq', 'pdcm', 'pdpe1gb',
-                    'pebs', 'pge', 'pln', 'pni', 'popcnt', 'pse', 'pse36', 'pts', 'rdtscp', 'rep_good', 'sep', 'smx',
-                    'ss', 'sse', 'sse2', 'sse4_1', 'sse4_2', 'ssse3', 'syscall', 'tm', 'tm2', 'tpr_shadow', 'tsc',
-                    'tsc_deadline_timer', 'vme', 'vmx', 'vnmi', 'vpid', 'x2apic', 'xsave', 'xsaveopt', 'xtopology',
-                    'xtpr']
+        expected = [
+            "acpi",
+            "aes",
+            "aperfmperf",
+            "apic",
+            "arat",
+            "arch_perfmon",
+            "avx",
+            "bts",
+            "clflush",
+            "cmov",
+            "constant_tsc",
+            "cx16",
+            "cx8",
+            "dca",
+            "de",
+            "ds_cpl",
+            "dtes64",
+            "dts",
+            "dts",
+            "ept",
+            "est",
+            "flexpriority",
+            "fpu",
+            "fxsr",
+            "ht",
+            "ida",
+            "lahf_lm",
+            "lm",
+            "mca",
+            "mce",
+            "mmx",
+            "monitor",
+            "msr",
+            "mtrr",
+            "nonstop_tsc",
+            "nx",
+            "pae",
+            "pat",
+            "pbe",
+            "pcid",
+            "pclmulqdq",
+            "pdcm",
+            "pdpe1gb",
+            "pebs",
+            "pge",
+            "pln",
+            "pni",
+            "popcnt",
+            "pse",
+            "pse36",
+            "pts",
+            "rdtscp",
+            "rep_good",
+            "sep",
+            "smx",
+            "ss",
+            "sse",
+            "sse2",
+            "sse4_1",
+            "sse4_2",
+            "ssse3",
+            "syscall",
+            "tm",
+            "tm2",
+            "tpr_shadow",
+            "tsc",
+            "tsc_deadline_timer",
+            "vme",
+            "vmx",
+            "vnmi",
+            "vpid",
+            "x2apic",
+            "xsave",
+            "xsaveopt",
+            "xtopology",
+            "xtpr",
+        ]
         self.assertEqual(get_cpu_features(), expected)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
-        expected = ['edsp', 'evtstrm', 'fastmult', 'half', 'idiva', 'idivt', 'lpae', 'neon',
-                    'thumb', 'tls', 'vfp', 'vfpd32', 'vfpv3', 'vfpv4']
+        expected = [
+            "edsp",
+            "evtstrm",
+            "fastmult",
+            "half",
+            "idiva",
+            "idivt",
+            "lpae",
+            "neon",
+            "thumb",
+            "tls",
+            "vfp",
+            "vfpd32",
+            "vfpv3",
+            "vfpv4",
+        ]
         self.assertEqual(get_cpu_features(), expected)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
-        expected = ['edsp', 'fastmult', 'half', 'idiva', 'idivt', 'neon', 'swp', 'thumb',
-                    'tls', 'vfp', 'vfpv3', 'vfpv4']
+        expected = [
+            "edsp",
+            "fastmult",
+            "half",
+            "idiva",
+            "idivt",
+            "neon",
+            "swp",
+            "thumb",
+            "tls",
+            "vfp",
+            "vfpv3",
+            "vfpv4",
+        ]
         self.assertEqual(get_cpu_features(), expected)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
-        expected = ['aes', 'asimd', 'crc32', 'evtstrm', 'fp', 'pmull', 'sha1', 'sha2']
+        expected = ["aes", "asimd", "crc32", "evtstrm", "fp", "pmull", "sha1", "sha2"]
         self.assertEqual(get_cpu_features(), expected)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
-        expected = ['aes', 'asimd', 'crc32', 'evtstrm', 'fp', 'pmull', 'sha1', 'sha2']
+        expected = ["aes", "asimd", "crc32", "evtstrm", "fp", "pmull", "sha1", "sha2"]
         self.assertEqual(get_cpu_features(), expected)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         st.get_cpu_architecture = lambda: POWER
-        self.assertEqual(get_cpu_features(), ['altivec', 'vsx'])
+        self.assertEqual(get_cpu_features(), ["altivec", "vsx"])
 
     def test_cpu_features_darwin(self):
         """Test getting CPU features (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
-        expected = ['1gbpage', 'acpi', 'aes', 'apic', 'avx1.0', 'avx2', 'bmi1', 'bmi2', 'clfsh', 'cmov', 'cx16',
-                    'cx8', 'de', 'ds', 'dscpl', 'dtes64', 'em64t', 'erms', 'est', 'f16c', 'fma', 'fpu', 'fpu_csds',
-                    'fxsr', 'htt', 'invpcid', 'lahf', 'lzcnt', 'mca', 'mce', 'mmx', 'mon', 'movbe', 'msr', 'mtrr',
-                    'osxsave', 'pae', 'pat', 'pbe', 'pcid', 'pclmulqdq', 'pdcm', 'pge', 'popcnt', 'pse', 'pse36',
-                    'rdrand', 'rdtscp', 'rdwrfsgs', 'seglim64', 'sep', 'smep', 'ss', 'sse', 'sse2', 'sse3', 'sse4.1',
-                    'sse4.2', 'ssse3', 'syscall', 'tm', 'tm2', 'tpr', 'tsc', 'tsc_thread_offset', 'tsci', 'tsctmr',
-                    'vme', 'vmx', 'x2apic', 'xd', 'xsave']
+        expected = [
+            "1gbpage",
+            "acpi",
+            "aes",
+            "apic",
+            "avx1.0",
+            "avx2",
+            "bmi1",
+            "bmi2",
+            "clfsh",
+            "cmov",
+            "cx16",
+            "cx8",
+            "de",
+            "ds",
+            "dscpl",
+            "dtes64",
+            "em64t",
+            "erms",
+            "est",
+            "f16c",
+            "fma",
+            "fpu",
+            "fpu_csds",
+            "fxsr",
+            "htt",
+            "invpcid",
+            "lahf",
+            "lzcnt",
+            "mca",
+            "mce",
+            "mmx",
+            "mon",
+            "movbe",
+            "msr",
+            "mtrr",
+            "osxsave",
+            "pae",
+            "pat",
+            "pbe",
+            "pcid",
+            "pclmulqdq",
+            "pdcm",
+            "pge",
+            "popcnt",
+            "pse",
+            "pse36",
+            "rdrand",
+            "rdtscp",
+            "rdwrfsgs",
+            "seglim64",
+            "sep",
+            "smep",
+            "ss",
+            "sse",
+            "sse2",
+            "sse3",
+            "sse4.1",
+            "sse4.2",
+            "ssse3",
+            "syscall",
+            "tm",
+            "tm2",
+            "tpr",
+            "tsc",
+            "tsc_thread_offset",
+            "tsci",
+            "tsctmr",
+            "vme",
+            "vmx",
+            "x2apic",
+            "xd",
+            "xsave",
+        ]
         self.assertEqual(get_cpu_features(), expected)
 
     def test_cpu_architecture_native(self):
@@ -517,13 +710,13 @@ class SystemToolsTest(EnhancedTestCase):
         global MACHINE_NAME
 
         machine_names = {
-            'aarch64': AARCH64,
-            'aarch64_be': AARCH64,
-            'armv7l': AARCH32,
-            'ppc64': POWER,
-            'ppc64le': POWER,
-            'x86_64': X86_64,
-            'some_fancy_arch': UNKNOWN,
+            "aarch64": AARCH64,
+            "aarch64_be": AARCH64,
+            "armv7l": AARCH32,
+            "ppc64": POWER,
+            "ppc64le": POWER,
+            "x86_64": X86_64,
+            "some_fancy_arch": UNKNOWN,
         }
         for name in machine_names:
             MACHINE_NAME = name
@@ -543,22 +736,22 @@ class SystemToolsTest(EnhancedTestCase):
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
-        MACHINE_NAME = 'x86_64'
+        MACHINE_NAME = "x86_64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_vendor(), INTEL)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
         self.assertEqual(get_cpu_vendor(), AMD)
 
-        MACHINE_NAME = 'ppc64'
+        MACHINE_NAME = "ppc64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_vendor(), IBM)
 
-        MACHINE_NAME = 'armv7l'
+        MACHINE_NAME = "armv7l"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_vendor(), ARM)
 
-        MACHINE_NAME = 'aarch64'
+        MACHINE_NAME = "aarch64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
         self.assertEqual(get_cpu_vendor(), APM)
 
@@ -586,32 +779,32 @@ class SystemToolsTest(EnhancedTestCase):
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
-        MACHINE_NAME = 'x86_64'
+        MACHINE_NAME = "x86_64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_family(), INTEL)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
         self.assertEqual(get_cpu_family(), AMD)
 
-        MACHINE_NAME = 'armv7l'
+        MACHINE_NAME = "armv7l"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_family(), ARM)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
         self.assertEqual(get_cpu_family(), ARM)
 
-        MACHINE_NAME = 'aarch64'
+        MACHINE_NAME = "aarch64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
         self.assertEqual(get_cpu_family(), ARM)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
         self.assertEqual(get_cpu_family(), ARM)
 
-        MACHINE_NAME = 'ppc64'
+        MACHINE_NAME = "ppc64"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
 
-        MACHINE_NAME = 'ppc64le'
+        MACHINE_NAME = "ppc64le"
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER_LE)
 
@@ -630,42 +823,46 @@ class SystemToolsTest(EnhancedTestCase):
     def test_shared_lib_ext_native(self):
         """Test getting extension for shared libraries."""
         ext = get_shared_lib_ext()
-        self.assertTrue(ext in ['dylib', 'so'])
+        self.assertTrue(ext in ["dylib", "so"])
 
     def test_shared_lib_ext_linux(self):
         """Test getting extension for shared libraries (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        self.assertEqual(get_shared_lib_ext(), 'so')
+        self.assertEqual(get_shared_lib_ext(), "so")
 
     def test_shared_lib_ext_darwin(self):
         """Test getting extension for shared libraries (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        self.assertEqual(get_shared_lib_ext(), 'dylib')
+        self.assertEqual(get_shared_lib_ext(), "dylib")
 
     def test_platform_name_native(self):
         """Test getting platform name."""
         platform_name_nover = get_platform_name()
         self.assertTrue(isinstance(platform_name_nover, string_type))
-        len_nover = len(platform_name_nover.split('-'))
+        len_nover = len(platform_name_nover.split("-"))
         self.assertTrue(len_nover >= 3)
 
         platform_name_ver = get_platform_name(withversion=True)
         self.assertTrue(isinstance(platform_name_ver, string_type))
-        len_ver = len(platform_name_ver.split('-'))
+        len_ver = len(platform_name_ver.split("-"))
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
         self.assertTrue(len_ver >= len_nover)
 
     def test_platform_name_linux(self):
         """Test getting platform name (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        self.assertTrue(re.match('.*-unknown-linux$', get_platform_name()))
-        self.assertTrue(re.match('.*-unknown-linux-gnu$', get_platform_name(withversion=True)))
+        self.assertTrue(re.match(".*-unknown-linux$", get_platform_name()))
+        self.assertTrue(
+            re.match(".*-unknown-linux-gnu$", get_platform_name(withversion=True))
+        )
 
     def test_platform_name_darwin(self):
         """Test getting platform name (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        self.assertTrue(re.match('.*-apple-darwin$', get_platform_name()))
-        self.assertTrue(re.match('.*-apple-darwin.*$', get_platform_name(withversion=True)))
+        self.assertTrue(re.match(".*-apple-darwin$", get_platform_name()))
+        self.assertTrue(
+            re.match(".*-apple-darwin.*$", get_platform_name(withversion=True))
+        )
 
     def test_os_name(self):
         """Test getting OS name."""
@@ -686,29 +883,36 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting gcc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.run_cmd = mocked_run_cmd
-        self.assertEqual(get_gcc_version(), '5.1.1')
+        self.assertEqual(get_gcc_version(), "5.1.1")
 
     def test_gcc_version_darwin(self):
         """Test getting gcc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = lambda *args, **kwargs: ("Apple LLVM version 7.0.0 (clang-700.1.76)", 0)
+        st.run_cmd = lambda *args, **kwargs: (
+            "Apple LLVM version 7.0.0 (clang-700.1.76)",
+            0,
+        )
         self.assertEqual(get_gcc_version(), None)
 
     def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
-        self.assertTrue(isinstance(glibc_version, string_type) or glibc_version == UNKNOWN)
+        self.assertTrue(
+            isinstance(glibc_version, string_type) or glibc_version == UNKNOWN
+        )
 
     def test_glibc_version_linux(self):
         """Test getting glibc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.run_cmd = mocked_run_cmd
-        self.assertEqual(get_glibc_version(), '2.12')
+        self.assertEqual(get_glibc_version(), "2.12")
 
     def test_glibc_version_linux_musl_libc(self):
         """Test getting glibc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        st.get_tool_version = lambda _: "musl libc (x86_64); Version 1.1.18; Dynamic Program Loader"
+        st.get_tool_version = (
+            lambda _: "musl libc (x86_64); Version 1.1.18; Dynamic Program Loader"
+        )
         self.assertEqual(get_glibc_version(), UNKNOWN)
 
     def test_glibc_version_darwin(self):
@@ -774,7 +978,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_check_python_version(self):
         """Test check_python_version function."""
 
-        init_config(build_options={'silence_deprecation_warnings': []})
+        init_config(build_options={"silence_deprecation_warnings": []})
 
         def mock_python_ver(py_maj_ver, py_min_ver):
             """Helper function to mock a particular Python version."""
@@ -790,7 +994,9 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         mock_python_ver(2, 5)
-        error_pattern = r"Python 2.6 or higher is required when using Python 2, found Python 2.5"
+        error_pattern = (
+            r"Python 2.6 or higher is required when using Python 2, found Python 2.5"
+        )
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
@@ -804,7 +1010,9 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # we may trigger a deprecation warning below (when testing with Python 2.6)
-        py26_depr_warning = "\nWARNING: Deprecated functionality, will no longer work in v5.0: "
+        py26_depr_warning = (
+            "\nWARNING: Deprecated functionality, will no longer work in v5.0: "
+        )
         py26_depr_warning += "Running EasyBuild with Python 2.6 is deprecated"
 
         self.allow_deprecated_behaviour()
@@ -841,21 +1049,23 @@ class SystemToolsTest(EnhancedTestCase):
         """Test pick_dep_version function."""
 
         self.assertEqual(pick_dep_version(None), None)
-        self.assertEqual(pick_dep_version('1.2.3'), '1.2.3')
+        self.assertEqual(pick_dep_version("1.2.3"), "1.2.3")
 
         dep_ver_dict = {
-            'arch=x86_64': '1.2.3-amd64',
-            'arch=POWER': '1.2.3-ppc64le',
+            "arch=x86_64": "1.2.3-amd64",
+            "arch=POWER": "1.2.3-ppc64le",
         }
 
         st.get_cpu_architecture = lambda: X86_64
-        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-amd64')
+        self.assertEqual(pick_dep_version(dep_ver_dict), "1.2.3-amd64")
 
         st.get_cpu_architecture = lambda: POWER
-        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
+        self.assertEqual(pick_dep_version(dep_ver_dict), "1.2.3-ppc64le")
 
         error_pattern = "Unknown value type for version"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
+        self.assertErrorRegex(
+            EasyBuildError, error_pattern, pick_dep_version, ("1.2.3", "4.5.6")
+        )
 
 
 def suite():
@@ -863,6 +1073,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

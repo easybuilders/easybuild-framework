@@ -34,5 +34,6 @@ from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 class Iimpic(IccIfortCUDA, IntelMPI):
     """Compiler toolchain with Intel compilers (icc/ifort), Intel MPI and CUDA."""
-    NAME = 'iimpic'
+
+    NAME = "iimpic"
     SUBTOOLCHAIN = IccIfortCUDA.NAME

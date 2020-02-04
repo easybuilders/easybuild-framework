@@ -41,11 +41,11 @@ TC_CONSTANT_CUDA = "CUDA"
 class Cuda(Compiler):
     """CUDA compiler class."""
 
-    COMPILER_CUDA_MODULE_NAME = ['CUDA']
+    COMPILER_CUDA_MODULE_NAME = ["CUDA"]
     COMPILER_CUDA_FAMILY = TC_CONSTANT_CUDA
 
     COMPILER_CUDA_UNIQUE_OPTS = {
-        # handle '-gencode arch=X,code=Y' nvcc options (also -arch, -code) 
+        # handle '-gencode arch=X,code=Y' nvcc options (also -arch, -code)
         # -arch always needs to be specified, -code is optional (defaults to -arch if missing)
         # -gencode is syntactic sugar for combining -arch/-code
         # multiple values can be specified
@@ -53,19 +53,24 @@ class Cuda(Compiler):
         # * target v1.3 features, generate both object code and PTX for v1.3: -gencode arch=compute_13,code=compute_13 -gencode arch=compute_13,code=sm_13
         # * target v3.5 features, only generate object code for v3.5: -gencode arch=compute_35,code=sm_35
         # * target v2.0 features, generate object code for v2.0 and v3.5: -gencode arch=compute_20,code=sm_20 -gencode arch=compute_20,code=sm_35
-        'cuda_gencode': ([], ("List of arguments for nvcc -gencode command line option, e.g., "
-                              "['arch=compute_20,code=sm_20', 'arch=compute_35,code=compute_35']")),
+        "cuda_gencode": (
+            [],
+            (
+                "List of arguments for nvcc -gencode command line option, e.g., "
+                "['arch=compute_20,code=sm_20', 'arch=compute_35,code=compute_35']"
+            ),
+        ),
     }
 
     # always C++ compiler command, even for C!
     COMPILER_CUDA_UNIQUE_OPTION_MAP = {
-        '_opt_CUDA_CC': 'ccbin="%(CXX_base)s"',
-        '_opt_CUDA_CXX': 'ccbin="%(CXX_base)s"',
+        "_opt_CUDA_CC": 'ccbin="%(CXX_base)s"',
+        "_opt_CUDA_CXX": 'ccbin="%(CXX_base)s"',
     }
 
-    COMPILER_CUDA_CC = 'nvcc'
-    COMPILER_CUDA_CXX = 'nvcc'
-    LIB_CUDA_RUNTIME = ['rt', 'cudart']
+    COMPILER_CUDA_CC = "nvcc"
+    COMPILER_CUDA_CXX = "nvcc"
+    LIB_CUDA_RUNTIME = ["rt", "cudart"]
 
     def __init__(self, *args, **kwargs):
         """Constructor, with settings custom to CUDA."""
@@ -76,7 +81,7 @@ class Cuda(Compiler):
     def _set_compiler_vars(self):
         """Set the compiler variables"""
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
-        root = self.get_software_root('CUDA')[0]
+        root = self.get_software_root("CUDA")[0]
         self.variables.append_subdirs("LDFLAGS", root, subdirs=["lib64", "lib"])
         super(Cuda, self)._set_compiler_vars()
 
@@ -87,16 +92,17 @@ class Cuda(Compiler):
 
         # always C++ compiler flags, even for C!
         # note: using $LIBS will yield the use of -lcudart in Xlinker, which is silly, but fine
-        
+
         cuda_flags = [
-            'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
-            'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
+            'Xcompiler="%s"' % str(self.variables["CXXFLAGS"]),
+            'Xlinker="%s %s"'
+            % (str(self.variables["LDFLAGS"]), str(self.variables["LIBS"])),
         ]
-        self.variables.nextend('CUDA_CFLAGS', cuda_flags)
-        self.variables.nextend('CUDA_CXXFLAGS', cuda_flags)
+        self.variables.nextend("CUDA_CFLAGS", cuda_flags)
+        self.variables.nextend("CUDA_CXXFLAGS", cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
-        for gencode_val in self.options.get('cuda_gencode', []):
-            gencode_option = 'gencode %s' % gencode_val
-            self.variables.nappend('CUDA_CFLAGS', gencode_option)
-            self.variables.nappend('CUDA_CXXFLAGS', gencode_option)
+        for gencode_val in self.options.get("cuda_gencode", []):
+            gencode_option = "gencode %s" % gencode_val
+            self.variables.nappend("CUDA_CFLAGS", gencode_option)
+            self.variables.nappend("CUDA_CXXFLAGS", gencode_option)

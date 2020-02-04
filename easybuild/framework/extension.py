@@ -53,22 +53,29 @@ def resolve_exts_filter_template(exts_filter, ext):
     """
 
     if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
-        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
+        raise EasyBuildError(
+            'exts_filter should be a list or tuple of ("command","input")'
+        )
 
     cmd, cmdinput = exts_filter
 
     if not isinstance(ext, dict):
-        ext = {'name': ext.name, 'version': ext.version, 'src': ext.src, 'options': ext.options}
+        ext = {
+            "name": ext.name,
+            "version": ext.version,
+            "src": ext.src,
+            "options": ext.options,
+        }
 
-    name = ext['name']
-    if 'options' in ext and 'modulename' in ext['options']:
-        modname = ext['options']['modulename']
+    name = ext["name"]
+    if "options" in ext and "modulename" in ext["options"]:
+        modname = ext["options"]["modulename"]
     else:
         modname = name
     tmpldict = {
-        'ext_name': modname,
-        'ext_version': ext.get('version'),
-        'src': ext.get('src'),
+        "ext_name": modname,
+        "ext_version": ext.get("version"),
+        "src": ext.get("src"),
     }
 
     try:
@@ -77,7 +84,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     except KeyError as err:
         msg = "KeyError occurred on completing extension filter template: %s; "
         msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
-        raise_nosupport(msg % err, '2.0')
+        raise_nosupport(msg % err, "2.0")
     return cmd, cmdinput
 
 
@@ -85,6 +92,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
+
     def __init__(self, mself, ext, extra_params=None):
         """
         Constructor for Extension class
@@ -99,22 +107,28 @@ class Extension(object):
         self.ext = copy.deepcopy(ext)
         self.dry_run = self.master.dry_run
 
-        if 'name' not in self.ext:
+        if "name" not in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
 
-        name, version = self.ext['name'], self.ext.get('version', None)
+        name, version = self.ext["name"], self.ext.get("version", None)
 
         # parent sanity check paths/commands are not relevant for extension
-        self.cfg['sanity_check_commands'] = []
-        self.cfg['sanity_check_paths'] = []
+        self.cfg["sanity_check_commands"] = []
+        self.cfg["sanity_check_paths"] = []
 
         # construct dict with template values that can be used
-        self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
+        self.cfg.template_values.update(
+            template_constant_dict({"name": name, "version": version})
+        )
 
         # list of source/patch files: we use an empty list as default value like in EasyBlock
-        self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
-        self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
-        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
+        self.src = resolve_template(self.ext.get("src", []), self.cfg.template_values)
+        self.patches = resolve_template(
+            self.ext.get("patches", []), self.cfg.template_values
+        )
+        self.options = resolve_template(
+            copy.deepcopy(self.ext.get("options", {})), self.cfg.template_values
+        )
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
@@ -125,12 +139,24 @@ class Extension(object):
         # this allows to specify custom easyconfig parameters on a per-extension basis
         for key in self.options:
             if key in self.cfg:
-                self.cfg[key] = resolve_template(self.options[key], self.cfg.template_values)
-                self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, name, version, self.cfg[key])
+                self.cfg[key] = resolve_template(
+                    self.options[key], self.cfg.template_values
+                )
+                self.log.debug(
+                    "Customising known easyconfig parameter '%s' for extension %s/%s: %s",
+                    key,
+                    name,
+                    version,
+                    self.cfg[key],
+                )
             else:
-                self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, name, version, self.options[key])
+                self.log.debug(
+                    "Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
+                    key,
+                    name,
+                    version,
+                    self.options[key],
+                )
 
         self.sanity_check_fail_msgs = []
 
@@ -139,14 +165,14 @@ class Extension(object):
         """
         Shortcut the get the extension name.
         """
-        return self.ext.get('name', None)
+        return self.ext.get("name", None)
 
     @property
     def version(self):
         """
         Shortcut the get the extension version.
         """
-        return self.ext.get('version', None)
+        return self.ext.get("version", None)
 
     def prerun(self):
         """
@@ -177,19 +203,19 @@ class Extension(object):
         """
         Sanity check to run after installing extension
         """
-        res = (True, '')
+        res = (True, "")
 
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
 
         # Get raw value to translate ext_name, ext_version, src
-        exts_filter = self.cfg.get_ref('exts_filter')
+        exts_filter = self.cfg.get_ref("exts_filter")
 
         if exts_filter is None:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
 
-        if 'modulename' in self.options:
-            modname = self.options['modulename']
+        if "modulename" in self.options:
+            modname = self.options["modulename"]
             self.log.debug("modulename found in self.options, using it: %s", modname)
         else:
             modname = self.name
@@ -197,11 +223,16 @@ class Extension(object):
 
         # allow skipping of sanity check by setting module name to False
         if modname is False:
-            self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
+            self.log.info(
+                "modulename set to False for '%s' extension, so skipping sanity check",
+                self.name,
+            )
         elif exts_filter:
             cmd, stdin = resolve_exts_filter_template(exts_filter, self)
             # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
+            (output, ec) = run_cmd(
+                cmd, log_ok=False, simple=False, regexp=False, inp=stdin
+            )
 
             if ec:
                 if stdin:
@@ -209,7 +240,9 @@ class Extension(object):
                 else:
                     fail_msg = 'command "%s" failed' % cmd
                 fail_msg += "; output:\n%s" % output.strip()
-                self.log.warning("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
+                self.log.warning(
+                    "Sanity check for '%s' extension failed: %s", self.name, fail_msg
+                )
                 res = (False, fail_msg)
                 # keep track of all reasons of failure
                 # (only relevant when this extension is installed stand-alone via ExtensionEasyBlock)

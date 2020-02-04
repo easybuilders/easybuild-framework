@@ -35,23 +35,28 @@ from easybuild.base import fancylogger
 from easybuild.tools.utilities import get_subclasses
 
 
-_log = fancylogger.getLogger('easyconfig.licenses', fname=False)
+_log = fancylogger.getLogger("easyconfig.licenses", fname=False)
 
 
 class License(object):
     """EasyBuild easyconfig license class
         This is also the default restrictive license
     """
+
     HIDDEN = False  # disable subclasses from being seen/used
     NAME = None
     VERSION = None
     DESCRIPTION = None
 
     DISTRIBUTE_SOURCE = False  # does the license allows to (re)distribute the code
-    GROUP_SOURCE = True  # does the license require to keep the source under dedicated group
-    GROUP_BINARY = True  # does the license require to install the binaries under dedicated group
+    GROUP_SOURCE = (
+        True  # does the license require to keep the source under dedicated group
+    )
+    GROUP_BINARY = (
+        True  # does the license require to install the binaries under dedicated group
+    )
 
-    CLASSNAME_PREFIX = 'License'
+    CLASSNAME_PREFIX = "License"
 
     @property
     def name(self):
@@ -59,7 +64,7 @@ class License(object):
         if self.NAME is None:
             name = self.__class__.__name__
             if name.startswith(self.CLASSNAME_PREFIX):
-                name = name[len(self.CLASSNAME_PREFIX):]
+                name = name[len(self.CLASSNAME_PREFIX) :]
         else:
             name = self.NAME
 
@@ -76,16 +81,19 @@ class License(object):
 
 class LicenseVeryRestrictive(License):
     """Default license should be very restrictive, so nothing to do here, just a placeholder"""
+
     pass
 
 
 class LicenseUnknown(LicenseVeryRestrictive):
     """A (temporary) license, could be used as default in case nothing was specified"""
+
     pass
 
 
 # inspiration
 # http://en.wikipedia.org/wiki/Category:Free_and_open-source_software_licenses
+
 
 class LicenseOpen(License):
     """
@@ -93,6 +101,7 @@ class LicenseOpen(License):
     'Open' here means, that source can be redistributed, and that both source
     and binaries do not need special groups (ie anyone can access/use it).
     """
+
     HIDDEN = True
     DISTRIBUTE_SOURCE = True
     GROUP_SOURCE = False
@@ -103,18 +112,23 @@ class LicenseGPL(LicenseOpen):
     """
     Hidden license class to subclass GPL licenses.
     """
-    DESCRIPTION = ("The GNU General Public License is a free, "
-                   "copyleft license for software and other kinds of works.")
+
+    DESCRIPTION = (
+        "The GNU General Public License is a free, "
+        "copyleft license for software and other kinds of works."
+    )
 
 
 class LicenseGPLv2(LicenseGPL):
     """GPLv2 license"""
+
     HIDDEN = False
     VERSION = (2,)
 
 
 class LicenseGPLv3(LicenseGPLv2):
     """GPLv3 license"""
+
     VERSION = (3,)
 
 
@@ -122,16 +136,20 @@ class LicenseGCC(LicenseGPLv3):
     """GPLv3 with GCC Runtime Library Exception.
         Latest GPLv2 GCC release was 4.2.1 (http://gcc.gnu.org/ml/gcc-announce/2007/msg00003.html).
     """
-    DESCRIPTION = ("The GNU General Public License is a free, "
-                   "copyleft license for software and other kinds of works. "
-                   "The GCC Runtime Library Exception is an additional permission "
-                   "under section 7 of the GNU General Public License, version 3.")
+
+    DESCRIPTION = (
+        "The GNU General Public License is a free, "
+        "copyleft license for software and other kinds of works. "
+        "The GCC Runtime Library Exception is an additional permission "
+        "under section 7 of the GNU General Public License, version 3."
+    )
 
 
 class LicenseGCCOld(LicenseGPLv2):
     """GPLv2 with GCC Runtime Library Exception for older GCC versions.
         Latest GPLv2 GCC release was 4.2.1 (http://gcc.gnu.org/ml/gcc-announce/2007/msg00003.html).
     """
+
     DESCRIPTION = LicenseGCC.DESCRIPTION
 
 
@@ -139,20 +157,26 @@ class LicenseZlib(LicenseOpen):
     """The zlib License is a permissive free software license
         http://www.zlib.net/zlib_license.html
     """
-    DESCRIPTION = ("Permission is granted to anyone to use this software for any purpose,"
-                   " including commercial applications, and to alter it and redistribute it"
-                   " freely, subject to 3 restrictions;"
-                   " http://www.zlib.net/zlib_license.html for full license")
+
+    DESCRIPTION = (
+        "Permission is granted to anyone to use this software for any purpose,"
+        " including commercial applications, and to alter it and redistribute it"
+        " freely, subject to 3 restrictions;"
+        " http://www.zlib.net/zlib_license.html for full license"
+    )
 
 
 class LicenseLibpng(LicenseOpen):
     """The PNG license is derived from the zlib license,
         http://libpng.org/pub/png/src/libpng-LICENSE.txt
     """
+
     HIDDEN = False
-    DESCRIPTION = ("Permission is granted to use, copy, modify, and distribute the "
-                   "source code, or portions hereof, for any purpose, without fee, subject "
-                   "to 3 restrictions; http://libpng.org/pub/png/src/libpng-LICENSE.txt for full license")
+    DESCRIPTION = (
+        "Permission is granted to use, copy, modify, and distribute the "
+        "source code, or portions hereof, for any purpose, without fee, subject "
+        "to 3 restrictions; http://libpng.org/pub/png/src/libpng-LICENSE.txt for full license"
+    )
 
 
 def what_licenses():

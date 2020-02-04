@@ -34,5 +34,6 @@ from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 class Gmvapich2(GccToolchain, Mvapich2):
     """Compiler toolchain with GCC and MVAPICH2."""
-    NAME = 'gmvapich2'
+
+    NAME = "gmvapich2"
     SUBTOOLCHAIN = GccToolchain.NAME

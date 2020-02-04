@@ -39,7 +39,15 @@ class EB_foofoo(EB_foo):
     def extra_options():
         """Custom easyconfig parameters for foofoo."""
         extra_vars = {
-            'foofoo_extra1': [None, "first foofoo-specific easyconfig parameter (mandatory)", MANDATORY],
-            'foofoo_extra2': ['FOOFOO', "second foofoo-specific easyconfig parameter", CUSTOM],
+            "foofoo_extra1": [
+                None,
+                "first foofoo-specific easyconfig parameter (mandatory)",
+                MANDATORY,
+            ],
+            "foofoo_extra2": [
+                "FOOFOO",
+                "second foofoo-specific easyconfig parameter",
+                CUSTOM,
+            ],
         }
         return EB_foo.extra_options(extra_vars)

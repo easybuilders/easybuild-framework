@@ -38,7 +38,14 @@ from string import letters as ascii_letters  # noqa
 from string import lowercase as ascii_lowercase  # noqa
 from StringIO import StringIO  # noqa
 from urllib import urlencode  # noqa
-from urllib2 import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
+from urllib2 import (
+    HTTPError,
+    HTTPSHandler,
+    Request,
+    URLError,
+    build_opener,
+    urlopen,
+)  # noqa
 
 try:
     # Python 2.7
@@ -59,7 +66,9 @@ json_loads = json.loads
 
 def subprocess_popen_text(cmd, **kwargs):
     """Call subprocess.Popen with specified named arguments."""
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    return subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs
+    )
 
 
 def raise_with_traceback(exception_class, message, traceback):
@@ -69,15 +78,15 @@ def raise_with_traceback(exception_class, message, traceback):
 
 def extract_method_name(method_func):
     """Extract method name from lambda function."""
-    return '_'.join(method_func.func_code.co_names)
+    return "_".join(method_func.func_code.co_names)
 
 
 def mk_wrapper_baseclass(metaclass):
-
     class WrapperBase(object):
         """
         Wrapper class that provides proxy access to an instance of some internal instance.
         """
+
         __metaclass__ = metaclass
         __wraps__ = None
 

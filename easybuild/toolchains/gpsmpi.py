@@ -33,5 +33,6 @@ from easybuild.toolchains.mpi.psmpi import Psmpi
 
 class Gpsmpi(GccToolchain, Psmpi):
     """Compiler toolchain with GCC and Parastation MPICH."""
-    NAME = 'gpsmpi'
+
+    NAME = "gpsmpi"
     SUBTOOLCHAIN = GccToolchain.NAME

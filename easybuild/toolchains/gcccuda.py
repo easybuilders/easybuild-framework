@@ -34,7 +34,8 @@ from easybuild.toolchains.gcc import GccToolchain
 
 class GccCUDA(GccToolchain, Cuda):
     """Compiler toolchain with GCC and CUDA."""
-    NAME = 'gcccuda'
 
-    COMPILER_MODULE_NAME = ['GCC', 'CUDA']
+    NAME = "gcccuda"
+
+    COMPILER_MODULE_NAME = ["GCC", "CUDA"]
     SUBTOOLCHAIN = GccToolchain.NAME

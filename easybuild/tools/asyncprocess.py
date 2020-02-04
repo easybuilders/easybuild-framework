@@ -73,27 +73,26 @@ import time
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
 
-import select  #@UnresolvedImport
-import fcntl  #@UnresolvedImport
+import select  # @UnresolvedImport
+import fcntl  # @UnresolvedImport
 
 
 class Popen(subprocess.Popen):
-
     def __init__(self, *args, **kwargs):
         # set bufsize to 0 to ensure buffering is disabled,
         # otherwise we may not get all available output when polling in run_cmd_qa;
         # bufsize=0 is the default in Python 2, but not in recent Python 3 versions,
         # see https://docs.python.org/3/library/subprocess.html#subprocess.Popen
-        kwargs['bufsize'] = 0
+        kwargs["bufsize"] = 0
         super(Popen, self).__init__(*args, **kwargs)
 
     def recv(self, maxsize=None):
-        return self._recv('stdout', maxsize)
+        return self._recv("stdout", maxsize)
 
     def recv_err(self, maxsize=None):
-        return self._recv('stderr', maxsize)
+        return self._recv("stderr", maxsize)
 
-    def send_recv(self, inp='', maxsize=None):
+    def send_recv(self, inp="", maxsize=None):
         return self.send(inp), self.recv(maxsize), self.recv_err(maxsize)
 
     def get_conn_maxsize(self, which, maxsize):
@@ -117,8 +116,8 @@ class Popen(subprocess.Popen):
         try:
             written = os.write(self.stdin.fileno(), inp.encode())
         except OSError as why:
-            if why[0] == errno.EPIPE: #broken pipe
-                return self._close('stdin')
+            if why[0] == errno.EPIPE:  # broken pipe
+                return self._close("stdin")
             raise
 
         return written
@@ -134,7 +133,7 @@ class Popen(subprocess.Popen):
 
         try:
             if not select.select([conn], [], [], 0)[0]:
-                return ''
+                return ""
 
             r = conn.read(maxsize)
             if not r:
@@ -147,14 +146,16 @@ class Popen(subprocess.Popen):
             if not conn.closed:
                 fcntl.fcntl(conn, fcntl.F_SETFL, flags)
 
+
 message = "Other end disconnected!"
 
-def recv_some(p, t=.2, e=1, tr=5, stderr=0):
+
+def recv_some(p, t=0.2, e=1, tr=5, stderr=0):
     if tr < 1:
         tr = 1
     x = time.time() + t
     y = []
-    r = ''
+    r = ""
     pr = p.recv
     if stderr:
         pr = p.recv_err
@@ -169,7 +170,8 @@ def recv_some(p, t=.2, e=1, tr=5, stderr=0):
             y.append(r)
         else:
             time.sleep(max((x - time.time()) / tr, 0))
-    return b''.join(y)
+    return b"".join(y)
+
 
 def send_all(p, data):
     while len(data):

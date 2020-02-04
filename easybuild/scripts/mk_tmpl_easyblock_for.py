@@ -39,14 +39,25 @@ from easybuild.tools.filetools import encode_class_name
 # parse options
 parser = OptionParser()
 parser.usage = "%prog <software name> [options]"
-parser.description = "Generates template easyblock for given software name. " \
-                     "Use -h or --help for more information."
-parser.add_option("--path", help="path to easyblocks repository (default: '.')", default='.')
-parser.add_option("--parent", default="EasyBlock",
-                  help="Name of parent easyblock for this easyblock (default: 'EasyBlock').")
-parser.add_option("--letter-prefix", default=False, action="store_true",
-                  help="Whether or not to prefix the easyblock path with a letter directory (default: False)")
-                 
+parser.description = (
+    "Generates template easyblock for given software name. "
+    "Use -h or --help for more information."
+)
+parser.add_option(
+    "--path", help="path to easyblocks repository (default: '.')", default="."
+)
+parser.add_option(
+    "--parent",
+    default="EasyBlock",
+    help="Name of parent easyblock for this easyblock (default: 'EasyBlock').",
+)
+parser.add_option(
+    "--letter-prefix",
+    default=False,
+    action="store_true",
+    help="Whether or not to prefix the easyblock path with a letter directory (default: False)",
+)
+
 
 (options, args) = parser.parse_args()
 
@@ -61,29 +72,36 @@ print("Template easyblock for %s requested..." % name)
 # check whether easyblock repository path is found
 easyblocks_repo_path = os.path.join(options.path, "easybuild", "easyblocks")
 if not os.path.isdir(easyblocks_repo_path):
-    sys.stderr.write("ERROR! Directory %s does not exist, please specify correct path "
-                     "for easyblocks repository using --path.\n" % easyblocks_repo_path)
+    sys.stderr.write(
+        "ERROR! Directory %s does not exist, please specify correct path "
+        "for easyblocks repository using --path.\n" % easyblocks_repo_path
+    )
     sys.exit(1)
 
 # determine path for easyblock
 if options.letter_prefix:
     letter = name.lower()[0]
-    if not ord(letter) in range(ord('a'),ord('z')+1):
-        letter = '0'
+    if not ord(letter) in range(ord("a"), ord("z") + 1):
+        letter = "0"
     easyblock_path = os.path.join(easyblocks_repo_path, letter, "%s.py" % name.lower())
 else:
     easyblock_path = os.path.join(easyblocks_repo_path, "%s.py" % name.lower())
 
 # check whether path already exists
 if os.path.exists(easyblock_path):
-    sys.stderr.write("ERROR! Path %s already exists, please remove it first and try again.\n" % easyblock_path)
+    sys.stderr.write(
+        "ERROR! Path %s already exists, please remove it first and try again.\n"
+        % easyblock_path
+    )
     sys.exit(1)
 
 # determine parent easyblock class
 parent_import = "from easybuild.framework.easyblock import EasyBlock"
 if not options.parent == "EasyBlock":
-    if options.parent.startswith('EB_'):
-        ebmod = options.parent[3:].lower()  # FIXME: here we should actually decode the encoded class name
+    if options.parent.startswith("EB_"):
+        ebmod = options.parent[
+            3:
+        ].lower()  # FIXME: here we should actually decode the encoded class name
     else:
         ebmod = "generic.%s" % options.parent.lower()
     parent_import = "from easybuild.easyblocks.%s import %s" % (ebmod, options.parent)
@@ -214,11 +232,11 @@ class %(class_name)s(%(parent)s):
 """
 
 txt = tmpl % {
-    'year': datetime.date.today().year,
-    'name': name,
-    'class_name': encode_class_name(name),
-    'parent_import': parent_import,
-    'parent': options.parent,
+    "year": datetime.date.today().year,
+    "name": name,
+    "class_name": encode_class_name(name),
+    "parent_import": parent_import,
+    "parent": options.parent,
 }
 
 print("Writing template easyblock for %s to %s ..." % (name, easyblock_path))
@@ -230,5 +248,8 @@ try:
     f.write(txt)
     f.close()
 except (IOError, OSError) as err:
-    sys.stderr.write("ERROR! Writing template easyblock for %s to %s failed: %s" % (name, easyblock_path, err))
+    sys.stderr.write(
+        "ERROR! Writing template easyblock for %s to %s failed: %s"
+        % (name, easyblock_path, err)
+    )
     sys.exit(1)

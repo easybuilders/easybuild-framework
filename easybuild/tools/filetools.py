@@ -55,6 +55,7 @@ from xml.etree import ElementTree
 
 from easybuild.base import fancylogger
 from easybuild.tools import run
+
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
@@ -63,93 +64,94 @@ from easybuild.tools.utilities import nub
 
 try:
     import requests
+
     HAVE_REQUESTS = True
 except ImportError:
     HAVE_REQUESTS = False
 
-_log = fancylogger.getLogger('filetools', fname=False)
+_log = fancylogger.getLogger("filetools", fname=False)
 
 # easyblock class prefix
-EASYBLOCK_CLASS_PREFIX = 'EB_'
+EASYBLOCK_CLASS_PREFIX = "EB_"
 
 # character map for encoding strings
 STRING_ENCODING_CHARMAP = {
-    r' ': "_space_",
-    r'!': "_exclamation_",
+    r" ": "_space_",
+    r"!": "_exclamation_",
     r'"': "_quotation_",
-    r'#': "_hash_",
-    r'$': "_dollar_",
-    r'%': "_percent_",
-    r'&': "_ampersand_",
-    r'(': "_leftparen_",
-    r')': "_rightparen_",
-    r'*': "_asterisk_",
-    r'+': "_plus_",
-    r',': "_comma_",
-    r'-': "_minus_",
-    r'.': "_period_",
-    r'/': "_slash_",
-    r':': "_colon_",
-    r';': "_semicolon_",
-    r'<': "_lessthan_",
-    r'=': "_equals_",
-    r'>': "_greaterthan_",
-    r'?': "_question_",
-    r'@': "_atsign_",
-    r'[': "_leftbracket_",
-    r'\'': "_apostrophe_",
-    r'\\': "_backslash_",
-    r']': "_rightbracket_",
-    r'^': "_circumflex_",
-    r'_': "_underscore_",
-    r'`': "_backquote_",
-    r'{': "_leftcurly_",
-    r'|': "_verticalbar_",
-    r'}': "_rightcurly_",
-    r'~': "_tilde_",
+    r"#": "_hash_",
+    r"$": "_dollar_",
+    r"%": "_percent_",
+    r"&": "_ampersand_",
+    r"(": "_leftparen_",
+    r")": "_rightparen_",
+    r"*": "_asterisk_",
+    r"+": "_plus_",
+    r",": "_comma_",
+    r"-": "_minus_",
+    r".": "_period_",
+    r"/": "_slash_",
+    r":": "_colon_",
+    r";": "_semicolon_",
+    r"<": "_lessthan_",
+    r"=": "_equals_",
+    r">": "_greaterthan_",
+    r"?": "_question_",
+    r"@": "_atsign_",
+    r"[": "_leftbracket_",
+    r"\'": "_apostrophe_",
+    r"\\": "_backslash_",
+    r"]": "_rightbracket_",
+    r"^": "_circumflex_",
+    r"_": "_underscore_",
+    r"`": "_backquote_",
+    r"{": "_leftcurly_",
+    r"|": "_verticalbar_",
+    r"}": "_rightcurly_",
+    r"~": "_tilde_",
 }
 
 
-CHECKSUM_TYPE_MD5 = 'md5'
-CHECKSUM_TYPE_SHA256 = 'sha256'
+CHECKSUM_TYPE_MD5 = "md5"
+CHECKSUM_TYPE_SHA256 = "sha256"
 DEFAULT_CHECKSUM = CHECKSUM_TYPE_MD5
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
-    'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
+    "adler32": lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
+    "crc32": lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, hashlib.md5()),
-    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
+    "sha1": lambda p: calc_block_checksum(p, hashlib.sha1()),
     CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
-    'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
-    'size': lambda p: os.path.getsize(p),
+    "sha512": lambda p: calc_block_checksum(p, hashlib.sha512()),
+    "size": lambda p: os.path.getsize(p),
 }
 CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
 EXTRACT_CMDS = {
     # gzipped or gzipped tarball
-    '.gtgz':    "tar xzf %(filepath)s",
-    '.gz':      "gunzip -c %(filepath)s > %(target)s",
-    '.tar.gz':  "tar xzf %(filepath)s",
-    '.tgz':     "tar xzf %(filepath)s",
+    ".gtgz": "tar xzf %(filepath)s",
+    ".gz": "gunzip -c %(filepath)s > %(target)s",
+    ".tar.gz": "tar xzf %(filepath)s",
+    ".tgz": "tar xzf %(filepath)s",
     # bzipped or bzipped tarball
-    '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
-    '.tar.bz2': "tar xjf %(filepath)s",
-    '.tb2':     "tar xjf %(filepath)s",
-    '.tbz':     "tar xjf %(filepath)s",
-    '.tbz2':    "tar xjf %(filepath)s",
+    ".bz2": "bunzip2 -c %(filepath)s > %(target)s",
+    ".tar.bz2": "tar xjf %(filepath)s",
+    ".tb2": "tar xjf %(filepath)s",
+    ".tbz": "tar xjf %(filepath)s",
+    ".tbz2": "tar xjf %(filepath)s",
     # xzipped or xzipped tarball
-    '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-    '.txz':     "unxz %(filepath)s --stdout | tar x",
-    '.xz':      "unxz %(filepath)s",
+    ".tar.xz": "unxz %(filepath)s --stdout | tar x",
+    ".txz": "unxz %(filepath)s --stdout | tar x",
+    ".xz": "unxz %(filepath)s",
     # tarball
-    '.tar':     "tar xf %(filepath)s",
+    ".tar": "tar xf %(filepath)s",
     # zip file
-    '.zip':     "unzip -qq %(filepath)s",
+    ".zip": "unzip -qq %(filepath)s",
     # iso file
-    '.iso':     "7z x %(filepath)s",
+    ".iso": "7z x %(filepath)s",
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
-    '.tar.z':   "tar xzf %(filepath)s",
+    ".tar.z": "tar xzf %(filepath)s",
 }
 
 
@@ -158,9 +160,10 @@ class ZlibChecksum(object):
     wrapper class for adler32 and crc32 checksums to
     match the interface of the hashlib module
     """
+
     def __init__(self, algorithm):
         self.algorithm = algorithm
-        self.checksum = algorithm(b'')  # use the same starting point as the module
+        self.checksum = algorithm(b"")  # use the same starting point as the module
         self.blocksize = 64  # The same as md5/sha1
 
     def update(self, data):
@@ -169,7 +172,7 @@ class ZlibChecksum(object):
 
     def hexdigest(self):
         """Return hex string of the checksum"""
-        return '0x%s' % (self.checksum & 0xffffffff)
+        return "0x%s" % (self.checksum & 0xFFFFFFFF)
 
 
 def is_readable(path):
@@ -180,7 +183,7 @@ def is_readable(path):
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
 
-def read_file(path, log_error=True, mode='r'):
+def read_file(path, log_error=True, mode="r"):
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
@@ -193,7 +196,15 @@ def read_file(path, log_error=True, mode='r'):
     return txt
 
 
-def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
+def write_file(
+    path,
+    data,
+    append=False,
+    forced=False,
+    backup=False,
+    always_overwrite=True,
+    verbose=False,
+):
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
@@ -207,30 +218,35 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     :param verbose: be verbose, i.e. inform where backup file was created
     """
     # early exit in 'dry run' mode
-    if not forced and build_option('extended_dry_run'):
-        dry_run_msg("file written: %s" % path, silent=build_option('silent'))
+    if not forced and build_option("extended_dry_run"):
+        dry_run_msg("file written: %s" % path, silent=build_option("silent"))
         return
 
     if os.path.exists(path):
         if not append:
-            if always_overwrite or build_option('force'):
+            if always_overwrite or build_option("force"):
                 _log.info("Overwriting existing file %s", path)
             else:
-                raise EasyBuildError("File exists, not overwriting it without --force: %s", path)
+                raise EasyBuildError(
+                    "File exists, not overwriting it without --force: %s", path
+                )
 
         if backup:
             backed_up_fp = back_up_file(path)
             _log.info("Existing file %s backed up to %s", path, backed_up_fp)
             if verbose:
-                print_msg("Backup of %s created at %s" % (path, backed_up_fp), silent=build_option('silent'))
+                print_msg(
+                    "Backup of %s created at %s" % (path, backed_up_fp),
+                    silent=build_option("silent"),
+                )
 
     # figure out mode to use for open file handle
     # cfr. https://docs.python.org/3/library/functions.html#open
-    mode = 'a' if append else 'w'
+    mode = "a" if append else "w"
 
     # special care must be taken with binary data in Python 3
     if sys.version_info[0] >= 3 and isinstance(data, bytes):
-        mode += 'b'
+        mode += "b"
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
@@ -270,15 +286,17 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
         os.symlink(source_path, symlink_path)
         _log.info("Symlinked %s to %s", source_path, symlink_path)
     except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+        raise EasyBuildError(
+            "Symlinking %s to %s failed: %s", source_path, symlink_path, err
+        )
 
 
 def remove_file(path):
     """Remove file at specified path."""
 
     # early exit in 'dry run' mode
-    if build_option('extended_dry_run'):
-        dry_run_msg("file %s removed" % path, silent=build_option('silent'))
+    if build_option("extended_dry_run"):
+        dry_run_msg("file %s removed" % path, silent=build_option("silent"))
         return
 
     try:
@@ -292,8 +310,8 @@ def remove_file(path):
 def remove_dir(path):
     """Remove directory at specified path."""
     # early exit in 'dry run' mode
-    if build_option('extended_dry_run'):
-        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+    if build_option("extended_dry_run"):
+        dry_run_msg("directory %s removed" % path, silent=build_option("silent"))
         return
 
     try:
@@ -320,7 +338,10 @@ def remove(paths):
         elif os.path.isdir(path):
             remove_dir(path)
         else:
-            raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
+            raise EasyBuildError(
+                "Specified path to remove is not an existing file or directory: %s",
+                path,
+            )
 
 
 def change_dir(path):
@@ -334,7 +355,10 @@ def change_dir(path):
     try:
         cwd = os.getcwd()
     except OSError as err:
-        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
+        _log.debug(
+            "Failed to determine current working directory (but proceeding anyway: %s",
+            err,
+        )
         cwd = None
 
     try:
@@ -356,7 +380,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     :param forced: force extraction in (extended) dry run mode
     :return: path to directory (in case of success)
     """
-    if not os.path.isfile(fn) and not build_option('extended_dry_run'):
+    if not os.path.isfile(fn) and not build_option("extended_dry_run"):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
 
     mkdir(dest, parents=True)
@@ -398,7 +422,7 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
     else:
         res = None
 
-    paths = os.environ.get('PATH', '').split(os.pathsep)
+    paths = os.environ.get("PATH", "").split(os.pathsep)
     for path in paths:
         cmd_path = os.path.join(path, cmd)
         # only accept path if command is there
@@ -408,7 +432,10 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
             if check_perms:
                 # check if read/executable permissions are available
                 if not os.access(cmd_path, os.R_OK | os.X_OK):
-                    _log.info("No read/exec permissions for %s, so continuing search...", cmd_path)
+                    _log.info(
+                        "No read/exec permissions for %s, so continuing search...",
+                        cmd_path,
+                    )
                     continue
             if retain_all:
                 res.append(cmd_path)
@@ -417,14 +444,21 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
                 break
 
     if not res and log_error:
-        _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
+        _log.warning(
+            "Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)"
+            % (cmd, paths)
+        )
     return res
 
 
 def det_common_path_prefix(paths):
     """Determine common path prefix for a given list of paths."""
     if not isinstance(paths, list):
-        raise EasyBuildError("det_common_path_prefix: argument must be of type list (got %s: %s)", type(paths), paths)
+        raise EasyBuildError(
+            "det_common_path_prefix: argument must be of type list (got %s: %s)",
+            type(paths),
+            paths,
+        )
     elif not paths:
         return None
 
@@ -445,10 +479,14 @@ def det_common_path_prefix(paths):
 def is_alt_pypi_url(url):
     """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
-    alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
+    alt_url_regex = re.compile("/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$")
     res = bool(alt_url_regex.search(url))
-    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
-               url, alt_url_regex.pattern, res)
+    _log.debug(
+        "Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+        url,
+        alt_url_regex.pattern,
+        res,
+    )
     return res
 
 
@@ -460,24 +498,30 @@ def pypi_source_urls(pkg_name):
     # see also:
     # - https://www.python.org/dev/peps/pep-0503/
     # - https://wiki.python.org/moin/PyPISimple
-    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+    simple_url = "https://pypi.python.org/simple/%s" % re.sub(
+        r"[-_.]+", "-", pkg_name.lower()
+    )
 
     tmpdir = tempfile.mkdtemp()
-    urls_html = os.path.join(tmpdir, '%s_urls.html' % pkg_name)
+    urls_html = os.path.join(tmpdir, "%s_urls.html" % pkg_name)
     if download_file(os.path.basename(urls_html), simple_url, urls_html) is None:
-        _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
+        _log.debug(
+            "Failed to download %s to determine available PyPI URLs for %s",
+            simple_url,
+            pkg_name,
+        )
         res = []
     else:
         parsed_html = ElementTree.parse(urls_html)
-        if hasattr(parsed_html, 'iter'):
-            res = [a.attrib['href'] for a in parsed_html.iter('a')]
+        if hasattr(parsed_html, "iter"):
+            res = [a.attrib["href"] for a in parsed_html.iter("a")]
         else:
-            res = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+            res = [a.attrib["href"] for a in parsed_html.getiterator("a")]
 
     # links are relative, transform them into full URLs; for example:
     # from: ../../packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
     # to: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
-    res = [re.sub('.*/packages/', 'https://pypi.python.org/packages/', x) for x in res]
+    res = [re.sub(".*/packages/", "https://pypi.python.org/packages/", x) for x in res]
 
     return res
 
@@ -487,21 +531,29 @@ def derive_alt_pypi_url(url):
     alt_pypi_url = None
 
     # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
-    pkg_name, pkg_source = url.strip().split('/')[-2:]
+    pkg_name, pkg_source = url.strip().split("/")[-2:]
 
     cand_urls = pypi_source_urls(pkg_name)
 
     # md5 for old PyPI, sha256 for new PyPi (Warehouse)
-    regex = re.compile('.*/%s(?:#md5=[a-f0-9]{32}|#sha256=[a-f0-9]{64})$' % pkg_source.replace('.', '\\.'), re.M)
+    regex = re.compile(
+        ".*/%s(?:#md5=[a-f0-9]{32}|#sha256=[a-f0-9]{64})$"
+        % pkg_source.replace(".", "\\."),
+        re.M,
+    )
     for cand_url in cand_urls:
         res = regex.match(cand_url)
         if res:
             # e.g.: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
-            alt_pypi_url = res.group(0).split('#sha256')[0].split('#md5')[0]
+            alt_pypi_url = res.group(0).split("#sha256")[0].split("#md5")[0]
             break
 
     if not alt_pypi_url:
-        _log.debug("Failed to extract hash using pattern '%s' from list of URLs: %s", regex.pattern, cand_urls)
+        _log.debug(
+            "Failed to extract hash using pattern '%s' from list of URLs: %s",
+            regex.pattern,
+            cand_urls,
+        )
 
     return alt_pypi_url
 
@@ -511,7 +563,7 @@ def download_file(filename, url, path, forced=False):
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
-    timeout = build_option('download_timeout')
+    timeout = build_option("download_timeout")
     if timeout is None:
         # default to 10sec timeout if none was specified
         # default system timeout (used is nothing is specified) may be infinite (?)
@@ -528,7 +580,7 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
+    headers = {"User-Agent": "EasyBuild", "Accept": "*/*"}
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = std_urllib.Request(url, headers=headers)
     used_urllib = std_urllib
@@ -543,12 +595,14 @@ def download_file(filename, url, path, forced=False):
                 url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
             else:
-                response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                response = requests.get(
+                    url, headers=headers, stream=True, timeout=timeout
+                )
                 status_code = response.status_code
                 response.raise_for_status()
                 url_fd = response.raw
                 url_fd.decode_content = True
-            _log.debug('response code for given url %s: %s' % (url, status_code))
+            _log.debug("response code for given url %s: %s" % (url, status_code))
             write_file(path, url_fd.read(), forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
@@ -559,30 +613,54 @@ def download_file(filename, url, path, forced=False):
             if status_code == 403 and attempt_cnt == 1:
                 switch_to_requests = True
             elif 400 <= status_code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
+                _log.warning(
+                    "URL %s was not found (HTTP response code %s), not trying again"
+                    % (url, status_code)
+                )
                 break
             else:
-                _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
+                _log.warning(
+                    "HTTPError occurred while trying to download %s to %s: %s"
+                    % (url, path, err)
+                )
         except IOError as err:
-            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
-            error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
-                                  "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
+            _log.warning(
+                "IOError occurred while trying to download %s to %s: %s"
+                % (url, path, err)
+            )
+            error_re = re.compile(
+                r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
+                "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
+            )
             if error_re.match(str(err)):
                 switch_to_requests = True
         except Exception as err:
-            raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
+            raise EasyBuildError(
+                "Unexpected error occurred when trying to download %s to %s: %s",
+                url,
+                path,
+                err,
+            )
 
         if not downloaded and attempt_cnt < max_attempts:
-            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
+            _log.info(
+                "Attempt %d of downloading %s to %s failed, trying again..."
+                % (attempt_cnt, url, path)
+            )
             if used_urllib is std_urllib and switch_to_requests:
                 if not HAVE_REQUESTS:
-                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
-                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
+                    raise EasyBuildError(
+                        "SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
+                        "install the python-requests and pyOpenSSL RPM packages and try again."
+                    )
                 _log.info("Downloading using requests package instead of urllib2")
                 used_urllib = requests
 
     if downloaded:
-        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        _log.info(
+            "Successful download of file %s from url %s to path %s"
+            % (filename, url, path)
+        )
         return path
     else:
         _log.warning("Download of %s to %s failed, done trying" % (url, path))
@@ -604,7 +682,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     path = os.path.abspath(path)
     for dirpath, dirnames, filenames in os.walk(path, topdown=True):
         for f in filenames:
-            if not f.endswith('.eb') or f == 'TEMPLATE.eb':
+            if not f.endswith(".eb") or f == "TEMPLATE.eb":
                 continue
 
             spec = os.path.join(dirpath, f)
@@ -617,7 +695,15 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
+def search_file(
+    paths,
+    query,
+    short=False,
+    ignore_dirs=None,
+    silent=False,
+    filename_only=False,
+    terse=False,
+):
     """
     Search for files using in specified paths using specified search query (regular expression)
 
@@ -630,14 +716,17 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
     """
     if ignore_dirs is None:
-        ignore_dirs = ['.git', '.svn']
+        ignore_dirs = [".git", ".svn"]
     if not isinstance(ignore_dirs, list):
-        raise EasyBuildError("search_file: ignore_dirs (%s) should be of type list, not %s",
-                             ignore_dirs, type(ignore_dirs))
+        raise EasyBuildError(
+            "search_file: ignore_dirs (%s) should be of type list, not %s",
+            ignore_dirs,
+            type(ignore_dirs),
+        )
 
     # escape some special characters in query that may also occur in actual software names: +
     # do not use re.escape, since that breaks queries with genuine regex characters like ^ or .*
-    query = re.sub('([+])', r'\\\1', query)
+    query = re.sub("([+])", r"\\\1", query)
 
     # compile regex, case-insensitive
     try:
@@ -652,7 +741,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     for path in paths:
         path_hits = []
         if not terse:
-            print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
+            print_msg(
+                "Searching (case-insensitive) for '%s' in %s " % (query.pattern, path),
+                log=_log,
+                silent=silent,
+            )
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
@@ -675,9 +768,19 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
 
         if path_hits:
             common_prefix = det_common_path_prefix(path_hits)
-            if not terse and short and common_prefix is not None and len(common_prefix) > len(var) * 2:
+            if (
+                not terse
+                and short
+                and common_prefix is not None
+                and len(common_prefix) > len(var) * 2
+            ):
                 var_defs.append((var, common_prefix))
-                hits.extend([os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in path_hits])
+                hits.extend(
+                    [
+                        os.path.join("$%s" % var, fn[len(common_prefix) + 1 :])
+                        for fn in path_hits
+                    ]
+                )
             else:
                 hits.extend(path_hits)
 
@@ -704,23 +807,33 @@ def find_eb_script(script_name):
                 break
 
     if eb_dir is None:
-        raise EasyBuildError("Failed to find parent directory for 'easybuild/scripts' subdirectory")
+        raise EasyBuildError(
+            "Failed to find parent directory for 'easybuild/scripts' subdirectory"
+        )
 
-    script_loc = os.path.join(eb_dir, 'scripts', script_name)
+    script_loc = os.path.join(eb_dir, "scripts", script_name)
     if not os.path.exists(script_loc):
         prev_script_loc = script_loc
 
         # fallback mechanism: check in location relative to location of 'eb'
-        eb_path = os.getenv('EB_SCRIPT_PATH') or which('eb')
+        eb_path = os.getenv("EB_SCRIPT_PATH") or which("eb")
         if eb_path is None:
-            _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+            _log.warning(
+                "'eb' not found in $PATH, failed to determine installation prefix"
+            )
         else:
             install_prefix = os.path.dirname(os.path.dirname(resolve_path(eb_path)))
-            script_loc = os.path.join(install_prefix, 'easybuild', 'scripts', script_name)
+            script_loc = os.path.join(
+                install_prefix, "easybuild", "scripts", script_name
+            )
 
         if not os.path.exists(script_loc):
-            raise EasyBuildError("Script '%s' not found at expected location: %s or %s",
-                                 script_name, prev_script_loc, script_loc)
+            raise EasyBuildError(
+                "Script '%s' not found at expected location: %s or %s",
+                script_name,
+                prev_script_loc,
+                script_loc,
+            )
 
     return script_loc
 
@@ -733,16 +846,22 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
-        raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
-                             checksum_type, CHECKSUM_FUNCTIONS.keys())
+        raise EasyBuildError(
+            "Unknown checksum type (%s), supported types are: %s",
+            checksum_type,
+            CHECKSUM_FUNCTIONS.keys(),
+        )
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
     except MemoryError as err:
-        _log.warning("A memory error occurred when computing the checksum for %s: %s" % (path, err))
-        checksum = 'dummy_checksum_due_to_memory_error'
+        _log.warning(
+            "A memory error occurred when computing the checksum for %s: %s"
+            % (path, err)
+        )
+        checksum = "dummy_checksum_due_to_memory_error"
 
     return checksum
 
@@ -759,8 +878,8 @@ def calc_block_checksum(path, algorithm):
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
     try:
-        f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), b''):
+        f = open(path, "rb")
+        for block in iter(lambda: f.read(blocksize), b""):
             algorithm.update(block)
         f.close()
     except IOError as err:
@@ -781,7 +900,7 @@ def verify_checksum(path, checksums):
 
     # if no checksum is provided, pretend checksum to be valid, unless presence of checksums to verify is enforced
     if checksums is None:
-        if build_option('enforce_checksums'):
+        if build_option("enforce_checksums"):
             raise EasyBuildError("Missing checksum for %s", filename)
         else:
             return True
@@ -795,7 +914,7 @@ def verify_checksum(path, checksums):
             if filename in checksum:
                 # Set this to a string-type checksum
                 checksum = checksum[filename]
-            elif build_option('enforce_checksums'):
+            elif build_option("enforce_checksums"):
                 raise EasyBuildError("Missing checksum for %s", filename)
             else:
                 # Set to None and allow to fail elsewhere
@@ -808,8 +927,11 @@ def verify_checksum(path, checksums):
             elif len(checksum) == 32:
                 typ = CHECKSUM_TYPE_MD5
             else:
-                raise EasyBuildError("Length of checksum '%s' (%d) does not match with either MD5 (32) or SHA256 (64)",
-                                     checksum, len(checksum))
+                raise EasyBuildError(
+                    "Length of checksum '%s' (%d) does not match with either MD5 (32) or SHA256 (64)",
+                    checksum,
+                    len(checksum),
+                )
 
         elif isinstance(checksum, tuple):
             # if checksum is specified as a tuple, it could either be specifying:
@@ -818,19 +940,34 @@ def verify_checksum(path, checksums):
             if len(checksum) == 2 and checksum[0] in CHECKSUM_FUNCTIONS:
                 typ, checksum = checksum
             else:
-                _log.info("Found %d alternative checksums for %s, considering them one-by-one...", len(checksum), path)
+                _log.info(
+                    "Found %d alternative checksums for %s, considering them one-by-one...",
+                    len(checksum),
+                    path,
+                )
                 for cand_checksum in checksum:
                     if verify_checksum(path, cand_checksum):
-                        _log.info("Found matching checksum for %s: %s", path, cand_checksum)
+                        _log.info(
+                            "Found matching checksum for %s: %s", path, cand_checksum
+                        )
                         return True
                     else:
-                        _log.info("Ignoring non-matching checksum for %s (%s)...", path, cand_checksum)
+                        _log.info(
+                            "Ignoring non-matching checksum for %s (%s)...",
+                            path,
+                            cand_checksum,
+                        )
         else:
-            raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
-                                 checksum)
+            raise EasyBuildError(
+                "Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
+                checksum,
+            )
 
         actual_checksum = compute_checksum(path, typ)
-        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+        _log.debug(
+            "Computed %s checksum for %s: %s (correct checksum: %s)"
+            % (typ, path, actual_checksum, checksum)
+        )
 
         if actual_checksum != checksum:
             return False
@@ -843,11 +980,17 @@ def is_sha256_checksum(value):
     """Check whether provided string is a SHA256 checksum."""
     res = False
     if isinstance(value, string_type):
-        if re.match('^[0-9a-f]{64}$', value):
+        if re.match("^[0-9a-f]{64}$", value):
             res = True
-            _log.debug("String value '%s' has the correct format to be a SHA256 checksum", value)
+            _log.debug(
+                "String value '%s' has the correct format to be a SHA256 checksum",
+                value,
+            )
         else:
-            _log.debug("String value '%s' does NOT have the correct format to be a SHA256 checksum", value)
+            _log.debug(
+                "String value '%s' does NOT have the correct format to be a SHA256 checksum",
+                value,
+            )
     else:
         _log.debug("Non-string value %s is not a SHA256 checksum", value)
 
@@ -861,13 +1004,14 @@ def find_base_dir():
     - when extracting multiple tarballs in the same directory,
       expect only the first one to give the correct path
     """
+
     def get_local_dirs_purged():
         # e.g. always purge the log directory
         # and hidden directories
         ignoredirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
-        lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
+        lst = [d for d in lst if not d.startswith(".") and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
@@ -893,12 +1037,12 @@ def find_extension(filename):
     """Find best match for filename extension."""
     # sort by length, so longest file extensions get preference
     suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
-    pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
+    pat = r"(?P<ext>%s)$" % "|".join([s.replace(".", "\\.") for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
-        ext = res.group('ext')
+        ext = res.group("ext")
     else:
-        raise EasyBuildError('Unknown file type for file %s', filename)
+        raise EasyBuildError("Unknown file type for file %s", filename)
 
     return ext
 
@@ -913,19 +1057,21 @@ def extract_cmd(filepath, overwrite=False):
 
     cmd_tmpl = EXTRACT_CMDS[ext.lower()]
     if overwrite:
-        if 'unzip -qq' in cmd_tmpl:
-            cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
+        if "unzip -qq" in cmd_tmpl:
+            cmd_tmpl = cmd_tmpl.replace("unzip -qq", "unzip -qq -o")
 
-    return cmd_tmpl % {'filepath': filepath, 'target': target}
+    return cmd_tmpl % {"filepath": filepath, "target": target}
 
 
 def is_patch_file(path):
     """Determine whether file at specified path is a patch file (based on +++ and --- lines being present)."""
     txt = read_file(path)
-    return bool(re.search(r'^\+{3}\s', txt, re.M) and re.search(r'^-{3}\s', txt, re.M))
+    return bool(re.search(r"^\+{3}\s", txt, re.M) and re.search(r"^-{3}\s", txt, re.M))
 
 
-def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
+def det_patched_files(
+    path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False
+):
     """
     Determine list of patched files from a patch.
     It searches for "+++ path/to/patched/file" lines to determine the patched files.
@@ -946,16 +1092,20 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     if path is not None:
         txt = read_file(path)
     elif txt is None:
-        raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
+        raise EasyBuildError(
+            "Either a file path or a string representing a patch should be supplied"
+        )
 
     patched_files = []
     for match in patched_regex.finditer(txt):
-        patched_file = match.group('file')
-        if not omit_ab_prefix and match.group('ab_prefix') is not None:
-            patched_file = match.group('ab_prefix') + patched_file
+        patched_file = match.group("file")
+        if not omit_ab_prefix and match.group("ab_prefix") is not None:
+            patched_file = match.group("ab_prefix") + patched_file
 
-        delete_regex = re.compile(r"%s\ndeleted file" % re.escape(os.path.basename(patched_file)), re.M)
-        if patched_file in ['/dev/null']:
+        delete_regex = re.compile(
+            r"%s\ndeleted file" % re.escape(os.path.basename(patched_file)), re.M
+        )
+        if patched_file in ["/dev/null"]:
             _log.debug("Ignoring patched file %s", patched_file)
 
         elif filter_deleted and delete_regex.search(txt):
@@ -983,7 +1133,9 @@ def guess_patch_level(patched_files, parent_dir):
             patch_level = level
             break
         else:
-            _log.debug('No match found for %s, trying next patched file...' % patched_file)
+            _log.debug(
+                "No match found for %s, trying next patched file..." % patched_file
+            )
 
     return patch_level
 
@@ -994,10 +1146,12 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     - assume unified diff created with "diff -ru old new"
     """
 
-    if build_option('extended_dry_run'):
+    if build_option("extended_dry_run"):
         # skip checking of files in dry run mode
         patch_filename = os.path.basename(patch_file)
-        dry_run_msg("* applying patch file %s" % patch_filename, silent=build_option('silent'))
+        dry_run_msg(
+            "* applying patch file %s" % patch_filename, silent=build_option("silent")
+        )
 
     elif not os.path.isfile(patch_file):
         raise EasyBuildError("Can't find patch %s: no such file", patch_file)
@@ -1010,8 +1164,10 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
 
     # copy missing files
     if copy:
-        if build_option('extended_dry_run'):
-            dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
+        if build_option("extended_dry_run"):
+            dry_run_msg(
+                "  %s copied to %s" % (patch_file, dest), silent=build_option("silent")
+            )
         else:
             copy_file(patch_file, dest)
             _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
@@ -1027,18 +1183,18 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     apatch_root, apatch_file = os.path.split(apatch)
     apatch_name, apatch_extension = os.path.splitext(apatch_file)
     # Supports only bz2, gz and xz. zip can be archives which are not supported.
-    if apatch_extension in ['.gz', '.bz2', '.xz']:
+    if apatch_extension in [".gz", ".bz2", ".xz"]:
         # split again to get the second extension
         apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
         if apatch_subextension == ".patch":
-            workdir = tempfile.mkdtemp(prefix='eb-patch-')
+            workdir = tempfile.mkdtemp(prefix="eb-patch-")
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
             apatch_dir = extract_file(apatch, workdir)
             apatch = os.path.join(apatch_dir, apatch_name)
 
-    if level is None and build_option('extended_dry_run'):
-        level = '<derived>'
+    if level is None and build_option("extended_dry_run"):
+        level = "<derived>"
 
     elif level is None:
         # guess value for -p (patch level)
@@ -1048,14 +1204,21 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
         patched_files = det_patched_files(path=apatch)
 
         if not patched_files:
-            raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
+            raise EasyBuildError(
+                "Can't guess patchlevel from patch %s: no testfile line found in patch",
+                apatch,
+            )
             return
 
         level = guess_patch_level(patched_files, adest)
 
         if level is None:  # level can also be 0 (zero), so don't use "not level"
             # no match
-            raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, adest)
+            raise EasyBuildError(
+                "Can't determine patch level for patch %s from directory %s",
+                patch_file,
+                adest,
+            )
         else:
             _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
 
@@ -1067,15 +1230,22 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     else:
         patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
 
-    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
+    out, ec = run.run_cmd(
+        patch_cmd, simple=False, path=adest, log_ok=False, trace=False
+    )
 
     if ec:
-        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
+        raise EasyBuildError(
+            "Couldn't apply patch file %s. Process exited with code %s: %s",
+            patch_file,
+            ec,
+            out,
+        )
 
     return ec == 0
 
 
-def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(path, regex_subs, backup=".orig.eb"):
     """
     Apply specified list of regex substitutions.
 
@@ -1084,10 +1254,15 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     """
     # only report when in 'dry run' mode
-    if build_option('extended_dry_run'):
-        dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
+    if build_option("extended_dry_run"):
+        dry_run_msg(
+            "applying regex substitutions to file %s" % path,
+            silent=build_option("silent"),
+        )
         for regex, subtxt in regex_subs:
-            dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
+            dry_run_msg(
+                "  * regex pattern '%s', replacement string '%s'" % (regex, subtxt)
+            )
 
     else:
         _log.info("Applying following regex substitutions to %s: %s", path, regex_subs)
@@ -1099,14 +1274,22 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             backup_ext = backup
         else:
             # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
-            backup_ext = ''
+            backup_ext = ""
 
         try:
-            for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
+            for line_id, line in enumerate(
+                fileinput.input(path, inplace=1, backup=backup_ext)
+            ):
                 for regex, subtxt in regex_subs:
                     match = regex.search(line)
                     if match:
-                        _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, match.group(0), subtxt)
+                        _log.info(
+                            "Replacing line %d in %s: '%s' -> '%s'",
+                            (line_id + 1),
+                            path,
+                            match.group(0),
+                            subtxt,
+                        )
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
 
@@ -1125,9 +1308,9 @@ def convert_name(name, upper=False):
     """
     # no regexps
     charmap = {
-        '+': 'plus',
-        '-': 'min',
-        '.': '',
+        "+": "plus",
+        "-": "min",
+        ".": "",
     }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
@@ -1138,8 +1321,18 @@ def convert_name(name, upper=False):
         return name
 
 
-def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
+def adjust_permissions(
+    provided_path,
+    permission_bits,
+    add=True,
+    onlyfiles=False,
+    onlydirs=False,
+    recursive=True,
+    group_id=None,
+    relative=True,
+    ignore_errors=False,
+    skip_symlinks=None,
+):
     """
     Change permissions for specified path, using specified permission bits
 
@@ -1157,9 +1350,11 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     """
 
     if skip_symlinks is not None:
-        depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
+        depr_msg = (
+            "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
+        )
         depr_msg += "(symlinks are never followed anymore)"
-        _log.deprecated(depr_msg, '4.0')
+        _log.deprecated(depr_msg, "4.0")
 
     provided_path = os.path.abspath(provided_path)
 
@@ -1190,7 +1385,9 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
             # this is done because of security concerns (symlink may point out of installation directory)
             # (note: os.lchmod is not supported on Linux)
             if os.path.islink(path):
-                _log.debug("Not changing permissions for %s, since it's a symlink", path)
+                _log.debug(
+                    "Not changing permissions for %s, since it's a symlink", path
+                )
             else:
                 # determine current permissions
                 current_perms = os.lstat(path)[stat.ST_MODE]
@@ -1199,22 +1396,36 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
                 if relative:
                     # relative permissions (add or remove)
                     if add:
-                        _log.debug("Adding permissions for %s: %s", path, oct(permission_bits))
+                        _log.debug(
+                            "Adding permissions for %s: %s", path, oct(permission_bits)
+                        )
                         new_perms = current_perms | permission_bits
                     else:
-                        _log.debug("Removing permissions for %s: %s", path, oct(permission_bits))
+                        _log.debug(
+                            "Removing permissions for %s: %s",
+                            path,
+                            oct(permission_bits),
+                        )
                         new_perms = current_perms & ~permission_bits
                 else:
                     # hard permissions bits (not relative)
                     new_perms = permission_bits
-                    _log.debug("Hard setting permissions for %s: %s", path, oct(new_perms))
+                    _log.debug(
+                        "Hard setting permissions for %s: %s", path, oct(new_perms)
+                    )
 
                 # only actually do chmod if current permissions are not correct already
                 # (this is important because chmod requires that files are owned by current user)
                 if new_perms == current_perms:
-                    _log.debug("Current permissions for %s are already OK: %s", path, oct(current_perms))
+                    _log.debug(
+                        "Current permissions for %s are already OK: %s",
+                        path,
+                        oct(current_perms),
+                    )
                 else:
-                    _log.debug("Changing permissions for %s to %s", path, oct(new_perms))
+                    _log.debug(
+                        "Changing permissions for %s to %s", path, oct(new_perms)
+                    )
                     os.chmod(path, new_perms)
 
             if group_id:
@@ -1236,16 +1447,27 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
                 err_msg = err
 
     if failed_paths:
-        raise EasyBuildError("Failed to chmod/chown several paths: %s (last error: %s)", failed_paths, err_msg)
+        raise EasyBuildError(
+            "Failed to chmod/chown several paths: %s (last error: %s)",
+            failed_paths,
+            err_msg,
+        )
 
     # we ignore some errors, but if there are to many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))
-    max_fail_ratio = float(build_option('max_fail_ratio_adjust_permissions'))
+    max_fail_ratio = float(build_option("max_fail_ratio_adjust_permissions"))
     if fail_ratio > max_fail_ratio:
-        raise EasyBuildError("%.2f%% of permissions/owner operations failed (more than %.2f%%), "
-                             "something must be wrong...", 100 * fail_ratio, 100 * max_fail_ratio)
+        raise EasyBuildError(
+            "%.2f%% of permissions/owner operations failed (more than %.2f%%), "
+            "something must be wrong...",
+            100 * fail_ratio,
+            100 * max_fail_ratio,
+        )
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that...", 100 * fail_ratio)
+        _log.debug(
+            "%.2f%% of permissions/owner operations failed, ignoring that...",
+            100 * fail_ratio,
+        )
 
 
 def patch_perl_script_autoflush(path):
@@ -1253,22 +1475,28 @@ def patch_perl_script_autoflush(path):
     # so that e.g. run_cmd_qa receives all output to answer questions
 
     # only report when in 'dry run' mode
-    if build_option('extended_dry_run'):
-        dry_run_msg("Perl script patched: %s" % path, silent=build_option('silent'))
+    if build_option("extended_dry_run"):
+        dry_run_msg("Perl script patched: %s" % path, silent=build_option("silent"))
 
     else:
         txt = read_file(path)
         origpath = "%s.eb.orig" % path
         write_file(origpath, txt)
-        _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
+        _log.debug(
+            "Patching Perl script %s for autoflush, original script copied to %s"
+            % (path, origpath)
+        )
 
         # force autoflush for Perl print buffer
-        lines = txt.split('\n')
-        newtxt = '\n'.join([
-            lines[0],  # shebang line
-            "\nuse IO::Handle qw();",
-            "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
-        ] + lines[1:])
+        lines = txt.split("\n")
+        newtxt = "\n".join(
+            [
+                lines[0],  # shebang line
+                "\nuse IO::Handle qw();",
+                "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
+            ]
+            + lines[1:]
+        )
 
         write_file(path, newtxt)
 
@@ -1284,16 +1512,22 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                    to avoid users can removing/renaming files in this directory
     """
     if set_gid is None:
-        set_gid = build_option('set_gid_bit')
+        set_gid = build_option("set_gid_bit")
     if sticky is None:
-        sticky = build_option('sticky_bit')
+        sticky = build_option("sticky_bit")
 
     if not os.path.isabs(path):
         path = os.path.abspath(path)
 
     # exit early if path already exists
     if not os.path.exists(path):
-        _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)", path, parents, set_gid, sticky)
+        _log.info(
+            "Creating directory %s (parents: %s, set_gid: %s, sticky: %s)",
+            path,
+            parents,
+            set_gid,
+            sticky,
+        )
         # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
         existing_parent_path = os.path.dirname(path)
         try:
@@ -1315,9 +1549,18 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
             bits |= stat.S_ISVTX
         if bits:
             try:
-                new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
-                new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
-                adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
+                new_subdir = path[len(existing_parent_path) :].lstrip(os.path.sep)
+                new_path = os.path.join(
+                    existing_parent_path, new_subdir.split(os.path.sep)[0]
+                )
+                adjust_permissions(
+                    new_path,
+                    bits,
+                    add=True,
+                    relative=True,
+                    recursive=True,
+                    onlydirs=True,
+                )
             except OSError as err:
                 raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
     else:
@@ -1328,7 +1571,9 @@ def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []
     for glob_path in glob_paths:
-        add_paths = [f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)]
+        add_paths = [
+            f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)
+        ]
         if add_paths:
             paths.extend(add_paths)
         else:
@@ -1344,10 +1589,10 @@ def weld_paths(path1, path2):
 
     # init part2 head/tail/parts
     path2_head = path2.rstrip(os.path.sep)
-    path2_tail = ''
+    path2_tail = ""
     path2_parts = path2.split(os.path.sep)
     # if path2 is an absolute path, make sure it stays that way
-    if path2_parts[0] == '':
+    if path2_parts[0] == "":
         path2_parts[0] = os.path.sep
 
     while path2_parts and not path1s.endswith(path2_head):
@@ -1381,13 +1626,20 @@ def rmtree2(path, n=3):
             ok = True
             break
         except OSError as err:
-            _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
+            _log.debug(
+                "Failed to remove path %s with shutil.rmtree at attempt %d: %s"
+                % (path, n, err)
+            )
             time.sleep(2)
 
             # make sure write permissions are enabled on entire directory
             adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
     if not ok:
-        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
+        raise EasyBuildError(
+            "Failed to remove path %s with shutil.rmtree, even after %d attempts.",
+            path,
+            n,
+        )
     else:
         _log.info("Path %s successfully removed." % path)
 
@@ -1397,17 +1649,26 @@ def find_backup_name_candidate(src_file):
 
     # e.g. 20170817234510 on Aug 17th 2017 at 23:45:10
     timestamp = datetime.datetime.now()
-    dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
+    dst_file = "%s_%s_%s" % (src_file, timestamp.strftime("%Y%m%d%H%M%S"), os.getpid())
     while os.path.exists(dst_file):
-        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, dst_file, timestamp)
+        _log.debug(
+            "Backup of %s at %s already found at %s, trying again in a second...",
+            src_file,
+            dst_file,
+            timestamp,
+        )
         time.sleep(1)
         timestamp = datetime.datetime.now()
-        dst_file = '%s_%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'), os.getpid())
+        dst_file = "%s_%s_%s" % (
+            src_file,
+            timestamp.strftime("%Y%m%d%H%M%S"),
+            os.getpid(),
+        )
 
     return dst_file
 
 
-def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
+def back_up_file(src_file, backup_extension="bak", hidden=False, strip_fn=None):
     """
     Backs up a file appending a backup extension and timestamp to it (if there is already an existing backup).
 
@@ -1417,17 +1678,19 @@ def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
     :param strip_fn: strip specified trailing substring from filename of backup
     :return: location of backed up file
     """
-    fn_prefix, fn_suffix = '', ''
+    fn_prefix, fn_suffix = "", ""
     if hidden:
-        fn_prefix = '.'
+        fn_prefix = "."
     if backup_extension:
-        fn_suffix = '.%s' % backup_extension
+        fn_suffix = ".%s" % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
     if strip_fn:
         src_fn = src_fn.rstrip(strip_fn)
 
-    backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
+    backup_fp = find_backup_name_candidate(
+        os.path.join(src_dir, fn_prefix + src_fn + fn_suffix)
+    )
 
     copy_file(src_file, backup_fp)
     _log.info("File %s backed up in %s", src_file, backup_fp)
@@ -1438,14 +1701,14 @@ def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
 
-    zip_log_cmd = build_option('zip_logs')
+    zip_log_cmd = build_option("zip_logs")
 
     mkdir(os.path.dirname(target_logfile), parents=True)
     src_logfile_len = len(src_logfile)
     try:
 
         # there may be multiple log files, due to log rotation
-        app_logs = glob.glob('%s*' % src_logfile)
+        app_logs = glob.glob("%s*" % src_logfile)
         for app_log in app_logs:
             # retain possible suffix
             new_log_path = target_logfile + app_log[src_logfile_len:]
@@ -1463,8 +1726,12 @@ def move_logs(src_logfile, target_logfile):
                 _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
 
     except (IOError, OSError) as err:
-        raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
-                             src_logfile, target_logfile, err)
+        raise EasyBuildError(
+            "Failed to move log file(s) %s* to new log file %s*: %s",
+            src_logfile,
+            target_logfile,
+            err,
+        )
 
 
 def cleanup(logfile, tempdir, testing, silent=False):
@@ -1477,21 +1744,33 @@ def cleanup(logfile, tempdir, testing, silent=False):
     :param silent: be silent (don't print anything to stdout)
     """
 
-    if build_option('cleanup_tmpdir') and not testing:
+    if build_option("cleanup_tmpdir") and not testing:
         if logfile is not None:
             try:
-                for log in [logfile] + glob.glob('%s.[0-9]*' % logfile):
+                for log in [logfile] + glob.glob("%s.[0-9]*" % logfile):
                     os.remove(log)
             except OSError as err:
-                raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing or silent)
+                raise EasyBuildError(
+                    "Failed to remove log file(s) %s*: %s", logfile, err
+                )
+            print_msg(
+                "Temporary log file(s) %s* have been removed." % (logfile),
+                log=None,
+                silent=testing or silent,
+            )
 
         if tempdir is not None:
             try:
                 shutil.rmtree(tempdir, ignore_errors=True)
             except OSError as err:
-                raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing or silent)
+                raise EasyBuildError(
+                    "Failed to remove temporary directory %s: %s", tempdir, err
+                )
+            print_msg(
+                "Temporary directory %s has been removed." % tempdir,
+                log=None,
+                silent=testing or silent,
+            )
 
     else:
         msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
@@ -1528,10 +1807,11 @@ def copytree(src, dst, symlinks=False, ignore=None):
     XXX Consider this example code rather than the ultimate tool.
 
     """
-    _log.deprecated("Use 'copy_dir' rather than 'copytree'", '4.0')
+    _log.deprecated("Use 'copy_dir' rather than 'copytree'", "4.0")
 
     class Error(EnvironmentError):
         pass
+
     try:
         WindowsError  # @UndefinedVariable
     except NameError:
@@ -1597,7 +1877,7 @@ def encode_string(name):
     """
 
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
+    result = "".join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
     return result
 
 
@@ -1620,23 +1900,50 @@ def decode_class_name(name):
         # name is not encoded, apparently
         return name
     else:
-        name = name[len(EASYBLOCK_CLASS_PREFIX):]
+        name = name[len(EASYBLOCK_CLASS_PREFIX) :]
         return decode_string(name)
 
 
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
+def run_cmd(
+    cmd,
+    log_ok=True,
+    log_all=False,
+    simple=False,
+    inp=None,
+    regexp=True,
+    log_output=False,
+    path=None,
+):
     """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+    _log.nosupport(
+        "run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", "2.0"
+    )
 
 
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
+def run_cmd_qa(
+    cmd,
+    qa,
+    no_qa=None,
+    log_ok=True,
+    log_all=False,
+    simple=False,
+    regexp=True,
+    std_qa=None,
+    path=None,
+):
     """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+    _log.nosupport(
+        "run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run",
+        "2.0",
+    )
 
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
-    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+    _log.nosupport(
+        "parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run",
+        "2.0",
+    )
 
 
 def det_size(path):
@@ -1676,10 +1983,10 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     lic_env_var = None
 
     # regex for license server spec; format: <port>@<server>
-    server_port_regex = re.compile(r'^[0-9]+@\S+$')
+    server_port_regex = re.compile(r"^[0-9]+@\S+$")
 
     # always consider $LM_LICENSE_FILE
-    lic_env_vars = ['LM_LICENSE_FILE']
+    lic_env_vars = ["LM_LICENSE_FILE"]
     if isinstance(custom_env_vars, string_type):
         lic_env_vars.insert(0, custom_env_vars)
     elif custom_env_vars is not None:
@@ -1715,7 +2022,10 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
                 lic_files = [value]
             elif os.path.isdir(value):
                 # consider all *.dat and *.lic files in specified directory
-                lic_files = sorted(glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic')))
+                lic_files = sorted(
+                    glob.glob(os.path.join(value, "*.dat"))
+                    + glob.glob(os.path.join(value, "*.lic"))
+                )
 
             # valid license server spec
             elif server_port_regex.match(value):
@@ -1725,10 +2035,14 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             if lic_files:
                 for lic_file in lic_files:
                     try:
-                        open(lic_file, 'r')
+                        open(lic_file, "r")
                         valid_lic_specs.append(lic_file)
                     except IOError as err:
-                        _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
+                        _log.warning(
+                            "License file %s found, but failed to open it for reading: %s",
+                            lic_file,
+                            err,
+                        )
 
         # stop after finding valid license specs, filter out duplicates
         if valid_lic_specs:
@@ -1737,7 +2051,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             break
 
     if lic_env_var:
-        via_msg = '$%s' % lic_env_var
+        via_msg = "$%s" % lic_env_var
     else:
         via_msg = "provided license spec"
 
@@ -1754,13 +2068,15 @@ def copy_file(path, target_path, force_in_dry_run=False):
     :param target_path: path to copy the file to
     :param force_in_dry_run: force copying of file during dry run
     """
-    if not force_in_dry_run and build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option("extended_dry_run"):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
             target_exists = os.path.exists(target_path)
             if target_exists and os.path.samefile(path, target_path):
-                _log.debug("Not copying %s to %s since files are identical", path, target_path)
+                _log.debug(
+                    "Not copying %s to %s since files are identical", path, target_path
+                )
             # if target file exists and is owned by someone else than the current user,
             # try using shutil.copyfile to just copy the file contents
             # since shutil.copy2 will fail when trying to copy over file metadata (since chown requires file ownership)
@@ -1772,7 +2088,9 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 shutil.copy2(path, target_path)
                 _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
-            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+            raise EasyBuildError(
+                "Failed to copy file %s to %s: %s", path, target_path, err
+            )
 
 
 def copy_files(paths, target_dir, force_in_dry_run=False):
@@ -1783,12 +2101,14 @@ def copy_files(paths, target_dir, force_in_dry_run=False):
     :param target_dir: target directory to copy files into
     :param force_in_dry_run: force copying of files during dry run
     """
-    if not force_in_dry_run and build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option("extended_dry_run"):
         dry_run_msg("copied files %s to %s" % (paths, target_dir))
     else:
         if os.path.exists(target_dir):
             if os.path.isdir(target_dir):
-                _log.info("Copying easyconfigs into existing directory %s...", target_dir)
+                _log.info(
+                    "Copying easyconfigs into existing directory %s...", target_dir
+                )
             else:
                 raise EasyBuildError("%s exists but is not a directory", target_dir)
         else:
@@ -1807,17 +2127,21 @@ def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
 
     Additional specified named arguments are passed down to shutil.copytree
     """
-    if not force_in_dry_run and build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option("extended_dry_run"):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
             if os.path.exists(target_path):
-                raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
+                raise EasyBuildError(
+                    "Target location %s to copy %s to already exists", target_path, path
+                )
 
             shutil.copytree(path, target_path, **kwargs)
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError) as err:
-            raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
+            raise EasyBuildError(
+                "Failed to copy directory %s to %s: %s", path, target_path, err
+            )
 
 
 def copy(paths, target_path, force_in_dry_run=False):
@@ -1842,7 +2166,9 @@ def copy(paths, target_path, force_in_dry_run=False):
         elif os.path.isdir(path):
             copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
         else:
-            raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
+            raise EasyBuildError(
+                "Specified path to copy is not an existing file or directory: %s", path
+            )
 
 
 def get_source_tarball_from_git(filename, targetdir, git_config):
@@ -1855,19 +2181,25 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     """
     # sanity check on git_config value being passed
     if not isinstance(git_config, dict):
-        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
+        raise EasyBuildError(
+            "Found unexpected type of value for 'git_config' argument: %s"
+            % type(git_config)
+        )
 
     # Making a copy to avoid modifying the object with pops
     git_config = git_config.copy()
-    tag = git_config.pop('tag', None)
-    url = git_config.pop('url', None)
-    repo_name = git_config.pop('repo_name', None)
-    commit = git_config.pop('commit', None)
-    recursive = git_config.pop('recursive', False)
+    tag = git_config.pop("tag", None)
+    url = git_config.pop("url", None)
+    repo_name = git_config.pop("repo_name", None)
+    commit = git_config.pop("commit", None)
+    recursive = git_config.pop("recursive", False)
 
     # input validation of git_config dict
     if git_config:
-        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
+        raise EasyBuildError(
+            "Found one or more unexpected keys in 'git_config' specification: %s",
+            git_config,
+        )
 
     if not repo_name:
         raise EasyBuildError("repo_name not specified in git_config parameter")
@@ -1876,44 +2208,59 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         raise EasyBuildError("Neither tag nor commit found in git_config parameter")
 
     if tag and commit:
-        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+        raise EasyBuildError(
+            "Tag and commit are mutually exclusive in git_config parameter"
+        )
 
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
 
-    if not filename.endswith('.tar.gz'):
-        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
+    if not filename.endswith(".tar.gz"):
+        raise EasyBuildError(
+            "git_config currently only supports filename ending in .tar.gz"
+        )
 
     # prepare target directory and clone repository
     mkdir(targetdir, parents=True)
     targetpath = os.path.join(targetdir, filename)
 
     # compose 'git clone' command, and run it
-    clone_cmd = ['git', 'clone']
+    clone_cmd = ["git", "clone"]
 
     if tag:
-        clone_cmd.extend(['--branch', tag])
+        clone_cmd.extend(["--branch", tag])
 
     if recursive:
-        clone_cmd.append('--recursive')
+        clone_cmd.append("--recursive")
 
-    clone_cmd.append('%s/%s.git' % (url, repo_name))
+    clone_cmd.append("%s/%s.git" % (url, repo_name))
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(
+        " ".join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False
+    )
 
     # if a specific commit is asked for, check it out
     if commit:
-        checkout_cmd = ['git', 'checkout', commit]
+        checkout_cmd = ["git", "checkout", commit]
         if recursive:
-            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
+            checkout_cmd.extend(["&&", "git", "submodule", "update"])
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run.run_cmd(
+            " ".join(checkout_cmd),
+            log_all=True,
+            log_ok=False,
+            simple=False,
+            regexp=False,
+            path=repo_name,
+        )
 
     # create an archive and delete the git repo directory
-    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    tar_cmd = ["tar", "cfvz", targetpath, "--exclude", ".git", repo_name]
+    run.run_cmd(
+        " ".join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False
+    )
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)
@@ -1930,7 +2277,7 @@ def move_file(path, target_path, force_in_dry_run=False):
     :param target_path: path to move the file to
     :param force_in_dry_run: force running the command during dry run
     """
-    if not force_in_dry_run and build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option("extended_dry_run"):
         dry_run_msg("moved file %s to %s" % (path, target_path))
     else:
         # remove first to ensure portability (shutil.move might fail when overwriting files in some systems)
@@ -1947,9 +2294,11 @@ def diff_files(path1, path2):
     """
     Return unified diff between two files
     """
-    file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
-    file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
-    return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
+    file1_lines = ["%s\n" % l for l in read_file(path1).split("\n")]
+    file2_lines = ["%s\n" % l for l in read_file(path2).split("\n")]
+    return "".join(
+        difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2)
+    )
 
 
 def install_fake_vsc():
@@ -1960,37 +2309,39 @@ def install_fake_vsc():
     """
     # note: install_fake_vsc is called before parsing configuration, so avoid using functions that use build_option,
     # like mkdir, write_file, ...
-    fake_vsc_path = os.path.join(tempfile.mkdtemp(prefix='fake_vsc_'))
+    fake_vsc_path = os.path.join(tempfile.mkdtemp(prefix="fake_vsc_"))
 
-    fake_vsc_init = '\n'.join([
-        'import os',
-        'import sys',
-        'import inspect',
-        '',
-        'stack = inspect.stack()',
-        'filename, lineno = "UNKNOWN", "UNKNOWN"',
-        '',
-        'for frame in stack[1:]:',
-        '    _, cand_filename, cand_lineno, _, code_context, _ = frame',
-        '    if code_context:',
-        '        filename, lineno = cand_filename, cand_lineno',
-        '        break',
-        '',
-        '# ignore imports from pkgutil.py (part of Python standard library),',
-        '# which may happen due to a system-wide installation of vsc-base',
-        '# even if it is not actually actively used...',
-        'if os.path.basename(filename) != "pkgutil.py":',
-        '    error_msg = "\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno)',
-        '    error_msg += "vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n"',
-        '    error_msg += "The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n"',
-        '    sys.stderr.write(error_msg)',
-        '    sys.exit(1)',
-    ])
+    fake_vsc_init = "\n".join(
+        [
+            "import os",
+            "import sys",
+            "import inspect",
+            "",
+            "stack = inspect.stack()",
+            'filename, lineno = "UNKNOWN", "UNKNOWN"',
+            "",
+            "for frame in stack[1:]:",
+            "    _, cand_filename, cand_lineno, _, code_context, _ = frame",
+            "    if code_context:",
+            "        filename, lineno = cand_filename, cand_lineno",
+            "        break",
+            "",
+            "# ignore imports from pkgutil.py (part of Python standard library),",
+            "# which may happen due to a system-wide installation of vsc-base",
+            "# even if it is not actually actively used...",
+            'if os.path.basename(filename) != "pkgutil.py":',
+            "    error_msg = \"\\nERROR: Detected import from 'vsc' namespace in %s (line %s)\\n\" % (filename, lineno)",
+            '    error_msg += "vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n"',
+            "    error_msg += \"The functionality you need may be available in the 'easybuild.base.*' namespace.\\n\"",
+            "    sys.stderr.write(error_msg)",
+            "    sys.exit(1)",
+        ]
+    )
 
-    fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')
+    fake_vsc_init_path = os.path.join(fake_vsc_path, "vsc", "__init__.py")
     if not os.path.exists(os.path.dirname(fake_vsc_init_path)):
         os.makedirs(os.path.dirname(fake_vsc_init_path))
-    with open(fake_vsc_init_path, 'w') as fp:
+    with open(fake_vsc_init_path, "w") as fp:
         fp.write(fake_vsc_init)
 
     sys.path.insert(0, fake_vsc_path)

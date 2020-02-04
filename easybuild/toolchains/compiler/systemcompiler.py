@@ -31,10 +31,11 @@ Support for system compiler.
 from easybuild.tools.toolchain.compiler import Compiler
 
 
-TC_CONSTANT_SYSTEM = 'SYSTEM'
+TC_CONSTANT_SYSTEM = "SYSTEM"
 
 
 class SystemCompiler(Compiler):
     """System compiler"""
+
     COMPILER_MODULE_NAME = []
     COMPILER_FAMILY = TC_CONSTANT_SYSTEM

@@ -43,8 +43,8 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('4.1.2.dev0')
-UNKNOWN = 'UNKNOWN'
+VERSION = LooseVersion("4.1.2.dev0")
+UNKNOWN = "UNKNOWN"
 
 
 def get_git_revision():
@@ -61,11 +61,11 @@ def get_git_revision():
     try:
         path = os.path.dirname(__file__)
         gitrepo = git.Git(path)
-        res = gitrepo.rev_list('HEAD').splitlines()[0]
+        res = gitrepo.rev_list("HEAD").splitlines()[0]
         # 'encode' may be required to make sure a regular string is returned rather than a unicode string
         # (only needed in Python 2; in Python 3, regular strings are already unicode)
         if not isinstance(res, str):
-            res = res.encode('ascii')
+            res = res.encode("ascii")
     except git.GitCommandError:
         res = UNKNOWN
 
@@ -85,7 +85,9 @@ FRAMEWORK_VERSION = VERBOSE_VERSION
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
 except Exception:
-    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+    EASYBLOCKS_VERSION = (
+        "0.0.UNKNOWN.EASYBLOCKS"  # make sure it is smaller then anything
+    )
 
 
 def this_is_easybuild():
@@ -98,6 +100,6 @@ def this_is_easybuild():
     # 'encode' may be required to make sure a regular string is returned rather than a unicode string
     # (only needed in Python 2; in Python 3, regular strings are already unicode)
     if not isinstance(msg, str):
-        msg = msg.encode('ascii')
+        msg = msg.encode("ascii")
 
     return msg

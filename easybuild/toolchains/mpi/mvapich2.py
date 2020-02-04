@@ -37,9 +37,10 @@ TC_CONSTANT_MVAPICH2 = "MVAPICH2"
 
 class Mvapich2(Mpich2):
     """MVAPICH2 MPI class"""
+
     MPI_MODULE_NAME = ["MVAPICH2"]
     MPI_FAMILY = TC_CONSTANT_MVAPICH2
 
-    MPI_LIBRARY_NAME = 'mpich'
+    MPI_LIBRARY_NAME = "mpich"
 
-    MPI_LINK_INFO_OPTION = '-link_info'
+    MPI_LINK_INFO_OPTION = "-link_info"

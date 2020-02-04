@@ -43,7 +43,8 @@ class Intel(Iimpi, IntelMKL, IntelFFTW):
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'intel'
+
+    NAME = "intel"
     SUBTOOLCHAIN = [Iimpi.NAME, Iimkl.NAME]
 
     def is_deprecated(self):
@@ -51,13 +52,15 @@ class Intel(Iimpi, IntelMKL, IntelFFTW):
         # need to transform a version like '2016a' with something that is safe to compare with '2016.01'
         # comparing subversions that include letters causes TypeErrors in Python 3
         # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
-        version = self.version.replace('a', '.01').replace('b', '.07')
+        version = self.version.replace("a", ".01").replace("b", ".07")
 
         # intel toolchains older than intel/2016a are deprecated
         # take into account that intel/2016.x is always < intel/2016a according to LooseVersion;
         # intel/2016.01 & co are not deprecated yet...
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
-        if re.match('^[0-9]', version) and LooseVersion(version) < LooseVersion('2016.01'):
+        if re.match("^[0-9]", version) and LooseVersion(version) < LooseVersion(
+            "2016.01"
+        ):
             deprecated = True
         else:
             deprecated = False

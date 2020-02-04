@@ -40,7 +40,8 @@ TC_CONSTANT_CLANGGCC = "ClangGCC"
 
 class ClangGcc(Clang, Gcc):
     """Compiler toolchain with Clang and GFortran compilers."""
-    NAME = 'ClangGCC'
-    COMPILER_MODULE_NAME = ['Clang', 'GCC']
+
+    NAME = "ClangGCC"
+    COMPILER_MODULE_NAME = ["Clang", "GCC"]
     COMPILER_FAMILY = TC_CONSTANT_CLANGGCC
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME

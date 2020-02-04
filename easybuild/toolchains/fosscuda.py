@@ -37,5 +37,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 class Fosscuda(Gompic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'fosscuda'
+
+    NAME = "fosscuda"
     SUBTOOLCHAIN = [Gompic.NAME, Golfc.NAME]

@@ -53,7 +53,9 @@ CURRENT_VERSION = VERSION
 # allow some experimental experimental code
 EXPERIMENTAL = False
 
-DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
+DEPRECATED_DOC_URL = (
+    "http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html"
+)
 
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
@@ -61,14 +63,15 @@ DRY_RUN_MODULES_INSTALL_DIR = None
 
 
 DEVEL_LOG_LEVEL = logging.DEBUG - 1
-logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
+logging.addLevelName(DEVEL_LOG_LEVEL, "DEVEL")
 
 
 class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
     """
-    LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
+
+    LOC_INFO_TOP_PKG_NAMES = ["easybuild", "vsc"]
     LOC_INFO_LEVEL = 1
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
@@ -115,20 +118,24 @@ class EasyBuildLog(fancylogger.FancyLogger):
             else:
                 break
             if not filepath_dirs:
-                filepath_dirs = ['?']
+                filepath_dirs = ["?"]
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
     def experimental(self, msg, *args, **kwargs):
         """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
-        common_msg = "Experimental functionality. Behaviour might change/be removed later"
+        common_msg = (
+            "Experimental functionality. Behaviour might change/be removed later"
+        )
         if EXPERIMENTAL:
-            msg = common_msg + ': ' + msg
+            msg = common_msg + ": " + msg
             self.warning(msg, *args, **kwargs)
         else:
             msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, ver, max_ver=None, more_info=None, silent=False, *args, **kwargs):
+    def deprecated(
+        self, msg, ver, max_ver=None, more_info=None, silent=False, *args, **kwargs
+    ):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
@@ -145,17 +152,19 @@ class EasyBuildLog(fancylogger.FancyLogger):
             self.warning(msg)
             print_warning(msg, silent=silent)
 
-        kwargs['log_callback'] = log_callback_warning_and_print
+        kwargs["log_callback"] = log_callback_warning_and_print
 
         # always raise an EasyBuildError, nothing else
-        kwargs['exception'] = EasyBuildError
+        kwargs["exception"] = EasyBuildError
 
         if max_ver is None:
             if more_info:
                 msg += more_info
             else:
                 msg += "; see %s for more information" % DEPRECATED_DOC_URL
-            fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
+            fancylogger.FancyLogger.deprecated(
+                self, msg, str(CURRENT_VERSION), ver, *args, **kwargs
+            )
         else:
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
@@ -180,7 +189,9 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
 
 # set format for logger
-LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
+LOGGING_FORMAT = (
+    EB_MSG_PREFIX + " %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s"
+)
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
 # set the default LoggerClass to EasyBuildLog
@@ -197,7 +208,13 @@ fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO, tmp_logdir=None):
+def init_logging(
+    logfile,
+    logtostdout=False,
+    silent=False,
+    colorize=fancylogger.Colorize.AUTO,
+    tmp_logdir=None,
+):
     """Initialize logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
@@ -208,14 +225,24 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
                 try:
                     os.makedirs(tmp_logdir)
                 except (IOError, OSError) as err:
-                    raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
+                    raise EasyBuildError(
+                        "Failed to create temporary log directory %s: %s",
+                        tmp_logdir,
+                        err,
+                    )
 
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-', dir=tmp_logdir)
+            fd, logfile = tempfile.mkstemp(
+                suffix=".log", prefix="easybuild-", dir=tmp_logdir
+            )
             os.close(fd)
 
         fancylogger.logToFile(logfile, max_bytes=0)
-        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
+        print_msg(
+            "temporary log file in case of crash %s" % (logfile),
+            log=None,
+            silent=silent,
+        )
 
     log = fancylogger.getLogger(fname=False)
 
@@ -227,7 +254,7 @@ def log_start(log, eb_command_line, eb_tmpdir):
     log.info(this_is_easybuild())
 
     # log used command line
-    log.info("Command line: %s", ' '.join(eb_command_line))
+    log.info("Command line: %s", " ".join(eb_command_line))
 
     log.info("Using %s as temporary directory", eb_tmpdir)
 
@@ -253,11 +280,11 @@ def print_msg(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
-    log = kwargs.pop('log', None)
-    silent = kwargs.pop('silent', False)
-    prefix = kwargs.pop('prefix', True)
-    newline = kwargs.pop('newline', True)
-    stderr = kwargs.pop('stderr', False)
+    log = kwargs.pop("log", None)
+    silent = kwargs.pop("silent", False)
+    prefix = kwargs.pop("prefix", True)
+    newline = kwargs.pop("newline", True)
+    stderr = kwargs.pop("stderr", False)
     if kwargs:
         raise EasyBuildError("Unknown named arguments passed to print_msg: %s", kwargs)
 
@@ -265,10 +292,10 @@ def print_msg(msg, *args, **kwargs):
         log.info(msg)
     if not silent:
         if prefix:
-            msg = ' '.join([EB_MSG_PREFIX, msg])
+            msg = " ".join([EB_MSG_PREFIX, msg])
 
         if newline:
-            msg += '\n'
+            msg += "\n"
 
         if stderr:
             sys.stderr.write(msg)
@@ -288,13 +315,19 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
     :param module_installdir: fake module install directory
     """
     global DRY_RUN_BUILD_DIR
-    DRY_RUN_BUILD_DIR = (re.compile(re.escape(builddir)), builddir[len(prefix):])
+    DRY_RUN_BUILD_DIR = (re.compile(re.escape(builddir)), builddir[len(prefix) :])
 
     global DRY_RUN_MODULES_INSTALL_DIR
-    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(re.escape(module_installdir)), module_installdir[len(prefix):])
+    DRY_RUN_MODULES_INSTALL_DIR = (
+        re.compile(re.escape(module_installdir)),
+        module_installdir[len(prefix) :],
+    )
 
     global DRY_RUN_SOFTWARE_INSTALL_DIR
-    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
+    DRY_RUN_SOFTWARE_INSTALL_DIR = (
+        re.compile(re.escape(software_installdir)),
+        software_installdir[len(prefix) :],
+    )
 
 
 def dry_run_msg(msg, *args, **kwargs):
@@ -303,11 +336,17 @@ def dry_run_msg(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
-    silent = kwargs.pop('silent', False)
+    silent = kwargs.pop("silent", False)
     if kwargs:
-        raise EasyBuildError("Unknown named arguments passed to dry_run_msg: %s", kwargs)
+        raise EasyBuildError(
+            "Unknown named arguments passed to dry_run_msg: %s", kwargs
+        )
 
-    for dry_run_var in [DRY_RUN_BUILD_DIR, DRY_RUN_MODULES_INSTALL_DIR, DRY_RUN_SOFTWARE_INSTALL_DIR]:
+    for dry_run_var in [
+        DRY_RUN_BUILD_DIR,
+        DRY_RUN_MODULES_INSTALL_DIR,
+        DRY_RUN_SOFTWARE_INSTALL_DIR,
+    ]:
         if dry_run_var is not None:
             msg = dry_run_var[0].sub(dry_run_var[1], msg)
 
@@ -319,9 +358,11 @@ def dry_run_warning(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
-    silent = kwargs.pop('silent', False)
+    silent = kwargs.pop("silent", False)
     if kwargs:
-        raise EasyBuildError("Unknown named arguments passed to dry_run_warning: %s", kwargs)
+        raise EasyBuildError(
+            "Unknown named arguments passed to dry_run_warning: %s", kwargs
+        )
 
     dry_run_msg("\n!!!\n!!! WARNING: %s\n!!!\n" % msg, silent=silent)
 
@@ -333,13 +374,15 @@ def print_error(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
-    log = kwargs.pop('log', None)
-    exitCode = kwargs.pop('exitCode', 1)
-    opt_parser = kwargs.pop('opt_parser', None)
-    exit_on_error = kwargs.pop('exit_on_error', True)
-    silent = kwargs.pop('silent', False)
+    log = kwargs.pop("log", None)
+    exitCode = kwargs.pop("exitCode", 1)
+    opt_parser = kwargs.pop("opt_parser", None)
+    exit_on_error = kwargs.pop("exit_on_error", True)
+    silent = kwargs.pop("silent", False)
     if kwargs:
-        raise EasyBuildError("Unknown named arguments passed to print_error: %s", kwargs)
+        raise EasyBuildError(
+            "Unknown named arguments passed to print_error: %s", kwargs
+        )
 
     if exit_on_error:
         if not silent:
@@ -358,9 +401,11 @@ def print_warning(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
-    silent = kwargs.pop('silent', False)
+    silent = kwargs.pop("silent", False)
     if kwargs:
-        raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
+        raise EasyBuildError(
+            "Unknown named arguments passed to print_warning: %s", kwargs
+        )
 
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % msg)
@@ -377,7 +422,7 @@ def time_str_since(start_time):
     tot_time = datetime.now() - start_time
     tot_secs = tot_time.seconds + tot_time.days * 24 * 3600
     if tot_secs > 0:
-        res = datetime.utcfromtimestamp(tot_secs).strftime('%Hh%Mm%Ss')
+        res = datetime.utcfromtimestamp(tot_secs).strftime("%Hh%Mm%Ss")
     else:
         res = "< 1s"
 

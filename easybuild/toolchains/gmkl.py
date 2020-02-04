@@ -41,6 +41,7 @@ class Gmkl(GccToolchain, IntelMKL, IntelFFTW):
     Compiler toolchain with GCC, Intel Math Kernel Library (MKL)
     and Intel FFTW wrappers.
     """
-    NAME = 'gmkl'
+
+    NAME = "gmkl"
     SUBTOOLCHAIN = GccToolchain.NAME
     OPTIONAL = True

@@ -40,10 +40,10 @@ from easybuild.tools.config import build_option
 from easybuild.tools.py2vs3 import ascii_letters, string_type
 
 
-_log = fancylogger.getLogger('tools.utilities')
+_log = fancylogger.getLogger("tools.utilities")
 
-INDENT_2SPACES = ' ' * 2
-INDENT_4SPACES = ' ' * 4
+INDENT_2SPACES = " " * 2
+INDENT_4SPACES = " " * 4
 
 
 def flatten(lst):
@@ -71,7 +71,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
 
     if isinstance(val, string_type):
         # forced triple double quotes
-        if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
+        if ("'" in val and '"' in val) or (escape_newline and "\n" in val):
             return '"""%s"""' % val
         # escape double quote(s) used in strings
         elif '"' in val:
@@ -81,7 +81,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
                 return "'%s'" % val
         # if single quotes are preferred, use single quotes;
         # unless a space or a single quote are in the string
-        elif prefer_single_quotes and "'" not in val and ' ' not in val:
+        elif prefer_single_quotes and "'" not in val and " " not in val:
             return "'%s'" % val
         # fallback on double quotes (required in tcl syntax)
         else:
@@ -112,7 +112,7 @@ def remove_unwanted_chars(inputstring):
 
     All non-letter and non-numeral characters are considered unwanted except for underscore ('_').
     """
-    return ''.join(c for c in inputstring if c in (ascii_letters + digits + '_'))
+    return "".join(c for c in inputstring if c in (ascii_letters + digits + "_"))
 
 
 def import_available_modules(namespace):
@@ -124,23 +124,27 @@ def import_available_modules(namespace):
     modules = []
     for path in sys.path:
 
-        cand_modpath_glob = os.path.sep.join([path] + namespace.split('.') + ['*.py'])
+        cand_modpath_glob = os.path.sep.join([path] + namespace.split(".") + ["*.py"])
 
         # if sys.path entry being considered is the empty string
         # (which corresponds to Python packages/modules in current working directory being considered),
         # we need to strip off / from the start of the path
-        if path == '' and cand_modpath_glob.startswith(os.path.sep):
+        if path == "" and cand_modpath_glob.startswith(os.path.sep):
             cand_modpath_glob = cand_modpath_glob.lstrip(os.path.sep)
 
         for module in sorted(glob.glob(cand_modpath_glob)):
-            if not module.endswith('__init__.py'):
-                mod_name = module.split(os.path.sep)[-1].split('.')[0]
-                modpath = '.'.join([namespace, mod_name])
+            if not module.endswith("__init__.py"):
+                mod_name = module.split(os.path.sep)[-1].split(".")[0]
+                modpath = ".".join([namespace, mod_name])
                 _log.debug("importing module %s", modpath)
                 try:
-                    mod = __import__(modpath, globals(), locals(), [''])
+                    mod = __import__(modpath, globals(), locals(), [""])
                 except ImportError as err:
-                    raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
+                    raise EasyBuildError(
+                        "import_available_modules: Failed to import %s: %s",
+                        modpath,
+                        err,
+                    )
 
                 if mod not in modules:
                     modules.append(mod)
@@ -151,7 +155,7 @@ def import_available_modules(namespace):
 def only_if_module_is_available(modnames, pkgname=None, url=None):
     """Decorator to guard functions/methods against missing required module with specified name."""
     if pkgname and url is None:
-        url = 'https://pypi.python.org/pypi/%s' % pkgname
+        url = "https://pypi.python.org/pypi/%s" % pkgname
 
     if isinstance(modnames, string_type):
         modnames = (modnames,)
@@ -169,7 +173,10 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
                     pass
 
             if imported is None:
-                raise ImportError("None of the specified modules %s is available" % ', '.join(modnames))
+                raise ImportError(
+                    "None of the specified modules %s is available"
+                    % ", ".join(modnames)
+                )
             else:
                 return orig
 
@@ -178,10 +185,14 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
             def error(err=err, *args, **kwargs):
                 msg = "%s; required module '%s' is not available" % (err, modname)
                 if pkgname:
-                    msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
+                    msg += " (provided by Python package %s, available from %s)" % (
+                        pkgname,
+                        url,
+                    )
                 elif url:
                     msg += " (available from %s)" % url
                 raise EasyBuildError("ImportError: %s", msg)
+
             return error
 
     return wrap
@@ -189,8 +200,8 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
 
 def trace_msg(message, silent=False):
     """Print trace message."""
-    if build_option('trace'):
-        print_msg('  >> ' + message, prefix=False)
+    if build_option("trace"):
+        print_msg("  >> " + message, prefix=False)
 
 
 def nub(list_):
@@ -222,14 +233,16 @@ def get_class_for(modulepath, class_name):
     """
     # try to import specified module path, reraise ImportError if it occurs
     try:
-        module = __import__(modulepath, globals(), locals(), [''])
+        module = __import__(modulepath, globals(), locals(), [""])
     except ImportError as err:
         raise ImportError(err)
     # try to import specified class name from specified module path, throw ImportError if this fails
     try:
         klass = getattr(module, class_name)
     except AttributeError as err:
-        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
+        raise ImportError(
+            "Failed to import %s from %s: %s" % (class_name, modulepath, err)
+        )
     return klass
 
 
@@ -256,7 +269,10 @@ def mk_rst_table(titles, columns):
     """
     title_cnt, col_cnt = len(titles), len(columns)
     if title_cnt != col_cnt:
-        msg = "Number of titles/columns should be equal, found %d titles and %d columns" % (title_cnt, col_cnt)
+        msg = (
+            "Number of titles/columns should be equal, found %d titles and %d columns"
+            % (title_cnt, col_cnt)
+        )
         raise ValueError(msg)
     table = []
     tmpl = []
@@ -267,20 +283,20 @@ def mk_rst_table(titles, columns):
         width = max(map(len, columns[i] + [title]))
 
         # make line template
-        tmpl.append('{%s:{c}<%s}' % (i, width))
+        tmpl.append("{%s:{c}<%s}" % (i, width))
 
-    line = [''] * col_cnt
+    line = [""] * col_cnt
     line_tmpl = INDENT_4SPACES.join(tmpl)
-    table_line = line_tmpl.format(*line, c='=')
+    table_line = line_tmpl.format(*line, c="=")
 
     table.append(table_line)
-    table.append(line_tmpl.format(*titles, c=' '))
+    table.append(line_tmpl.format(*titles, c=" "))
     table.append(table_line)
 
     for row in map(list, zip(*columns)):
-        table.append(line_tmpl.format(*row, c=' '))
+        table.append(line_tmpl.format(*row, c=" "))
 
-    table.extend([table_line, ''])
+    table.extend([table_line, ""])
 
     return table
 
@@ -290,21 +306,24 @@ def time2str(delta):
     res = None
 
     if not isinstance(delta, datetime.timedelta):
-        raise EasyBuildError("Incorrect value type provided to time2str, should be datetime.timedelta: %s", type(delta))
+        raise EasyBuildError(
+            "Incorrect value type provided to time2str, should be datetime.timedelta: %s",
+            type(delta),
+        )
 
-    delta_secs = delta.days * 3600 * 24 + delta.seconds + delta.microseconds / 10**6
+    delta_secs = delta.days * 3600 * 24 + delta.seconds + delta.microseconds / 10 ** 6
 
     if delta_secs < 60:
-        res = '%d sec' % int(delta_secs)
+        res = "%d sec" % int(delta_secs)
     elif delta_secs < 3600:
         mins = int(delta_secs / 60)
         secs = int(delta_secs - (mins * 60))
-        res = '%d min %d sec' % (mins, secs)
+        res = "%d min %d sec" % (mins, secs)
     else:
         hours = int(delta_secs / 3600)
         mins = int((delta_secs - hours * 3600) / 60)
         secs = int(delta_secs - (hours * 3600) - (mins * 60))
-        hours_str = 'hours' if hours > 1 else 'hour'
-        res = '%d %s %d min %d sec' % (hours, hours_str, mins, secs)
+        hours_str = "hours" if hours > 1 else "hour"
+        res = "%d %s %d min %d sec" % (hours, hours_str, mins, secs)
 
     return res

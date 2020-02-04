@@ -35,7 +35,10 @@ import sys
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
+from easybuild.framework.easyconfig.format.format import (
+    get_format_version,
+    EasyConfigFormat,
+)
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
 from easybuild.tools.build_log import EasyBuildError
@@ -43,15 +46,26 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
-_log = fancylogger.getLogger('easyconfig.format.pyheaderconfigobj', fname=False)
+_log = fancylogger.getLogger("easyconfig.format.pyheaderconfigobj", fname=False)
 
 
 def build_easyconfig_constants_dict():
     """Make a dictionary with all constants that can be used"""
     all_consts = [
-        ('TEMPLATE_CONSTANTS', dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])),
-        ('EASYCONFIG_CONSTANTS', dict([(key, val[0]) for key, val in EASYCONFIG_CONSTANTS.items()])),
-        ('EASYCONFIG_LICENSES', dict([(klass().name, name) for name, klass in EASYCONFIG_LICENSES_DICT.items()])),
+        ("TEMPLATE_CONSTANTS", dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])),
+        (
+            "EASYCONFIG_CONSTANTS",
+            dict([(key, val[0]) for key, val in EASYCONFIG_CONSTANTS.items()]),
+        ),
+        (
+            "EASYCONFIG_LICENSES",
+            dict(
+                [
+                    (klass().name, name)
+                    for name, klass in EASYCONFIG_LICENSES_DICT.items()
+                ]
+            ),
+        ),
     ]
     err = []
     const_dict = {}
@@ -64,13 +78,17 @@ def build_easyconfig_constants_dict():
                     continue
                 # make sure that all constants only belong to one name
                 if cst_key in other_csts:
-                    err.append('Found name %s from %s also in %s' % (cst_key, name, other_name))
+                    err.append(
+                        "Found name %s from %s also in %s" % (cst_key, name, other_name)
+                    )
                     ok = False
             if ok:
                 const_dict[cst_key] = cst_val
 
     if len(err) > 0:
-        raise EasyBuildError("EasyConfig constants sanity check failed: %s", '\n'.join(err))
+        raise EasyBuildError(
+            "EasyConfig constants sanity check failed: %s", "\n".join(err)
+        )
     else:
         return const_dict
 
@@ -117,8 +135,10 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         if strict_section_markers:
             # don't allow indentation for section markers
             # done by rewriting section marker regex, such that we don't have to patch configobj.py
-            indented_markers_regex = re.compile('^.*?indentation.*$', re.M)
-            sectionmarker_pattern = indented_markers_regex.sub('', sectionmarker_pattern)
+            indented_markers_regex = re.compile("^.*?indentation.*$", re.M)
+            sectionmarker_pattern = indented_markers_regex.sub(
+                "", sectionmarker_pattern
+            )
         regex = re.compile(sectionmarker_pattern, re.VERBOSE | re.M)
         reg = regex.search(txt)
         if reg is None:
@@ -128,10 +148,15 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         else:
             start_section = reg.start()
             last_n = 100
-            pre_section_tail = txt[start_section-last_n:start_section]
-            sections_head = txt[start_section:start_section+last_n]
-            self.log.debug('Sections start at index %s, %d-chars context:\n"""%s""""\n<split>\n"""%s..."""',
-                           start_section, last_n, pre_section_tail, sections_head)
+            pre_section_tail = txt[start_section - last_n : start_section]
+            sections_head = txt[start_section : start_section + last_n]
+            self.log.debug(
+                'Sections start at index %s, %d-chars context:\n"""%s""""\n<split>\n"""%s..."""',
+                start_section,
+                last_n,
+                pre_section_tail,
+                sections_head,
+            )
 
         self.parse_pre_section(txt[:start_section])
         if start_section is not None:
@@ -140,8 +165,8 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     def parse_pre_section(self, txt):
         """Parse the text block before the start of the first section"""
         header_text = []
-        txt_list = txt.split('\n')
-        header_reg = re.compile(r'^\s*(#.*)?$')
+        txt_list = txt.split("\n")
+        header_reg = re.compile(r"^\s*(#.*)?$")
 
         # pop lines from txt_list into header_text, until we're not in header anymore
         while len(txt_list) > 0:
@@ -150,7 +175,10 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             format_version = get_format_version(line)
             if format_version is not None:
                 if not format_version == self.VERSION:
-                    raise EasyBuildError("Invalid format version %s for current format class", format_version)
+                    raise EasyBuildError(
+                        "Invalid format version %s for current format class",
+                        format_version,
+                    )
                 else:
                     self.log.info("Valid format version %s found" % format_version)
                 # version is not part of header
@@ -163,8 +191,8 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
                 break
             header_text.append(line)
 
-        self.parse_header('\n'.join(header_text))
-        self.parse_pyheader('\n'.join(txt_list))
+        self.parse_header("\n".join(header_text))
+        self.parse_pyheader("\n".join(txt_list))
 
     def parse_header(self, header):
         """Parse the header, assign to self.header"""
@@ -181,7 +209,11 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         # check for use of deprecated magic easyconfigs variables
         for magic_var in build_easyconfig_variables_dict():
             if re.search(magic_var, pyheader, re.M):
-                _log.nosupport("Magic 'global' easyconfigs variable %s should no longer be used" % magic_var, '2.0')
+                _log.nosupport(
+                    "Magic 'global' easyconfigs variable %s should no longer be used"
+                    % magic_var,
+                    "2.0",
+                )
 
         # copy dictionary with constants that can be used in easyconfig files,
         # use it as 'globals' dict in exec call so parsed easyconfig parameters are added to it
@@ -199,21 +231,24 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             exc_tb = sys.exc_info()[2]
             if exc_tb.tb_next is not None:
                 err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
-            raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
+            raise EasyBuildError("Parsing easyconfig file failed: %s", err_msg)
 
         self.log.debug("pyheader parsed cfg: %s", cfg)
 
         # get rid of constants from parsed easyconfig file, they are not valid easyconfig parameters
         for key in global_vars:
-            self.log.debug("Removing key '%s' from parsed cfg (constant, not an easyconfig parameter)", key)
+            self.log.debug(
+                "Removing key '%s' from parsed cfg (constant, not an easyconfig parameter)",
+                key,
+            )
             del cfg[key]
 
         self.log.debug("pyheader final parsed cfg: %s", cfg)
 
-        if '__doc__' in cfg:
-            self.docstring = cfg.pop('__doc__')
+        if "__doc__" in cfg:
+            self.docstring = cfg.pop("__doc__")
         else:
-            self.log.debug('No docstring found in cfg')
+            self.log.debug("No docstring found in cfg")
 
         self.pyheader_localvars = cfg
 
@@ -228,7 +263,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         # allowed builtins
         if self.PYHEADER_ALLOWED_BUILTINS is not None:
-            current_builtins = globals()['__builtins__']
+            current_builtins = globals()["__builtins__"]
             builtins = {}
             for name in self.PYHEADER_ALLOWED_BUILTINS:
                 if hasattr(current_builtins, name):
@@ -236,9 +271,9 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
                 elif isinstance(current_builtins, dict) and name in current_builtins:
                     builtins[name] = current_builtins[name]
                 else:
-                    self.log.warning('No builtin %s found.' % name)
-            global_vars['__builtins__'] = builtins
-            self.log.debug("Available builtins: %s" % global_vars['__builtins__'])
+                    self.log.warning("No builtin %s found." % name)
+            global_vars["__builtins__"] = builtins
+            self.log.debug("Available builtins: %s" % global_vars["__builtins__"])
 
         return global_vars
 
@@ -251,12 +286,16 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         if self.pyheader_localvars is None:
             raise EasyBuildError("self.pyheader_localvars must be initialized")
         if self.PYHEADER_BLACKLIST is None or self.PYHEADER_MANDATORY is None:
-            raise EasyBuildError('Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set')
+            raise EasyBuildError(
+                "Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set"
+            )
 
         for param in self.PYHEADER_BLACKLIST:
             if param in self.pyheader_localvars:
                 # TODO add to easyconfig unittest (similar to mandatory)
-                raise EasyBuildError('blacklisted param %s not allowed in pyheader', param)
+                raise EasyBuildError(
+                    "blacklisted param %s not allowed in pyheader", param
+                )
 
         missing = []
         for param in self.PYHEADER_MANDATORY:
@@ -265,13 +304,15 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             if param not in self.pyheader_localvars:
                 missing.append(param)
         if missing:
-            raise EasyBuildError('mandatory parameters not provided in pyheader: %s', ', '.join(missing))
+            raise EasyBuildError(
+                "mandatory parameters not provided in pyheader: %s", ", ".join(missing)
+            )
 
     def parse_section_block(self, section):
         """Parse the section block by trying to convert it into a ConfigObj instance"""
         try:
-            self.configobj = ConfigObj(section.split('\n'))
+            self.configobj = ConfigObj(section.split("\n"))
         except SyntaxError as err:
-            raise EasyBuildError('Failed to convert section text %s: %s', section, err)
+            raise EasyBuildError("Failed to convert section text %s: %s", section, err)
 
         self.log.debug("Found ConfigObj instance %s" % self.configobj)

@@ -15,4 +15,5 @@ class Xlompi(IBMXL, OpenMPI):
     """
     Compiler toolchain with IBM XL compilers (xlc/xlf) and OpenMPI.
     """
-    NAME = 'xlompi'
+
+    NAME = "xlompi"

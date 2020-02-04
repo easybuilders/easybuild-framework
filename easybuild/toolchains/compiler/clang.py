@@ -42,8 +42,8 @@ TC_CONSTANT_CLANG = "Clang"
 class Clang(Compiler):
     """Clang compiler class"""
 
-    COMPILER_MODULE_NAME = ['Clang']
-    
+    COMPILER_MODULE_NAME = ["Clang"]
+
     COMPILER_FAMILY = TC_CONSTANT_CLANG
 
     # Don't set COMPILER_FAMILY in this class because Clang does not have
@@ -51,17 +51,17 @@ class Clang(Compiler):
     # EasyBuild is concerned.
 
     COMPILER_UNIQUE_OPTS = {
-        'loop-vectorize': (False, "Loop vectorization"),
-        'basic-block-vectorize': (False, "Basic block vectorization"),
+        "loop-vectorize": (False, "Loop vectorization"),
+        "basic-block-vectorize": (False, "Basic block vectorization"),
     }
     COMPILER_UNIQUE_OPTION_MAP = {
-        'unroll': 'funroll-loops',
-        'loop-vectorize': ['fvectorize'],
-        'basic-block-vectorize': ['fslp-vectorize'],
-        'optarch':'march=native',
+        "unroll": "funroll-loops",
+        "loop-vectorize": ["fvectorize"],
+        "basic-block-vectorize": ["fslp-vectorize"],
+        "optarch": "march=native",
         # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
         # optimizations.
-        # 
+        #
         # -fassociative-math: allow re-association of operands in series of floating-point operations, violates the
         # ISO C and C++ language standard by possibly changing computation result.
         # -freciprocal-math: allow optimizations to use the reciprocal of an argument rather than perform division.
@@ -80,38 +80,45 @@ class Clang(Compiler):
         #
         # 'strict', 'precise' and 'defaultprec' are all ISO C++ and IEEE complaint, but we explicitly specify details
         # flags for strict and precise for robustness against future changes.
-        'strict': ['fno-fast-math'],
-        'precise': ['fno-unsafe-math-optimizations'],
-        'defaultprec': [],
-        'loose': ['ffast-math', 'fno-unsafe-math-optimizations'],
-        'veryloose': ['ffast-math'],
-        'vectorize': {False: 'fno-vectorize', True: 'fvectorize'},
+        "strict": ["fno-fast-math"],
+        "precise": ["fno-unsafe-math-optimizations"],
+        "defaultprec": [],
+        "loose": ["ffast-math", "fno-unsafe-math-optimizations"],
+        "veryloose": ["ffast-math"],
+        "vectorize": {False: "fno-vectorize", True: "fvectorize"},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.POWER, systemtools.POWER): 'mcpu=native',  # no support for march=native on POWER
-        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',  # no support for march=native on POWER
-        (systemtools.X86_64, systemtools.AMD): 'march=native',
-        (systemtools.X86_64, systemtools.INTEL): 'march=native',
+        (
+            systemtools.POWER,
+            systemtools.POWER,
+        ): "mcpu=native",  # no support for march=native on POWER
+        (
+            systemtools.POWER,
+            systemtools.POWER_LE,
+        ): "mcpu=native",  # no support for march=native on POWER
+        (systemtools.X86_64, systemtools.AMD): "march=native",
+        (systemtools.X86_64, systemtools.INTEL): "march=native",
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
-        (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.AMD): "march=x86-64 -mtune=generic",
+        (systemtools.X86_64, systemtools.INTEL): "march=x86-64 -mtune=generic",
     }
 
-    COMPILER_CC = 'clang'
-    COMPILER_CXX = 'clang++'
+    COMPILER_CC = "clang"
+    COMPILER_CXX = "clang++"
     COMPILER_C_UNIQUE_FLAGS = []
 
-    LIB_MULTITHREAD = ['pthread']
-    LIB_MATH = ['m']
+    LIB_MULTITHREAD = ["pthread"]
+    LIB_MATH = ["m"]
 
     def _set_compiler_vars(self):
         """Set compiler variables."""
         super(Clang, self)._set_compiler_vars()
 
-        if self.options.get('32bit', None):
-            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit Clang in EasyBuild")
-
+        if self.options.get("32bit", None):
+            raise EasyBuildError(
+                "_set_compiler_vars: 32bit set, but no support yet for 32bit Clang in EasyBuild"
+            )

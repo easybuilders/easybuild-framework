@@ -86,12 +86,14 @@ try:
     # with recent versions of keyring, PlaintextKeyring comes from keyrings.alt
     import keyring
     from keyrings.alt.file import PlaintextKeyring
+
     keyring.set_keyring(PlaintextKeyring())
 except ImportError:
     try:
         # with old versions of keyring, PlaintextKeyring comes from keyring.backends
         import keyring
         from keyring.backends.file import PlaintextKeyring
+
         keyring.set_keyring(PlaintextKeyring())
     except ImportError:
         pass
@@ -105,11 +107,14 @@ fancylogger.setLogLevelError()
 try:
     set_tmpdir(raise_error=True)
 except EasyBuildError as err:
-    sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
+    sys.stderr.write(
+        "No execution rights on temporary files, specify another location via $TMPDIR: %s\n"
+        % err
+    )
     sys.exit(1)
 
 # initialize logger for all the unit tests
-fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
+fd, log_fn = tempfile.mkstemp(prefix="easybuild-tests-", suffix=".log")
 os.close(fd)
 os.remove(log_fn)
 fancylogger.logToFile(log_fn)
@@ -117,8 +122,46 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c,
-         tw, p, i, pkg, d, env, et, y, st, h, ct, lib]
+tests = [
+    gen,
+    bl,
+    o,
+    r,
+    ef,
+    ev,
+    ebco,
+    ep,
+    e,
+    mg,
+    m,
+    mt,
+    f,
+    run,
+    a,
+    robot,
+    b,
+    v,
+    g,
+    tcv,
+    tc,
+    t,
+    c,
+    s,
+    lic,
+    f_c,
+    tw,
+    p,
+    i,
+    pkg,
+    d,
+    env,
+    et,
+    y,
+    st,
+    h,
+    ct,
+    lib,
+]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 res = unittest.TextTestRunner().run(SUITE)
@@ -130,5 +173,5 @@ if not res.wasSuccessful():
     print("Log available at %s" % log_fn)
     sys.exit(2)
 else:
-    for fn in glob.glob('%s*' % log_fn):
+    for fn in glob.glob("%s*" % log_fn):
         os.remove(fn)

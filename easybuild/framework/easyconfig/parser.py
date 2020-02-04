@@ -34,9 +34,15 @@ import re
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
-from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.framework.easyconfig.format.format import (
+    get_format_version,
+    get_format_version_classes,
+)
 from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
-from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
+from easybuild.framework.easyconfig.types import (
+    PARAMETER_TYPES,
+    check_type_of_param_value,
+)
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.py2vs3 import string_type
@@ -49,12 +55,12 @@ DEPRECATED_PARAMETERS = {
 
 # replaced easyconfig parameters, and their replacements
 REPLACED_PARAMETERS = {
-    'license': 'license_file',
-    'makeopts': 'buildopts',
-    'premakeopts': 'prebuildopts',
+    "license": "license_file",
+    "makeopts": "buildopts",
+    "premakeopts": "prebuildopts",
 }
 
-_log = fancylogger.getLogger('easyconfig.parser', fname=False)
+_log = fancylogger.getLogger("easyconfig.parser", fname=False)
 
 
 def fetch_parameters_from_easyconfig(rawtxt, params):
@@ -65,10 +71,12 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     param_values = []
     for param in params:
-        regex = re.compile(r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*(#.*)?$" % param, re.M)
+        regex = re.compile(
+            r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*(#.*)?$" % param, re.M
+        )
         res = regex.search(rawtxt)
         if res:
-            param_values.append(res.group('param').strip("'\""))
+            param_values.append(res.group("param").strip("'\""))
         else:
             param_values.append(None)
     _log.debug("Obtained parameters value for %s: %s" % (params, param_values))
@@ -80,8 +88,13 @@ class EasyConfigParser(object):
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None, format_version=None, rawcontent=None,
-                 auto_convert_value_types=True):
+    def __init__(
+        self,
+        filename=None,
+        format_version=None,
+        rawcontent=None,
+        auto_convert_value_types=True,
+    ):
         """
         Initialise the EasyConfigParser class
         :param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
@@ -108,7 +121,9 @@ class EasyConfigParser(object):
             self._check_filename(filename)
             self.process()
         else:
-            raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
+            raise EasyBuildError(
+                "Neither filename nor rawcontent provided to EasyConfigParser"
+            )
 
         self._formatter.extract_comments(self.rawcontent)
 
@@ -125,16 +140,30 @@ class EasyConfigParser(object):
         """
         wrong_type_msgs = []
         for key in cfg:
-            type_ok, newval = check_type_of_param_value(key, cfg[key], self.auto_convert)
+            type_ok, newval = check_type_of_param_value(
+                key, cfg[key], self.auto_convert
+            )
             if not type_ok:
-                wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, PARAMETER_TYPES[key].__name__))
+                wrong_type_msgs.append(
+                    "value for '%s' should be of type '%s'"
+                    % (key, PARAMETER_TYPES[key].__name__)
+                )
             elif newval != cfg[key]:
-                self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
-                                 key, cfg[key], type(cfg[key]), newval, type(newval))
+                self.log.warning(
+                    "Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
+                    key,
+                    cfg[key],
+                    type(cfg[key]),
+                    newval,
+                    type(newval),
+                )
                 cfg[key] = newval
 
         if wrong_type_msgs:
-            raise EasyBuildError("Type checking of easyconfig parameter values failed: %s", ', '.join(wrong_type_msgs))
+            raise EasyBuildError(
+                "Type checking of easyconfig parameter values failed: %s",
+                ", ".join(wrong_type_msgs),
+            )
         else:
             self.log.info("Type checking of easyconfig parameter values passed!")
 
@@ -144,12 +173,15 @@ class EasyConfigParser(object):
             self.get_fn = (read_file, (fn,))
             self.set_fn = (write_file, (fn, self.rawcontent))
 
-        self.log.debug("Process filename %s with get function %s, set function %s" % (fn, self.get_fn, self.set_fn))
+        self.log.debug(
+            "Process filename %s with get function %s, set function %s"
+            % (fn, self.get_fn, self.set_fn)
+        )
 
         if self.get_fn is None:
-            raise EasyBuildError('Failed to determine get function for filename %s', fn)
+            raise EasyBuildError("Failed to determine get function for filename %s", fn)
         if self.set_fn is None:
-            raise EasyBuildError('Failed to determine set function for filename %s', fn)
+            raise EasyBuildError("Failed to determine set function for filename %s", fn)
 
     def _read(self, filename=None):
         """Read the easyconfig, dump content in self.rawcontent"""
@@ -159,10 +191,15 @@ class EasyConfigParser(object):
         try:
             self.rawcontent = self.get_fn[0](*self.get_fn[1])
         except IOError as err:
-            raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
+            raise EasyBuildError(
+                "Failed to obtain content with %s: %s", self.get_fn, err
+            )
 
         if not isinstance(self.rawcontent, string_type):
-            msg = 'rawcontent is not a string: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
+            msg = "rawcontent is not a string: type %s, content %s" % (
+                type(self.rawcontent),
+                self.rawcontent,
+            )
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
 
     def _det_format_version(self):
@@ -171,7 +208,9 @@ class EasyConfigParser(object):
             self.format_version = get_format_version(self.rawcontent)
             if self.format_version is None:
                 self.format_version = FORMAT_DEFAULT_VERSION
-                self.log.debug('No version found, using default %s' % self.format_version)
+                self.log.debug(
+                    "No version found, using default %s" % self.format_version
+                )
 
     def _get_format_version_class(self):
         """Locate the class matching the version"""
@@ -181,10 +220,15 @@ class EasyConfigParser(object):
         if len(found_classes) == 1:
             return found_classes[0]
         elif not found_classes:
-            raise EasyBuildError('No format classes found matching version %s', self.format_version)
+            raise EasyBuildError(
+                "No format classes found matching version %s", self.format_version
+            )
         else:
-            raise EasyBuildError("More than one format class found matching version %s in %s",
-                                 self.format_version, found_classes)
+            raise EasyBuildError(
+                "More than one format class found matching version %s in %s",
+                self.format_version,
+                found_classes,
+            )
 
     def _set_formatter(self, filename):
         """Obtain instance of the formatter"""
@@ -209,7 +253,9 @@ class EasyConfigParser(object):
         try:
             self.set_fn[0](*self.set_fn[1])
         except IOError as err:
-            raise EasyBuildError("Failed to process content with %s: %s", self.set_fn, err)
+            raise EasyBuildError(
+                "Failed to process content with %s: %s", self.set_fn, err
+            )
 
     def set_specifications(self, specs):
         """Set specifications."""

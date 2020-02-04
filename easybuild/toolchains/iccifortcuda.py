@@ -34,7 +34,10 @@ from easybuild.toolchains.iccifort import IccIfort
 
 class IccIfortCUDA(IccIfort, Cuda):
     """Compiler toolchain with iccifort and CUDA."""
-    NAME = 'iccifortcuda'
 
-    COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME + Cuda.COMPILER_CUDA_MODULE_NAME
+    NAME = "iccifortcuda"
+
+    COMPILER_MODULE_NAME = (
+        IccIfort.COMPILER_MODULE_NAME + Cuda.COMPILER_CUDA_MODULE_NAME
+    )
     SUBTOOLCHAIN = IccIfort.NAME

@@ -48,11 +48,11 @@ except ImportError:
     except ImportError:
         pass
 
-_log = fancylogger.getLogger('easyconfig.style', fname=False)
+_log = fancylogger.getLogger("easyconfig.style", fname=False)
 
-EB_CHECK = '_eb_check_'
+EB_CHECK = "_eb_check_"
 
-COMMENT_REGEX = re.compile(r'^\s*#')
+COMMENT_REGEX = re.compile(r"^\s*#")
 PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 
 MAX_LINE_LENGTH = 120
@@ -72,7 +72,10 @@ MAX_LINE_LENGTH = 120
 # https://pycodestyle.readthedocs.io or more specifically:
 # https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
 
-def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_state):  # pylint:disable=unused-argument
+
+def _eb_check_trailing_whitespace(
+    physical_line, lines, line_number, checker_state
+):  # pylint:disable=unused-argument
     """
     W299
     Warn about trailing whitespace, except for the description and comments.
@@ -82,29 +85,29 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
     https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
     """
     # apparently this is not the same as physical_line line?!
-    line = lines[line_number-1]
+    line = lines[line_number - 1]
 
     if COMMENT_REGEX.match(line):
         return None
 
     result = trailing_whitespace(line)
     if result:
-        result = (result[0], result[1].replace('W291', 'W299'))
+        result = (result[0], result[1].replace("W291", "W299"))
 
     # keep track of name of last parameter that was defined
     param_def = PARAM_DEF_REGEX.search(line)
     if param_def:
-        checker_state['eb_last_key'] = param_def.group('key')
+        checker_state["eb_last_key"] = param_def.group("key")
 
     # if the warning is about the multiline string of description
     # we will not issue a warning
-    if checker_state.get('eb_last_key') == 'description':
+    if checker_state.get("eb_last_key") == "description":
         result = None
 
     return result
 
 
-@only_if_module_is_available(('pycodestyle', 'pep8'))
+@only_if_module_is_available(("pycodestyle", "pep8"))
 def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
@@ -114,7 +117,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     # importing autopep8 changes some pep8 functions.
     # We reload it to be sure to get the real pep8 functions.
-    if 'pycodestyle' in sys.modules:
+    if "pycodestyle" in sys.modules:
         reload(pycodestyle)
     else:
         reload(pep8)
@@ -122,7 +125,9 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     # register the extra checks before using pep8:
     # any function in this module starting with `_eb_check_` will be used.
     cands = globals()
-    for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith(EB_CHECK)]):
+    for check_function in sorted(
+        [cands[f] for f in cands if callable(cands[f]) and f.startswith(EB_CHECK)]
+    ):
         _log.debug("Adding custom style check %s", check_function)
         register_check(check_function)
 
@@ -133,9 +138,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     options.max_line_length = MAX_LINE_LENGTH
     # we ignore some tests
     # note that W291 has been replaced by our custom W299
-    options.ignore = (
-        'W291',  # replaced by W299
-    )
+    options.ignore = ("W291",)  # replaced by W299
     options.verbose = int(verbose)
 
     result = styleguide.check_files(easyconfigs)
@@ -162,14 +165,17 @@ def cmdline_easyconfigs_style_check(ecs):
         elif isinstance(ec, string_type):
             path = ec
         else:
-            raise EasyBuildError("Value of unknown type encountered in cmdline_easyconfigs_style_check: %s (type: %s)",
-                                 ec, type(ec))
+            raise EasyBuildError(
+                "Value of unknown type encountered in cmdline_easyconfigs_style_check: %s (type: %s)",
+                ec,
+                type(ec),
+            )
 
         if check_easyconfigs_style([path]) == 0:
-            res = 'PASS'
+            res = "PASS"
         else:
-            res = 'FAIL'
+            res = "FAIL"
             style_check_passed = False
-        print_msg('[%s] %s' % (res, path), prefix=False)
+        print_msg("[%s] %s" % (res, path), prefix=False)
 
     return style_check_passed

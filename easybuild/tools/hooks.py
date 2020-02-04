@@ -35,41 +35,59 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 
 
-_log = fancylogger.getLogger('hooks', fname=False)
+_log = fancylogger.getLogger("hooks", fname=False)
 
-BUILD_STEP = 'build'
-CLEANUP_STEP = 'cleanup'
-CONFIGURE_STEP = 'configure'
-EXTENSIONS_STEP = 'extensions'
-FETCH_STEP = 'fetch'
-INSTALL_STEP = 'install'
-MODULE_STEP = 'module'
-PACKAGE_STEP = 'package'
-PATCH_STEP = 'patch'
-PERMISSIONS_STEP = 'permissions'
-POSTITER_STEP = 'postiter'
-POSTPROC_STEP = 'postproc'
-PREPARE_STEP = 'prepare'
-READY_STEP = 'ready'
-SANITYCHECK_STEP = 'sanitycheck'
-SOURCE_STEP = 'source'
-TEST_STEP = 'test'
-TESTCASES_STEP = 'testcases'
+BUILD_STEP = "build"
+CLEANUP_STEP = "cleanup"
+CONFIGURE_STEP = "configure"
+EXTENSIONS_STEP = "extensions"
+FETCH_STEP = "fetch"
+INSTALL_STEP = "install"
+MODULE_STEP = "module"
+PACKAGE_STEP = "package"
+PATCH_STEP = "patch"
+PERMISSIONS_STEP = "permissions"
+POSTITER_STEP = "postiter"
+POSTPROC_STEP = "postproc"
+PREPARE_STEP = "prepare"
+READY_STEP = "ready"
+SANITYCHECK_STEP = "sanitycheck"
+SOURCE_STEP = "source"
+TEST_STEP = "test"
+TESTCASES_STEP = "testcases"
 
-START = 'start'
-PARSE = 'parse'
-END = 'end'
+START = "start"
+PARSE = "parse"
+END = "end"
 
-PRE_PREF = 'pre_'
-POST_PREF = 'post_'
-HOOK_SUFF = '_hook'
+PRE_PREF = "pre_"
+POST_PREF = "post_"
+HOOK_SUFF = "_hook"
 
 # list of names for steps in installation procedure (in order of execution)
-STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
-              INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
-              PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
+STEP_NAMES = [
+    FETCH_STEP,
+    READY_STEP,
+    SOURCE_STEP,
+    PATCH_STEP,
+    PREPARE_STEP,
+    CONFIGURE_STEP,
+    BUILD_STEP,
+    TEST_STEP,
+    INSTALL_STEP,
+    EXTENSIONS_STEP,
+    POSTPROC_STEP,
+    SANITYCHECK_STEP,
+    CLEANUP_STEP,
+    MODULE_STEP,
+    PERMISSIONS_STEP,
+    PACKAGE_STEP,
+    TESTCASES_STEP,
+]
 
-HOOK_NAMES = [START, PARSE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]
+HOOK_NAMES = (
+    [START, PARSE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]
+)
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 
@@ -87,10 +105,15 @@ def load_hooks(hooks_path):
         hooks = {}
         if hooks_path:
             if not os.path.exists(hooks_path):
-                raise EasyBuildError("Specified path for hooks implementation does not exist: %s", hooks_path)
+                raise EasyBuildError(
+                    "Specified path for hooks implementation does not exist: %s",
+                    hooks_path,
+                )
 
-            (hooks_filename, hooks_file_ext) = os.path.splitext(os.path.split(hooks_path)[1])
-            if hooks_file_ext == '.py':
+            (hooks_filename, hooks_file_ext) = os.path.splitext(
+                os.path.split(hooks_path)[1]
+            )
+            if hooks_file_ext == ".py":
                 _log.info("Importing hooks implementation from %s...", hooks_path)
                 try:
                     # import module that defines hooks, and collect all functions of which name ends with '_hook'
@@ -101,12 +124,21 @@ def load_hooks(hooks_path):
                             if callable(hook):
                                 hooks.update({attr: hook})
                             else:
-                                _log.debug("Skipping non-callable attribute '%s' when loading hooks", attr)
+                                _log.debug(
+                                    "Skipping non-callable attribute '%s' when loading hooks",
+                                    attr,
+                                )
                     _log.info("Found hooks: %s", sorted(hooks.keys()))
                 except ImportError as err:
-                    raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
+                    raise EasyBuildError(
+                        "Failed to import hooks implementation from %s: %s",
+                        hooks_path,
+                        err,
+                    )
             else:
-                raise EasyBuildError("Provided path for hooks implementation should be path to a Python file (*.py)")
+                raise EasyBuildError(
+                    "Provided path for hooks implementation should be path to a Python file (*.py)"
+                )
         else:
             _log.info("No location for hooks implementation provided, no hooks defined")
 
@@ -131,15 +163,23 @@ def verify_hooks(hooks):
         for unknown_hook in unknown_hooks:
             error_lines.append("* %s" % unknown_hook)
             # try to find close match, may be just a typo in the hook name
-            close_matching_hooks = difflib.get_close_matches(unknown_hook, KNOWN_HOOKS, 2, 0.8)
+            close_matching_hooks = difflib.get_close_matches(
+                unknown_hook, KNOWN_HOOKS, 2, 0.8
+            )
             if close_matching_hooks:
-                error_lines[-1] += " (did you mean %s?)" % ', or '.join("'%s'" % h for h in close_matching_hooks)
+                error_lines[-1] += " (did you mean %s?)" % ", or ".join(
+                    "'%s'" % h for h in close_matching_hooks
+                )
 
-        error_lines.extend(['', "Run 'eb --avail-hooks' to get an overview of known hooks"])
+        error_lines.extend(
+            ["", "Run 'eb --avail-hooks' to get an overview of known hooks"]
+        )
 
-        raise EasyBuildError('\n'.join(error_lines))
+        raise EasyBuildError("\n".join(error_lines))
     else:
-        _log.info("Defined hooks verified, all known hooks: %s", ', '.join(h for h in hooks))
+        _log.info(
+            "Defined hooks verified, all known hooks: %s", ", ".join(h for h in hooks)
+        )
 
 
 def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
@@ -158,7 +198,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     elif post_step_hook:
         hook_prefix = POST_PREF
     else:
-        hook_prefix = ''
+        hook_prefix = ""
 
     hook_name = hook_prefix + label + HOOK_SUFF
 
@@ -171,7 +211,9 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
+def run_hook(
+    label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None
+):
     """
     Run hook with specified label.
 
@@ -182,15 +224,17 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     :param args: arguments to pass to hook function
     :param msg: custom message that is printed when hook is called
     """
-    hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    hook = find_hook(
+        label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook
+    )
     if hook:
         if args is None:
             args = []
 
         if pre_step_hook:
-            label = 'pre-' + label
+            label = "pre-" + label
         elif post_step_hook:
-            label = 'post-' + label
+            label = "post-" + label
 
         if msg is None:
             msg = "Running %s hook..." % label

@@ -37,18 +37,21 @@ from easybuild.base import fancylogger
 from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version
 
 
-_log = fancylogger.getLogger('easyconfig.constants', fname=False)
+_log = fancylogger.getLogger("easyconfig.constants", fname=False)
 
 
-EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
+EXTERNAL_MODULE_MARKER = "EXTERNAL_MODULE"
 
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = {
-    'EXTERNAL_MODULE': (EXTERNAL_MODULE_MARKER, "External module marker"),
-    'HOME': (os.path.expanduser('~'), "Home directory ($HOME)"),
-    'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
-    'OS_NAME': (get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
-    'OS_VERSION': (get_os_version(), "System version"),
-    'SYS_PYTHON_VERSION': (platform.python_version(), "System Python version (platform.python_version())"),
-    'SYSTEM': ({'name': 'system', 'version': 'system'}, "System toolchain"),
+    "EXTERNAL_MODULE": (EXTERNAL_MODULE_MARKER, "External module marker"),
+    "HOME": (os.path.expanduser("~"), "Home directory ($HOME)"),
+    "OS_TYPE": (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
+    "OS_NAME": (get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
+    "OS_VERSION": (get_os_version(), "System version"),
+    "SYS_PYTHON_VERSION": (
+        platform.python_version(),
+        "System Python version (platform.python_version())",
+    ),
+    "SYSTEM": ({"name": "system", "version": "system"}, "System toolchain"),
 }

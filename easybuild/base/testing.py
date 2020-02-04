@@ -56,11 +56,11 @@ def nicediff(txta, txtb, offset=5):
     return list with diff (one per line) (not a generator like ndiff or unified_diff)
     """
     diff = list(difflib.ndiff(txta.splitlines(1), txtb.splitlines(1)))
-    different_idx = [idx for idx, line in enumerate(diff) if not line.startswith(' ')]
+    different_idx = [idx for idx, line in enumerate(diff) if not line.startswith(" ")]
     res_idx = []
     # very bruteforce
     for didx in different_idx:
-        for idx in range(max(didx-offset, 0), min(didx+offset, len(diff)-1)):
+        for idx in range(max(didx - offset, 0), min(didx + offset, len(diff) - 1)):
             if idx not in res_idx:
                 res_idx.append(idx)
     res_idx.sort()
@@ -108,11 +108,13 @@ class TestCase(OrigTestCase):
 
             diff = nicediff(txta, txtb, offset=self.DIFF_OFFSET)
             if len(diff) > self.ASSERT_MAX_DIFF:
-                limit = ' (first %s lines)' % self.ASSERT_MAX_DIFF
+                limit = " (first %s lines)" % self.ASSERT_MAX_DIFF
             else:
-                limit = ''
+                limit = ""
 
-            raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF])))
+            raise AssertionError(
+                "%s:\nDIFF%s:\n%s" % (msg, limit, "".join(diff[: self.ASSERT_MAX_DIFF]))
+            )
 
     def setUp(self):
         """Prepare test case."""
@@ -127,21 +129,23 @@ class TestCase(OrigTestCase):
     def convert_exception_to_str(self, err):
         """Convert an Exception instance to a string."""
         msg = err
-        if hasattr(err, 'msg'):
+        if hasattr(err, "msg"):
             msg = err.msg
-        elif hasattr(err, 'message'):
+        elif hasattr(err, "message"):
             msg = err.message
             if not msg:
                 # rely on str(msg) in case err.message is empty
                 msg = err
-        elif hasattr(err, 'args'):  # KeyError in Python 2.4 only provides message via 'args' attribute
+        elif hasattr(
+            err, "args"
+        ):  # KeyError in Python 2.4 only provides message via 'args' attribute
             msg = err.args[0]
         else:
             msg = err
         try:
             res = str(msg)
         except UnicodeEncodeError:
-            res = msg.encode('utf8', 'replace')
+            res = msg.encode("utf8", "replace")
 
         return res
 
@@ -152,14 +156,21 @@ class TestCase(OrigTestCase):
         """
         try:
             call(*args, **kwargs)
-            str_kwargs = ['='.join([k, str(v)]) for (k, v) in kwargs.items()]
-            str_args = ', '.join(list(map(str, args)) + str_kwargs)
-            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
+            str_kwargs = ["=".join([k, str(v)]) for (k, v) in kwargs.items()]
+            str_args = ", ".join(list(map(str, args)) + str_kwargs)
+            self.assertTrue(
+                False,
+                "Expected errors with %s(%s) call should occur"
+                % (call.__name__, str_args),
+            )
         except error as err:
             msg = self.convert_exception_to_str(err)
             if self.is_string(regex):
                 regex = re.compile(regex)
-            self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
+            self.assertTrue(
+                regex.search(msg),
+                "Pattern '%s' is found in '%s'" % (regex.pattern, msg),
+            )
 
     def mock_stdout(self, enable):
         """Enable/disable mocking stdout."""

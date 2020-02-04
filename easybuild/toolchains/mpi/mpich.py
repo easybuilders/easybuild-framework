@@ -32,7 +32,10 @@ Support for MPICH as toolchain MPI library.
 """
 from distutils.version import LooseVersion
 
-from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
+from easybuild.tools.toolchain.constants import (
+    COMPILER_VARIABLES,
+    MPI_COMPILER_VARIABLES,
+)
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
 
@@ -42,11 +45,12 @@ TC_CONSTANT_MPI_TYPE_MPICH = "MPI_TYPE_MPICH"
 
 class Mpich(Mpi):
     """MPICH MPI class"""
-    MPI_MODULE_NAME = ['MPICH']
+
+    MPI_MODULE_NAME = ["MPICH"]
     MPI_FAMILY = TC_CONSTANT_MPICH
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
 
-    MPI_LIBRARY_NAME = 'mpich'
+    MPI_LIBRARY_NAME = "mpich"
 
     # version-dependent, so defined at runtime
     MPI_COMPILER_MPIF77 = None
@@ -54,25 +58,37 @@ class Mpich(Mpi):
     MPI_COMPILER_MPIFC = None
 
     # clear MPI wrapper command options
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = dict(
+        [("_opt_%s" % var, "") for var, _ in MPI_COMPILER_VARIABLES]
+    )
 
     def _set_mpi_compiler_variables(self):
         """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
         # determine MPI wrapper commands to use based on MPICH version
-        if self.MPI_COMPILER_MPIF77 is None and self.MPI_COMPILER_MPIF90 is None and self.MPI_COMPILER_MPIFC is None:
+        if (
+            self.MPI_COMPILER_MPIF77 is None
+            and self.MPI_COMPILER_MPIF90 is None
+            and self.MPI_COMPILER_MPIFC is None
+        ):
             # mpif77/mpif90 for MPICH v3.1.0 and earlier, mpifort for MPICH v3.1.2 and newer
             # see http://www.mpich.org/static/docs/v3.1/ vs http://www.mpich.org/static/docs/v3.1.2/
-            if LooseVersion(self.get_software_version(self.MPI_MODULE_NAME)[0]) >= LooseVersion('3.1.2'):
-                self.MPI_COMPILER_MPIF77 = 'mpif77'
-                self.MPI_COMPILER_MPIF90 = 'mpifort'
-                self.MPI_COMPILER_MPIFC = 'mpifort'
+            if LooseVersion(
+                self.get_software_version(self.MPI_MODULE_NAME)[0]
+            ) >= LooseVersion("3.1.2"):
+                self.MPI_COMPILER_MPIF77 = "mpif77"
+                self.MPI_COMPILER_MPIF90 = "mpifort"
+                self.MPI_COMPILER_MPIFC = "mpifort"
             else:
-                self.MPI_COMPILER_MPIF77 = 'mpif77'
-                self.MPI_COMPILER_MPIF90 = 'mpif90'
-                self.MPI_COMPILER_MPIFC = 'mpif90'
+                self.MPI_COMPILER_MPIF77 = "mpif77"
+                self.MPI_COMPILER_MPIF90 = "mpif90"
+                self.MPI_COMPILER_MPIFC = "mpif90"
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:
-            self.variables.nappend('MPICH_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+            self.variables.nappend(
+                "MPICH_%s" % var,
+                str(self.variables[var].get_first()),
+                var_class=CommandFlagList,
+            )
 
         super(Mpich, self)._set_mpi_compiler_variables()

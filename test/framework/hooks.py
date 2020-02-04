@@ -44,35 +44,45 @@ class HooksTest(EnhancedTestCase):
     def setUp(self):
         """Set up for testing."""
         super(HooksTest, self).setUp()
-        self.test_hooks_pymod = os.path.join(self.test_prefix, 'test_hooks.py')
-        test_hooks_pymod_txt = '\n'.join([
-            'def start_hook():',
-            '    print("this is triggered at the very beginning")',
-            '',
-            'def parse_hook(ec):',
-            '   print("Parse hook with argument %s" % ec)',
-            '',
-            'def foo():',
-            '    print("running foo helper method")',
-            '',
-            'def post_configure_hook(self):',
-            '    print("this is run after configure step")',
-            '    foo()',
-            '',
-            'def pre_install_hook(self):',
-            '    print("this is run before install step")',
-        ])
+        self.test_hooks_pymod = os.path.join(self.test_prefix, "test_hooks.py")
+        test_hooks_pymod_txt = "\n".join(
+            [
+                "def start_hook():",
+                '    print("this is triggered at the very beginning")',
+                "",
+                "def parse_hook(ec):",
+                '   print("Parse hook with argument %s" % ec)',
+                "",
+                "def foo():",
+                '    print("running foo helper method")',
+                "",
+                "def post_configure_hook(self):",
+                '    print("this is run after configure step")',
+                "    foo()",
+                "",
+                "def pre_install_hook(self):",
+                '    print("this is run before install step")',
+            ]
+        )
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
 
     def test_load_hooks(self):
         """Test for load_hooks function."""
 
-        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, '/no/such/hooks.py')
+        self.assertErrorRegex(
+            EasyBuildError,
+            "Specified path .* does not exist.*",
+            load_hooks,
+            "/no/such/hooks.py",
+        )
 
         hooks = load_hooks(self.test_hooks_pymod)
 
         self.assertEqual(len(hooks), 4)
-        self.assertEqual(sorted(hooks.keys()), ['parse_hook', 'post_configure_hook', 'pre_install_hook', 'start_hook'])
+        self.assertEqual(
+            sorted(hooks.keys()),
+            ["parse_hook", "post_configure_hook", "pre_install_hook", "start_hook"],
+        )
         self.assertTrue(all(callable(h) for h in hooks.values()))
 
         # test caching of hooks
@@ -81,8 +91,8 @@ class HooksTest(EnhancedTestCase):
         self.assertTrue(cached_hooks is hooks)
 
         # hooks file can be empty
-        empty_hooks_path = os.path.join(self.test_prefix, 'empty_hooks.py')
-        write_file(empty_hooks_path, '')
+        empty_hooks_path = os.path.join(self.test_prefix, "empty_hooks.py")
+        write_file(empty_hooks_path, "")
         empty_hooks = load_hooks(empty_hooks_path)
         self.assertEqual(empty_hooks, {})
 
@@ -92,32 +102,41 @@ class HooksTest(EnhancedTestCase):
 
         # clearing cached hooks results in error because hooks file is not found
         easybuild.tools.hooks._cached_hooks = {}
-        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, self.test_hooks_pymod)
+        self.assertErrorRegex(
+            EasyBuildError,
+            "Specified path .* does not exist.*",
+            load_hooks,
+            self.test_hooks_pymod,
+        )
 
     def test_find_hook(self):
         """Test for find_hook function."""
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        post_configure_hook = [hooks[k] for k in hooks if k == 'post_configure_hook'][0]
-        pre_install_hook = [hooks[k] for k in hooks if k == 'pre_install_hook'][0]
-        start_hook = [hooks[k] for k in hooks if k == 'start_hook'][0]
+        post_configure_hook = [hooks[k] for k in hooks if k == "post_configure_hook"][0]
+        pre_install_hook = [hooks[k] for k in hooks if k == "pre_install_hook"][0]
+        start_hook = [hooks[k] for k in hooks if k == "start_hook"][0]
 
-        self.assertEqual(find_hook('configure', hooks), None)
-        self.assertEqual(find_hook('configure', hooks, pre_step_hook=True), None)
-        self.assertEqual(find_hook('configure', hooks, post_step_hook=True), post_configure_hook)
+        self.assertEqual(find_hook("configure", hooks), None)
+        self.assertEqual(find_hook("configure", hooks, pre_step_hook=True), None)
+        self.assertEqual(
+            find_hook("configure", hooks, post_step_hook=True), post_configure_hook
+        )
 
-        self.assertEqual(find_hook('install', hooks), None)
-        self.assertEqual(find_hook('install', hooks, pre_step_hook=True), pre_install_hook)
-        self.assertEqual(find_hook('install', hooks, post_step_hook=True), None)
+        self.assertEqual(find_hook("install", hooks), None)
+        self.assertEqual(
+            find_hook("install", hooks, pre_step_hook=True), pre_install_hook
+        )
+        self.assertEqual(find_hook("install", hooks, post_step_hook=True), None)
 
-        self.assertEqual(find_hook('build', hooks), None)
-        self.assertEqual(find_hook('build', hooks, pre_step_hook=True), None)
-        self.assertEqual(find_hook('build', hooks, post_step_hook=True), None)
+        self.assertEqual(find_hook("build", hooks), None)
+        self.assertEqual(find_hook("build", hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook("build", hooks, post_step_hook=True), None)
 
-        self.assertEqual(find_hook('start', hooks), start_hook)
-        self.assertEqual(find_hook('start', hooks, pre_step_hook=True), None)
-        self.assertEqual(find_hook('start', hooks, post_step_hook=True), None)
+        self.assertEqual(find_hook("start", hooks), start_hook)
+        self.assertEqual(find_hook("start", hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook("start", hooks, post_step_hook=True), None)
 
     def test_run_hook(self):
         """Test for run_hook function."""
@@ -126,33 +145,40 @@ class HooksTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        run_hook('start', hooks)
-        run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
-        run_hook('configure', hooks, pre_step_hook=True, args=[None])
-        run_hook('configure', hooks, post_step_hook=True, args=[None])
-        run_hook('build', hooks, pre_step_hook=True, args=[None])
-        run_hook('build', hooks, post_step_hook=True, args=[None])
-        run_hook('install', hooks, pre_step_hook=True, args=[None])
-        run_hook('install', hooks, post_step_hook=True, args=[None])
+        run_hook("start", hooks)
+        run_hook(
+            "parse",
+            hooks,
+            args=["<EasyConfig instance>"],
+            msg="Running parse hook for example.eb...",
+        )
+        run_hook("configure", hooks, pre_step_hook=True, args=[None])
+        run_hook("configure", hooks, post_step_hook=True, args=[None])
+        run_hook("build", hooks, pre_step_hook=True, args=[None])
+        run_hook("build", hooks, post_step_hook=True, args=[None])
+        run_hook("install", hooks, pre_step_hook=True, args=[None])
+        run_hook("install", hooks, post_step_hook=True, args=[None])
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-        expected_stdout = '\n'.join([
-            "== Running start hook...",
-            "this is triggered at the very beginning",
-            "== Running parse hook for example.eb...",
-            "Parse hook with argument <EasyConfig instance>",
-            "== Running post-configure hook...",
-            "this is run after configure step",
-            "running foo helper method",
-            "== Running pre-install hook...",
-            "this is run before install step",
-        ])
+        expected_stdout = "\n".join(
+            [
+                "== Running start hook...",
+                "this is triggered at the very beginning",
+                "== Running parse hook for example.eb...",
+                "Parse hook with argument <EasyConfig instance>",
+                "== Running post-configure hook...",
+                "this is run after configure step",
+                "running foo helper method",
+                "== Running pre-install hook...",
+                "this is run before install step",
+            ]
+        )
 
         self.assertEqual(stdout.strip(), expected_stdout)
-        self.assertEqual(stderr, '')
+        self.assertEqual(stderr, "")
 
     def test_verify_hooks(self):
         """Test verify_hooks function."""
@@ -162,18 +188,20 @@ class HooksTest(EnhancedTestCase):
         # if no unexpected hooks are found, verify_hooks just logs (no return value)
         self.assertEqual(verify_hooks(hooks), None)
 
-        test_broken_hooks_pymod = os.path.join(self.test_prefix, 'test_broken_hooks.py')
-        test_hooks_txt = '\n'.join([
-            '',
-            'def there_is_no_such_hook():',
-            '    pass',
-            'def stat_hook(self):',
-            '    pass',
-            'def post_source_hook(self):',
-            '    pass',
-            'def install_hook(self):',
-            '    pass',
-        ])
+        test_broken_hooks_pymod = os.path.join(self.test_prefix, "test_broken_hooks.py")
+        test_hooks_txt = "\n".join(
+            [
+                "",
+                "def there_is_no_such_hook():",
+                "    pass",
+                "def stat_hook(self):",
+                "    pass",
+                "def post_source_hook(self):",
+                "    pass",
+                "def install_hook(self):",
+                "    pass",
+            ]
+        )
 
         write_file(test_broken_hooks_pymod, test_hooks_txt)
 
@@ -182,7 +210,9 @@ class HooksTest(EnhancedTestCase):
         error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
         error_msg_pattern += r"\* there_is_no_such_hook\n\n"
         error_msg_pattern += r"Run 'eb --avail-hooks' to get an overview of known hooks"
-        self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
+        self.assertErrorRegex(
+            EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod
+        )
 
 
 def suite():
@@ -190,6 +220,6 @@ def suite():
     return TestLoaderFiltered().loadTestsFromTestCase(HooksTest, sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = TextTestRunner(verbosity=1).run(suite())
     sys.exit(len(res.failures))

@@ -30,22 +30,26 @@ Toolchain querying support for module naming schemes.
 import copy
 
 from easybuild.base import fancylogger
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import (
+    EasyConfig,
+    process_easyconfig,
+    robot_find_easyconfig,
+)
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 
-_log = fancylogger.getLogger('module_naming_scheme.toolchain', fname=False)
+_log = fancylogger.getLogger("module_naming_scheme.toolchain", fname=False)
 
 _toolchain_details_cache = {}
 
 
 # different types of toolchain elements
-TOOLCHAIN_COMPILER = 'COMPILER'
-TOOLCHAIN_MPI = 'MPI'
-TOOLCHAIN_BLAS = 'BLAS'
-TOOLCHAIN_LAPACK = 'LAPACK'
-TOOLCHAIN_FFT = 'FFT'
+TOOLCHAIN_COMPILER = "COMPILER"
+TOOLCHAIN_MPI = "MPI"
+TOOLCHAIN_BLAS = "BLAS"
+TOOLCHAIN_LAPACK = "LAPACK"
+TOOLCHAIN_FFT = "FFT"
 
 
 def det_toolchain_element_details(tc, elem, allow_missing=False):
@@ -54,35 +58,49 @@ def det_toolchain_element_details(tc, elem, allow_missing=False):
     """
     # check for cached version first
     tc_dict = tc.as_dict()
-    key = (tc_dict['name'], tc_dict['version'] + tc_dict['versionsuffix'], elem)
+    key = (tc_dict["name"], tc_dict["version"] + tc_dict["versionsuffix"], elem)
     if key in _toolchain_details_cache:
-        _log.debug("Obtained details for '%s' in toolchain '%s' from cache" % (elem, tc_dict))
+        _log.debug(
+            "Obtained details for '%s' in toolchain '%s' from cache" % (elem, tc_dict)
+        )
         return _toolchain_details_cache[key]
 
     # grab version from parsed easyconfig file for toolchain
-    eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
+    eb_file = robot_find_easyconfig(tc_dict["name"], det_full_ec_version(tc_dict))
     tc_ec = process_easyconfig(eb_file, parse_only=True)
     if len(tc_ec) > 1:
-        _log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
+        _log.warning(
+            "More than one toolchain specification found for %s, only retaining first"
+            % tc_dict
+        )
         _log.debug("Full list of toolchain specifications: %s" % tc_ec)
-    tc_ec = tc_ec[0]['ec']
+    tc_ec = tc_ec[0]["ec"]
     tc_elem_details = None
     for tc_dep in tc_ec.dependencies():
-        if tc_dep['name'] == elem:
+        if tc_dep["name"] == elem:
             tc_elem_details = tc_dep
-            _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))
+            _log.debug(
+                "Found details for toolchain element %s: %s" % (elem, tc_elem_details)
+            )
             break
     if tc_elem_details is None:
         # for compiler-only toolchains, toolchain and compilers are one-and-the-same
-        if tc_ec['name'] == elem:
+        if tc_ec["name"] == elem:
             tc_elem_details = tc_ec
         elif allow_missing:
             tc_elem_details = None
         else:
-            raise EasyBuildError("No toolchain element '%s' found for toolchain %s: %s", elem, tc.as_dict(), tc_ec)
+            raise EasyBuildError(
+                "No toolchain element '%s' found for toolchain %s: %s",
+                elem,
+                tc.as_dict(),
+                tc_ec,
+            )
 
     _toolchain_details_cache[key] = tc_elem_details
-    _log.debug("Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict))
+    _log.debug(
+        "Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict)
+    )
     return _toolchain_details_cache[key]
 
 
@@ -98,22 +116,28 @@ def det_toolchain_compilers(ec):
         tc_comps = None
     elif TOOLCHAIN_COMPILER not in tc_elems:
         # every toolchain should have at least a compiler
-        raise EasyBuildError("No compiler found in toolchain %s: %s", ec.toolchain.as_dict(), tc_elems)
+        raise EasyBuildError(
+            "No compiler found in toolchain %s: %s", ec.toolchain.as_dict(), tc_elems
+        )
     elif tc_elems[TOOLCHAIN_COMPILER]:
         tc_comps = []
 
         tc_comp_elems = copy.copy(tc_elems[TOOLCHAIN_COMPILER])
 
         # First consider a concatenation of list of compiler module names as a single toolchain element
-        combined_comp_elem = ''.join(tc_comp_elems)
+        combined_comp_elem = "".join(tc_comp_elems)
         elem_list = copy.copy(tc_comp_elems)
-        combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, combined_comp_elem, allow_missing=True)
+        combined_comp_elem_details = det_toolchain_element_details(
+            ec.toolchain, combined_comp_elem, allow_missing=True
+        )
 
         if not combined_comp_elem_details:
             # for toolchains including icc & ifort (like iccifortcuda), always consider iccifort
-            if 'icc' in tc_comp_elems and 'ifort' in tc_comp_elems:
-                combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, 'iccifort', allow_missing=True)
-                elem_list = ['icc', 'ifort']
+            if "icc" in tc_comp_elems and "ifort" in tc_comp_elems:
+                combined_comp_elem_details = det_toolchain_element_details(
+                    ec.toolchain, "iccifort", allow_missing=True
+                )
+                elem_list = ["icc", "ifort"]
 
         if combined_comp_elem_details:
             if isinstance(combined_comp_elem_details, EasyConfig):
@@ -121,7 +145,7 @@ def det_toolchain_compilers(ec):
             # add details for each compiler separately, using details from combo
             for comp_elem in elem_list:
                 comp_elem_details = copy.copy(combined_comp_elem_details)
-                comp_elem_details['name'] = comp_elem
+                comp_elem_details["name"] = comp_elem
                 tc_comps.append(comp_elem_details)
                 tc_comp_elems.remove(comp_elem)
 
@@ -129,9 +153,17 @@ def det_toolchain_compilers(ec):
         for comp_elem in tc_comp_elems:
             tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
     else:
-        raise EasyBuildError("Empty list of compilers for %s toolchain definition: %s",
-                             ec.toolchain.as_dict(), tc_elems)
-    _log.debug("Found compilers %s for toolchain %s (%s)", tc_comps, ec.toolchain.name, ec.toolchain.as_dict())
+        raise EasyBuildError(
+            "Empty list of compilers for %s toolchain definition: %s",
+            ec.toolchain.as_dict(),
+            tc_elems,
+        )
+    _log.debug(
+        "Found compilers %s for toolchain %s (%s)",
+        tc_comps,
+        ec.toolchain.name,
+        ec.toolchain.as_dict(),
+    )
 
     return tc_comps
 
@@ -145,8 +177,11 @@ def det_toolchain_mpi(ec):
     tc_elems = ec.toolchain.definition()
     if TOOLCHAIN_MPI in tc_elems:
         if not tc_elems[TOOLCHAIN_MPI]:
-            raise EasyBuildError("Empty list of MPI libs for %s toolchain definition: %s",
-                                 ec.toolchain.as_dict(), tc_elems)
+            raise EasyBuildError(
+                "Empty list of MPI libs for %s toolchain definition: %s",
+                ec.toolchain.as_dict(),
+                tc_elems,
+            )
         # assumption: only one MPI toolchain element
         tc_mpi = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_MPI][0])
     else:

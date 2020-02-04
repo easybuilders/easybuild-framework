@@ -41,7 +41,10 @@ import time
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
+from easybuild.framework.easyconfig.format.yeb import (
+    YEB_FORMAT_EXTENSION,
+    is_yeb_format,
+)
 from easybuild.framework.easyconfig.tools import stats_to_str
 from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
 from easybuild.tools.repository.repository import Repository
@@ -51,9 +54,11 @@ from easybuild.tools.version import VERBOSE_VERSION
 class FileRepository(Repository):
     """Class for file repositories."""
 
-    DESCRIPTION = ("A plain flat file repository. "
-                   "The 1st argument contains the directory where the files are stored. "
-                   "The optional 2nd argument is a subdir in that path.")
+    DESCRIPTION = (
+        "A plain flat file repository. "
+        "The 1st argument contains the directory where the files are stored. "
+        "The optional 2nd argument is a subdir in that path."
+    )
 
     def setup_repo(self):
         """
@@ -95,7 +100,10 @@ class FileRepository(Repository):
         # destination
         dest = os.path.join(full_path, "%s-%s%s" % (name, version, extension))
 
-        txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
+        txt = "# Built with EasyBuild version %s on %s\n" % (
+            VERBOSE_VERSION,
+            time.strftime("%Y-%m-%d_%H-%M-%S"),
+        )
 
         # copy file
         txt += read_file(cfg)
@@ -105,12 +113,17 @@ class FileRepository(Repository):
         statsprefix = prefix
         statssuffix = "]\n"
         if previous:
-            statstxt = statscomment + statsprefix + '\n'
+            statstxt = statscomment + statsprefix + "\n"
             for entry in previous + [stats]:
-                statstxt += stats_to_str(entry, isyeb=yeb_format) + ',\n'
+                statstxt += stats_to_str(entry, isyeb=yeb_format) + ",\n"
             statstxt += statssuffix
         else:
-            statstxt = statscomment + statsprefix + stats_to_str(stats, isyeb=yeb_format) + statssuffix
+            statstxt = (
+                statscomment
+                + statsprefix
+                + stats_to_str(stats, isyeb=yeb_format)
+                + statssuffix
+            )
 
         txt += statstxt
         write_file(dest, txt)
@@ -140,8 +153,10 @@ class FileRepository(Repository):
 
         dest = os.path.join(full_path, "%s.eb" % ec_version)
         if not os.path.isfile(dest):
-            self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
+            self.log.debug(
+                "version %s for %s has not been found in the repo" % (ec_version, name)
+            )
             return []
 
         eb = EasyConfig(dest, validate=False)
-        return eb['buildstats']
+        return eb["buildstats"]
