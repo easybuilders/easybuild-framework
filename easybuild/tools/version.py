@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,8 +43,9 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('2.9.0.dev0')
+VERSION = LooseVersion('4.1.2.dev0')
 UNKNOWN = 'UNKNOWN'
+
 
 def get_git_revision():
     """
@@ -60,9 +61,16 @@ def get_git_revision():
     try:
         path = os.path.dirname(__file__)
         gitrepo = git.Git(path)
-        return gitrepo.rev_list("HEAD").splitlines()[0]
+        res = gitrepo.rev_list('HEAD').splitlines()[0]
+        # 'encode' may be required to make sure a regular string is returned rather than a unicode string
+        # (only needed in Python 2; in Python 3, regular strings are already unicode)
+        if not isinstance(res, str):
+            res = res.encode('ascii')
     except git.GitCommandError:
-        return UNKNOWN
+        res = UNKNOWN
+
+    return res
+
 
 git_rev = get_git_revision()
 if git_rev == UNKNOWN:
@@ -76,14 +84,20 @@ FRAMEWORK_VERSION = VERBOSE_VERSION
 # EasyBlock version
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
-except:
+except Exception:
     EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+
 
 def this_is_easybuild():
     """Standard starting message"""
     top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
     # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
-    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
-         % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
+    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
+    msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
+
+    # 'encode' may be required to make sure a regular string is returned rather than a unicode string
+    # (only needed in Python 2; in Python 3, regular strings are already unicode)
+    if not isinstance(msg, str):
+        msg = msg.encode('ascii')
 
     return msg

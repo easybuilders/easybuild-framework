@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2016 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ from easybuild.tools.toolchain.linalg import LinAlg
 
 
 CRAY_LIBSCI_MODULE_NAME = 'cray-libsci'
+TC_CONSTANT_CRAY_LIBSCI = 'CrayLibSci'
 
 
 class LibSci(LinAlg):
@@ -47,11 +48,13 @@ class LibSci(LinAlg):
 
     # no need to specify libraries, compiler driver takes care of linking the right libraries
     # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
-    BLAS_LIB = []
-    BLAS_LIB_MT = []
+    BLAS_LIB = ['']
+    BLAS_LIB_MT = ['']
+    BLAS_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     LAPACK_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     BLACS_MODULE_NAME = []
     SCALAPACK_MODULE_NAME = []

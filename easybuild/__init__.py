@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2011-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,5 +28,4 @@ Declares EasyBuild namespace, in an extendable way.
 :author: Jens Timmerman (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)

@@ -1,0 +1,32 @@
+name = 'toy'
+version = '0.0'
+
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% toy."
+
+toolchain = SYSTEM
+
+sources = [SOURCE_TAR_GZ]
+checksums = [[
+    'be662daa971a640e40be5c804d9d7d10',  # default (MD5)
+    '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # default (SHA256)
+    ('adler32', '0x998410035'),
+    ('crc32', '0x1553842328'),
+    ('md5', 'be662daa971a640e40be5c804d9d7d10'),
+    ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
+    ('size', 273),
+]]
+patches = [
+    'toy-0.0_fix-silly-typo-in-printf-statement.patch',
+    ('toy-extra.txt', 'toy-0.0'),
+]
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy')],
+    'dirs': ['bin'],
+}
+
+postinstallcmds = ["echo TOY > %(installdir)s/README"]
+
+moduleclass = 'tools'
+# trailing comment, leave this here, it may trigger bugs with extract_comments()

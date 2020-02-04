@@ -1,0 +1,21 @@
+easyblock = "Toolchain"
+
+name = 'golf'
+version = '2018a'
+
+homepage = '(none)'
+description = """GNU Compiler Collection (GCC) based compiler toolchain, including
+OpenBLAS (BLAS and LAPACK support), and FFTW."""
+
+toolchain = SYSTEM
+
+local_comp = ('GCC', '6.4.0-2.28')
+
+# compiler toolchain dependencies
+dependencies = [
+    local_comp,
+    ('OpenBLAS', '0.2.20', '', local_comp),
+    ('FFTW', '3.3.7', '-serial', local_comp),
+]
+
+moduleclass = 'toolchain'

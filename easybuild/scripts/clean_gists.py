@@ -2,7 +2,7 @@
 ##
 # Copyright 2014 Ward Poelmans
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,9 +28,9 @@ as easybuild. Optionally, you can specify a different github username.
 
 import re
 
-from vsc.utils import fancylogger
-from vsc.utils.generaloption import simple_option
-from vsc.utils.rest import RestClient
+from easybuild.base import fancylogger
+from easybuild.base.generaloption import simple_option
+from easybuild.base.rest import RestClient
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_EB_MAIN, fetch_github_token
@@ -72,21 +72,28 @@ def main():
     token = fetch_github_token(username)
 
     gh = RestClient(GITHUB_API_URL, username=username, token=token)
-    # ToDo: add support for pagination
-    status, gists = gh.gists.get(per_page=100)
 
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get a lists of gists for user %s: error code %s, message = %s",
-                             username, status, gists)
-    else:
-        log.info("Found %s gists", len(gists))
+    all_gists = []
+    cur_page = 1
+    while True:
+        status, gists = gh.gists.get(per_page=100, page=cur_page)
 
+        if status != HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to get a lists of gists for user %s: error code %s, message = %s",
+                                 username, status, gists)
+        if gists:
+            all_gists.extend(gists)
+            cur_page += 1
+        else:
+            break
+
+    log.info("Found %s gists", len(all_gists))
     regex = re.compile(r"(EasyBuild test report|EasyBuild log for failed build).*?(?:PR #(?P<PR>[0-9]+))?\)?$")
 
     pr_cache = {}
     num_deleted = 0
 
-    for gist in gists:
+    for gist in all_gists:
         if not gist["description"]:
             continue
         re_pr_num = regex.search(gist["description"])

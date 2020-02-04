@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,12 +58,13 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
-        'openmp': 'fopenmp',  # both -qopenmp/-fopenmp are valid for enabling OpenMP (-openmp is deprecated)
+        'ieee': 'fltconsistency',
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
         'loose': ['fp-model fast=1'],
         'veryloose': ['fp-model fast=2'],
+        'vectorize': {False: 'no-vec', True: 'vec'},
         'intel-static': 'static-intel',
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
@@ -71,13 +72,13 @@ class IntelIccIfort(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHost',
-        systemtools.AMD : 'xHost',
+        (systemtools.X86_64, systemtools.AMD): 'xHost',
+        (systemtools.X86_64, systemtools.INTEL): 'xHost',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.INTEL : 'xSSE2',
-        systemtools.AMD : 'xSSE2',
+        (systemtools.X86_64, systemtools.AMD): 'xSSE2',
+        (systemtools.X86_64, systemtools.INTEL): 'xSSE2',
     }
 
     COMPILER_CC = 'icc'
@@ -111,8 +112,8 @@ class IntelIccIfort(Compiler):
             raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
                                  self.COMPILER_MODULE_NAME)
 
-        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
+        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)[0:2]
+        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
 
         if not ifort_version == icc_version:
             raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
@@ -133,7 +134,7 @@ class IntelIccIfort(Compiler):
     def set_variables(self):
         """Set the variables."""
         # -fopenmp is not supported in old versions (11.x)
-        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)
+        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
         if LooseVersion(icc_version) < LooseVersion('12'):
             self.options.options_map['openmp'] = 'openmp'
 

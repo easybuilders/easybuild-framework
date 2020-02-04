@@ -1,0 +1,31 @@
+name = 'toy'
+version = '0.0'
+versionsuffix = '-iter'
+
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% %(name)s."
+
+toolchain = SYSTEM
+
+sources = [SOURCE_TAR_GZ]
+patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
+
+builddependencies = [
+    [('GCC', '6.4.0-2.28'),
+     ('OpenMPI', '2.1.2', '', ('GCC', '6.4.0-2.28'))],
+    [('GCC', '6.4.0-2.28')],
+    [('GCC', '7.3.0-2.30')],
+]
+
+buildopts = [
+    '',
+    "-O2; mv %(name)s toy_O2_$EBVERSIONGCC",
+    "-O1; mv %(name)s toy_O1_$EBVERSIONGCC",
+]
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy'), 'bin/toy_O1_7.3.0-2.30', 'bin/toy_O2_6.4.0-2.28'],
+    'dirs': ['bin'],
+}
+
+moduleclass = 'tools'

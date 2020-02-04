@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2011-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,17 +29,22 @@ Module naming scheme API.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import Singleton
+from easybuild.tools.py2vs3 import create_base_metaclass
 
 
-class ModuleNamingScheme(object):
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
+
+
+# singleton metaclass: only one instance is created
+BaseModuleNamingScheme = create_base_metaclass('BaseModuleNamingScheme', Singleton, object)
+
+
+class ModuleNamingScheme(BaseModuleNamingScheme):
     """Abstract class for a module naming scheme implementation."""
-
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
 
     REQUIRED_KEYS = None
 
@@ -68,8 +73,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-
-        @return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
+        :return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         raise NotImplementedError
 
@@ -79,7 +83,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: string with module name, e.g. '<name>/<version>'
+        :return: string with module name, e.g. '<name>/<version>'
         """
         # by default: full module name doesn't include a $MODULEPATH subdir
         return self.det_full_module_name(ec)
@@ -91,7 +95,7 @@ class ModuleNamingScheme(object):
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
 
-        @return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
+        :return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         # by default: use full module name as name for install subdir
         return self.det_full_module_name(ec)
@@ -103,7 +107,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
+        :return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
         """
         # by default: no subdirectory
         return ''
@@ -121,7 +125,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: A list of $MODULEPATH subdirectories.
+        :return: A list of $MODULEPATH subdirectories.
         """
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
@@ -133,7 +137,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: A list of $MODULEPATH subdirectories.
+        :return: A list of $MODULEPATH subdirectories.
         """
         # by default: use "system" module path extensions of naming scheme
         return self.det_modpath_extensions(ec)
@@ -144,7 +148,7 @@ class ModuleNamingScheme(object):
         """
         return []
 
-    def expand_toolchain_load(self):
+    def expand_toolchain_load(self, ec=None):
         """
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
@@ -165,3 +169,11 @@ class ModuleNamingScheme(object):
                        short_modname, name, modname_regex.pattern, res)
 
         return res
+
+    def det_make_devel_module(self):
+        """
+        Determine if a devel module should be generated.
+        Can be used to create a separate set of modules with a different naming scheme.
+        Software is already installed beforehand with one naming scheme, including development module.
+        """
+        return True

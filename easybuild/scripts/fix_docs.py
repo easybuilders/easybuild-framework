@@ -1,5 +1,5 @@
 # #
-# Copyright 2016-2016 Ghent University
+# Copyright 2016-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ import re
 import sys
 
 from easybuild.tools.build_log import EasyBuildError
-from vsc.utils.generaloption import simple_option
 
 if not len(sys.argv) > 1:
     raise EasyBuildError("Please include path to easybuild folder")
@@ -52,7 +51,7 @@ for basename, _, filenames in os.walk(path):
             py_files.append(os.path.join(basename, fn))
 
 for tmp in py_files:
-    print "Processing %s" % tmp
+    print("Processing %s" % tmp)
     # exclude self
     if os.path.basename(tmp) == os.path.basename(__file__):
         continue

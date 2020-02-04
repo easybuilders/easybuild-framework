@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ Implementation of a test module naming scheme.
 
 import os
 
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
 
 class TestModuleNamingScheme(ModuleNamingScheme):
@@ -46,11 +46,11 @@ class TestModuleNamingScheme(ModuleNamingScheme):
 
         @return: string with full module name, e.g.: 'gzip/1.5', 'intel/intelmpi/gzip'/1.5'
         """
-        if ec['toolchain']['name'] == 'goolf':
+        if ec['toolchain']['name'] == 'foss':
             mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])
         elif ec['toolchain']['name'] == 'GCC':
             mod_name = os.path.join('gnu', ec['name'], ec['version'])
-        elif ec['toolchain']['name'] == 'ictce':
+        elif ec['toolchain']['name'] == 'intel':
             mod_name = os.path.join('intel', 'intelmpi', ec['name'], ec['version'])
         else:
             mod_name = os.path.join(ec['name'], ec['version'])
@@ -66,4 +66,4 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         """
-        return modname.find('%s' % name)!= -1
+        return modname.find('%s' % name) != -1

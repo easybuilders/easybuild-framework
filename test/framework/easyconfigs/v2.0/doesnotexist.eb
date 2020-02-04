@@ -27,10 +27,10 @@ sanity_check_paths = {'files': ["bin/gunzip", "bin/gzip"], 'dirs': []}
 
 [SUPPORTED]
 versions=1.0.0,>= 0.5.0
-toolchains=dummy > 5,GCC == 3.0.0,ictce < 1.0
+toolchains=system > 5,GCC == 3.0.0,intel < 1.0
 
-[goolf > 1]
+[foss > 1]
 versions=1.5.0
 
 [2.0.0]
-toolchains=dummy > 6,GCC > 4
+toolchains=system > 6,GCC > 4

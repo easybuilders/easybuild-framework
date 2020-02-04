@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2016 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ Module which allows the diffing of multiple files
 import difflib
 import math
 import os
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.systemtools import det_terminal_size
@@ -92,7 +92,7 @@ class MultiDiff(object):
         """
         # register (diff_line, meta, squigly_line) tuple for specified line number and determined key
         key = diff_line[0]
-        if not key in [MINUS, PLUS]:
+        if key not in [MINUS, PLUS]:
             raise EasyBuildError("diff line starts with unexpected character: %s", diff_line)
         line_key_tuples = self.diff_info.setdefault(line_no, {}).setdefault(key, [])
         line_key_tuples.append((diff_line, meta, squigly_line))
@@ -150,7 +150,7 @@ class MultiDiff(object):
         """
         Return the line information for a specific line
         :param line_no: line number to obtain information for
-        @return: list with text lines providing line information
+        :return: list with text lines providing line information
         """
         output = []
         diff_dict = self.diff_info.get(line_no, {})
@@ -169,10 +169,13 @@ class MultiDiff(object):
                     # track meta info (which filenames are relevant)
                     changes_dict.setdefault(diff_line, set()).add(meta)
 
-            # sort: lines with most changes last, limit number to MAX_DIFF_GROUPS
-            lines = sorted(lines, key=lambda line: len(changes_dict[line]))[:MAX_DIFF_GROUPS]
+            # sort lines with most changes last;
+            # sort lines with equal number of changes alphabetically to ensure consistent output;
+            # limit number to MAX_DIFF_GROUPS
+            lines = sorted(lines, key=lambda line: (len(changes_dict[line]), line))[:MAX_DIFF_GROUPS]
 
             for diff_line in lines:
+
                 squigly_line = squigly_dict.get(diff_line, '')
                 line = ['%s %s' % (line_no, self.colorize(diff_line, squigly_line))]
 
@@ -224,7 +227,7 @@ class MultiDiff(object):
 
         diff = False
         for i in range(len(self.base_lines)):
-            lines = filter(None, self.get_line(i))
+            lines = [line for line in self.get_line(i) if line]
             if lines:
                 output.append('\n'.join([limit(line, term_width) for line in lines]))
                 diff = True
@@ -243,7 +246,7 @@ def multidiff(base, files, colored=True):
     :param base: base to compare with
     :param files: list of files to compare with base
     :param colored: boolean indicating whether a colored multi-diff should be generated
-    @return: text with multidiff overview
+    :return: text with multidiff overview
     """
     differ = difflib.Differ()
     base_lines = read_file(base).split('\n')
@@ -260,7 +263,7 @@ def multidiff(base, files, colored=True):
         #
         # - toolchain = {'name': 'goolfc', 'version': '2.6.10'}
         # ?                            -               ^   ^
-        # 
+        #
         # + toolchain = {'name': 'goolf', 'version': '1.6.20'}
         # ?                                           ^   ^
         #

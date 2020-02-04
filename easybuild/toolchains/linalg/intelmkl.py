@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,6 +42,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_INTELMKL = 'IntelMKL'
+
+
 class IntelMKL(LinAlg):
     """Support for Intel MKL."""
 
@@ -56,9 +59,11 @@ class IntelMKL(LinAlg):
     BLAS_LIB_MT = ["mkl_%(interface)s%(lp64)s" , "mkl_%(interface_mt)s_thread", "mkl_core"]
     BLAS_LIB_GROUP = True
     BLAS_LIB_STATIC = True
+    BLAS_FAMILY = TC_CONSTANT_INTELMKL
 
     LAPACK_MODULE_NAME = ['imkl']
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_INTELMKL
 
     BLACS_MODULE_NAME = ['imkl']
     BLACS_LIB = ["mkl_blacs%(mpi)s%(lp64)s"]
@@ -136,7 +141,8 @@ class IntelMKL(LinAlg):
 
         # exact paths/linking statements depend on imkl version
         found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
-        if LooseVersion(found_version) < LooseVersion('10.3'):
+        ver = LooseVersion(found_version)
+        if ver < LooseVersion('10.3'):
             if self.options.get('32bit', None):
                 self.BLAS_LIB_DIR = ['lib/32']
             else:
@@ -147,7 +153,11 @@ class IntelMKL(LinAlg):
                 raise EasyBuildError("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)",
                                      found_version)
             else:
-                self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
+                self.BLAS_LIB_DIR = ['mkl/lib/intel64']
+                if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
+                    self.BLAS_LIB_DIR.append('compiler/lib/intel64')
+                else:
+                    self.BLAS_LIB_DIR.append('lib/intel64')
 
             self.BLAS_INCLUDE_DIR = ['mkl/include']
 
