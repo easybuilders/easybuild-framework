@@ -681,8 +681,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # we need files to create the PR with
     non_existing_paths = []
     ec_paths = []
-    if paths['easyconfigs']:
-        for path in paths['easyconfigs']:
+    if paths['easyconfigs'] or paths['py_files']:
+        for path in paths['easyconfigs'] + paths['py_files']:
             if not os.path.exists(path):
                 non_existing_paths.append(path)
             else:
@@ -695,6 +695,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         raise EasyBuildError("No paths specified")
 
     pr_target_repo = build_option('pr_target_repo')
+
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if paths['py_files']:
+            raise EasyBuildError("You are submitting files with .py extension, "
+                                 "did you forget to specify --pr-target-repo?")
+    else:
+        if paths['easyconfigs'] or paths['patch_files']:
+            raise EasyBuildError("You are submitting easyconfigs and/or patches, "
+                                 "shouldn\'t this PR target the easyconfigs repo?")
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
@@ -731,15 +740,17 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # figure out commit message to use
     if commit_msg:
         cnt = len(file_info['paths_in_repo'])
-        _log.debug("Using specified commit message for all %d new/modified easyconfigs at once: %s", cnt, commit_msg)
-    elif all(file_info['new']) and not paths['files_to_delete']:
+        _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
+    elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
         # automagically derive meaningful commit message if all easyconfig files are new
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
         if paths['patch_files']:
             commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
+        commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
-                             "modifying/deleting easyconfigs")
+                             "modifying/deleting files or targeting the framework repo.")
 
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
@@ -996,7 +1007,10 @@ def copy_easyblocks(paths, target_dir):
 
             mod = imp.load_source(fn, path)
             clsmembers = inspect.getmembers(mod, inspect.isclass)
-            classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
+            if clsmembers:
+                classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
+            else:
+                raise EasyBuildError("Invalid easyblock file")
 
             if len(classnames) > 1:
                 raise EasyBuildError("Invalid easyblock file")
@@ -1014,7 +1028,7 @@ def copy_easyblocks(paths, target_dir):
             full_target_path = os.path.join(target_dir, target_path)
             file_info['paths_in_repo'].append(full_target_path)
             file_info['new'].append(not os.path.exists(full_target_path))
-            copy_file(path, full_target_path)
+            copy_file(path, full_target_path, force_in_dry_run=True)
 
     else:
         raise EasyBuildError("Subdir easyblocks not found")
@@ -1358,11 +1372,10 @@ def new_branch_github(paths, ecs, commit_msg=None):
     """
     Create new branch on GitHub using specified files
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, files with .py extension)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param commit_msg: commit message to use
     """
-
     branch_name = build_option('pr_branch_name')
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
@@ -1473,14 +1486,14 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
 
         file_info = det_file_info(ec_paths, target_dir)
 
-    # label easyconfigs for new software and/or new easyconfigs for existing software
     labels = []
-    if any(file_info['new_folder']):
-        labels.append('new')
-    if any(file_info['new_file_in_existing_folder']):
-        labels.append('update')
-
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        # label easyconfigs for new software and/or new easyconfigs for existing software
+        if any(file_info['new_folder']):
+            labels.append('new')
+        if any(file_info['new_file_in_existing_folder']):
+            labels.append('update')
+
         # only use most common toolchain(s) in toolchain label of PR title
         toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
         toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
@@ -1490,33 +1503,39 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         classes = [ec['moduleclass'] for ec in file_info['ecs']]
         classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
         class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+        if any(file_info['new']):
+            labels.append('new')
 
     if title is None:
+        if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+            if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
+                # mention software name/version in PR title (only first 3)
+                names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
+                if len(names_and_versions) <= 3:
+                    main_title = ', '.join(names_and_versions)
+                else:
+                    main_title = ', '.join(names_and_versions[:3] + ['...'])
 
-        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
-            # mention software name/version in PR title (only first 3)
-            names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
-            if len(names_and_versions) <= 3:
-                main_title = ', '.join(names_and_versions)
+                title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+                # if Python is listed as a dependency, then mention Python version(s) in PR title
+                pyver = []
+                for ec in file_info['ecs']:
+                    # iterate over all dependencies (incl. build dependencies & multi-deps)
+                    for dep in ec.dependencies():
+                        if dep['name'] == 'Python':
+                            # check whether Python is listed as a multi-dep if it's marked as a build dependency
+                            if dep['build_only'] and 'Python' not in ec['multi_deps']:
+                                continue
+                            else:
+                                pyver.append(dep['version'])
+                if pyver:
+                    title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
+
             else:
-                main_title = ', '.join(names_and_versions[:3] + ['...'])
-
-            title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
-
-            # if Python is listed as a dependency, then mention Python version(s) in PR title
-            pyver = []
-            for ec in file_info['ecs']:
-                # iterate over all dependencies (incl. build dependencies & multi-deps)
-                for dep in ec.dependencies():
-                    if dep['name'] == 'Python':
-                        # check whether Python is listed as a multi-dep if it's marked as a build dependency
-                        if dep['build_only'] and 'Python' not in ec['multi_deps']:
-                            continue
-                        else:
-                            pyver.append(dep['version'])
-            if pyver:
-                title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
-
+                raise EasyBuildError("Don't know how to make a PR title for this PR. "
+                                     "Please include a title (use --pr-title)")
         else:
             raise EasyBuildError("Don't know how to make a PR title for this PR. "
                                  "Please include a title (use --pr-title)")
