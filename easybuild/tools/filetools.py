@@ -944,7 +944,9 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     patched_regex = re.compile(patched_regex, re.M)
 
     if path is not None:
-        txt = read_file(path)
+        # take into account that file may contain non-UTF-8 characters;
+        # so, read a byyte string, and decode to ascii string (ignoring any non-ascii characters);
+        txt = read_file(path, mode='rb').decode('ascii', 'ignore')
     elif txt is None:
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
