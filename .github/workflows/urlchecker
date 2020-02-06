@@ -1,11 +1,8 @@
 name: Check URLs
-
 on: [push, pull_request]
-
 jobs:
-  build:
+  url-checker:
     runs-on: ubuntu-latest
-
     steps:
     - name: URLs-checker
       uses: SuperKogito/URLs-checker@0.1.2
