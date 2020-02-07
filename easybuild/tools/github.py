@@ -1614,7 +1614,7 @@ def check_github():
         urlopen(GITHUB_URL, timeout=30)
         print_msg("OK\n", log=_log, prefix=False)
     except URLError as err:
-        print_msg("FAIL", log=_log, prefix=False)
+        print_msg("FAIL (%s)", err, log=_log, prefix=False)
         raise EasyBuildError("checking status of GitHub integration must be done online")
 
     # GitHub user
