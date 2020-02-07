@@ -1591,6 +1591,25 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
     print_msg(msg, log=_log)
 
 
+def check_online_status():
+    """
+    Check whether we currently are online
+    Return True if online, else an URLError instance of the last failure
+    """
+    # Try repeatedly and with different URLs to cater for flaky servers
+    # E.g. Github returned "HTTP Error 403: Forbidden" and "HTTP Error 406: Not Acceptable" randomly
+    # Timeout and repeats set to total 1 minute
+    urls = [GITHUB_URL, GITHUB_API_URL]
+    for i in range(6):
+        try:
+            urlopen(urls[i % len(urls)], timeout=10)
+            result = True
+            break
+        except URLError as err:
+            result = err
+    return result
+
+
 def check_github():
     """
     Check status of GitHub integration, and report back.
@@ -1609,12 +1628,12 @@ def check_github():
     print_msg("\nChecking status of GitHub integration...\n", log=_log, prefix=False)
 
     # check whether we're online; if not, half of the checks are going to fail...
-    try:
-        print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
-        urlopen(GITHUB_API_URL, timeout=30)
+    print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
+    online_state = check_online_status()
+    if online_state is True:
         print_msg("OK\n", log=_log, prefix=False)
-    except URLError as err:
-        print_msg("FAIL (%s)", err, log=_log, prefix=False)
+    else:
+        print_msg("FAIL (%s)", online_state, log=_log, prefix=False)
         raise EasyBuildError("checking status of GitHub integration must be done online")
 
     # GitHub user
