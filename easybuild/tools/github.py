@@ -1600,9 +1600,10 @@ def check_online_status():
     # E.g. Github returned "HTTP Error 403: Forbidden" and "HTTP Error 406: Not Acceptable" randomly
     # Timeout and repeats set to total 1 minute
     urls = [GITHUB_URL, GITHUB_API_URL]
-    for i in range(6):
+    num_repeats = 6
+    for attempt in range(num_repeats):
         try:
-            urlopen(urls[i % len(urls)], timeout=10)
+            urlopen(urls[attempt % len(urls)], timeout=10)
             result = True
             break
         except URLError as err:
