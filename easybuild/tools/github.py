@@ -1611,7 +1611,7 @@ def check_github():
     # check whether we're online; if not, half of the checks are going to fail...
     try:
         print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
-        urlopen(GITHUB_URL, timeout=30)
+        urlopen(GITHUB_API_URL, timeout=30)
         print_msg("OK\n", log=_log, prefix=False)
     except URLError as err:
         print_msg("FAIL (%s)", err, log=_log, prefix=False)
