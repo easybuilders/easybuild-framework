@@ -2076,17 +2076,24 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         patterns = [
-            "^  >> installation prefix: .*/software/toy/0\.0$",
-            "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
-            "^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
-            "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
-            "  >> command completed: exit 0, ran in .*",
-            '^' + '\n'.join([
-                "== sanity checking\.\.\.",
-                "  >> file 'bin/yot' or 'bin/toy' found: OK",
-                "  >> \(non-empty\) directory 'bin' found: OK",
-            ]) + '$',
-            "^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
+            r"^  >> installation prefix: .*/software/toy/0\.0$",
+            r"^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
+            r"^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
+            r'\n'.join([
+                r"^  >> running command:",
+                r"\t\[started at: .*\]",
+                r"\t\[working dir: .*\]",
+                r"\t\[output logged in .*\]",
+                r"\tgcc toy.c -o toy\n"
+                r'',
+            ]),
+            r"  >> command completed: exit 0, ran in .*",
+            r'^' + r'\n'.join([
+                r"== sanity checking\.\.\.",
+                r"  >> file 'bin/yot' or 'bin/toy' found: OK",
+                r"  >> \(non-empty\) directory 'bin' found: OK",
+            ]) + r'$',
+            r"^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
