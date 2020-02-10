@@ -663,6 +663,18 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
         self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
 
+        # create a patch file with a non-UTF8 character in it, should not result in problems
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3190)
+        test_patch = os.path.join(self.test_prefix, 'test.patch')
+        patch_txt = b'\n'.join([
+            b"--- foo",
+            b"+++ foo",
+            b"- test line",
+            b"+ test line with non-UTF8 char: '\xa0'",
+        ])
+        ft.write_file(test_patch, patch_txt)
+        self.assertEqual(ft.det_patched_files(test_patch), ['foo'])
+
     def test_guess_patch_level(self):
         "Test guess_patch_level."""
         # create dummy toy.source file so guess_patch_level can work
