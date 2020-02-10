@@ -1594,21 +1594,24 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
 def check_online_status():
     """
     Check whether we currently are online
-    Return True if online, else an URLError instance of the last failure
+    Return True if online, else a list of error messages
     """
     # Try repeatedly and with different URLs to cater for flaky servers
     # E.g. Github returned "HTTP Error 403: Forbidden" and "HTTP Error 406: Not Acceptable" randomly
     # Timeout and repeats set to total 1 minute
     urls = [GITHUB_URL, GITHUB_API_URL]
     num_repeats = 6
+    errors = set()  # Use set to record only unique errors
     for attempt in range(num_repeats):
+        # Cycle through URLs
+        url = urls[attempt % len(urls)]
         try:
-            urlopen(urls[attempt % len(urls)], timeout=10)
-            result = True
+            urlopen(url, timeout=10)
+            errors = None
             break
         except URLError as err:
-            result = err
-    return result
+            errors.add('%s: %s' % (url, err))
+    return sorted(errors) if errors else True
 
 
 def check_github():
@@ -1634,7 +1637,7 @@ def check_github():
     if online_state is True:
         print_msg("OK\n", log=_log, prefix=False)
     else:
-        print_msg("FAIL (%s)", online_state, log=_log, prefix=False)
+        print_msg("FAIL (%s)", ', '.join(online_state), log=_log, prefix=False)
         raise EasyBuildError("checking status of GitHub integration must be done online")
 
     # GitHub user
