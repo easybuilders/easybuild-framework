@@ -1954,9 +1954,9 @@ class FileToolsTest(EnhancedTestCase):
             'tag': 'master',
         }
         expected = '\n'.join([
-            '  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
+            r'  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
             r"  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
         ])
         run_check()
