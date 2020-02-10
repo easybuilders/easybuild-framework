@@ -562,19 +562,20 @@ class EasyConfig(object):
             msg += "attempted update value, '%s', is not a string or list."
             raise EasyBuildError(msg, key, value)
 
-        prev_value = self[key]
-        if isinstance(prev_value, string_type):
+        param_value = self[key]
+        if isinstance(param_value, string_type):
             for item in lval:
-                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), prev_value)):
-                    prev_value += ' %s ' % item
-        elif isinstance(prev_value, list):
+                # re.search: only add value to string if it's not there yet (surrounded by whitespace)
+                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
+                    param_value = param_value + ' %s ' % item
+        elif isinstance(param_value, list):
             for item in lval:
-                if allow_duplicate or item not in prev_value:
-                    prev_value.append(item)
+                if allow_duplicate or item not in param_value:
+                    param_value = param_value + [item]
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
-        self[key] = prev_value
+        self[key] = param_value
 
     def set_keys(self, params):
         """
