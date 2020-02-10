@@ -946,7 +946,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     if path is not None:
         # take into account that file may contain non-UTF-8 characters;
         # so, read a byte string, and decode to UTF-8 string (ignoring any non-UTF-8 characters);
-        txt = read_file(path, mode='rb').decode(encoding='utf-8', errors='replace')
+        txt = read_file(path, mode='rb').decode('utf-8', 'replace')
     elif txt is None:
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
