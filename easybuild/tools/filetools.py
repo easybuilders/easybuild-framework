@@ -109,6 +109,7 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
+PATH_INDEX_FILENAME = '.eb-path-index'
 
 CHECKSUM_TYPE_MD5 = 'md5'
 CHECKSUM_TYPE_SHA256 = 'sha256'
@@ -589,6 +590,62 @@ def download_file(filename, url, path, forced=False):
         return None
 
 
+def create_index(path, ignore_dirs=None):
+    """
+    Create index for files in specified path.
+    """
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    index = set()
+
+    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
+        for filename in filenames:
+            # use relative paths in index
+            index.add(os.path.join(dirpath[len(path)+1:], filename))
+
+        # do not consider (certain) hidden directories
+        # note: we still need to consider e.g., .local !
+        # replace list elements using [:], so os.walk doesn't process deleted directories
+        # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+
+    return index
+
+
+def dump_index(path):
+    """
+    Create index for files in specified path, and dump it to file (alphabetically sorted).
+    """
+
+    index_fp = os.path.join(path, PATH_INDEX_FILENAME)
+    index_contents = create_index(path)
+
+    write_file(index_fp, '\n'.join(sorted(index_contents)))
+
+
+def load_index(path, ignore_dirs=None):
+    """
+    Load index for specified path, and return contents (or None if no index exists).
+    """
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    index_fp = os.path.join(path, PATH_INDEX_FILENAME)
+
+    index, res = None, set()
+
+    if os.path.exists(index_fp):
+        index = read_file(index_fp).splitlines()
+
+        for path in index:
+            path_dirs = path.split(os.path.sep)[:-1]
+            if not any(d in path_dirs for d in ignore_dirs):
+                res.add(path)
+
+    return res
+
+
 def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
@@ -654,22 +711,23 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
-            for filename in filenames:
-                if query.search(filename):
-                    if not path_hits:
-                        var = "CFGS%d" % var_index
-                        var_index += 1
-                    if filename_only:
-                        path_hits.append(filename)
-                    else:
-                        path_hits.append(os.path.join(dirpath, filename))
+        path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index:
+            _log.info("Cache found for %s, so using it...", path)
+        else:
+            _log.info("No index found for %s, creating one...", path)
+            path_index = create_index(path, ignore_dirs=ignore_dirs)
 
-            # do not consider (certain) hidden directories
-            # note: we still need to consider e.g., .local !
-            # replace list elements using [:], so os.walk doesn't process deleted directories
-            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+        for filepath in path_index:
+            filename = os.path.basename(filepath)
+            if query.search(filename):
+                if not path_hits:
+                    var = "CFGS%d" % var_index
+                    var_index += 1
+                if filename_only:
+                    path_hits.append(filename)
+                else:
+                    path_hits.append(os.path.join(path, filepath))
 
         path_hits = sorted(path_hits)
 

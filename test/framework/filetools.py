@@ -1652,6 +1652,51 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
+    def test_index_functions(self):
+        """Test *_index functions."""
+
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # first test create_index function
+        index = ft.create_index(test_ecs)
+        self.assertEqual(len(index), 79)
+
+        expected = [
+            os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
+            os.path.join('t', 'toy', 'toy-0.0.eb'),
+            os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'),
+        ]
+        for fn in expected:
+            self.assertTrue(fn in index)
+
+        for fp in index:
+            self.assertTrue(fp.endswith('.eb'))
+
+        # set up some files to create actual index file for
+        ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
+
+        # test dump_index function
+        ft.dump_index(self.test_prefix)
+
+        index_fp = os.path.join(self.test_prefix, '.eb-path-index')
+        self.assertTrue(os.path.exists(index_fp))
+
+        index_txt = ft.read_file(index_fp)
+        expected = [
+            os.path.join('g', 'gzip', 'gzip-1.4.eb'),
+            os.path.join('g', 'GCC', 'GCC-7.3.0-2.30.eb'),
+            os.path.join('g', 'gompic', 'gompic-2018a.eb'),
+        ]
+        for fn in expected:
+            regex = re.compile('^%s$' % fn, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        # test load_index function
+        index = ft.load_index(self.test_prefix)
+        self.assertEqual(len(index), 24)
+        for fn in expected:
+            self.assertTrue(fn in index)
+
     def test_search_file(self):
         """Test search_file function."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
