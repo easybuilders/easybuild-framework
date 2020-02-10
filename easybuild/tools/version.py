@@ -55,18 +55,18 @@ def get_git_revision():
     relies on GitPython (see http://gitorious.org/git-python)
     """
     try:
-        import git
+        from git import Git, GitCommandError
     except ImportError:
         return UNKNOWN
     try:
         path = os.path.dirname(__file__)
-        gitrepo = git.Git(path)
+        gitrepo = Git(path)
         res = gitrepo.rev_list('HEAD').splitlines()[0]
         # 'encode' may be required to make sure a regular string is returned rather than a unicode string
         # (only needed in Python 2; in Python 3, regular strings are already unicode)
         if not isinstance(res, str):
             res = res.encode('ascii')
-    except git.GitCommandError:
+    except GitCommandError:
         res = UNKNOWN
 
     return res
