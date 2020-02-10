@@ -61,7 +61,8 @@ from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
-from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
+from easybuild.tools.filetools import create_index, find_backup_name_candidate, find_easyconfigs, load_index
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -102,6 +103,7 @@ except ImportError as err:
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
+_path_indexes = {}
 
 
 def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
@@ -1890,10 +1892,19 @@ def robot_find_easyconfig(name, version):
 
     res = None
     for path in paths:
+        if path in _path_indexes:
+            path_index = _path_indexes[path]
+            _log.info("Found loaded index for %s", path)
+        else:
+            path_index = load_index(path)
+            if path_index:
+                _path_indexes[path] = path_index
+                _log.info("Loaded index for %s", path)
+
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
-            if os.path.isfile(easyconfig_path):
+            if easyconfig_path in path_index or os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                 _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
                 res = _easyconfig_files_cache[key]
