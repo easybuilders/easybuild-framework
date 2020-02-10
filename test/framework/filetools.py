@@ -1978,6 +1978,7 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/tmp.*\)",
         ])
         run_check()
+        del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
