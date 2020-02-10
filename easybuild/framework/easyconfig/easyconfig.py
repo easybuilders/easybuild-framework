@@ -565,7 +565,7 @@ class EasyConfig(object):
         prev_value = self[key]
         if isinstance(prev_value, string_type):
             for item in lval:
-                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % item, prev_value)):
+                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), prev_value)):
                     prev_value += ' %s ' % item
         elif isinstance(prev_value, list):
             for item in lval:
