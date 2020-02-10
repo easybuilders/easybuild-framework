@@ -1970,6 +1970,15 @@ class FileToolsTest(EnhancedTestCase):
         ])
         run_check()
 
+        git_config['keep_git_dir'] = True
+        expected = '\n'.join([
+            '  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
+            "  \(in .*/tmp.*\)",
+            '  running command "tar cfvz .*/target/test.tar.gz testrepository"',
+            "  \(in .*/tmp.*\)",
+        ])
+        run_check()
+
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
