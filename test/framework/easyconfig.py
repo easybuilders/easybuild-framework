@@ -1519,16 +1519,21 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('configopts', 'CC="$CC"')
         ec.update('configopts', 'CXX="$CXX"')
         self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+        # spaces in between multiple updates for string values from list
+        ec.update('configopts', ['MORE_VALUE', 'EVEN_MORE'])
+        self.assertTrue(ec['configopts'].strip().endswith('MORE_VALUE  EVEN_MORE'))
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
-        # for unallowed duplicates
+        # for unallowed duplicates on string values
         ec.update('configopts', 'SOME_VALUE')
         configopts_tmp = ec['configopts']
         ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
+        self.assertEqual(ec['configopts'], configopts_tmp)
+        ec.update('configopts', ['CC="$CC"', 'SOME_VALUE'], allow_duplicate=False)
         self.assertEqual(ec['configopts'], configopts_tmp)
 
         # for unallowed duplicates when a list is used
