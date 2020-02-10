@@ -175,6 +175,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if trace:
         trace_txt = "running command:\n"
         trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[working dir: %s]\n" % (path or os.getcwd())
+        if inp:
+            trace_txt += "\t[input: %s]\n" % inp
         trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
         trace_msg(trace_txt + '\t' + cmd_msg)
 
@@ -300,6 +303,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if trace:
         trace_txt = "running interactive command:\n"
         trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[working dir: %s]\n" % (path or os.getcwd())
         trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
         trace_msg(trace_txt + '\t' + cmd.strip())
 
