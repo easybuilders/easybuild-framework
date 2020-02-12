@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,12 +27,12 @@ Toolchain querying support for module naming schemes.
 
 :author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils import fancylogger
+import copy
 
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
+from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 _log = fancylogger.getLogger('module_naming_scheme.toolchain', fname=False)
@@ -48,7 +48,7 @@ TOOLCHAIN_LAPACK = 'LAPACK'
 TOOLCHAIN_FFT = 'FFT'
 
 
-def det_toolchain_element_details(tc, elem):
+def det_toolchain_element_details(tc, elem, allow_missing=False):
     """
     Determine details of a particular toolchain element, for a given Toolchain instance.
     """
@@ -76,8 +76,11 @@ def det_toolchain_element_details(tc, elem):
         # for compiler-only toolchains, toolchain and compilers are one-and-the-same
         if tc_ec['name'] == elem:
             tc_elem_details = tc_ec
+        elif allow_missing:
+            tc_elem_details = None
         else:
             raise EasyBuildError("No toolchain element '%s' found for toolchain %s: %s", elem, tc.as_dict(), tc_ec)
+
     _toolchain_details_cache[key] = tc_elem_details
     _log.debug("Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict))
     return _toolchain_details_cache[key]
@@ -90,15 +93,40 @@ def det_toolchain_compilers(ec):
     :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
     tc_elems = ec.toolchain.definition()
-    if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
-        # dummy toolchain has no compiler
+    if ec.toolchain.is_system_toolchain():
+        # system toolchain has no (real) compiler component
         tc_comps = None
-    elif not TOOLCHAIN_COMPILER in tc_elems:
+    elif TOOLCHAIN_COMPILER not in tc_elems:
         # every toolchain should have at least a compiler
         raise EasyBuildError("No compiler found in toolchain %s: %s", ec.toolchain.as_dict(), tc_elems)
     elif tc_elems[TOOLCHAIN_COMPILER]:
         tc_comps = []
-        for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
+
+        tc_comp_elems = copy.copy(tc_elems[TOOLCHAIN_COMPILER])
+
+        # First consider a concatenation of list of compiler module names as a single toolchain element
+        combined_comp_elem = ''.join(tc_comp_elems)
+        elem_list = copy.copy(tc_comp_elems)
+        combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, combined_comp_elem, allow_missing=True)
+
+        if not combined_comp_elem_details:
+            # for toolchains including icc & ifort (like iccifortcuda), always consider iccifort
+            if 'icc' in tc_comp_elems and 'ifort' in tc_comp_elems:
+                combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, 'iccifort', allow_missing=True)
+                elem_list = ['icc', 'ifort']
+
+        if combined_comp_elem_details:
+            if isinstance(combined_comp_elem_details, EasyConfig):
+                combined_comp_elem_details = combined_comp_elem_details.asdict()
+            # add details for each compiler separately, using details from combo
+            for comp_elem in elem_list:
+                comp_elem_details = copy.copy(combined_comp_elem_details)
+                comp_elem_details['name'] = comp_elem
+                tc_comps.append(comp_elem_details)
+                tc_comp_elems.remove(comp_elem)
+
+        # consider any remaining individual compiler module names
+        for comp_elem in tc_comp_elems:
             tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
     else:
         raise EasyBuildError("Empty list of compilers for %s toolchain definition: %s",

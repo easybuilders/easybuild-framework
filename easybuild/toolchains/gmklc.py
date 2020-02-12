@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,14 +33,16 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers, and CUDA).
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA
+from easybuild.toolchains.gmkl import Gmkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Gmklc(GccCUDA, IntelMKL, IntelFFTW):
+class Gmklc(GccCUDA, Gmkl, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with GCC, Intel Math Kernel Library (MKL)
     and Intel FFTW wrappers and CUDA.
     """
     NAME = 'gmklc'
-    SUBTOOLCHAIN = GccCUDA.NAME
+    SUBTOOLCHAIN = [GccCUDA.NAME, Gmkl.NAME]
+    OPTIONAL = True

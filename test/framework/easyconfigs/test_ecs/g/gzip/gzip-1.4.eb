@@ -18,13 +18,13 @@ homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
 
 # test toolchain specification
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
 # source tarball filename
 sources = [SOURCE_TAR_GZ]
 
 # download location for source files
-source_urls = ['http://ftpmirror.gnu.org/gzip']
+source_urls = ['https://ftpmirror.gnu.org/gzip']
 
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {

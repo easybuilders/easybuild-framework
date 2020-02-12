@@ -1,32 +1,34 @@
 language: python
-python: 2.6
+python: 2.7
+dist: xenial
 env:
   matrix:
-    # purposely specifying slowest builds first, to gain time overall
-    - LMOD_VERSION=5.8
-    - LMOD_VERSION=5.8 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - LMOD_VERSION=7.7.16
-    - LMOD_VERSION=7.7.16 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - LMOD_VERSION=7.8.22
+    - LMOD_VERSION=7.8.22 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - ENV_MOD_VERSION=4.0.0 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules
-    - ENV_MOD_VERSION=4.1.2 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules
+    - ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
 cache:
   pip: true
 matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
   include:
-    # also test default configuration with Python 2.7
+    # also test default configuration with Python 2.6
+    - python: 2.6
+      env: LMOD_VERSION=7.8.22 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Python26
+      dist: trusty
+    # single configuration to test with Lmod 6 and Python 2.7
     - python: 2.7
-      env: LMOD_VERSION=5.8
+      env: LMOD_VERSION=6.5.1 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Lmod6
+    # also test with Python 3.6
+    - python: 3.6
+      env: LMOD_VERSION=7.8.22
 addons:
   apt:
     packages:
       # for environment modules/Lmod
       - tcl8.5
-      # for EasyBuild
-      - python-setuptools
       # for GitPython, python-hglib
       - git
       - mercurial
@@ -36,30 +38,14 @@ before_install:
     - pip --version
     - pip install --upgrade pip
     - pip --version
-    # keyring is required to provide GitHub token to EasyBuild;
-    # keyring v5.7.1 is last version to be compatible with py2.6;
-    # for recent versions of keyring, keyrings.alt must be installed too
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install keyring==5.7.1; else pip install 'keyring<=9.1' keyrings.alt; fi
-    # GitPython 2.x may no longer be compatible with py2.6
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'GitPython<2.0'; else pip install GitPython; fi
-    # pydot (dep for python-graph-dot) 1.2.0 and more recent doesn't work with Python 2.6
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install pydot==1.1.0; else pip install pydot; fi
-    # paramiko (dep for GC3Pie) 2.4.0 & more recent doesn't work with Python 2.6
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'paramiko<2.4.0'; else pip install paramiko; fi
-    # SQLAlchemy (dep for GC3Pie) 1.2.0 & more recent doesn't work with Python 2.6
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'SQLAlchemy<1.2.0'; else pip install SQLAlchemy; fi
-    # autopep8 1.3.4 is last one to support Python 2.6
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'autopep8<1.3.5'; else pip install autopep8; fi
-    # optional Python packages for EasyBuild
-    - pip install GC3Pie pycodestyle python-graph-dot python-hglib PyYAML
+    - pip install -r requirements.txt
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
     - git config --global user.email "travis@travis-ci.org"
 install:
-    # install vsc-base (& vsc-install) dependencies for EasyBuild
-    - easy_install vsc-base
     # install environment modules or Lmod
     - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
+    - cd $HOME  # avoid downloading into easybuild-framework dir
     - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
@@ -87,24 +73,39 @@ script:
     - export PYTHONPATH=/tmp/$TRAVIS_JOB_ID/lib/python$TRAVIS_PYTHON_VERSION/site-packages
     # install easybuild-framework to unique temporary location using prepared sdist tarball
     - mkdir -p $PYTHONPATH; easy_install --prefix /tmp/$TRAVIS_JOB_ID $TRAVIS_BUILD_DIR/dist/easybuild-framework*tar.gz
+    # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
+    # since EasyBuild should not have a runtime requirement on setuptools
+    - SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' easybuild/ || true)
+    - test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools and/or pkg_resources imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
     # move outside of checkout of easybuild-framework repository,
     # to run tests on an *installed* version of the EasyBuild framework;
     # this is done to catch possible packaging issues
     - cd $HOME
+    # eb --version with verbose output from 'eb' command (to show selection of 'python' command to use)
+    - EB_VERBOSE=1 eb --version
     # check GitHub configuration
     - eb --check-github --github-user=easybuild_test
+    # create file owned by root but writable by anyone (used by test_copy_file)
+    - sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+    - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     # run test suite
-    - python -O -m test.framework.suite
+    - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+    # try and make sure output of running tests is clean (no printed messages/warnings)
+    - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|requires Lmod as modules tool"
+    # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
+    - PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
+    - test "x$PRINTED_MSG" = "x" || (echo "Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
     # check bootstrap script version
     # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20180531.01 21d9704055c4fcf2cd42fe9825dd5925fa508268e4c7c423cb5958a0903d7c2e"
+    - EB_BOOTSTRAP_EXPECTED="20200203.01 616bf3ce812c0844bf9ea3e690f9d88b394ed48f834ddb8424a73cf45fc64ea5"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
-    - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version
+    - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all
+    - module load EasyBuild; eb --version

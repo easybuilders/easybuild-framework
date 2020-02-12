@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,7 @@ Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
 """
 
 from easybuild.toolchains.gompic import Gompic
+from easybuild.toolchains.gmklc import Gmklc
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -40,4 +41,4 @@ from easybuild.toolchains.linalg.intelmkl import IntelMKL
 class Gomklc(Gompic, IntelMKL, IntelFFTW):
     """Compiler toolchain with GCC, Open MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers and Cuda."""
     NAME = 'gomklc'
-    SUBTOOLCHAIN = Gompic.NAME
+    SUBTOOLCHAIN = [Gompic.NAME, Gmklc.NAME]

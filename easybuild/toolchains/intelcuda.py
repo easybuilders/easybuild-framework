@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ EasyBuild support for a intel+CUDA compiler toolchain.
 """
 
 from easybuild.toolchains.iimpic import Iimpic
+from easybuild.toolchains.iimklc import Iimklc
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
@@ -39,4 +40,4 @@ class Intelcuda(Iimpic, IntelMKL, IntelFFTW):
 
     NAME = 'intelcuda'
 
-    SUBTOOLCHAIN = Iimpic.NAME
+    SUBTOOLCHAIN = [Iimpic.NAME, Iimklc.NAME]

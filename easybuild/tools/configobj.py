@@ -27,6 +27,8 @@ import sys
 
 from codecs import BOM_UTF8, BOM_UTF16, BOM_UTF16_BE, BOM_UTF16_LE
 
+from easybuild.tools.py2vs3 import string_type
+
 
 # imported lazily to avoid startup performance hit if it isn't used
 compiler = None
@@ -521,9 +523,8 @@ class Section(dict):
         self._initialise()
         # we do this explicitly so that __setitem__ is used properly
         # (rather than just passing to ``dict.__init__``)
-        for entry, value in indict.iteritems():
-            self[entry] = value
-
+        for entry in indict:
+            self[entry] = indict[entry]
 
     def _initialise(self):
         # the sequence of scalar values in this Section
@@ -569,11 +570,11 @@ class Section(dict):
         """Fetch the item and do string interpolation."""
         val = dict.__getitem__(self, key)
         if self.main.interpolation:
-            if isinstance(val, basestring):
+            if isinstance(val, string_type):
                 return self._interpolate(key, val)
             if isinstance(val, list):
                 def _check(entry):
-                    if isinstance(entry, basestring):
+                    if isinstance(entry, string_type):
                         return self._interpolate(key, entry)
                     return entry
                 new = [_check(entry) for entry in val]
@@ -596,7 +597,7 @@ class Section(dict):
         ``unrepr`` must be set when setting a value to a dictionary, without
         creating a new sub-section.
         """
-        if not isinstance(key, basestring):
+        if not isinstance(key, (bytes, string_type)):
             raise ValueError('The key "%s" is not a string.' % key)
 
         # add the comment
@@ -630,11 +631,11 @@ class Section(dict):
             if key not in self:
                 self.scalars.append(key)
             if not self.main.stringify:
-                if isinstance(value, basestring):
+                if isinstance(value, string_type):
                     pass
                 elif isinstance(value, (list, tuple)):
                     for entry in value:
-                        if not isinstance(entry, basestring):
+                        if not isinstance(entry, string_type):
                             raise TypeError('Value is not a string "%s".' % entry)
                 else:
                     raise TypeError('Value is not a string "%s".' % value)
@@ -975,7 +976,7 @@ class Section(dict):
             return False
         else:
             try:
-                if not isinstance(val, basestring):
+                if not isinstance(val, string_type):
                     # TODO: Why do we raise a KeyError here?
                     raise KeyError()
                 else:
@@ -1219,9 +1220,9 @@ class ConfigObj(Section):
             options = _options
         else:
             import warnings
-            warnings.warn('Passing in an options dictionary to ConfigObj() is '
-                          'deprecated. Use **options instead.',
-                          DeprecationWarning, stacklevel=2)
+            warnings.warning('Passing in an options dictionary to ConfigObj() is '
+                             'deprecated. Use **options instead.',
+                             DeprecationWarning, stacklevel=2)
 
             # TODO: check the values too.
             for entry in options:
@@ -1246,10 +1247,10 @@ class ConfigObj(Section):
 
 
     def _load(self, infile, configspec):
-        if isinstance(infile, basestring):
+        if isinstance(infile, string_type):
             self.filename = infile
             if os.path.isfile(infile):
-                h = open(infile, 'rb')
+                h = open(infile, 'r')
                 infile = h.read() or []
                 h.close()
             elif self.file_error:
@@ -1457,7 +1458,7 @@ class ConfigObj(Section):
 
         # No encoding specified - so we need to check for UTF8/UTF16
         for BOM, (encoding, final_encoding) in BOMS.items():
-            if not line.startswith(BOM):
+            if not line.encode().startswith(BOM):
                 continue
             else:
                 # BOM discovered
@@ -1472,7 +1473,7 @@ class ConfigObj(Section):
                     else:
                         infile = newline
                     # UTF8 - don't decode
-                    if isinstance(infile, basestring):
+                    if isinstance(infile, string_type):
                         return infile.splitlines(True)
                     else:
                         return infile
@@ -1480,7 +1481,7 @@ class ConfigObj(Section):
                 return self._decode(infile, encoding)
 
         # No BOM discovered and no encoding specified, just return
-        if isinstance(infile, basestring):
+        if isinstance(infile, (bytes, string_type)):
             # infile read from a file will be a single string
             return infile.splitlines(True)
         return infile
@@ -1500,7 +1501,7 @@ class ConfigObj(Section):
 
         if is a string, it also needs converting to a list.
         """
-        if isinstance(infile, basestring):
+        if isinstance(infile, string_type):
             # can't be unicode
             # NOTE: Could raise a ``UnicodeDecodeError``
             return infile.decode(encoding).splitlines(True)
@@ -1527,7 +1528,7 @@ class ConfigObj(Section):
         Used by ``stringify`` within validate, to turn non-string values
         into strings.
         """
-        if not isinstance(value, basestring):
+        if not isinstance(value, string_type):
             return str(value)
         else:
             return value
@@ -1644,7 +1645,7 @@ class ConfigObj(Section):
                             comment = ''
                             try:
                                 value = unrepr(value)
-                            except Exception, e:
+                            except Exception as e:
                                 if type(e) == UnknownType:
                                     msg = 'Unknown name or type in value at line %s.'
                                 else:
@@ -1657,7 +1658,7 @@ class ConfigObj(Section):
                         comment = ''
                         try:
                             value = unrepr(value)
-                        except Exception, e:
+                        except Exception as e:
                             if isinstance(e, UnknownType):
                                 msg = 'Unknown name or type in value at line %s.'
                             else:
@@ -1780,7 +1781,7 @@ class ConfigObj(Section):
                 return self._quote(value[0], multiline=False) + ','
             return ', '.join([self._quote(val, multiline=False)
                 for val in value])
-        if not isinstance(value, basestring):
+        if not isinstance(value, string_type):
             if self.stringify:
                 value = str(value)
             else:
@@ -1932,11 +1933,11 @@ class ConfigObj(Section):
                                        raise_errors=True,
                                        file_error=True,
                                        _inspec=True)
-            except ConfigObjError, e:
+            except ConfigObjError as e:
                 # FIXME: Should these errors have a reference
                 #        to the already parsed ConfigObj ?
                 raise ConfigspecError('Parsing configspec failed: %s' % e)
-            except IOError, e:
+            except IOError as e:
                 raise IOError('Reading configspec failed: %s' % e)
 
         self.configspec = configspec
@@ -2192,7 +2193,7 @@ class ConfigObj(Section):
                                         val,
                                         missing=missing
                                         )
-            except validator.baseErrorClass, e:
+            except validator.baseErrorClass as e:
                 if not preserve_errors or isinstance(e, self._vdtMissingValue):
                     out[entry] = False
                 else:
@@ -2341,7 +2342,7 @@ class ConfigObj(Section):
         This method raises a ``ReloadError`` if the ConfigObj doesn't have
         a filename attribute pointing to a file.
         """
-        if not isinstance(self.filename, basestring):
+        if not isinstance(self.filename, string_type):
             raise ReloadError()
 
         filename = self.filename

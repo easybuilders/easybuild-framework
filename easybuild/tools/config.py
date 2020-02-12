@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,20 +33,20 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Andy Georges (Ghent University)
 """
 import copy
 import glob
 import os
 import random
-import string
 import tempfile
 import time
-from vsc.utils import fancylogger
-from vsc.utils.missing import FrozenDictKnownKeys
-from vsc.utils.patterns import Singleton
+from abc import ABCMeta
 
+from easybuild.base import fancylogger
+from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
+from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -64,8 +64,14 @@ PKG_TYPE_RPM = 'rpm'
 
 CONT_IMAGE_FORMAT_EXT3 = 'ext3'
 CONT_IMAGE_FORMAT_SANDBOX = 'sandbox'
+CONT_IMAGE_FORMAT_SIF = 'sif'
 CONT_IMAGE_FORMAT_SQUASHFS = 'squashfs'
-CONT_IMAGE_FORMATS = [CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS]
+CONT_IMAGE_FORMATS = [
+    CONT_IMAGE_FORMAT_EXT3,
+    CONT_IMAGE_FORMAT_SANDBOX,
+    CONT_IMAGE_FORMAT_SIF,
+    CONT_IMAGE_FORMAT_SQUASHFS,
+]
 
 CONT_TYPE_DOCKER = 'docker'
 CONT_TYPE_SINGULARITY = 'singularity'
@@ -105,8 +111,32 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+# general module class
+GENERAL_CLASS = 'all'
+
+JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
+JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
+
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
+
+LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
+LOCAL_VAR_NAMING_CHECK_LOG = 'log'
+LOCAL_VAR_NAMING_CHECK_WARN = WARN
+LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
+
+
+class Singleton(ABCMeta):
+    """Serves as metaclass for classes that should implement the Singleton pattern.
+
+    See http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 # utility function for obtaining default paths
@@ -124,10 +154,12 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
-        'container_base',
+        'container_config',
         'container_image_format',
         'container_image_name',
+        'container_template_recipe',
         'container_tmpdir',
+        'cuda_compute_capabilities',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -142,9 +174,11 @@ BUILD_OPTIONS_CMDLINE = {
         'github_user',
         'github_org',
         'group',
+        'hooks',
         'ignore_dirs',
         'job_backend_config',
         'job_cores',
+        'job_deps_type',
         'job_max_jobs',
         'job_max_walltime',
         'job_output_dir',
@@ -158,11 +192,15 @@ BUILD_OPTIONS_CMDLINE = {
         'package_tool_options',
         'parallel',
         'pr_branch_name',
+        'pr_commit_msg',
+        'pr_descr',
         'pr_target_account',
         'pr_target_branch',
         'pr_target_repo',
+        'pr_title',
         'rpath_filter',
         'regtest_output_dir',
+        'silence_deprecation_warnings',
         'skip',
         'stop',
         'subdir_user_modules',
@@ -173,6 +211,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     False: [
         'add_dummy_to_minimal_toolchains',
+        'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'consider_archived_easyconfigs',
         'container_build_image',
@@ -182,7 +221,6 @@ BUILD_OPTIONS_CMDLINE = {
         'enforce_checksums',
         'extended_dry_run',
         'experimental',
-        'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
@@ -191,9 +229,11 @@ BUILD_OPTIONS_CMDLINE = {
         'lib64_fallback_sanity_check',
         'logtostdout',
         'minimal_toolchains',
+        'module_extensions',
         'module_only',
         'package',
         'read_only_installdir',
+        'remove_ghost_install_dirs',
         'rebuild',
         'robot',
         'rpath',
@@ -215,10 +255,15 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
+        'fixed_installdir_naming_scheme',
         'mpi_tests',
+        'map_toolchains',
+        'modules_tool_version_check',
+        'pre_create_installdir',
     ],
     WARN: [
         'check_ebroot_env_vars',
+        'local_var_naming_check',
         'detect_loaded_modules',
         'strict',
     ],
@@ -273,11 +318,13 @@ BUILD_OPTIONS_OTHER = {
 }
 
 
-# based on
+# loosely based on
 # https://wickie.hlrs.de/platforms/index.php/Module_Overview
 # https://wickie.hlrs.de/platforms/index.php/Application_software_packages
+MODULECLASS_BASE = 'base'
 DEFAULT_MODULECLASSES = [
-    ('base', "Default module class"),
+    (MODULECLASS_BASE, "Default module class"),
+    ('astro', "Astronomy, Astrophysics and Cosmology"),
     ('bio', "Bioinformatics, biology and biomedical"),
     ('cae', "Computer Aided Engineering (incl. CFD)"),
     ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
@@ -293,6 +340,7 @@ DEFAULT_MODULECLASSES = [
     ('mpi', "MPI stacks"),
     ('numlib', "Numerical Libraries"),
     ('perf', "Performance tools"),
+    ('quantum', "Quantum Computing"),
     ('phys', "Physics and physical systems simulations"),
     ('system', "System utilities (e.g. highly depending on system OS and hardware)"),
     ('toolchain', "EasyBuild toolchains"),
@@ -301,11 +349,12 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
-class ConfigurationVariables(FrozenDictKnownKeys):
-    """This is a dict that supports legacy config names transparently."""
+# singleton metaclass: only one instance is created
+BaseConfigurationVariables = create_base_metaclass('BaseConfigurationVariables', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class ConfigurationVariables(BaseConfigurationVariables):
+    """This is a dict that supports legacy config names transparently."""
 
     # list of known/required keys
     REQUIRED = [
@@ -345,11 +394,12 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         return self.items()
 
 
-class BuildOptions(FrozenDictKnownKeys):
-    """Representation of a set of build options, acts like a dictionary."""
+# singleton metaclass: only one instance is created
+BaseBuildOptions = create_base_metaclass('BaseBuildOptions', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class BuildOptions(BaseBuildOptions):
+    """Representation of a set of build options, acts like a dictionary."""
 
     KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
@@ -368,7 +418,7 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, basestring):
+    if isinstance(sourcepath, string_type):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
@@ -389,20 +439,26 @@ def init_build_options(build_options=None, cmdline_options=None):
         # building a dependency graph implies force, so that all dependencies are retained
         # and also skips validation of easyconfigs (e.g. checking os dependencies)
         retain_all_deps = False
-        if cmdline_options.dep_graph:
+        if cmdline_options.dep_graph or cmdline_options.check_conflicts:
             _log.info("Enabling force to generate dependency graph.")
             cmdline_options.force = True
             retain_all_deps = True
 
-        if cmdline_options.new_pr or cmdline_options.update_pr:
-            _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
+        new_update_opt = cmdline_options.new_branch_github or cmdline_options.new_pr
+        new_update_opt = new_update_opt or cmdline_options.update_branch_github or cmdline_options.update_pr
+
+        if new_update_opt:
+            _log.info("Retaining all dependencies of specified easyconfigs to create/update branch or pull request")
             retain_all_deps = True
 
-        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.containerize,
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.check_contrib,
+                                      cmdline_options.check_style, cmdline_options.containerize,
                                       cmdline_options.dep_graph, cmdline_options.dry_run,
-                                      cmdline_options.dry_run_short, cmdline_options.extended_dry_run,
-                                      cmdline_options.dump_env_script, cmdline_options.new_pr,
-                                      cmdline_options.update_pr]
+                                      cmdline_options.dry_run_short, cmdline_options.dump_env_script,
+                                      cmdline_options.extended_dry_run, cmdline_options.fix_deprecated_easyconfigs,
+                                      cmdline_options.missing_modules, cmdline_options.new_branch_github,
+                                      cmdline_options.new_pr, cmdline_options.preview_pr,
+                                      cmdline_options.update_branch_github, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
@@ -436,13 +492,17 @@ def init_build_options(build_options=None, cmdline_options=None):
 
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
+
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
     elif 'default' in kwargs:
         return kwargs['default']
     else:
-        raise EasyBuildError("Undefined build option: %s", key)
+        error_msg = "Undefined build option: '%s'. " % key
+        error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
+        error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
+        raise EasyBuildError(error_msg)
 
 
 def build_path():
@@ -558,25 +618,55 @@ def get_module_syntax():
     return ConfigurationVariables()['module_syntax']
 
 
-def log_file_format(return_directory=False):
-    """Return the format for the logfile or the directory"""
+def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
+    """
+    Return the format for the logfile or the directory
+
+    :param ec: dict-like value that provides values for %(name)s and %(version)s template values
+    :param date: string representation of date to use ('%(date)s')
+    :param timestamp: timestamp to use ('%(time)s')
+    """
+    if ec is None:
+        ec = {}
+
+    name, version = ec.get('name', '%(name)s'), ec.get('version', '%(version)s')
+
+    if date is None:
+        date = '%(date)s'
+    if timestamp is None:
+        timestamp = '%(time)s'
+
+    logfile_format = ConfigurationVariables()['logfile_format']
+    if not isinstance(logfile_format, tuple) or len(logfile_format) != 2:
+        raise EasyBuildError("Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s",
+                             logfile_format)
+
     idx = int(not return_directory)
-    return ConfigurationVariables()['logfile_format'][idx]
+    res = ConfigurationVariables()['logfile_format'][idx] % {
+        'date': date,
+        'name': name,
+        'time': timestamp,
+        'version': version,
+    }
+
+    return res
 
 
-def log_format():
+def log_format(ec=None):
     """
     Return the logfilename format
     """
     # TODO needs renaming, is actually a formatter for the logfilename
-    return log_file_format(return_directory=False)
+    return log_file_format(return_directory=False, ec=ec)
 
 
-def log_path():
+def log_path(ec=None):
     """
     Return the log path
     """
-    return log_file_format(return_directory=True)
+    date = time.strftime("%Y%m%d")
+    timestamp = time.strftime("%H%M%S")
+    return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
 
 
 def get_build_log_path():
@@ -601,28 +691,24 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     :param date: string representation of date to use ('%(date)s')
     :param timestamp: timestamp to use ('%(time)s')
     """
+
     if date is None:
         date = time.strftime("%Y%m%d")
     if timestamp is None:
         timestamp = time.strftime("%H%M%S")
 
-    filename = log_file_format() % {
-        'name': name,
-        'version': version,
-        'date': date,
-        'time': timestamp,
-    }
+    filename = log_file_format(ec={'name': name, 'version': version}, date=date, timestamp=timestamp)
 
     if add_salt:
-        salt = ''.join(random.choice(string.letters) for i in range(5))
+        salt = ''.join(random.choice(ascii_letters) for i in range(5))
         filename_parts = filename.split('.')
         filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
 
     filepath = os.path.join(get_build_log_path(), filename)
 
     # Append numbers if the log file already exist
-    counter = 1
-    while os.path.isfile(filepath):
+    counter = 0
+    while os.path.exists(filepath):
         counter += 1
         filepath = "%s.%d" % (filepath, counter)
 
