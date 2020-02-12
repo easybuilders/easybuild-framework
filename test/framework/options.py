@@ -4676,6 +4676,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
+    def test_create_index(self):
+        """Test --create-index option."""
+        test_ecs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        remove_dir(self.test_prefix)
+        copy_dir(test_ecs, self.test_prefix)
+
+        args = ['--create-index', self.test_prefix]
+        stdout, stderr = self._run_mock_eb(args, raise_error=True)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            r"^Creating index for %s\.\.\.$",
+            r"^Index created at %s/\.eb-path-index \([0-9]+ files\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern % self.test_prefix, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern %s matches in: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ returns all the testcases in this module """

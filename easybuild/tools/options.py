@@ -681,6 +681,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Options for Easyconfigs", "Options that affect all specified easyconfig files.")
 
         opts = OrderedDict({
+            'create-index': ("Create index for files in specified directory", None, 'store', None),
             'fix-deprecated-easyconfigs': ("Fix use of deprecated functionality in specified easyconfig files.",
                                            None, 'store_true', False),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
