@@ -1657,7 +1657,17 @@ class FileToolsTest(EnhancedTestCase):
 
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
-        # first test create_index function
+        # create_index checks whether specified path is an existing directory
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        self.assertErrorRegex(EasyBuildError, "Specified path does not exist", ft.create_index, doesnotexist)
+
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        self.assertErrorRegex(EasyBuildError, "Specified path is not a directory", ft.create_index, toy_ec)
+
+        # load_index just returns None if there is no index in specified directory
+        self.assertEqual(ft.load_index(self.test_prefix), None)
+
+        # create index for test easyconfigs
         index = ft.create_index(test_ecs)
         self.assertEqual(len(index), 79)
 
@@ -1676,10 +1686,9 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
 
         # test dump_index function
-        ft.dump_index(self.test_prefix)
-
-        index_fp = os.path.join(self.test_prefix, '.eb-path-index')
+        index_fp = ft.dump_index(self.test_prefix)
         self.assertTrue(os.path.exists(index_fp))
+        self.assertTrue(os.path.samefile(self.test_prefix, os.path.dirname(index_fp)))
 
         index_txt = ft.read_file(index_fp)
         expected = [

@@ -599,6 +599,11 @@ def create_index(path, ignore_dirs=None):
 
     index = set()
 
+    if not os.path.exists(path):
+        raise EasyBuildError("Specified path does not exist: %s", path)
+    elif not os.path.isdir(path):
+        raise EasyBuildError("Specified path is not a directory: %s", path)
+
     for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
         for filename in filenames:
             # use relative paths in index
@@ -623,6 +628,8 @@ def dump_index(path):
 
     write_file(index_fp, '\n'.join(sorted(index_contents)))
 
+    return index_fp
+
 
 def load_index(path, ignore_dirs=None):
     """
@@ -643,7 +650,7 @@ def load_index(path, ignore_dirs=None):
             if not any(d in path_dirs for d in ignore_dirs):
                 res.add(path)
 
-    return res
+    return res or None
 
 
 def find_easyconfigs(path, ignore_dirs=None):
@@ -712,11 +719,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
         path_index = load_index(path, ignore_dirs=ignore_dirs)
-        if path_index:
-            _log.info("Cache found for %s, so using it...", path)
-        else:
+        if path_index is None:
             _log.info("No index found for %s, creating one...", path)
             path_index = create_index(path, ignore_dirs=ignore_dirs)
+        else:
+            _log.info("Index found for %s, so using it...", path)
 
         for filepath in path_index:
             filename = os.path.basename(filepath)
