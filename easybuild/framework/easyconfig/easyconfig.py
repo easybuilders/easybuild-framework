@@ -1897,9 +1897,13 @@ def robot_find_easyconfig(name, version):
             _log.info("Found loaded index for %s", path)
         else:
             path_index = load_index(path)
-            if path_index:
-                _path_indexes[path] = path_index
+            if path_index is None:
+                _log.info("No index found for %s, so creating it...", path)
+                path_index = create_index(path)
+            else:
                 _log.info("Loaded index for %s", path)
+
+            _path_indexes[path] = path_index
 
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
