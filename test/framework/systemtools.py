@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,20 +31,23 @@ Unit tests for systemtools.py
 import re
 import sys
 
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
+from easybuild.tools.systemtools import check_python_version, pick_dep_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
-from easybuild.tools.systemtools import get_glibc_version, get_os_type, get_os_name, get_os_version, get_platform_name
-from easybuild.tools.systemtools import get_shared_lib_ext, get_system_info, get_total_memory, get_gcc_version
+from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
+from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
 
 
 PROC_CPUINFO_TXT = None
@@ -334,6 +337,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_run_cmd = st.run_cmd
         self.orig_platform_uname = st.platform.uname
         self.orig_get_tool_version = st.get_tool_version
+        self.orig_sys_version_info = st.sys.version_info
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -344,6 +348,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_cmd = self.orig_run_cmd
         st.platform.uname = self.orig_platform_uname
         st.get_tool_version = self.orig_get_tool_version
+        st.sys.version_info = self.orig_sys_version_info
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
@@ -356,11 +361,8 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting core count (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         orig_sched_getaffinity = st.sched_getaffinity
-
-        class MockedSchedGetaffinity(object):
-            cpus = [1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L]
-
-        st.sched_getaffinity = lambda: MockedSchedGetaffinity()
+        cpus = [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0]
+        st.sched_getaffinity = lambda: cpus
         self.assertEqual(get_avail_core_count(), 6)
         st.sched_getaffinity = orig_sched_getaffinity
 
@@ -373,7 +375,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_model_native(self):
         """Test getting CPU model."""
         cpu_model = get_cpu_model()
-        self.assertTrue(isinstance(cpu_model, basestring))
+        self.assertTrue(isinstance(cpu_model, string_type))
 
     def test_cpu_model_linux(self):
         """Test getting CPU model (mocked for Linux)."""
@@ -447,7 +449,7 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_feat = get_cpu_features()
         self.assertTrue(isinstance(cpu_feat, list))
         self.assertTrue(len(cpu_feat) > 0)
-        self.assertTrue(all([isinstance(x, basestring) for x in cpu_feat]))
+        self.assertTrue(all([isinstance(x, string_type) for x in cpu_feat]))
 
     def test_cpu_features_linux(self):
         """Test getting CPU features (mocked for Linux)."""
@@ -643,12 +645,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_platform_name_native(self):
         """Test getting platform name."""
         platform_name_nover = get_platform_name()
-        self.assertTrue(isinstance(platform_name_nover, basestring))
+        self.assertTrue(isinstance(platform_name_nover, string_type))
         len_nover = len(platform_name_nover.split('-'))
         self.assertTrue(len_nover >= 3)
 
         platform_name_ver = get_platform_name(withversion=True)
-        self.assertTrue(isinstance(platform_name_ver, basestring))
+        self.assertTrue(isinstance(platform_name_ver, string_type))
         len_ver = len(platform_name_ver.split('-'))
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
         self.assertTrue(len_ver >= len_nover)
@@ -668,17 +670,17 @@ class SystemToolsTest(EnhancedTestCase):
     def test_os_name(self):
         """Test getting OS name."""
         os_name = get_os_name()
-        self.assertTrue(isinstance(os_name, basestring) or os_name == UNKNOWN)
+        self.assertTrue(isinstance(os_name, string_type) or os_name == UNKNOWN)
 
     def test_os_version(self):
         """Test getting OS version."""
         os_version = get_os_version()
-        self.assertTrue(isinstance(os_version, basestring) or os_version == UNKNOWN)
+        self.assertTrue(isinstance(os_version, string_type) or os_version == UNKNOWN)
 
     def test_gcc_version_native(self):
         """Test getting gcc version."""
         gcc_version = get_gcc_version()
-        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version is None)
+        self.assertTrue(isinstance(gcc_version, string_type) or gcc_version is None)
 
     def test_gcc_version_linux(self):
         """Test getting gcc version (mocked for Linux)."""
@@ -695,7 +697,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
-        self.assertTrue(isinstance(glibc_version, basestring) or glibc_version == UNKNOWN)
+        self.assertTrue(isinstance(glibc_version, string_type) or glibc_version == UNKNOWN)
 
     def test_glibc_version_linux(self):
         """Test getting glibc version (mocked for Linux)."""
@@ -768,6 +770,92 @@ class SystemToolsTest(EnhancedTestCase):
         (height, width) = st.det_terminal_size()
         self.assertTrue(isinstance(height, int) and height >= 0)
         self.assertTrue(isinstance(width, int) and width >= 0)
+
+    def test_check_python_version(self):
+        """Test check_python_version function."""
+
+        init_config(build_options={'silence_deprecation_warnings': []})
+
+        def mock_python_ver(py_maj_ver, py_min_ver):
+            """Helper function to mock a particular Python version."""
+            st.sys.version_info = (py_maj_ver, py_min_ver) + sys.version_info[2:]
+
+        # mock running with different Python versions
+        mock_python_ver(1, 4)
+        error_pattern = r"EasyBuild is not compatible \(yet\) with Python 1.4"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+
+        mock_python_ver(4, 0)
+        error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+
+        mock_python_ver(2, 5)
+        error_pattern = r"Python 2.6 or higher is required when using Python 2, found Python 2.5"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+
+        # no problems when running with a supported Python version
+        for pyver in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+            mock_python_ver(*pyver)
+            self.assertEqual(check_python_version(), pyver)
+
+        mock_python_ver(2, 6)
+        # deprecation warning triggers an error in test environment
+        error_pattern = r"Running EasyBuild with Python 2.6 is deprecated"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+
+        # we may trigger a deprecation warning below (when testing with Python 2.6)
+        py26_depr_warning = "\nWARNING: Deprecated functionality, will no longer work in v5.0: "
+        py26_depr_warning += "Running EasyBuild with Python 2.6 is deprecated"
+
+        self.allow_deprecated_behaviour()
+
+        # first test with mocked Python 2.6
+        self.mock_stderr(True)
+        check_python_version()
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        # we should always get a deprecation warning here
+        self.assertTrue(stderr.startswith(py26_depr_warning))
+
+        # restore Python version info to check with Python version used to run tests
+        st.sys.version_info = self.orig_sys_version_info
+
+        # shouldn't raise any errors, since Python version used to run tests should be supported;
+        self.mock_stderr(True)
+        (py_maj_ver, py_min_ver) = check_python_version()
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(py_maj_ver in [2, 3])
+        if py_maj_ver == 2:
+            self.assertTrue(py_min_ver in [6, 7])
+        else:
+            self.assertTrue(py_min_ver >= 5)
+
+        # only deprecation warning when actually testing with Python 2.6
+        if sys.version_info[:2] == (2, 6):
+            self.assertTrue(stderr.startswith(py26_depr_warning))
+
+    def test_pick_dep_version(self):
+        """Test pick_dep_version function."""
+
+        self.assertEqual(pick_dep_version(None), None)
+        self.assertEqual(pick_dep_version('1.2.3'), '1.2.3')
+
+        dep_ver_dict = {
+            'arch=x86_64': '1.2.3-amd64',
+            'arch=POWER': '1.2.3-ppc64le',
+        }
+
+        st.get_cpu_architecture = lambda: X86_64
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-amd64')
+
+        st.get_cpu_architecture = lambda: POWER
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
+
+        error_pattern = "Unknown value type for version"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
 
 
 def suite():

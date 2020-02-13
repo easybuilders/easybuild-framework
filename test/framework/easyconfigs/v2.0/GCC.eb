@@ -43,5 +43,5 @@ moduleclass = 'compiler'
 
 [SUPPORTED]
 versions = 4.6.2, 4.6.3
-toolchains = dummy == dummy
+toolchains = system == system
 

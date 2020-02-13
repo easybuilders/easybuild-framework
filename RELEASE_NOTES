@@ -3,6 +3,296 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.1.1 (January 16th 2020)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add check_log_for_errors function (in easybuild.tools.run) to detect and handle multiple errors (#3118)
+  - implement support for 'eb --show-ec' to show contents of specified easyconfig file (#3132)
+  - also update $XDG_DATA_DIR (share/) and $GI_TYPELIB_PATH environment variables (lib*/girepository-*) in generated module files (#3133)
+  - add support for --copy-ec to copy easyconfig file to specified location (#3142)
+  - mention --disable-* option in --help output for boolean options enabled by default (#3151)
+  - add --cuda-compute-capabilities configuration option (#3161)
+- various bug fixes, including:
+  - ignore imports from vsc namespace made from pkgutil.py (#3120)
+  - only actually change permissions using os.chmod in adjust_permissions if the current permissions are not correct already (#3125)
+  - use shutil.copyfile to just copy file contents if target path exists and is owned by someone else (#3127)
+  - fix or avoid warnings that commonly arise in build log (#3129)
+  - disable buffering in asyncprocess.Popen using bufsize=0, to fix run_cmd_qa missing output (#3130)
+  - update pip & install wheel package in generated Singularity container recipes (#3136)
+  - avoid crash in modify_env & unset unset_env_vars when using (older versions) of Python 3.5 & 3.6 by using list(...) (#3140)
+  - take into account that lib64 could be a symlink to lib (or vice versa) in get_software_libdir function (#3141)
+  - only parse docstring if it exists in gen_easyblock_doc_section_rst function (#3144)
+  - only add useful entries for $CPATH, $(LD_)LIBRARY_PATH and $PATH (non-empty directories) (#3145, #3152)
+  - fix --list-software=detailed when using Python 3 by leveraging sort_looseversions function from py2vs3 module (#3146)
+  - ensure subdirectories in software install directory have correct search (exec) permission (#3147)
+  - take into account that a checksum value may be a tuple of valid checksum in EasyBlock.check_checksums (#3153)
+- other changes:
+  - bump to Lmod 8.2.9 in GitHub CI config (#3115)
+  - update copyright statements for 2020 (#3149)
+  - make Hound CI code style checker ignore "Black would make changes" produced by flake8-black (#3162)
+
+
+v4.1.0 (December 4th 2019)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - performance improvements:
+    - skip validation when copying EasyConfig object for extension (#3071)
+    - correctly specify that ActiveMNS & co are singleton classes when using Python 3 (#3073)
+    - don't call out to prohibitively expensive getRootLoggerName in getLogger, just use 'root' instead (#3074)
+    - fix inconsistent module path usage that leads to repeated reloading in HMNS (#3099)
+  - add support for specifying different dependency version based on processor architecture (#3047)
+  - support use of glob patterns for paths to files with external modules metadata (#3075)
+  - take into account that external modules may not be visible directly (due to module hierarchy) (#3083)
+  - add support for including 'extensions' statement in Lua modules with Lmod 8.2.8+ (#3085, #3107, #3110)
+  - add support for --sync-pr-with-develop (#3087)
+  - add support for --new-branch-github, --new-pr-from-branch, --sync-branch-with-develop, --update-branch-github (#3103)
+  - fix typo in docstring for new_branch_github (#3106)
+- various bug fixes, including:
+  - correctly handle iccifortcuda toolchain with standalone iccifort in det_toolchain_compilers (#3055)
+  - init git repo with git.repo.clone() instead of copy_dir() (#3062)
+  - fix regular expression so depends-on statements are recognized correctly in Tcl module files (#3065)
+  - update GitPython to latest version that supports Python 2.6 in requirements.txt to fix broken test_new_update_pr (#3066)
+  - imply --disable-pre-create-installdir with --inject-checksums (#3069)
+  - handle patches in extensions more like normal patches (#3067)
+  - take into account that platform.linux_distribution and platform.dist was removed in Python 3.8 (#3078)
+  - always include mandatory easyconfig parameters in dumped easyconfig (#3081)
+  - hide backup module file when using Lmod 6.x (fixes #9302) (#3089)
+  - add better error message when mandatory key is missing from a dictionary easyconfig parameter (#3092)
+  - also create symlinks for default modules in class module folders (#3093)
+  - fix semantics of --set-default-module: only set default for specified easyconfigs, not for the ones that are installed as dependencies via --robot (#3094)
+  - fix various issues in extracting comments from original easyconfig file and including them again in dumped easyconfig (#3095)
+  - don't use %(version)s template in exts_default_options in dumped easyconfig (#3096)
+  - fix generated module statements in case only a single version is listed in multi_deps (#3097)
+  - fix broken test_show_system_info on macOS due to 'Python' binary (#3105)
+  - take into account that dependency version could be a dict rather than a string value in template_constant_dict (#3111)
+- other changes:
+  - deprecate running EasyBuild with Python 2.6 via new check_python_version() function (#3076)
+  - deprecate support for using Lmod 6.x (#3077)
+  - trim set of test configurations in Travis CI (#3086)
+  - flesh out env_vars_external_module from Toolchain._simulated_load_dependency_module (#3088)
+
+
+v4.0.1 (October 15th 2019)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add 'parallel' to list of config templates (#3036)
+  - add GitHub Actions workflow to run easybuild-framework test suite (#3039)
+  - add 'retest' as a reason to --close-pr, to close/re-open PRs to trigger re-test in Travis (#3040)
+  - define $EB_SCRIPT_PATH in 'eb' wrapper script, and consider it before location of 'eb' determined via $PATH in get_paths_for function (#3046)
+  - add support for --remove-ghost-install-dirs configuration option, and warn about (potential) ghost install dirs by default when --force/--rebuild is used (#3050)
+- various bug fixes, including:
+  - update bootstrap script to support installing EasyBuild v4.0 (#3017)
+  - fix broken test_download_repo due to archiving of easyconfigs (#3019, #3023)
+  - avoid that --inject-checksums introduces list of patches for extensions as a single long line (#3025, #3034)
+  - enhance regex in fix_shebang method to fix more Python/Perl shebangs + avoid patching binary files (#3029)
+  - delete test gist that is created by --check-github (#3031)
+  - disable templates when defining easyconfig parameters in EasyConfig.set_keys() (#3037)
+  - avoid setting GC3Pie's max_in_flight to None if --job-max-jobs is not specified (#3038)
+  - fix use of obtain_file method for extensions (#3042)
+  - error out if some GC3Pie job failed (#3044)
+
+
+v4.0.0 (September 20th 2019)
+----------------------------
+
+feature release (incl. backwards-incompatible changes)
+
+A concise overview of major changes in EasyBuild v4.0 is available at https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html .
+
+- fixed compatibility with Python 3.5+ (#2708, #2713, #2714, #2719, #2721, #2723, #2729, #2743, #2744, #2751, #2756, #2759, #2761, #2762, #2765, #2766, #2767, #2768, #2774, #2775, #2778, #2780, #2785, #2787, #2789, #2791, #2792, #2794, #2800, #2801, #2805, #2806, #2895, #2932, #2982, #2992, #3007, #3011)
+  - supported Python versions: 2.6, 2.7, 3.5, 3.6, 3.7
+  - some functionality from the Python standard library should be imported from the new easybuild.tools.py2vs3 package
+  - see https://easybuild.readthedocs.io/en/latest/Python-2-3-compatibility.html & https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html for more information
+
+- ingested relevant code from vsc-base & vsc-install (#2708, #2713, #2714, #2763, #2790, #2993)
+  - vsc-base & vsc-install are no longer required as dependencies
+  - the functionality that was provided by these packages is now (mostly) available from the easybuild.base package
+  - any import statements from the 'vsc' namespace will result in an error
+  - see also https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#ingested-functionality-from-vsc-base-and-vsc-install and https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html
+
+- setuptools is longer required (neither for installing or using EasyBuild) (#2836, #2837, #2984, #2986, #2988)
+  - see also https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#no-more-required-python-packages
+  - this required moving some classes and constants, see https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-relocated-functions-constants.html
+
+- the 'dummy' toolchain is deprecated and replaced by the 'system' toolchain (#2877, #3001)
+  - if 'dummy' is still used as a toolchain in easyconfig files, a warning will be printed
+  - use "toolchain = SYSTEM" instead
+  - for more information, see https://easybuild.readthedocs.io/en/latest/System_toolchain.html
+
+- a warning is printed when local variables in easyconfig file don't follow the recommended naming scheme (#2938, #2968)
+  - see also https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html
+
+- names of software installation directories are independent of module naming scheme by enabling --fixed-installdir-naming-scheme by default (#2999)
+  - see https://easybuild.readthedocs.io/en/latest/EasyBuild4-overview-of-changes.html#fixed-installdir-naming-scheme-enabled-by-default for more information
+
+- various other small enhancements, including:
+  - use requests instead of urllib2 for 403 errors (#2695)
+  - use pip requirements file in Travis (#2874)
+  - add support for --fix-deprecated-easyconfigs (#2881, 2898, #2938)
+  - add -L$EBROOTIMKL/lib/intel64 to $LDFLAGS for MKL (#2930)
+  - handle dict-type checksums in check_checksums_for (#2974)
+  - allow that icc & ifort are not actual dependencies in iccifort toolchain module (#2995)
+  - define mapping for iccifort->intel for iccifort compiler-only toolchain for HMNS (#2996)
+  - also consider concatenation of compiler module names to determine details of toolchain compiler component (#2997)
+  - update metadata for Cray-provided external modules (#3013)
+- various bug fixes, including:
+  - update the PyPI trove classifiers in setup.py (#2875)
+  - reverse lists for $LDFLAGS and $CPPFLAGS (#2931)
+  - enhance/fix to_template_str function to do a better job at using template values in dumped easyconfigs (#2948)
+  - also take into account --filter-deps when finalizing parsed dependencies to fix problem with dependency filters using version ranges (#2983)
+  - fix broken --from-pr tests due to archiving of easyconfigs (#2985)
+  - fixes required to avoid breaking Cray support (#3008)
+  - fixes for --read-only-installdir: avoid crash with ModuleRC easyblock + also make log file in installdir read-only (#3012)
+- other changes:
+  - add check to ensure that --robot argument specifies an existing directory (#2086)
+  - remove old scripts that are no longer useful (+ minor fixes to others) (#2897)
+  - use 'command -v' to avoid requiring 'which' in 'eb' command (#2979)
+  - add modluafooter & modtclfooter at the end of the generated module file (#3003)
+  - print warning when 'eb' command is not found in $PATH and for empty robot search path (#3006)
+
+
+v3.9.4 (August 23rd 2019)
+-------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for specifying checksum via dict providing a filename-to-checksum mapping (#2946)
+  - enhance 'completed' message with how much time was needed for the installation (#2956)
+  - add support for specifying tuple of alternative checksums (#2958)
+  - support using 'system' as alias for 'dummy' toolchain + SYSTEM constant (#2960)
+  - ensure 'docurls' easyconfig parameter value is a list of string values, not a single string value (#2963)
+  - automatically enable --ignore-osdeps when using --check-contrib or --check-style (#2965)
+- various bug fixes, including:
+  - escape '+' in search queries + handle invalid search queries better (#2967)
+  - also consider extension patches when determining for which easyconfig a given patch file is intended in --new-pr/--update-pr (#2969)
+  - unset $CDPATH early on if it is defined (#2970)
+  - create specified temporary log directory if it doesn't exist yet in init_logging (#2972)
+  - don't indicate first multi_deps version as default in module help text when multi_deps_load_default=False (#2973)
+- other changes:
+  - deprecate toolchains older than gompi/2016a and foss/2016a (#2951)
+
+
+v3.9.3 (July 8th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add a URL whatis line to generated module files (#2933)
+- various bug fixes, including:
+  - stick to Ubuntu Trusty when testing with Python 2.6 in Travis (#2928)
+  - honor --tmp-logdir when determining location of temporary log file (#2937)
+
+
+v3.9.2 (June 9th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - enhance (experimental) support for generating Singularity container recipes/images (#2884, #2900, #2902, #2903, #2907, #2909, #2910, #2913, #2915)
+      - add support for specifying container configuration via --container-config (--container-base option has been removed)
+      - add support for providing custom template for container recipe via --container-template-recipe
+      - add support for 'sif' Singularity 3.x container image format
+      - add support for specifying non-image based Singularity bootstrap agents
+      - install default set of OS packages in container recipes starting from scratch
+      - configure Lmod and update Lmod spider cache in generated Singularity container recipes
+      - configure EasyBuild via environment variables (to allow overriding configuration settings via options to 'eb' command)
+      - also consider /tmp/easybuild/sources in source path (to allow seeding in sources in container build environment)
+      - updated documentation is available at https://easybuild.readthedocs.io/en/latest/Containers.html
+- various bug fixes, including:
+  - make sure that easyconfig file for EasyBuild version being bootstrapped is found in robot search path (#2899)
+  - remove interpreter options when fixing script shebang (#2905, #2906)
+  - fix crash on iterated installation when using Cray toolchains (#2914)
+  - disable checking of read/exec permissions when checking for availability of 'sudo' command (#2918)
+- other changes:
+  - stick to vsc-base<2.9.0 in bootstrap script to avoid requiring 'future' dependency (#2892)
+
+
+v3.9.1 (May 20th 2019)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add function to determine whether specified easyblock is generic or not (#2838)
+  - add support to apply_regex_substitutions function to skip creation of backup (#2844)
+  - add support for %(pymajver)s (& co) (#2850)
+  - add support for 'fix_python_shebang_for' and 'fix_perl_shebang_for' easyconfig parameters (#2878)
+  - add multi_deps information to generated module, help and whatis sections (#2882)
+  - add support for 'eb --missing' ('eb -M') (#2883)
+    - see also https://easybuild.readthedocs.io/en/latest/Using_the_EasyBuild_command_line.html#getting-an-overview-of-missing-installations-missing-m
+- various bug fixes, including:
+  - only call 'scontrol release' when there's at least one job submitted (#2834)
+  - fix small bug in find_eb_script + various minor issues with tests (related to environment in which tests are run) (#2835)
+  - list build dependencies *before* runtime dependencies, so dependencies listed via multi_deps are loaded first in toolchain environment (#2839)
+  - allow setting parallel to 0 or False to disable adding the -j argument (#2842)
+  - be more careful when using single quotes for Tcl syntax (#2847)
+  - append to existing .modulerc file rather than overwriting it (if --force is used) (#2848)
+  - correctly resolve template values used for extensions (#2852)
+  - update template values after updating iterative easyconfig parameters (#2854)
+  - add top-level directories of hierarchical module naming scheme to $MODULEPATH before loading dependencies (#2857)
+  - inject dependencies specified via multi_deps before normal build dependencies (#2861)
+  - include Python version(s) in PR titles auto-generated by --new-pr (#2863, #2880)
+  - update HierarchicalMNS for GCCcore toolchain (#2870)
+  - bump iteration index counter at the correct time (#2886)
+  - don't specify --ntasks-per-node when submitting Slurm jobs (#2887)
+  - fix order of easyconfig parameters in output generated by 'eb --avail-easyconfig-params --output-format rst' (#2888)
+- other changes:
+  - lower required version in Slurm job backend to 16.05 (#2833)
+  - add Lmod 8 to test suite (#2849)
+  - deprecate useless 'skip_lower' named argument in template_constant_dict, always define *lower templates (#2856)
+  - fix Python classifiers in setup.py, should be (only) Python 2.6 & 2.7 (#2876)
+
+
+v3.9.0 (April 12th 2019)
+------------------------
+
+feature release
+- various enhancements, including:
+  - add (pre)testopts easyconfig parameters (#2793)
+  - add support for multi_deps easyconfig parameter (#2741, #2810, #2811, #2812, #2813, #2825, #2826, #2827, #2828)
+- various bug fixes, including:
+  - fix argument name in close_pr (#2752)
+  - fix undefined variable 'prefix' in Compiler._set_compiler_vars (#2757)
+  - fix test account for GitHub-related tests (#2760)
+  - make sure read permissions are always set in permissions_step (#2770)
+  - make test for dep_graph function robust against changing order of lines in resulting dot file (#2772)
+  - fix problem with import_available_modules when running from easybuild-framework directory (#2786)
+  - prepend location of test easyblocks to $PYTHONPATH to test_generate_software_list, rather than append (#2788)
+  - use pid in backup name candidate to reduce risk of two processes colliding (#2796)
+  - automatically enable --ignore-osdeps when using --preview-pr (#2799)
+  - use temporary checkout of repository as robot path for --new-pr and --update-pr to determine locations for patch files (#2803)
+  - avoid relying on order in which keys are processed in to_dependency (#2804)
+  - fix yeb format to work with PyYAML 5 (#2809)
+  - fix typo in error message for use of unknown easyconfig parameter (#2817)
+  - enhance log_file_format to fix problem when %(name)s template value is used for log directory (#2818)
+  - iterate over subdirectories in order in find_egg_dir_for of bootstrap script, to ensure oldest vsc-install is picked (#2819)
+  - replace -Wl,--enable-new-dtags compiler option with -Wl,--disable-new-dtags in RPATH wrapper script (#2821)
+  - updated COMPILER_F77 for PGI >= 19.1 (#2823)
+  - added FFTW_STATIC_LIBS_MT to FFTW_MAP_CLASS, otherwise FFTW_STATIC_LIBS_MT are incorrectly defined (#2822)
+  - sort available version list when selecting/generating easyconfig (#2732)
+- other changes:
+  - use assertEqual rather than assertEquals (which is deprecated) (#2746)
+  - test with Tmod 4.1.4 (packaged in RHEL8) in Travis CI (#2747)
+  - replace deps by hidden deps instead of removing them from the lists (#2748)
+  - ensure non-zero exit code for all test subsuites (+ fix trivial style issues) (#2773)
+  - silence printed deprecation warnings for easyconfigs/toolchains while running (easyconfigs) test suite (#2781)
+  - avoid printing of messages/warnings in framework test suite (#2782)
+  - enable silent mode for --new-pr and --update-pr (#2802)
+  - update Travis config to reflect that PyYAML 5.x is no longer compatible with Python 2.6 (#2807)
+
+
 v3.8.1 (January 29th 2019)
 --------------------------
 

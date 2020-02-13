@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2016-2019 Ghent University
+# Copyright 2016-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -103,8 +103,8 @@ while idx < len(args):
     # --enable-new-dtags is not removed but replaced to prevent issues when linker flag is forwarded from the compiler
     # to the linker with an extra prefixed flag (either -Xlinker or -Wl,).
     # In that case, the compiler would erroneously pass the next random argument to the linker.
-    elif arg == '--enable-new-dtags':
-        cmd_args.append('--disable-new-dtags')
+    elif arg == flag_prefix + '--enable-new-dtags':
+        cmd_args.append(flag_prefix + '--disable-new-dtags')
     else:
         cmd_args.append(arg)
 

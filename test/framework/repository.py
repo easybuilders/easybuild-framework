@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -76,7 +76,7 @@ class RepositoryTest(EnhancedTestCase):
         try:
             from git import GitCommandError  # noqa
         except ImportError:
-            print "(skipping GitRepository test)"
+            print("(skipping GitRepository test)")
             return
 
         test_repo_url = 'https://github.com/hpcugent/testrepository'
@@ -88,8 +88,8 @@ class RepositoryTest(EnhancedTestCase):
             self.assertEqual(os.path.basename(repo.wc), 'testrepository')
             self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
             shutil.rmtree(repo.wc)
-        except EasyBuildError, err:
-            print "ignoring failed subtest in test_gitrepo, testing offline?"
+        except EasyBuildError as err:
+            print("ignoring failed subtest in test_gitrepo, testing offline?")
             self.assertTrue(re.search("pull in working copy .* went wrong", str(err)))
 
         # filepath
@@ -118,7 +118,7 @@ class RepositoryTest(EnhancedTestCase):
         try:
             from pysvn import ClientError  # noqa
         except ImportError:
-            print "(skipping SvnRepository test)"
+            print("(skipping SvnRepository test)")
             return
 
         # GitHub also supports SVN
@@ -139,7 +139,7 @@ class RepositoryTest(EnhancedTestCase):
         try:
             import hglib  # noqa
         except ImportError:
-            print "(skipping HgRepository test)"
+            print("(skipping HgRepository test)")
             return
 
         # GitHub also supports SVN
@@ -200,7 +200,7 @@ class RepositoryTest(EnhancedTestCase):
 
             easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
         else:
-            print "Skipping .yeb part of test_add_easyconfig (no PyYAML available)"
+            print("Skipping .yeb part of test_add_easyconfig (no PyYAML available)")
 
     def tearDown(self):
         """Clean up after test."""

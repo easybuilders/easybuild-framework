@@ -1,6 +1,6 @@
 ##
 # Copyright 2005 Josiah Carlson
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
@@ -78,6 +78,15 @@ import fcntl  #@UnresolvedImport
 
 
 class Popen(subprocess.Popen):
+
+    def __init__(self, *args, **kwargs):
+        # set bufsize to 0 to ensure buffering is disabled,
+        # otherwise we may not get all available output when polling in run_cmd_qa;
+        # bufsize=0 is the default in Python 2, but not in recent Python 3 versions,
+        # see https://docs.python.org/3/library/subprocess.html#subprocess.Popen
+        kwargs['bufsize'] = 0
+        super(Popen, self).__init__(*args, **kwargs)
+
     def recv(self, maxsize=None):
         return self._recv('stdout', maxsize)
 
@@ -106,7 +115,7 @@ class Popen(subprocess.Popen):
             return 0
 
         try:
-            written = os.write(self.stdin.fileno(), inp)
+            written = os.write(self.stdin.fileno(), inp.encode())
         except OSError as why:
             if why[0] == errno.EPIPE: #broken pipe
                 return self._close('stdin')
@@ -160,13 +169,16 @@ def recv_some(p, t=.2, e=1, tr=5, stderr=0):
             y.append(r)
         else:
             time.sleep(max((x - time.time()) / tr, 0))
-    return ''.join(y)
+    return b''.join(y)
 
 def send_all(p, data):
     while len(data):
         sent = p.send(data)
         if sent is None:
             raise Exception(message)
-        data = buffer(data, sent)
 
-
+        try:
+            data = buffer(data, sent)
+        except NameError:
+            # in Python 3, buffer is (sort of) replaced by memoryview
+            data = memoryview(data[sent:].encode())

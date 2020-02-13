@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -158,9 +158,9 @@ class %(class_name)s(%(parent)s):
         \"\"\"Custom build procedure for %(name)s.\"\"\"
 
         comp_map = {
-                    toolchain.INTELCOMP: 'intel',
-                    toolchain.GCC: 'gcc',
-                   }
+            toolchain.INTELCOMP: 'intel',
+            toolchain.GCC: 'gcc',
+        }
         comp_fam = comp_map[self.toolchain.comp_family()]
 
         # enable parallel build
@@ -185,9 +185,9 @@ class %(class_name)s(%(parent)s):
         \"\"\"Custom sanity check for %(name)s.\"\"\"
 
         custom_paths = {
-                        'files': ['file1', 'file2'],
-                        'dirs': ['dir1', 'dir2'],
-                       }
+            'files': ['file1', 'file2'],
+            'dirs': ['dir1', 'dir2'],
+        }
 
         super(%(class_name)s, self).sanity_check_step(custom_paths=custom_paths)
 
@@ -197,8 +197,8 @@ class %(class_name)s(%(parent)s):
         guesses = super(%(class_name)s, self).make_module_req_guess()
 
         guesses.update({
-                        'VARIABLE': ['value1', 'value2'],
-                       })
+            'VARIABLE': ['value1', 'value2'],
+        })
 
         return guesses
 
@@ -214,12 +214,12 @@ class %(class_name)s(%(parent)s):
 """
 
 txt = tmpl % {
-              'year': datetime.date.today().year,
-              'name': name,
-              'class_name': encode_class_name(name),
-              'parent_import': parent_import,
-              'parent': options.parent,
-             }
+    'year': datetime.date.today().year,
+    'name': name,
+    'class_name': encode_class_name(name),
+    'parent_import': parent_import,
+    'parent': options.parent,
+}
 
 print("Writing template easyblock for %s to %s ..." % (name, easyblock_path))
 try:
