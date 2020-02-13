@@ -24,11 +24,11 @@ def parse_hook(ec, *args, **kwargs):
             for dep in extra_deps:
                 ec[dep_type].append(dep)
         elif dep_type == 'osdependencies':
-                if isinstance(extra_deps, tuple):
-                    ec[dep_type].append(extra_deps)
-                else:
-                    raise EasyBuildError("parse_hook: Type of extra_deps argument (%s), for 'osdependencies' must be "
-                                         "tuple, found %s" % (extra_deps, type(extra_deps)))
+            if isinstance(extra_deps, tuple):
+                ec[dep_type].append(extra_deps)
+            else:
+                raise EasyBuildError("parse_hook: Type of extra_deps argument (%s), for 'osdependencies' must be "
+                                     "tuple, found %s" % (extra_deps, type(extra_deps)))
         else:
             raise EasyBuildError("parse_hook: Incorrect dependency type in add_extra_dependencies: %s" % dep_type)
 
