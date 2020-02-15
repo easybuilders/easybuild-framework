@@ -91,6 +91,7 @@ script:
     - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     # run test suite
     - coverage run -m test.framework.suite
+    - coverage report -m 
     # try and make sure output of running tests is clean (no printed messages/warnings)
     - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|requires Lmod as modules tool"
     # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
