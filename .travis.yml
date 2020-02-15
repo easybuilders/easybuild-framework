@@ -38,6 +38,7 @@ before_install:
     - pip --version
     - pip install --upgrade pip
     - pip --version
+    - pip install python-coveralls
     - pip install -r requirements.txt
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
@@ -89,7 +90,7 @@ script:
     - sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     # run test suite
-    - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+    - coverage run -m test.framework.suite
     # try and make sure output of running tests is clean (no printed messages/warnings)
     - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|requires Lmod as modules tool"
     # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
@@ -109,3 +110,5 @@ script:
     # simply sanity check on bootstrapped EasyBuild module
     - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all
     - module load EasyBuild; eb --version
+after_success:
+  - coveralls
