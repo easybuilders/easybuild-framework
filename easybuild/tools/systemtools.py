@@ -114,6 +114,9 @@ VENDOR_IDS = {
     'AuthenticAMD': AMD,
     'GenuineIntel': INTEL,
     'IBM': IBM,
+    # IBM POWER9
+    '8335-GTH': IBM,
+    '8335-GTX': IBM,
 }
 # ARM Cortex part numbers from the corresponding ARM Processor Technical Reference Manuals,
 # see http://infocenter.arm.com - Cortex-A series processors, Section "Main ID Register"
@@ -276,7 +279,7 @@ def get_cpu_vendor():
         if arch == X86_64:
             vendor_regex = re.compile(r"vendor_id\s+:\s*(\S+)")
         elif arch == POWER:
-            vendor_regex = re.compile(r"model\s+:\s*(\w+)")
+            vendor_regex = re.compile(r"model\s+:\s*((\w|-)+)")
         elif arch in [AARCH32, AARCH64]:
             vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
 
@@ -560,6 +563,7 @@ def get_os_name():
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
+        'red hat enterprise linux': 'RHEL',  # RHEL8 has no server/client
         'scientific linux sl': 'SL',
         'scientific linux': 'SL',
         'suse linux enterprise server': 'SLES',

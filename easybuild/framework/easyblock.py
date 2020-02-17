@@ -61,6 +61,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
+from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -1281,47 +1282,69 @@ class EasyBlock(object):
 
         lines = ['\n']
         if os.path.isdir(self.installdir):
-            change_dir(self.installdir)
+            old_dir = change_dir(self.installdir)
+        else:
+            old_dir = None
 
+        if self.dry_run:
+            self.dry_run_msg("List of paths that would be searched and added to module file:\n")
+            note = "note: glob patterns are not expanded and existence checks "
+            note += "for paths are skipped for the statements below due to dry run"
+            lines.append(self.module_generator.comment(note))
+
+        # for these environment variables, the corresponding subdirectory must include at least one file
+        keys_requiring_files = set(('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'CPATH',
+                                    'CMAKE_PREFIX_PATH', 'CMAKE_LIBRARY_PATH'))
+
+        for key, reqs in sorted(requirements.items()):
+            if isinstance(reqs, string_type):
+                self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
+                reqs = [reqs]
             if self.dry_run:
-                self.dry_run_msg("List of paths that would be searched and added to module file:\n")
-                note = "note: glob patterns are not expanded and existence checks "
-                note += "for paths are skipped for the statements below due to dry run"
-                lines.append(self.module_generator.comment(note))
+                self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
+                # Don't expand globs or do any filtering below for dry run
+                paths = sorted(reqs)
+            else:
+                # Expand globs but only if the string is non-empty
+                # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
+                paths = sorted(sum((glob.glob(path) if path else [path] for path in reqs), []))  # sum flattens to list
 
-            # for these environment variables, the corresponding subdirectory must include at least one file
-            keys_requiring_files = ('CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'PATH')
+                # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
+                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
+                                    and os.path.samefile('lib', 'lib64'))
+                if lib64_is_symlink:
+                    fixed_paths = []
+                    for path in paths:
+                        if (path + os.path.sep).startswith('lib64' + os.path.sep):
+                            # We only need CMAKE_LIBRARY_PATH if there is a separate lib64 path, so skip symlink
+                            if key == 'CMAKE_LIBRARY_PATH':
+                                continue
+                            path = path.replace('lib64', 'lib', 1)
+                        fixed_paths.append(path)
+                    if fixed_paths != paths:
+                        self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
+                        paths = fixed_paths
+                # Use a set to remove duplicates, e.g. by having lib64 and lib which get fixed to lib and lib above
+                paths = sorted(set(paths))
+                if key in keys_requiring_files:
+                    # only retain paths that contain at least one file
+                    retained_paths = [
+                        path for path in paths
+                        if os.path.isdir(os.path.join(self.installdir, path))
+                        and dir_contains_files(os.path.join(self.installdir, path))
+                    ]
+                    if retained_paths != paths:
+                        self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
+                                      key, paths, retained_paths)
+                        paths = retained_paths
 
-            for key in sorted(requirements):
-                if self.dry_run:
-                    self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
-                reqs = requirements[key]
-                if isinstance(reqs, string_type):
-                    self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
-                    reqs = [reqs]
+            if paths:
+                lines.append(self.module_generator.prepend_paths(key, paths))
+        if self.dry_run:
+            self.dry_run_msg('')
 
-                for path in reqs:
-                    # only use glob if the string is non-empty
-                    if path and not self.dry_run:
-                        paths = sorted(glob.glob(path))
-                        if paths and key in keys_requiring_files:
-                            # only retain paths that contain at least one file
-                            retained_paths = [
-                                path for path in paths
-                                if os.path.isdir(os.path.join(self.installdir, path))
-                                and dir_contains_files(os.path.join(self.installdir, path))
-                            ]
-                            self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
-                                          key, paths, retained_paths)
-                            paths = retained_paths
-                    else:
-                        # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
-                        paths = [path]
-
-                    lines.append(self.module_generator.prepend_paths(key, paths))
-            if self.dry_run:
-                self.dry_run_msg('')
-            change_dir(self.orig_workdir)
+        if old_dir is not None:
+            change_dir(old_dir)
 
         return ''.join(lines)
 
@@ -1341,6 +1364,8 @@ class EasyBlock(object):
             'CLASSPATH': ['*.jar'],
             'XDG_DATA_DIRS': ['share'],
             'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
+            'CMAKE_PREFIX_PATH': [''],
+            'CMAKE_LIBRARY_PATH': ['lib64'],  # lib and lib32 are searched through the above
         }
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None):
@@ -1446,43 +1471,18 @@ class EasyBlock(object):
 
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
-        elif isinstance(exts_filter, string_type) or len(exts_filter) != 2:
-            raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
-        cmdtmpl = exts_filter[0]
-        cmdinputtmpl = exts_filter[1]
 
         res = []
         for ext in self.exts:
-            name = ext['name']
-            if 'options' in ext and 'modulename' in ext['options']:
-                modname = ext['options']['modulename']
-            else:
-                modname = name
-            tmpldict = {
-                'ext_name': modname,
-                'ext_version': ext.get('version'),
-                'src': ext.get('source'),
-            }
-
-            try:
-                cmd = cmdtmpl % tmpldict
-            except KeyError as err:
-                msg = "KeyError occurred on completing extension filter template: %s; "
-                msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
-                self.log.nosupport(msg % err, '2.0')
-
-            if cmdinputtmpl:
-                stdin = cmdinputtmpl % tmpldict
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
-            else:
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+            cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
+            (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
-                self.log.info("Not skipping %s" % name)
+                self.log.info("Not skipping %s" % ext['name'])
                 self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
                 res.append(ext)
             else:
-                self.log.info("Skipping %s" % name)
+                self.log.info("Skipping %s" % ext['name'])
         self.exts = res
 
     #
@@ -1600,8 +1600,9 @@ class EasyBlock(object):
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
-        iter_opt_counts = [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
-                           if opt not in ['builddependencies'] and isinstance(self.cfg[opt], (list, tuple))]
+        # Using get_ref to avoid resolving templates as their required attributes may not be available yet
+        iter_opt_counts = [len(self.cfg.get_ref(opt)) for opt in ITERATE_OPTIONS
+                           if opt not in ['builddependencies'] and isinstance(self.cfg.get_ref(opt), (list, tuple))]
 
         # we need to take into account that builddependencies is always a list
         # we're only iterating over it if it's a list of lists
@@ -2231,6 +2232,11 @@ class EasyBlock(object):
 
                         if should_patch:
                             contents = shebang_regex.sub(shebang, contents)
+                            write_file(path, contents)
+                        elif not contents.startswith('#!'):
+                            self.log.info("The file '%s' doesn't have any shebang present, inserting it as first line.",
+                                          path)
+                            contents = shebang + "\n" + contents
                             write_file(path, contents)
 
     def post_install_step(self):

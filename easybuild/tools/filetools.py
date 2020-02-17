@@ -384,12 +384,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return find_base_dir()
 
 
-def which(cmd, retain_all=False, check_perms=True):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
+    :param log_ok: Log an info message where the command has been found (if any)
+    :param log_error: Log a warning message when command hasn't been found
     """
     if retain_all:
         res = []
@@ -401,7 +403,8 @@ def which(cmd, retain_all=False, check_perms=True):
         cmd_path = os.path.join(path, cmd)
         # only accept path if command is there
         if os.path.isfile(cmd_path):
-            _log.info("Command %s found at %s", cmd, cmd_path)
+            if log_ok:
+                _log.info("Command %s found at %s", cmd, cmd_path)
             if check_perms:
                 # check if read/executable permissions are available
                 if not os.access(cmd_path, os.R_OK | os.X_OK):
@@ -413,7 +416,7 @@ def which(cmd, retain_all=False, check_perms=True):
                 res = cmd_path
                 break
 
-    if not res:
+    if not res and log_error:
         _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return res
 
@@ -941,7 +944,9 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     patched_regex = re.compile(patched_regex, re.M)
 
     if path is not None:
-        txt = read_file(path)
+        # take into account that file may contain non-UTF-8 characters;
+        # so, read a byte string, and decode to UTF-8 string (ignoring any non-UTF-8 characters);
+        txt = read_file(path, mode='rb').decode('utf-8', 'replace')
     elif txt is None:
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
@@ -1861,6 +1866,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
     recursive = git_config.pop('recursive', False)
+    keep_git_dir = git_config.pop('keep_git_dir', False)
 
     # input validation of git_config dict
     if git_config:
@@ -1909,7 +1915,10 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
-    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    if keep_git_dir:
+        tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
+    else:
+        tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
     run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)

@@ -553,20 +553,29 @@ class EasyConfig(object):
         """
         Update a string configuration value with a value (i.e. append to it).
         """
-        prev_value = self[key]
-        if isinstance(prev_value, string_type):
-            if allow_duplicate or value not in prev_value:
-                self[key] = '%s %s ' % (prev_value, value)
-        elif isinstance(prev_value, list):
-            if allow_duplicate:
-                self[key] = prev_value + value
-            else:
-                for item in value:
-                    # add only those items that aren't already in the list
-                    if item not in prev_value:
-                        self[key] = prev_value + [item]
+        if isinstance(value, string_type):
+            lval = [value]
+        elif isinstance(value, list):
+            lval = value
+        else:
+            msg = "Can't update configuration value for %s, because the "
+            msg += "attempted update value, '%s', is not a string or list."
+            raise EasyBuildError(msg, key, value)
+
+        param_value = self[key]
+        if isinstance(param_value, string_type):
+            for item in lval:
+                # re.search: only add value to string if it's not there yet (surrounded by whitespace)
+                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
+                    param_value = param_value + ' %s ' % item
+        elif isinstance(param_value, list):
+            for item in lval:
+                if allow_duplicate or item not in param_value:
+                    param_value = param_value + [item]
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
+
+        self[key] = param_value
 
     def set_keys(self, params):
         """
@@ -816,16 +825,17 @@ class EasyConfig(object):
         for opt in ITERATE_OPTIONS:
 
             # only when builddependencies is a list of lists are we iterating over them
-            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self[opt]):
+            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self.get_ref(opt)):
                 continue
 
+            opt_value = self.get(opt, None, resolve=False)
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
-            if self.get(opt, None) is None:
+            if opt_value is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)):
-                opt_counts.append((opt, len(self[opt])))
+            if isinstance(opt_value, (list, tuple)):
+                opt_counts.append((opt, len(opt_value)))
 
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
@@ -1523,12 +1533,13 @@ class EasyConfig(object):
                                  key, value)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
-    def get(self, key, default=None):
+    def get(self, key, default=None, resolve=True):
         """
         Gets the value of a key in the config, with 'default' as fallback.
+        :param resolve: if False, disables templating via calling get_ref, else resolves template values
         """
         if key in self:
-            return self[key]
+            return self[key] if resolve else self.get_ref(key)
         else:
             return default
 

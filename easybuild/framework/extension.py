@@ -38,9 +38,47 @@ import os
 
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import template_constant_dict
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_cmd
+from easybuild.tools.py2vs3 import string_type
+
+
+def resolve_exts_filter_template(exts_filter, ext):
+    """
+    Resolve the exts_filter tuple by replacing the template values using the extension
+    :param exts_filter: Tuple of (command, input) using template values (ext_name, ext_version, src)
+    :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
+    :return (cmd, input) as a tuple of strings
+    """
+
+    if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
+        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
+
+    cmd, cmdinput = exts_filter
+
+    if not isinstance(ext, dict):
+        ext = {'name': ext.name, 'version': ext.version, 'src': ext.src, 'options': ext.options}
+
+    name = ext['name']
+    if 'options' in ext and 'modulename' in ext['options']:
+        modname = ext['options']['modulename']
+    else:
+        modname = name
+    tmpldict = {
+        'ext_name': modname,
+        'ext_version': ext.get('version'),
+        'src': ext.get('src'),
+    }
+
+    try:
+        cmd = cmd % tmpldict
+        cmdinput = cmdinput % tmpldict if cmdinput else None
+    except KeyError as err:
+        msg = "KeyError occurred on completing extension filter template: %s; "
+        msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
+        raise_nosupport(msg % err, '2.0')
+    return cmd, cmdinput
 
 
 class Extension(object):
@@ -144,16 +182,11 @@ class Extension(object):
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
 
-        # disabling templating is required here to support legacy string templates like name/version
-        self.cfg.enable_templating = False
-        exts_filter = self.cfg['exts_filter']
-        self.cfg.enable_templating = True
+        # Get raw value to translate ext_name, ext_version, src
+        exts_filter = self.cfg.get_ref('exts_filter')
 
-        if exts_filter is not None:
-            cmd, inp = exts_filter
-        else:
+        if exts_filter is None:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
-            cmd = None
 
         if 'modulename' in self.options:
             modname = self.options['modulename']
@@ -165,22 +198,8 @@ class Extension(object):
         # allow skipping of sanity check by setting module name to False
         if modname is False:
             self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
-        elif cmd:
-            template = {
-                        'ext_name': modname,
-                        'ext_version': self.version,
-                        'src': self.src,
-                        # the ones below are only there for legacy purposes
-                        # TODO deprecated, remove in v2.0
-                        # TODO same dict is used in easyblock.py skip_extensions, resolve this
-                        'name': modname,
-                        'version': self.version,
-                       }
-            cmd = cmd % template
-
-            stdin = None
-            if inp:
-                stdin = inp % template
+        elif exts_filter:
+            cmd, stdin = resolve_exts_filter_template(exts_filter, self)
             # set log_ok to False so we can catch the error instead of run_cmd
             (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
 
