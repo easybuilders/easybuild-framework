@@ -55,7 +55,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
+from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data, download_repo
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -546,8 +546,19 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     if any(file_info['new_file_in_existing_folder']):
         labels.append('update')
 
-    if labels:  # TODO: compare to actual PR labels?
-        lines.extend(['', "This PR should be labeled %s" % ', '.join(labels)])
+    github_account = build_option('pr_target_account')
+    github_repo = build_option('pr_target_repo')
+    github_user = build_option('github_user')
+    pr_data, _ = fetch_pr_data(pr, github_account, github_repo, github_user)
+    pr_labels = [label['name'] for label in pr_data['labels']]
+
+    missing_labels = []
+    for label in labels:
+        if label not in pr_labels:
+            missing_labels.append(label)
+
+    if missing_labels:
+        lines.extend(['', "This PR should be labeled %s" % ', '.join(missing_labels)])
 
     return '\n'.join(lines)
 
