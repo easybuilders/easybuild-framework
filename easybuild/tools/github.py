@@ -1272,6 +1272,41 @@ def merge_pr(pr):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
+def post_pr_labels(pr, labels):
+    """
+    Update PR labels
+    """
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
+
+    # fetch GitHub token (required to perform actions on GitHub)
+    github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to open a pull request")
+
+    github_token = fetch_github_token(github_user)
+    if github_token is None:
+        raise EasyBuildError("GitHub token for user '%s' must be available to open a pull request", github_user)
+
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    if not dry_run:
+        g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+
+        pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
+        try:
+            status, data = pr_url.labels.post(body=labels)
+            if status == HTTP_STATUS_OK:
+                print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+                return True
+        except HTTPError as err:
+            _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
+            return False
+    else:
+        return True
+
+
+@only_if_module_is_available('git', pkgname='GitPython')
 def new_branch_github(paths, ecs, commit_msg=None):
     """
     Create new branch on GitHub using specified files
@@ -1479,15 +1514,9 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         print_msg("Opened pull request: %s" % data['html_url'], log=_log, prefix=False)
 
         if labels:
-            # post labels
             pr = data['html_url'].split('/')[-1]
-            pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
-            try:
-                status, data = pr_url.labels.post(body=labels)
-                if status == HTTP_STATUS_OK:
-                    print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
-            except HTTPError as err:
-                _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
+            if not post_pr_labels(pr, labels):
+                print_msg("This PR should be labeled %s" % ', '.join(labels), log=_log, prefix=False)
 
 
 def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):

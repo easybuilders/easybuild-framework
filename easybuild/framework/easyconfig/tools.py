@@ -55,7 +55,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data, download_repo
+from easybuild.tools.github import download_repo, fetch_easyconfigs_from_pr, fetch_pr_data, post_pr_labels
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -558,7 +558,8 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             missing_labels.append(label)
 
     if missing_labels:
-        lines.extend(['', "This PR should be labeled %s" % ', '.join(missing_labels)])
+        if not post_pr_labels(pr, labels):
+            lines.extend(['', "This PR should be labeled %s" % ', '.join(missing_labels)])
 
     return '\n'.join(lines)
 
