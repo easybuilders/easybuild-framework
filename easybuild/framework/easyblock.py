@@ -75,7 +75,7 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_f
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
+from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file, dir_contains_files
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
@@ -2223,20 +2223,24 @@ class EasyBlock(object):
                                   lang, shebang, glob_pattern, paths)
                     for path in paths:
                         # check whether file should be patched by checking whether it has a shebang we want to tweak;
-                        # this also helps to skip binary files we may be hitting
+                        # this also helps to skip binary files we may be hitting (but only with Python 3)
                         try:
                             contents = read_file(path, mode='r')
                             should_patch = shebang_regex.match(contents)
                         except (TypeError, UnicodeDecodeError):
                             should_patch = False
+                            contents = None
 
+                        # if an existing shebang is found, patch it
                         if should_patch:
                             contents = shebang_regex.sub(shebang, contents)
                             write_file(path, contents)
-                        elif not contents.startswith('#!'):
+
+                        # if no shebang is present at all, add one (but only for non-binary files!)
+                        elif contents is not None and not is_binary(contents) and not contents.startswith('#!'):
                             self.log.info("The file '%s' doesn't have any shebang present, inserting it as first line.",
                                           path)
-                            contents = shebang + "\n" + contents
+                            contents = shebang + '\n' + contents
                             write_file(path, contents)
 
     def post_install_step(self):

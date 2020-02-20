@@ -656,6 +656,16 @@ class FileToolsTest(EnhancedTestCase):
         # test use of 'mode' in read_file
         self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
 
+    def test_is_binary(self):
+        """Test is_binary function."""
+
+        for test in ['foo', '', b'foo', b'', "This is just a test", b"This is just a test", b"\xa0"]:
+            self.assertFalse(ft.is_binary(test))
+
+        self.assertTrue(ft.is_binary(b'\00'))
+        self.assertTrue(ft.is_binary(b"File is binary when it includes \00 somewhere"))
+        self.assertTrue(ft.is_binary(ft.read_file('/bin/ls', mode='rb')))
+
     def test_det_patched_files(self):
         """Test det_patched_files function."""
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
