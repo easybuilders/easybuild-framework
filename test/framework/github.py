@@ -264,13 +264,13 @@ class GithubTest(EnhancedTestCase):
         # PR with more than one easyblock
         all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr_1967), (1949, all_ebs_pr_1949)]:
+        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ebs), sorted([os.path.basename(f) for f in eb_files]))
             except URLError as err:
-                print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
+                print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
 
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
