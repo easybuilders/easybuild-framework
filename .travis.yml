@@ -91,7 +91,7 @@ script:
     - sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     # run coverage on all travis builds except for Python 2.6
-    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then coverage run -m test.framework.suite; coverage report -m --ignore-errors; fi  
+    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then coverage run -m test.framework.suite 2>&1 | tee test_framework_suite.log; coverage report -m --ignore-errors; fi  
     # invoke the regression test for Python 2.6 the original way without coverage
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log; fi
     # try and make sure output of running tests is clean (no printed messages/warnings)
