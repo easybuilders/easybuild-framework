@@ -241,6 +241,13 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
+def is_binary(contents):
+    """
+    Check whether given bytestring represents the contents of a binary file or not.
+    """
+    return isinstance(contents, bytes) and b'\00' in bytes(contents)
+
+
 def resolve_path(path):
     """
     Return fully resolved path for given path.
