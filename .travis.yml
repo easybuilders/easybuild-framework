@@ -38,7 +38,7 @@ before_install:
     - pip --version
     - pip install --upgrade pip
     - pip --version
-    - pip install python-coveralls
+    - pip install coveralls
     - pip install -r requirements.txt
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
