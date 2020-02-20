@@ -154,7 +154,10 @@ def include_easyblocks(tmpdir, paths):
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
-    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
+    allpaths = [p for p in expand_glob_paths(paths)
+                if os.path.basename(p).endswith('.py') and
+                os.path.basename(p) != '__init__.py']
+
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 
