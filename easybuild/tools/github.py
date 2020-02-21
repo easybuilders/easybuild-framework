@@ -48,7 +48,7 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
@@ -58,7 +58,7 @@ from easybuild.tools.filetools import download_file, extract_file, mkdir, read_f
 from easybuild.tools.filetools import which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
-from easybuild.tools.utilities import nub, only_if_module_is_available
+from easybuild.tools.utilities import nub, only_if_module_is_available, remove_unwanted_chars
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -698,8 +698,14 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         if paths['py_files']:
-            raise EasyBuildError("You are submitting files with .py extension, "
-                                 "did you forget to specify --pr-target-repo?")
+            if any([get_easyblock_class(path) for path in paths['py_files']]):
+                # this is not enough, we would need to change build_option('pr_target_repo')
+                pr_target_repo = GITHUB_EASYBLOCKS_REPO
+                raise EasyBuildError("You are submitting easyblock files, "
+                                     "did you forget to specify --pr-target-repo=easybuild-easyblocks?")
+            else:
+                raise EasyBuildError("You are submitting python files that are not easyblocks, "
+                                     "did you forget to specify --pr-target-repo=easybuild-framework?")
     else:
         if paths['easyconfigs'] or paths['patch_files']:
             raise EasyBuildError("You are submitting easyconfigs and/or patches, "
@@ -993,6 +999,26 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     return soft_name
 
 
+def get_easyblock_class(path):
+    """Get easyblock class from file"""
+    fn = os.path.basename(path).split('.')[0]
+    mod = imp.load_source(fn, path)
+    clsmembers = inspect.getmembers(mod, inspect.isclass)
+    is_easyblock = False
+    for cn in clsmembers:
+        if cn[0] == 'EasyBlock' or cn[0].startswith(EASYBLOCK_CLASS_PREFIX):
+            is_easyblock = True
+            break
+    if is_easyblock:
+        classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
+        if len(classnames) > 1:
+            return None
+        else:
+            return classnames[0]
+    else:
+        return None
+
+
 def copy_easyblocks(paths, target_dir):
     """ Find right location for easyblock file and copy it there"""
     file_info = {
@@ -1003,27 +1029,16 @@ def copy_easyblocks(paths, target_dir):
     subdir = os.path.join('easybuild', 'easyblocks')
     if os.path.exists(os.path.join(target_dir, subdir)):
         for path in paths:
-            fn = os.path.basename(path).split('.')[0]
-
-            mod = imp.load_source(fn, path)
-            clsmembers = inspect.getmembers(mod, inspect.isclass)
-            if clsmembers:
-                classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
-            else:
+            cn = get_easyblock_class(path)
+            if not cn:
                 raise EasyBuildError("Invalid easyblock file")
 
-            if len(classnames) > 1:
-                raise EasyBuildError("Invalid easyblock file")
-
-            cn = classnames[0]
-            eb_name = decode_class_name(cn).lower()  # TODO not fully right yet. - to _ (and others??)
-            if cn.startswith(EASYBLOCK_CLASS_PREFIX):
-                # regular eb file
-                letter = fn.lower()[0]
-                target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
-            else:
-                # generic
+            eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
+            if is_generic_easyblock(cn):
                 target_path = os.path.join(subdir, GENERIC_EB, "%s.%s" % (eb_name.lower(), PYTHON_EXTENSION))
+            else:
+                letter = os.path.basename(path).lower()[0]
+                target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
 
             full_target_path = os.path.join(target_dir, target_path)
             file_info['paths_in_repo'].append(full_target_path)
