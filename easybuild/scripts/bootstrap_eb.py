@@ -376,6 +376,10 @@ def run_easy_install(args):
     debug("Active setuptools installation: %s" % setuptools.__file__)
     from setuptools.command import easy_install
 
+    # PyPi no longer supports http but setuptools 0.6.x easy_install defaults to that
+    if LooseVersion(setuptools.__version__) < LooseVersion('0.7.0'):
+        args.insert(0, '--index-url=https://pypi.python.org/simple')
+
     orig_stdout, orig_stderr = mock_stdout_stderr()
     try:
         easy_install.main(args)
@@ -432,6 +436,9 @@ def stage0(tmpdir):
                      txt)
         # silence distribute_setup.py completely by setting high log level threshold
         txt = re.sub(r'([^\n]*)(# extracting the tarball[^\n]*)', r'\1log.set_verbosity(1000)\n\1\2', txt)
+
+    # PyPi no longer supports http
+    txt = txt.replace('http://', 'https://')
 
     # write distribute_setup.py to file (with correct header)
     distribute_setup = os.path.join(tmpdir, 'distribute_setup.py')
