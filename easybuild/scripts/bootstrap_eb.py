@@ -334,32 +334,33 @@ def check_setuptools():
     #       So, we'll check things by running commands through os.system rather than importing setuptools directly.
     cmd_tmpl = "%s -c '%%s' > %s 2>&1" % (sys.executable, outfile)
 
-    # check setuptools version
-    try:
-        os.system(cmd_tmpl % "import setuptools; print(setuptools.__version__)")
-        setuptools_ver = LooseVersion(open(outfile).read().strip())
-        debug("Found setuptools version %s" % setuptools_ver)
-
-        min_setuptools_ver = '0.6c11'
-        if setuptools_ver < LooseVersion(min_setuptools_ver):
-            debug("Minimal setuptools version %s not satisfied, found '%s'" % (min_setuptools_ver, setuptools_ver))
-            res = False
-    except Exception as err:
-        debug("Failed to check setuptools version: %s" % err)
-        res = False
-
     os.system(cmd_tmpl % "from setuptools.command import easy_install; print(easy_install.__file__)")
     out = open(outfile).read().strip()
-    debug("Location of setuptools' easy_install module: %s" % out)
     if 'setuptools/command/easy_install' not in out:
         debug("Module 'setuptools.command.easy_install not found")
         res = False
+    else:
+        debug("Location of setuptools' easy_install module: %s" % out)
 
-    if res is None:
-        os.system(cmd_tmpl % "import setuptools; print(setuptools.__file__)")
-        setuptools_loc = open(outfile).read().strip()
-        res = os.path.dirname(os.path.dirname(setuptools_loc))
-        debug("Location of setuptools installation: %s" % res)
+        # check setuptools version
+        try:
+            os.system(cmd_tmpl % "import setuptools; print(setuptools.__version__)")
+            setuptools_ver = LooseVersion(open(outfile).read().strip())
+            debug("Found setuptools version %s" % setuptools_ver)
+
+            min_setuptools_ver = '0.6c11'
+            if setuptools_ver < LooseVersion(min_setuptools_ver):
+                debug("Minimal setuptools version %s not satisfied, found '%s'" % (min_setuptools_ver, setuptools_ver))
+                res = False
+        except Exception as err:
+            debug("Failed to check setuptools version: %s" % err)
+            res = False
+
+        if res is None:
+            os.system(cmd_tmpl % "import setuptools; print(setuptools.__file__)")
+            setuptools_loc = open(outfile).read().strip()
+            res = os.path.dirname(os.path.dirname(setuptools_loc))
+            debug("Location of setuptools installation: %s" % res)
 
     try:
         os.remove(outfile)
