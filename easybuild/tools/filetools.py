@@ -691,6 +691,8 @@ def load_index(path, ignore_dirs=None):
             if curr_ts > valid_ts:
                 print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
                 index = None
+            else:
+                print_msg("found valid index for %s, so using it...", path)
 
     return index or None
 

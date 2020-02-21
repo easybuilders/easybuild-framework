@@ -1707,7 +1707,18 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
 
         # test load_index function
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile("^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+
         self.assertEqual(len(index), 24)
         for fn in expected:
             self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
@@ -1725,7 +1736,19 @@ class FileToolsTest(EnhancedTestCase):
         for fn in expected_header + expected:
             regex = re.compile('^%s$' % fn, re.M)
             self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile("^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+
         self.assertEqual(len(index), 24)
         for fn in expected:
             self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
