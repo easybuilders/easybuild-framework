@@ -78,6 +78,7 @@ CONT_TYPE_SINGULARITY = 'singularity'
 CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
+DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -269,6 +270,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_CONT_TYPE: [
         'container_type',
+    ],
+    DEFAULT_INDEX_MAX_AGE: [
+        'index_max_age',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
