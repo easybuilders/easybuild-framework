@@ -54,7 +54,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_file, det_patched_files, decode_class_name
-from easybuild.tools.filetools import download_file, extract_file, is_patch_file, mkdir, read_file, symlink
+from easybuild.tools.filetools import download_file, extract_file, mkdir, read_file, symlink
 from easybuild.tools.filetools import which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
@@ -1043,12 +1043,10 @@ def copy_framework_files(paths, target_dir):
         'new': [],
     }
 
-    dirs = [x[0] for x in os.walk(target_dir)]
     paths = [os.path.abspath(path) for path in paths]
 
     target_path = None
     for path in paths:
-        fn = os.path.basename(path)
         dirnames = os.path.dirname(path).split(os.path.sep)
 
         if 'easybuild-framework' in dirnames:
