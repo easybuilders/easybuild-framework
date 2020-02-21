@@ -1151,8 +1151,10 @@ i9tGe6+O/V0LCkGXvNkrKK2++u9qLFyTkO2sp7xSt/Bfil9os3SeOlY5fvv9mLcFj5zSNUqsRZfU
 7lwukTHLpfpLDH2GT+yCCf8D2cp1xw==
 """
 if IS_PY3:
-    DISTRIBUTE_SETUP_PY = DISTRIBUTE_SETUP_PY.encode('ascii')
+    DISTRIBUTE_SETUP_PY = DISTRIBUTE_SETUP_PY.encode()
 DISTRIBUTE_SETUP_PY = codecs.decode(codecs.decode(DISTRIBUTE_SETUP_PY, "base64"), "zlib")
+if IS_PY3:
+    DISTRIBUTE_SETUP_PY = DISTRIBUTE_SETUP_PY.decode()
 
 # run main function as body of script
 main()
