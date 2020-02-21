@@ -764,8 +764,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
 
         path_index = load_index(path, ignore_dirs=ignore_dirs)
         if path_index is None:
-            _log.info("No index found for %s, creating one...", path)
-            path_index = create_index(path, ignore_dirs=ignore_dirs)
+            if os.path.exists(path):
+                _log.info("No index found for %s, creating one...", path)
+                path_index = create_index(path, ignore_dirs=ignore_dirs)
+            else:
+                path_index = []
         else:
             _log.info("Index found for %s, so using it...", path)
 
