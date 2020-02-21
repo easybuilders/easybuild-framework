@@ -4695,6 +4695,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern % self.test_prefix, re.M)
             self.assertTrue(regex.search(stdout), "Pattern %s matches in: %s" % (regex.pattern, stdout))
 
+        # check contents of index
+        index_fp = os.path.join(self.test_prefix, '.eb-path-index')
+        index_txt = read_file(index_fp)
+
+        datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
+        patterns = [
+            r"^# created at: " + datestamp_pattern + '$',
+            r"^# valid until: " + datestamp_pattern + '$',
+            r"^g/GCC/GCC-7.3.0-2.30.eb",
+            r"^t/toy/toy-0\.0\.eb",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        # existing index is not overwritten without --force
+        error_pattern = "File exists, not overwriting it without --force: .*/.eb-path-index"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+
+        # also test creating index that's infinitely valid
+        args.extend(['--index-max-ag=0', '--force'])
+        self._run_mock_eb(args, raise_error=True)
+        index_txt = read_file(index_fp)
+        regex = re.compile(r"^# valid until: 9999-12-31 23:59:59", re.M)
+        self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
 
 def suite():
     """ returns all the testcases in this module """
