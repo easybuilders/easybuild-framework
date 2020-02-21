@@ -56,7 +56,7 @@ from xml.etree import ElementTree
 from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub
@@ -618,15 +618,29 @@ def create_index(path, ignore_dirs=None):
     return index
 
 
-def dump_index(path):
+def dump_index(path, max_age_sec=None):
     """
     Create index for files in specified path, and dump it to file (alphabetically sorted).
     """
+    if max_age_sec is None:
+        max_age_sec = build_option('index_max_age')
 
     index_fp = os.path.join(path, PATH_INDEX_FILENAME)
     index_contents = create_index(path)
 
-    write_file(index_fp, '\n'.join(sorted(index_contents)))
+    curr_ts = datetime.datetime.now()
+    if max_age_sec == 0:
+        end_ts = datetime.datetime.max
+    else:
+        end_ts = curr_ts + datetime.timedelta(0, max_age_sec)
+
+    lines = [
+        "# created at: %s" % str(curr_ts),
+        "# valid until: %s" % str(end_ts),
+    ]
+    lines.extend(sorted(index_contents))
+
+    write_file(index_fp, '\n'.join(lines), always_overwrite=False)
 
     return index_fp
 
@@ -639,18 +653,46 @@ def load_index(path, ignore_dirs=None):
         ignore_dirs = []
 
     index_fp = os.path.join(path, PATH_INDEX_FILENAME)
-
-    index, res = None, set()
+    index = set()
 
     if os.path.exists(index_fp):
-        index = read_file(index_fp).splitlines()
+        lines = read_file(index_fp).splitlines()
 
-        for path in index:
-            path_dirs = path.split(os.path.sep)[:-1]
-            if not any(d in path_dirs for d in ignore_dirs):
-                res.add(path)
+        valid_ts_regex = re.compile("^# valid until: (.*)", re.M)
+        valid_ts = None
 
-    return res or None
+        for line in lines:
+
+            # extract "valid until" timestamp, so we can check whether index is still valid
+            if valid_ts is None:
+                res = valid_ts_regex.match(line)
+            else:
+                res = None
+
+            if res:
+                valid_ts = res.group(1)
+                try:
+                    valid_ts = datetime.datetime.strptime(valid_ts, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError as err:
+                    raise EasyBuildError("Failed to parse timestamp '%s' for index at %s: %s", valid_ts, path, err)
+
+            elif line.startswith('#'):
+                _log.info("Ignoring unknown header line '%s' in index for %s", line, path)
+
+            else:
+                # filter out files that are in an ignored directory
+                path_dirs = line.split(os.path.sep)[:-1]
+                if not any(d in path_dirs for d in ignore_dirs):
+                    index.add(line)
+
+        # check whether index is still valid
+        if valid_ts:
+            curr_ts = datetime.datetime.now()
+            if curr_ts > valid_ts:
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                index = None
+
+    return index or None
 
 
 def find_easyconfigs(path, ignore_dirs=None):

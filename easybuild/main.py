@@ -258,7 +258,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     elif options.create_index:
         print_msg("Creating index for %s..." % options.create_index, prefix=False)
-        index_fp = dump_index(options.create_index)
+        index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
         index = load_index(options.create_index)
         print_msg("Index created at %s (%d files)" % (index_fp, len(index)), prefix=False)
 

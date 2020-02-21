@@ -38,6 +38,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -1690,13 +1691,18 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(index_fp))
         self.assertTrue(os.path.samefile(self.test_prefix, os.path.dirname(index_fp)))
 
-        index_txt = ft.read_file(index_fp)
+        datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
+        expected_header = [
+            "# created at: " + datestamp_pattern,
+            "# valid until: " + datestamp_pattern,
+        ]
         expected = [
             os.path.join('g', 'gzip', 'gzip-1.4.eb'),
             os.path.join('g', 'GCC', 'GCC-7.3.0-2.30.eb'),
             os.path.join('g', 'gompic', 'gompic-2018a.eb'),
         ]
-        for fn in expected:
+        index_txt = ft.read_file(index_fp)
+        for fn in expected_header + expected:
             regex = re.compile('^%s$' % fn, re.M)
             self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
 
@@ -1704,7 +1710,42 @@ class FileToolsTest(EnhancedTestCase):
         index = ft.load_index(self.test_prefix)
         self.assertEqual(len(index), 24)
         for fn in expected:
-            self.assertTrue(fn in index)
+            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+
+        # dump_index will not overwrite existing index without force
+        error_pattern = "File exists, not overwriting it without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, self.test_prefix)
+
+        ft.remove_file(index_fp)
+
+        # test creating index file that's infinitely valid
+        index_fp = ft.dump_index(self.test_prefix, max_age_sec=0)
+        index_txt = ft.read_file(index_fp)
+        expected_header[1] = "# valid until: 9999-12-31 23:59:59\.9+"
+        for fn in expected_header + expected:
+            regex = re.compile('^%s$' % fn, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+        index = ft.load_index(self.test_prefix)
+        self.assertEqual(len(index), 24)
+        for fn in expected:
+            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+
+        ft.remove_file(index_fp)
+
+        # test creating index file that's only valid for a (very) short amount of time
+        index_fp = ft.dump_index(self.test_prefix, max_age_sec=1)
+        time.sleep(3)
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertTrue(index is None)
+        self.assertFalse(stdout)
+        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % self.test_prefix)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
     def test_search_file(self):
         """Test search_file function."""
