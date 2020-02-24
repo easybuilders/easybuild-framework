@@ -52,7 +52,6 @@ from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, proc
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_file, det_patched_files, decode_class_name
 from easybuild.tools.filetools import download_file, extract_file, mkdir, read_file, symlink
 from easybuild.tools.filetools import which, write_file
@@ -698,7 +697,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         if paths['py_files']:
-            if any([get_easyblock_class(path) for path in paths['py_files']]):
+            if any([get_easyblock_class_name(path) for path in paths['py_files']]):
                 # this is not enough, we would need to change build_option('pr_target_repo')
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
                 raise EasyBuildError("You are submitting easyblock files, "
@@ -999,24 +998,17 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     return soft_name
 
 
-def get_easyblock_class(path):
-    """Get easyblock class from file"""
+def get_easyblock_class_name(path):
+    """Make sure file is an easyblock and get easyblock class name"""
     fn = os.path.basename(path).split('.')[0]
     mod = imp.load_source(fn, path)
     clsmembers = inspect.getmembers(mod, inspect.isclass)
-    is_easyblock = False
-    for cn in clsmembers:
-        if cn[0] == 'EasyBlock' or cn[0].startswith(EASYBLOCK_CLASS_PREFIX):
-            is_easyblock = True
-            break
-    if is_easyblock:
-        classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
-        if len(classnames) > 1:
-            return None
-        else:
-            return classnames[0]
-    else:
-        return None
+    for cn, co in clsmembers:
+        if co.__module__ == mod.__name__:
+            ancestors = inspect.getmro(co)
+            if ancestors[-2].__name__ == 'EasyBlock':
+                return cn
+    return None
 
 
 def copy_easyblocks(paths, target_dir):
@@ -1029,7 +1021,7 @@ def copy_easyblocks(paths, target_dir):
     subdir = os.path.join('easybuild', 'easyblocks')
     if os.path.exists(os.path.join(target_dir, subdir)):
         for path in paths:
-            cn = get_easyblock_class(path)
+            cn = get_easyblock_class_name(path)
             if not cn:
                 raise EasyBuildError("Invalid easyblock file")
 
