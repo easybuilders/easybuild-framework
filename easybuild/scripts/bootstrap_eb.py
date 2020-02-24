@@ -756,6 +756,10 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     sources_tmpl = "%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s"
     if eb_looseversion < LooseVersion('4.0'):
         sources_tmpl = "%(vsc-install)s%(vsc-base)s" + sources_tmpl
+        templates['toolchain'] = EASYBUILD_EASYCONFIG_TOOLCHAIN_PRE4
+    else:
+        templates['toolchain'] = EASYBUILD_EASYCONFIG_TOOLCHAIN
+
 
     templates.update({
         'source_urls': '\n'.join(["'%s'," % x for x in pkg_urls]),
@@ -833,7 +837,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     eb_spec = {
         'name': 'EasyBuild',
         'hidden': False,
-        'toolchain': {'name': 'dummy', 'version': 'dummy'},
+        'toolchain': templates['toolchain'],
         'version': templates['version'],
         'versionprefix': '',
         'versionsuffix': '',
@@ -1000,7 +1004,7 @@ description = \"\"\"EasyBuild is a software build and installation framework
 written in Python that allows you to install software in a structured,
 repeatable and robust way.\"\"\"
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = %(toolchain)s
 
 source_urls = [%(source_urls)s]
 sources = [%(sources)s]
@@ -1018,6 +1022,10 @@ sanity_check_paths = {
 
 moduleclass = 'tools'
 """
+# Toolchain to be used for EasyBuild < 4.0
+EASYBUILD_EASYCONFIG_TOOLCHAIN_PRE4 = {'name': 'dummy', 'version': 'dummy'}
+# Toolchain to be used for EasyBuild >= 4.0 (new default)
+EASYBUILD_EASYCONFIG_TOOLCHAIN = {'name': 'system', 'version': ''}
 
 # check Python version
 loose_pyver = LooseVersion(python_version())
