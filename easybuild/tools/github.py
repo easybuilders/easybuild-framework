@@ -698,10 +698,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         if paths['py_files']:
             if any([get_easyblock_class_name(path) for path in paths['py_files']]):
-                # this is not enough, we would need to change build_option('pr_target_repo')
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
-                raise EasyBuildError("You are submitting easyblock files, "
-                                     "did you forget to specify --pr-target-repo=easybuild-easyblocks?")
             else:
                 raise EasyBuildError("You are submitting python files that are not easyblocks, "
                                      "did you forget to specify --pr-target-repo=easybuild-framework?")
@@ -839,7 +836,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     push_branch_to_github(git_repo, target_account, pr_target_repo, pr_branch)
 
-    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
+    return file_info, deleted_paths, git_repo, pr_branch, diff_stat, pr_target_repo
 
 
 def create_remote(git_repo, account, repo, https=False):
@@ -1014,6 +1011,7 @@ def get_easyblock_class_name(path):
 def copy_easyblocks(paths, target_dir):
     """ Find right location for easyblock file and copy it there"""
     file_info = {
+        'eb_names': [],
         'paths_in_repo': [],
         'new': [],
     }
@@ -1033,6 +1031,7 @@ def copy_easyblocks(paths, target_dir):
                 target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
 
             full_target_path = os.path.join(target_dir, target_path)
+            file_info['eb_names'].append(eb_name)
             file_info['paths_in_repo'].append(full_target_path)
             file_info['new'].append(not os.path.exists(full_target_path))
             copy_file(path, full_target_path, force_in_dry_run=True)
@@ -1392,14 +1391,15 @@ def new_branch_github(paths, ecs, commit_msg=None):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
+def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None):
     """
     Create new pull request from specified branch on GitHub.
     """
 
     pr_target_account = build_option('pr_target_account')
     pr_target_branch = build_option('pr_target_branch')
-    pr_target_repo = build_option('pr_target_repo')
+    if pr_target_repo is None:
+        pr_target_repo = build_option('pr_target_repo')
 
     # fetch GitHub token (required to perform actions on GitHub)
     github_user = build_option('github_user')
@@ -1537,13 +1537,14 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
                                 pyver.append(dep['version'])
                 if pyver:
                     title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+            if file_info['eb_names'] and all(file_info['new']) and not deleted_paths:
+                plural = 's' if len(file_info['eb_names']) > 1 else ''
+                title = "new easyblock%s for %s" % (plural, (', '.join(file_info['eb_names'])))
 
-            else:
-                raise EasyBuildError("Don't know how to make a PR title for this PR. "
-                                     "Please include a title (use --pr-title)")
-        else:
-            raise EasyBuildError("Don't know how to make a PR title for this PR. "
-                                 "Please include a title (use --pr-title)")
+    if title is None:
+        raise EasyBuildError("Don't know how to make a PR title for this PR. "
+                             "Please include a title (use --pr-title)")
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
@@ -1617,9 +1618,10 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
 
     # create new branch in GitHub
     res = new_branch_github(paths, ecs, commit_msg=commit_msg)
-    file_info, deleted_paths, _, branch_name, diff_stat = res
+    file_info, deleted_paths, _, branch_name, diff_stat, pr_target_repo = res
 
-    new_pr_from_branch(branch_name, title=title, descr=descr, pr_metadata=(file_info, deleted_paths, diff_stat))
+    new_pr_from_branch(branch_name, title=title, descr=descr, pr_target_repo=pr_target_repo,
+                       pr_metadata=(file_info, deleted_paths, diff_stat))
 
 
 def det_account_branch_for_pr(pr_id, github_user=None):
