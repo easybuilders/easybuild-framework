@@ -100,40 +100,34 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     target_toolchain = {}
     src_to_dst_tc_mapping = {}
     revert_to_regex = False
-    update_dependencies = build_specs.get('update_deps', None)
 
-    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs or update_dependencies:
-        keys = build_specs.keys()
-
-        # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
-        # supported
+    if any(key in build_specs for key in ['toolchain', 'toolchain_name', 'toolchain_version', 'update_deps']):
         if not build_option('map_toolchains'):
-            msg = "Mapping of (sub)toolchains disabled, so falling back to regex mode, "
-            msg += "disabling recursion and not changing (sub)toolchains for dependencies"
-            _log.info(msg)
-            revert_to_regex = True
-        elif any(key not in ['toolchain_name', 'toolchain_version', 'toolchain', 'update_deps'] for key in keys):
-            warning_msg = "Combining --try-toolchain* or --try-update-deps with other build options "
-            warning_msg += "is not fully supported: using regex"
-            print_warning(warning_msg, silent=build_option('silent'))
-            revert_to_regex = True
+            if 'update_deps' in build_specs:
+                raise EasyBuildError("Cannot use --try-update-deps without setting --map-toolchains")
+            else:
+                msg = "Mapping of (sub)toolchains (with --map-toolchains) disabled, so falling back to regex mode, "
+                msg += "disabling recursion and not changing (sub)toolchains for dependencies"
+                _log.info(msg)
+                revert_to_regex = True
 
         if not revert_to_regex:
-            # we're doing something with the toolchain,
-            # so build specifications should be applied to whole dependency graph;
+            # we're doing something that involves the toolchain hierarchy;
             # obtain full dependency graph for specified easyconfigs;
             # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
+            _log.debug("Updating toolchain and/or dependencies requested...applying build specifications recursively "
+                       "(where appropriate):\n%s", build_specs)
             modifying_toolchains_or_deps = True
+            pruned_build_specs = copy.copy(build_specs)
 
-            if 'toolchain_name' in keys:
-                target_toolchain['name'] = build_specs['toolchain_name']
+            update_dependencies = pruned_build_specs.pop('update_deps', None)
+            if 'toolchain' in pruned_build_specs:
+                target_toolchain = pruned_build_specs.pop('toolchain')
+                pruned_build_specs.pop('toolchain_name', '')
+                pruned_build_specs.pop('toolchain_version', '')
             else:
-                target_toolchain['name'] = source_toolchain['name']
-
-            if 'toolchain_version' in keys:
-                target_toolchain['version'] = build_specs['toolchain_version']
-            else:
-                target_toolchain['version'] = source_toolchain['version']
+                target_toolchain['name'] = pruned_build_specs.pop('toolchain_name', source_toolchain['name'])
+                target_toolchain['version'] = pruned_build_specs.pop('toolchain_version', source_toolchain['version'])
 
             try:
                 src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
@@ -149,7 +143,6 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                     # simply re-raise the exception if something else went wrong
                     raise err
 
-            _log.debug("Applying build specifications recursively (no software name/version found): %s", build_specs)
             orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
             # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
@@ -197,7 +190,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
-                                                                        tweaked_ecs_path,
+                                                                        targetdir=tweaked_ecs_path,
+                                                                        update_build_specs=pruned_build_specs,
                                                                         update_dep_versions=update_dependencies)
                     # Need to update the toolchain in the build_specs to match the toolchain mapping
                     keys = verification_build_specs.keys()
@@ -217,11 +211,12 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             # Place all tweaked dependency easyconfigs in the directory appended to the robot path
             if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
-                    new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
-                                                                        targetdir=tweaked_ecs_deps_path,
-                                                                        update_dep_versions=update_dependencies)
+                    # Note pruned_build_specs are not passed down for dependencies
+                    map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
+                                                          targetdir=tweaked_ecs_deps_path,
+                                                          update_dep_versions=update_dependencies)
             else:
-                new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
+                tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
     return tweaked_easyconfigs
 
@@ -935,7 +930,8 @@ def get_matching_easyconfig_candidates(prefix_stub, toolchain):
     return cand_paths, toolchain_suffix
 
 
-def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None, update_dep_versions=False):
+def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None, update_build_specs=None,
+                                          update_dep_versions=False):
     """
     Take an easyconfig spec, parse it, map it to a target toolchain and dump it out
 
@@ -954,6 +950,19 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     if update_dep_versions:
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
+
+    if update_build_specs is not None:
+        # automagically clear out list of checksums if software version is being tweaked
+        if 'version' in update_build_specs:
+            if 'exts_list' in parsed_ec and parsed_ec['exts_list']:
+                raise EasyBuildError("Cannot currently handle updating version and dependencies of easyconfig with "
+                                     "exts_list entry")
+            elif 'checksums' not in update_build_specs:
+                update_build_specs['checksums'] = []
+                _log.warning("Tweaking version: checksums cleared, verification disabled.")
+        # Update the keys according to the build specs
+        for key in update_build_specs:
+            parsed_ec[key] = update_build_specs[key]
 
     # Replace the toolchain if the mapping exists
     tc_name = parsed_ec['toolchain']['name']
@@ -1021,7 +1030,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
     parsed_ec.dump(tweaked_spec, always_overwrite=False, backup=True)
-    _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
+    _log.debug("Dumped easyconfig tweaked via --try-* to %s", tweaked_spec)
 
     return tweaked_spec
 
