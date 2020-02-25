@@ -693,19 +693,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if not any(paths.values()):
         raise EasyBuildError("No paths specified")
 
-    pr_target_repo = build_option('pr_target_repo')
-
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        if paths['py_files']:
-            if any([get_easyblock_class_name(path) for path in paths['py_files']]):
-                pr_target_repo = GITHUB_EASYBLOCKS_REPO
-            else:
-                raise EasyBuildError("You are submitting python files that are not easyblocks, "
-                                     "did you forget to specify --pr-target-repo=easybuild-framework?")
-    else:
-        if paths['easyconfigs'] or paths['patch_files']:
-            raise EasyBuildError("You are submitting easyconfigs and/or patches, "
-                                 "shouldn\'t this PR target the easyconfigs repo?")
+    pr_target_repo = det_pr_target_repo(paths)
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
@@ -1623,7 +1611,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                        pr_metadata=(file_info, deleted_paths, diff_stat))
 
 
-def det_account_branch_for_pr(pr_id, github_user=None):
+def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
     """Determine account & branch corresponding to pull request with specified id."""
 
     if github_user is None:
@@ -1633,7 +1621,8 @@ def det_account_branch_for_pr(pr_id, github_user=None):
         raise EasyBuildError("GitHub username (--github-user) must be specified!")
 
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    if pr_target_repo is None:
+        pr_target_repo = build_option('pr_target_repo')
 
     pr_data, _ = fetch_pr_data(pr_id, pr_target_account, pr_target_repo, github_user)
 
@@ -1644,6 +1633,29 @@ def det_account_branch_for_pr(pr_id, github_user=None):
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr_id, branch), log=_log)
 
     return account, branch
+
+
+def det_pr_target_repo(paths):
+    """Determine pr_target_repo from cagetorized list of files
+
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    """
+
+    pr_target_repo = build_option('pr_target_repo')
+
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if paths['py_files']:
+            if any([get_easyblock_class_name(path) for path in paths['py_files']]):
+                pr_target_repo = GITHUB_EASYBLOCKS_REPO
+            else:
+                raise EasyBuildError("You are submitting python files that are not easyblocks, "
+                                     "did you forget to specify --pr-target-repo=easybuild-framework?")
+    else:
+        if paths['easyconfigs'] or paths['patch_files']:
+            raise EasyBuildError("You are submitting easyconfigs and/or patches, "
+                                 "shouldn\'t this PR target the easyconfigs repo?")
+
+    return pr_target_repo
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -1665,12 +1677,13 @@ def update_branch(branch_name, paths, ecs, github_account=None, commit_msg=None)
     if github_account is None:
         github_account = build_option('github_user') or build_option('github_org')
 
-    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch_name, pr_branch=branch_name,
-                                                   start_account=github_account, commit_msg=commit_msg)
+    _, _, _, _, diff_stat, pr_target_repo = _easyconfigs_pr_common(paths, ecs, start_branch=branch_name,
+                                                                   pr_branch=branch_name, start_account=github_account,
+                                                                   commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
-    full_repo = '%s/%s' % (github_account, build_option('pr_target_repo'))
+    full_repo = '%s/%s' % (github_account, pr_target_repo)
     msg = "pushed updated branch '%s' to %s" % (branch_name, full_repo)
     if build_option('dry_run') or build_option('extended_dry_run'):
         msg += " [DRY RUN]"
@@ -1688,11 +1701,13 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
     :param commit_msg: commit message to use
     """
 
-    github_account, branch_name = det_account_branch_for_pr(pr_id)
+    pr_target_repo = det_pr_target_repo(paths)
+
+    github_account, branch_name = det_account_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
 
     update_branch(branch_name, paths, ecs, github_account=github_account, commit_msg=commit_msg)
 
-    full_repo = '%s/%s' % (build_option('pr_target_account'), build_option('pr_target_repo'))
+    full_repo = '%s/%s' % (build_option('pr_target_account'), pr_target_repo)
     msg = "updated https://github.com/%s/pull/%s" % (full_repo, pr_id)
     if build_option('dry_run') or build_option('extended_dry_run'):
         msg += " [DRY RUN]"
