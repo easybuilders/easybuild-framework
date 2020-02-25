@@ -563,6 +563,7 @@ def get_os_name():
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
+        'red hat enterprise linux': 'RHEL',  # RHEL8 has no server/client
         'scientific linux sl': 'SL',
         'scientific linux': 'SL',
         'suse linux enterprise server': 'SLES',
