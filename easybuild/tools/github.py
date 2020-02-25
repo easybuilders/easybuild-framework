@@ -1554,7 +1554,6 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
     pr_target_branch = build_option('pr_target_branch')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    pr_target_repo = build_option('pr_target_repo')
     msg = '\n'.join([
         '',
         "Opening pull request%s" % ('', " [DRY RUN]")[dry_run],
