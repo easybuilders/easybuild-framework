@@ -543,9 +543,21 @@ class ModulesTool(object):
 
             :param mod_name: module name
             """
-            mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
             txt = self.show(mod_name)
-            return bool(re.search(mod_exists_regex, txt, re.M))
+            res = False
+            names_to_check = [mod_name]
+            # The module might be an alias where the target can be arbitrary
+            # As a compromise we check for the base name of the module so we find
+            # "Java/whatever-11" when searching for "Java/11" (--> basename="Java")
+            basename = os.path.dirname(mod_name)
+            if basename:
+                names_to_check.append(basename)
+            for name in names_to_check:
+                mod_exists_regex = mod_exists_regex_template % re.escape(name)
+                if re.search(mod_exists_regex, txt, re.M):
+                    res = True
+                    break
+            return res
 
         if skip_avail:
             avail_mod_names = []
@@ -643,7 +655,7 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -765,7 +777,9 @@ class ModulesTool(object):
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
 
-        if kwargs.get('return_output', False):
+        if kwargs.get('return_stderr', False):
+            return stderr
+        elif kwargs.get('return_output', False):
             return stdout + stderr
         else:
             # the module command was run with an outdated selected environment variables (see LD_ENV_VAR_KEYS list)
