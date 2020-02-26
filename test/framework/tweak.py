@@ -451,7 +451,6 @@ class TweakTest(EnhancedTestCase):
         key, value = 'version', new_version
         self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
         # and that the checksum was removed
-        print(tweaked_dict)
         self.assertFalse(tweaked_dict['checksums'])
 
 
