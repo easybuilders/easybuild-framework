@@ -745,7 +745,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--try-toolchain=foss,2018a',
             # This test was created for the regex substitution of toolchains, to trigger this (rather than subtoolchain
             # resolution) we must add an additional build option
-            '--try-amend=parallel=1',
+            '--disable-map-toolchains',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
