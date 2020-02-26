@@ -1789,7 +1789,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
             # toolchain GCC/4.7.2 (subtoolchain of gompi/2018a) should be listed (and present)
 
-            tc_regex = re.compile("^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
+            tc_regex = re.compile(r"^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
             # both toy and gzip dependency should be listed with new toolchains
@@ -1801,7 +1801,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     mod = ec_name.replace('-', '/')
                 else:
                     mod = '%s-GCC-6.4.0-2.28' % ec_name.replace('-', '/')
-                mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                mod_regex = re.compile(r"^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
         # recursive try also when --(try-)software(-X) is involved
@@ -1810,7 +1810,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             outtxt = self.eb_main(args + extra_args + ['--try-software-version=1.2.3'], verbose=True, raise_error=True)
             # toolchain GCC/4.7.2 (subtoolchain of gompi/2018a) should be listed (and present)
 
-            tc_regex = re.compile("^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
+            tc_regex = re.compile(r"^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
             # both toy and gzip dependency should be listed with new toolchains
@@ -1822,22 +1822,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     mod = ec_name.replace('-', '/')
                 else:
                     mod = '%s-GCC-6.4.0-2.28' % ec_name.replace('-', '/')
-                mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                mod_regex = re.compile(r"^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
-        # clear fictitous dependency
+        # clear fictitious dependency
         f = open(tweaked_toy_ec, 'a')
         f.write("dependencies = []\n")
         f.close()
 
         # no recursive try if --disable-map-toolchains is involved
         for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
-            outtxt = self.eb_main(args + ['--disable-map-toolchains'] +extra_args, raise_error=True)
+            outtxt = self.eb_main(args + ['--disable-map-toolchains'] + extra_args, raise_error=True)
             for mod in ['toy/1.2.3-gompi-2018a', 'gompi/2018a', 'GCC/6.4.0-2.28']:
-                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
             for mod in ['gompi/1.2.3', 'GCC/1.2.3']:
-                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
                 self.assertFalse(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
 
