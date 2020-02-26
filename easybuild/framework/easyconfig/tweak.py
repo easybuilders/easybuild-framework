@@ -101,6 +101,9 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     src_to_dst_tc_mapping = {}
     revert_to_regex = False
 
+    if 'update_deps' in build_specs:
+        _log.experimental("Found build spec 'update_deps': Attempting to update dependency versions.")
+
     if any(key in build_specs for key in ['toolchain', 'toolchain_name', 'toolchain_version', 'update_deps']):
         if not build_option('map_toolchains'):
             if 'update_deps' in build_specs:
