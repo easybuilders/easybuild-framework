@@ -1702,6 +1702,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # --try-toolchain is overridden by --toolchain
             (['--try-toolchain=gompi,2018a', '--toolchain=system,system'], 'toy/0.0'),
+            # check we interpret SYSTEM correctly as a toolchain
+            (['--try-toolchain=SYSTEM'], 'toy/0.0'),
+            (['--toolchain=SYSTEM'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
