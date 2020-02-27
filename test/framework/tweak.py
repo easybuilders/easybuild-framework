@@ -472,7 +472,7 @@ class TweakTest(EnhancedTestCase):
         extensions = tweaked_dict['exts_list']
         # check one extension with the same name exists and that the version has been updated
         hit_extension = 0
-        for idx, extension in enumerate(extensions):
+        for extension in extensions:
             if isinstance(extension, tuple) and extension[0] == 'toy':
                 self.assertEqual(extension[1], new_version)
                 # Make sure checksum has been purged
