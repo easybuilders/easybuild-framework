@@ -1559,6 +1559,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
 
+    def test_hide_all_deps(self):
+        """Test use of --hide-all-deps"""
+        build_options = {
+            'hide_all_deps': True
+        }
+        init_config(build_options=build_options)
+
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g/GCC/GCC-4.9.3-2.26.eb')
+        ec = EasyConfig(ec_file)
+
+        self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'GCCcore/.4.9.3')
+        self.assertEqual(ec['dependencies'][1]['full_mod_name'], 'binutils/.2.26-GCCcore-4.9.3')
+
     def test_quote_str(self):
         """Test quote_str function."""
         teststrings = {
