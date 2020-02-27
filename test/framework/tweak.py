@@ -453,6 +453,32 @@ class TweakTest(EnhancedTestCase):
         # and that the checksum was removed
         self.assertFalse(tweaked_dict['checksums'])
 
+        # Check that if we update a software version, it also updates the version if the software appears in an
+        # extension list (like for a PythonBundle)
+        ec_spec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        # Create the trivial toolchain mapping
+        toolchain = {'name': 'gompi', 'version': '2018a'}
+        tc_mapping = map_toolchain_hierarchies(toolchain, toolchain, self.modtool)
+        # Update the software version
+        init_config(build_options=build_options)
+        get_toolchain_hierarchy.clear()
+        new_version = '1.x.3'
+        tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec,
+                                                             tc_mapping,
+                                                             update_build_specs={'version': new_version},
+                                                             update_dep_versions=False)
+        tweaked_ec = process_easyconfig(tweaked_spec)[0]
+        tweaked_dict = tweaked_ec['ec'].asdict()
+        extensions = tweaked_dict['exts_list']
+        # check one extension with the same name exists and that the version has been updated
+        hit_extension = 0
+        for idx, extension in enumerate(extensions):
+            if isinstance(extension, tuple) and extension[0] == 'toy':
+                self.assertEqual(extension[1], new_version)
+                # Make sure checksum has been purged
+                self.assertFalse('checksums' in extension[2])
+                hit_extension += 1
+        self.assertEqual(hit_extension, 1, "Should only have updated one extension")
 
 def suite():
     """ return all the tests in this file """

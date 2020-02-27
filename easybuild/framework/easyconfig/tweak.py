@@ -958,9 +958,23 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         # automagically clear out list of checksums if software version is being tweaked
         if 'version' in update_build_specs:
             if 'exts_list' in parsed_ec and parsed_ec['exts_list']:
-                raise EasyBuildError("Cannot currently handle updating version and dependencies of easyconfig with "
-                                     "exts_list entry")
-            elif 'checksums' not in update_build_specs:
+                _log.warning("Found 'exts_list' in %s, will only update extension version of %s (if applicable)",
+                             ec_spec, parsed_ec['name'])
+                for idx, extension in enumerate(parsed_ec['exts_list']):
+                    if isinstance(extension, tuple) and extension[0] == parsed_ec['name']:
+                        ext_as_list = list(extension)
+                        # in the extension tuple the version is the second element
+                        if len(ext_as_list) > 1 and ext_as_list[1] == parsed_ec['version']:
+                            ext_as_list[1] = update_build_specs['version']
+                            # also need to clear the checksum (if it exists)
+                            if len(ext_as_list) > 2:
+                                ext_as_list[2].pop('checksums', None)
+                            # now replace the tuple in the dict of parameters
+                            # to update the original dep dict, we need to get a reference with templating disabled...
+                            parsed_ec.get_ref('exts_list')[idx] = tuple(ext_as_list)
+                            _log.info("Updated extension found in %s with new version", ec_spec)
+
+            if 'checksums' not in update_build_specs:
                 update_build_specs['checksums'] = []
                 _log.warning("Tweaking version: checksums cleared, verification disabled.")
         # Update the keys according to the build specs
