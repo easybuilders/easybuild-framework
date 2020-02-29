@@ -555,20 +555,29 @@ class EasyConfig(object):
         """
         Update a string configuration value with a value (i.e. append to it).
         """
-        prev_value = self[key]
-        if isinstance(prev_value, string_type):
-            if allow_duplicate or value not in prev_value:
-                self[key] = '%s %s ' % (prev_value, value)
-        elif isinstance(prev_value, list):
-            if allow_duplicate:
-                self[key] = prev_value + value
-            else:
-                for item in value:
-                    # add only those items that aren't already in the list
-                    if item not in prev_value:
-                        self[key] = prev_value + [item]
+        if isinstance(value, string_type):
+            lval = [value]
+        elif isinstance(value, list):
+            lval = value
+        else:
+            msg = "Can't update configuration value for %s, because the "
+            msg += "attempted update value, '%s', is not a string or list."
+            raise EasyBuildError(msg, key, value)
+
+        param_value = self[key]
+        if isinstance(param_value, string_type):
+            for item in lval:
+                # re.search: only add value to string if it's not there yet (surrounded by whitespace)
+                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
+                    param_value = param_value + ' %s ' % item
+        elif isinstance(param_value, list):
+            for item in lval:
+                if allow_duplicate or item not in param_value:
+                    param_value = param_value + [item]
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
+
+        self[key] = param_value
 
     def set_keys(self, params):
         """
