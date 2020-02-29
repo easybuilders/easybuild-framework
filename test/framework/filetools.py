@@ -1738,7 +1738,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertFalse(stderr)
-        regex = re.compile("^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
         self.assertEqual(len(index), 24)
@@ -1754,7 +1754,7 @@ class FileToolsTest(EnhancedTestCase):
         # test creating index file that's infinitely valid
         index_fp = ft.dump_index(self.test_prefix, max_age_sec=0)
         index_txt = ft.read_file(index_fp)
-        expected_header[1] = "# valid until: 9999-12-31 23:59:59\.9+"
+        expected_header[1] = r"# valid until: 9999-12-31 23:59:59\.9+"
         for fn in expected_header + expected:
             regex = re.compile('^%s$' % fn, re.M)
             self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
@@ -1768,7 +1768,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertFalse(stderr)
-        regex = re.compile("^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
         self.assertEqual(len(index), 24)

@@ -614,7 +614,7 @@ def create_index(path, ignore_dirs=None):
     for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
         for filename in filenames:
             # use relative paths in index
-            index.add(os.path.join(dirpath[len(path)+1:], filename))
+            index.add(os.path.join(dirpath[len(path) + 1:], filename))
 
         # do not consider (certain) hidden directories
         # note: we still need to consider e.g., .local !
