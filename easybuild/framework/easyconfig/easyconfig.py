@@ -1901,7 +1901,11 @@ def robot_find_easyconfig(name, version):
 
     res = None
     for path in paths:
-        if path in _path_indexes:
+
+        if build_option('ignore_index'):
+            _log.info("Ignoring index for %s...", path)
+            path_index = []
+        elif path in _path_indexes:
             path_index = _path_indexes[path]
             _log.info("Found loaded index for %s", path)
         elif os.path.exists(path):

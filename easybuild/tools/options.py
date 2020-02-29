@@ -684,6 +684,7 @@ class EasyBuildOptions(GeneralOption):
             'create-index': ("Create index for files in specified directory", None, 'store', None),
             'fix-deprecated-easyconfigs': ("Fix use of deprecated functionality in specified easyconfig files.",
                                            None, 'store_true', False),
+            'ignore-index': ("Ignore index when searching for files", None, 'store_true', False),
             'index-max-age': ("Maximum age for index before it is considered stale (in seconds)",
                               int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",

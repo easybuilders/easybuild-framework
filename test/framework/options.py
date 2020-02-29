@@ -776,6 +776,49 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 args = [opt, pattern, '--robot', test_easyconfigs_dir]
                 self.assertErrorRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
 
+    def test_ignore_index(self):
+        """
+        Test use of --ignore-index.
+        """
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        copy_file(toy_ec, self.test_prefix)
+
+        # install index that list more files than are actually available,
+        # so we can check whether it's used
+        index_txt = '\n'.join([
+            'toy-0.0.eb',
+            'toy-1.2.3.eb',
+            'toy-4.5.6.eb',
+        ])
+        write_file(os.path.join(self.test_prefix, '.eb-path-index'), index_txt)
+
+        args = [
+            '--search=toy',
+            '--robot-paths=%s' % self.test_prefix,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        for toy_ec_fn in ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb']:
+            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        args.append('--ignore-index')
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(re.escape(os.path.join(self.test_prefix, 'toy-0.0.eb')), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        for toy_ec_fn in ['toy-1.2.3.eb', 'toy-4.5.6.eb']:
+            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
+            self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
         args = ['--search-filename=^intel']
