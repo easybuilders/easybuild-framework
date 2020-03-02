@@ -1241,8 +1241,8 @@ class EasyConfig(object):
                 external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name_no_version,
                                                                                         dependency=external_metadata)
                 if external_metadata:
-                    self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
-                                  dep_name, external_metadata)
+                    self.log.info("Updated dependency info with metadata from available modules for external module "
+                                  "%s: %s", dep_name, external_metadata)
                 else:
                     self.log.info("No metadata available for external module %s.", dep_name)
         else:
