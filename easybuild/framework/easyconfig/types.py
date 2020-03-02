@@ -375,6 +375,43 @@ def to_list_of_strings_and_tuples_and_dicts(spec):
     return str_tup_list
 
 
+def to_sanity_check_paths_entry(spec):
+    """
+    Convert a 'list of lists and strings' to a 'list of tuples and strings' while allowing dicts of lists or strings
+
+    Example:
+        ['foo', ['bar', 'baz'], {'f42': ['a', 'b']}]
+        to
+        ['foo', ('bar', 'baz'), {'f42': ('a', 'b')}]
+    """
+    result = []
+
+    if not isinstance(spec, (list, tuple)):
+        raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
+
+    for elem in spec:
+        if isinstance(elem, (string_type, tuple)):
+            result.append(elem)
+        elif isinstance(elem, list):
+            result.append(tuple(elem))
+        elif isinstance(elem, dict):
+            result.append({})
+            for key, value in elem.items():
+                if not isinstance(key, string_type):
+                    raise EasyBuildError("Expected keys to be of type string, got %s (%s)", key, type(key))
+                if isinstance(value, (string_type, tuple)):
+                    result[-1][key] = value
+                elif isinstance(value, list):
+                    result[-1][key] = tuple(value)
+                else:
+                    raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)",
+                                         value, type(value))
+        else:
+            raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
+
+    return result
+
+
 def to_sanity_check_paths_dict(spec):
     """
     Convert a sanity_check_paths dict as received by yaml (a dict with list values that contain either lists or strings)
@@ -389,7 +426,7 @@ def to_sanity_check_paths_dict(spec):
 
     sanity_check_dict = {}
     for key in spec:
-        sanity_check_dict[key] = to_list_of_strings_and_tuples(spec[key])
+        sanity_check_dict[key] = to_sanity_check_paths_entry(spec[key])
     return sanity_check_dict
 
 
@@ -552,11 +589,18 @@ STRING_DICT = (dict, as_hashable(
         'key_types': [str],
     }
 ))
+STRING_OR_TUPLE_DICT = (dict, as_hashable(
+    {
+        'elem_types': [str],
+        'key_types': [str, TUPLE_OF_STRINGS],
+    }
+))
 STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, STRING_DICT]}))
+SANITY_CHECK_PATHS_ENTRY = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, STRING_OR_TUPLE_DICT]}))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
-        SANITY_CHECK_PATHS_FILES: [STRING_OR_TUPLE_LIST],
-        SANITY_CHECK_PATHS_DIRS: [STRING_OR_TUPLE_LIST],
+        SANITY_CHECK_PATHS_FILES: [SANITY_CHECK_PATHS_ENTRY],
+        SANITY_CHECK_PATHS_DIRS: [SANITY_CHECK_PATHS_ENTRY],
     },
     'opt_keys': [],
     'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
@@ -571,8 +615,8 @@ CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
 CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
 CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
-                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, STRING_OR_TUPLE_OR_DICT_LIST,
-                   TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+                   SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
+                   STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
