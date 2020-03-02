@@ -1153,7 +1153,7 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
-    def _handle_ext_module_metadata_by_probing_env(self, dep_name, dependency=dict()):
+    def _handle_ext_module_metadata_by_probing_modules(self, dep_name, dependency=None):
         """
         helper function for handle_external_module_metadata
         handles metadata for external module dependencies when there is not entry in the
@@ -1170,13 +1170,22 @@ class EasyConfig(object):
 
         If neither of the pairs is found, then an empty dictionary is returned
         """
+        if dependency is None:
+            dependency = dict()
+
         short_ext_modname = dep_name.split('/')[0]
         if not 'name' in dependency:
             dependency['name'] = [short_ext_modname]
+
+        if short_ext_modname.startswith('cray-'):
+            short_ext_modname = short_ext_modname_upperdname.split('cray-')[1]
+
+        short_ext_modname.replace('-', '_')
         short_ext_modname_upper = convert_name(short_ext_modname, upper=True)
 
         allowed_pairs = [
             ('CRAY_%s_PREFIX', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_PREFIX_DIR', 'CRAY_%s_VERSION'),
             ('CRAY_%s_DIR', 'CRAY_%s_VERSION'),
             ('CRAY_%s_ROOT', 'CRAY_%s_VERSION'),
             ('%s_PREFIX', '%s_VERSION'),
@@ -1184,6 +1193,8 @@ class EasyConfig(object):
             ('%s_ROOT', '%s_VERSION'),
             ('%s_HOME', '%s_VERSION'),
         ]
+
+        dry_run = build_option('extended_dry_run')
 
         for prefix, version in allowed_pairs:
             prefix = prefix % short_ext_modname_upper
@@ -1195,11 +1206,11 @@ class EasyConfig(object):
             # only update missing values with both keys are found
             if dep_prefix and dep_version:
                 # version should hold the value, not the key
-                if not 'version' in dependency:
+                if 'version' not in dependency:
                     dependency['version'] = [dep_version]
                     self.log.info('setting external module %s version to be %s' % (dep_name, dep_version))
                 # prefix should hold the key, not the value
-                if not 'prefix' in dependency:
+                if 'prefix' not in dependency:
                     dependency['prefix'] = prefix
                     self.log.info('setting external module %s prefix to be %s' % (dep_name, dep_prefix))
                 break
@@ -1216,22 +1227,22 @@ class EasyConfig(object):
 
         if dep_name in self.external_modules_metadata:
             dependency['external_module_metadata'] = self.external_modules_metadata[dep_name]
-            if not all(d in dependency['external_module_metadata'] for d in ('name','version','prefix')):
-                dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_env(dep_name,
+            if not all(d in dependency['external_module_metadata'] for d in ('name', 'version', 'prefix')):
+                dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_modules(dep_name,
                     dependency=dependency['external_module_metadata'])
                 self.log.info("Updated dependency info with available metadata and external module %s: %s",
                               dep_name, dependency['external_module_metadata'])
         elif dep_name_no_version in self.external_modules_metadata:
             dependency['external_module_metadata'] = self.external_modules_metadata[dep_name_no_version]
-            if not all(d in dependency['external_module_metadata'] for d in ('name','version','prefix')):
-                dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_env(dep_name_no_version,
-                    dependency=dependency['external_module_metadata'])
+            if not all(d in dependency['external_module_metadata'] for d in ('name', 'version', 'prefix')):
+                dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_modules(
+                    dep_name_no_version, dependency=dependency['external_module_metadata'])
                 self.log.info("Updated dependency info with available metadata and external module %s: %s",
                               dep_name_no_version, dependency['external_module_metadata'])
         else:
             self.log.info("No metadata available for external module %s. Attempting to read from available modules",
-                dep_name)
-            dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_env(dep_name)
+                          dep_name)
+            dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_modules(dep_name)
             self.log.info("Updated dependency info with external module %s: %s",
                           dep_name, dependency['external_module_metadata'])
 
