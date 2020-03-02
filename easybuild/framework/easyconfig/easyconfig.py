@@ -1233,6 +1233,7 @@ class EasyConfig(object):
             if external_metadata:
                 self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
                               dep_name, external_metadata)
+                dependency['external_module_metadata'] = external_metadata
             else:
                 self.log.info("No metadata available for external module %s.", dep_name)
         elif dep_name_no_version in self.external_modules_metadata:
@@ -1243,6 +1244,7 @@ class EasyConfig(object):
                 if external_metadata:
                     self.log.info("Updated dependency info with metadata from available modules for external module "
                                   "%s: %s", dep_name, external_metadata)
+                    dependency['external_module_metadata'] = external_metadata
                 else:
                     self.log.info("No metadata available for external module %s.", dep_name)
         else:
@@ -1250,12 +1252,12 @@ class EasyConfig(object):
                           dep_name)
             external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name)
             if external_metadata:
+                dependency['external_module_metadata'] = external_metadata
                 self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
                               dep_name, external_metadata)
             else:
                 self.log.info("No metadata available for external module %s.", dep_name)
 
-        dependency['external_module_metadata'] = external_metadata
         return dependency
 
     def handle_multi_deps(self):
