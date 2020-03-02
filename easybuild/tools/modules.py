@@ -1144,7 +1144,7 @@ class EnvironmentModulesC(ModulesTool):
         """
         try:
             # Tcl syntax
-            regex = re.compile(r'^setenv\s*%s\s*(?P<value>\S*)' % var_name, re.M)
+            regex = re.compile(r'^setenv\s+%s\s+(?P<value>\S*)' % var_name, re.M)
             ans = self.get_value_from_modulefile(mod_name, regex)
         except Exception:
             return None

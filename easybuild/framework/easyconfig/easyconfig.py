@@ -1178,7 +1178,7 @@ class EasyConfig(object):
             dependency['name'] = [short_ext_modname]
 
         if short_ext_modname.startswith('cray-'):
-            short_ext_modname = short_ext_modname_upperdname.split('cray-')[1]
+            short_ext_modname = short_ext_modname.split('cray-')[1]
 
         short_ext_modname.replace('-', '_')
         short_ext_modname_upper = convert_name(short_ext_modname, upper=True)
@@ -1193,8 +1193,6 @@ class EasyConfig(object):
             ('%s_ROOT', '%s_VERSION'),
             ('%s_HOME', '%s_VERSION'),
         ]
-
-        dry_run = build_option('extended_dry_run')
 
         for prefix, version in allowed_pairs:
             prefix = prefix % short_ext_modname_upper
@@ -1224,28 +1222,40 @@ class EasyConfig(object):
         """
         dependency = {}
         dep_name_no_version = dep_name.split('/')[0]
+        metadata_fields = ['name', 'version', 'prefix']
+        external_metadata = {}
 
         if dep_name in self.external_modules_metadata:
-            dependency['external_module_metadata'] = self.external_modules_metadata[dep_name]
-            if not all(d in dependency['external_module_metadata'] for d in ('name', 'version', 'prefix')):
-                dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_modules(dep_name,
-                    dependency=dependency['external_module_metadata'])
-                self.log.info("Updated dependency info with available metadata and external module %s: %s",
-                              dep_name, dependency['external_module_metadata'])
+            external_metadata = self.external_modules_metadata[dep_name]
+            if not all(d in external_metadata for d in metadata_fields):
+                external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name,
+                                                                                        dependency=external_metadata)
+            if external_metadata:
+                self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
+                              dep_name, external_metadata)
+            else:
+                self.log.info("No metadata available for external module %s.", dep_name)
         elif dep_name_no_version in self.external_modules_metadata:
-            dependency['external_module_metadata'] = self.external_modules_metadata[dep_name_no_version]
-            if not all(d in dependency['external_module_metadata'] for d in ('name', 'version', 'prefix')):
-                dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_modules(
-                    dep_name_no_version, dependency=dependency['external_module_metadata'])
-                self.log.info("Updated dependency info with available metadata and external module %s: %s",
-                              dep_name_no_version, dependency['external_module_metadata'])
+            external_metadata = self.external_modules_metadata[dep_name_no_version]
+            if not all(d in external_metadata for d in metadata_fields):
+                external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name_no_version,
+                                                                                        dependency=external_metadata)
+                if external_metadata:
+                    self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
+                                  dep_name, external_metadata)
+                else:
+                    self.log.info("No metadata available for external module %s.", dep_name)
         else:
             self.log.info("No metadata available for external module %s. Attempting to read from available modules",
                           dep_name)
-            dependency['external_module_metadata'] = self._handle_ext_module_metadata_by_probing_modules(dep_name)
-            self.log.info("Updated dependency info with external module %s: %s",
-                          dep_name, dependency['external_module_metadata'])
+            external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name)
+            if external_metadata:
+                self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
+                              dep_name, external_metadata)
+            else:
+                self.log.info("No metadata available for external module %s.", dep_name)
 
+        dependency['external_module_metadata'] = external_metadata
         return dependency
 
     def handle_multi_deps(self):
