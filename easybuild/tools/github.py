@@ -1009,14 +1009,13 @@ def copy_easyblocks(paths, target_dir):
         for path in paths:
             cn = get_easyblock_class_name(path)
             if not cn:
-                raise EasyBuildError("Invalid easyblock file")
+                raise EasyBuildError("Could not determine easyblock class from file %s" % path)
 
             eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
             if is_generic_easyblock(cn):
-                target_path = os.path.join(subdir, GENERIC_EB, "%s.%s" % (eb_name.lower(), PYTHON_EXTENSION))
+                target_path = os.path.join(subdir, GENERIC_EB, "%s.%s" % (eb_name, PYTHON_EXTENSION))
             else:
-                letter = os.path.basename(path).lower()[0]
-                target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
+                target_path = os.path.join(subdir, eb_name[0], "%s.%s" % (eb_name, PYTHON_EXTENSION))
 
             full_target_path = os.path.join(target_dir, target_path)
             file_info['eb_names'].append(eb_name)
@@ -1025,7 +1024,7 @@ def copy_easyblocks(paths, target_dir):
             copy_file(path, full_target_path, force_in_dry_run=True)
 
     else:
-        raise EasyBuildError("Subdir easyblocks not found")
+        raise EasyBuildError("Could not find %s" % os.path.join(target_dir, subdir))
 
     return file_info
 
