@@ -55,6 +55,7 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
+from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_warning, raise_easybuilderror
@@ -92,6 +93,7 @@ from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
 from easybuild.tools.systemtools import get_system_info
@@ -738,8 +740,11 @@ class EasyBuildOptions(GeneralOption):
         for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
             val = getattr(self.options, opt.replace('-', '_'))
             if val and len(val) != 2:
-                msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
-                error_msgs.append(msg)
+                if opt in ['toolchain', 'try-toolchain'] and val == [TC_CONSTANT_SYSTEM]:
+                    setattr(self.options, opt.replace('-', '_'), [SYSTEM_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME])
+                else:
+                    msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
+                    error_msgs.append(msg)
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
