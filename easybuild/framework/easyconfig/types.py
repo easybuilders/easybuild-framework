@@ -462,6 +462,8 @@ def to_checksums(checksums):
             for key, value in checksum.items():
                 validated_dict[key] = to_checksums(value)
             res.append(validated_dict)
+        else:
+            res.append(checksum)
 
     return res
 
