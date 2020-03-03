@@ -446,9 +446,11 @@ def to_checksums(checksums):
     res = []
     for checksum in checksums:
         # each list entry can be:
-        # * a string (MD5 checksum)
+        # * None (indicates no checksum)
+        # * a string (MD5 or SHA256 checksum)
         # * a tuple with 2 elements: checksum type + checksum value
         # * a list of checksums (i.e. multiple checksums for a single file)
+        # * a dict (filename to checksum mapping)
         if isinstance(checksum, string_type):
             res.append(checksum)
         elif isinstance(checksum, (list, tuple)):
