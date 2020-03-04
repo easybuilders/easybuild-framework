@@ -1384,6 +1384,7 @@ def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
     ok = False
+    errors = []
     for i in range(0, n):
         try:
             shutil.rmtree(path)
@@ -1391,12 +1392,14 @@ def rmtree2(path, n=3):
             break
         except OSError as err:
             _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
+            errors.append(err)
             time.sleep(2)
 
             # make sure write permissions are enabled on entire directory
             adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
     if not ok:
-        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
+        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.\nReason(s): %s",
+                             path, n, errors)
     else:
         _log.info("Path %s successfully removed." % path)
 
