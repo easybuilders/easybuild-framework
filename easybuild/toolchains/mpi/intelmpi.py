@@ -80,9 +80,9 @@ class IntelMPI(Mpich2):
 
             for root in self.get_software_root(self.MPI_MODULE_NAME):
                 self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir,
-                                            filename="lib%s.a" % self.MPI_LIBRARY_NAME)
+                                             filename="lib%s.a" % self.MPI_LIBRARY_NAME)
                 self.variables.append_exists('MPI_LIB_SHARED', root, lib_dir,
-                                            filename="lib%s.so" % self.MPI_LIBRARY_NAME)
+                                             filename="lib%s.so" % self.MPI_LIBRARY_NAME)
                 self.variables.append_exists('MPI_LIB_DIR', root, lib_dir)
                 self.variables.append_exists('MPI_INC_DIR', root, incl_dir)
 
