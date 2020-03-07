@@ -358,7 +358,7 @@ def get_cpu_arch_name():
     """
     cpu_arch_name = None
     if HAVE_ARCHSPEC:
-        cpu_arch_name = archspec_cpu_host()
+        cpu_arch_name = archspec_cpu_host().name
 
     if cpu_arch_name is None:
         cpu_arch_name = UNKNOWN
