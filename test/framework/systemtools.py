@@ -544,8 +544,13 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_cpu_arch_name(self):
         """Test getting CPU arch name."""
+
+        class MicroArch(object):
+            def __init__(self, name):
+                self.name = name
+
         st.HAVE_ARCHSPEC = True
-        st.archspec_cpu_host = lambda: 'haswell'
+        st.archspec_cpu_host = lambda: MicroArch('haswell')
         arch_name = get_cpu_arch_name()
         self.assertEqual(arch_name, 'haswell')
 
