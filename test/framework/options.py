@@ -3429,6 +3429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '4781',  # PR for easyconfig for EasyBuild-3.3.0.eb
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--pr-target-branch=some_branch',
         ]
 
         # merged PR for EasyBuild-3.3.0.eb, is missing approved review
@@ -3436,12 +3437,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
-            "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* milestone is set: OK (3.3.1)",
         ])
         expected_stderr = '\n'.join([
+            "* targets some_branch branch: FAILED; found 'develop' => not eligible for merging!",
             "* approved review: MISSING => not eligible for merging!",
             '',
             "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
@@ -3449,7 +3450,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
-        # full eligible merged PR
+        # full eligible merged PR, default target branch
+        del args[-1]
         args[1] = '4832'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
