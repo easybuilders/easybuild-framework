@@ -850,8 +850,8 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = config.install_path()
         eb.skip = True
         eb.extensions_step(fetch=True)
-        # 'ext1' should be in eb.exts
-        eb_exts = [y for x in eb.exts for y in x.values()]
+        # 'ext1' should be in eb.ext_instances
+        eb_exts = [x.name for x in eb.ext_instances]
         self.assertTrue('ext1' in eb_exts)
         # 'ext2' should not
         self.assertFalse('ext2' in eb_exts)
