@@ -833,11 +833,11 @@ class EasyBlockTest(EnhancedTestCase):
             toolchain = SYSTEM
             exts_list = [
                 "ext1",
-                ("ext2", "42", {"source_tmpl": "dummy.tgz"}),
+                ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
                 ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
             ]
             exts_filter = ("\
-                if [ %(ext_name)s == 'ext2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
+                if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
                     then exit 0;\
                 elif [ %(ext_name)s == 'real_ext' ]; then exit 0;\
                 else exit 1; fi", "")
@@ -850,11 +850,14 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = config.install_path()
         eb.skip = True
         eb.extensions_step(fetch=True)
-        # 'ext1' should be in eb.exts
-        eb_exts = [y for x in eb.exts for y in x.values()]
+        # 'ext1' should be in eb.ext_instances
+        eb_exts = [x.name for x in eb.ext_instances]
         self.assertTrue('ext1' in eb_exts)
-        # 'ext2' should not
-        self.assertFalse('ext2' in eb_exts)
+        # 'EXT-2' should not
+        self.assertFalse('EXT-2' in eb_exts)
+        self.assertFalse('EXT_2' in eb_exts)
+        self.assertFalse('ext-2' in eb_exts)
+        self.assertFalse('ext_2' in eb_exts)
         # 'ext3' should not
         self.assertFalse('ext3' in eb_exts)
 
