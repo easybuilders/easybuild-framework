@@ -30,11 +30,11 @@ Utility module for working with github
 :author: Toon Willems (Ghent University)
 """
 import base64
-import imp
-import inspect
 import copy
 import getpass
 import glob
+import imp
+import inspect
 import os
 import random
 import re
@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_pat
 from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
-from easybuild.tools.config import build_option
+from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_file, det_patched_files, decode_class_name
 from easybuild.tools.filetools import download_file, extract_file, mkdir, read_file, symlink
 from easybuild.tools.filetools import which, write_file
@@ -84,7 +84,6 @@ except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
 
-GENERIC_EB = 'generic'
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
@@ -109,7 +108,6 @@ HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
 HTTP_STATUS_NO_CONTENT = 204
 KEYRING_GITHUB_TOKEN = 'github_token'
-PYTHON_EXTENSION = 'py'
 URL_SEPARATOR = '/'
 
 VALID_CLOSE_PR_REASONS = {
@@ -1012,10 +1010,13 @@ def copy_easyblocks(paths, target_dir):
                 raise EasyBuildError("Could not determine easyblock class from file %s" % path)
 
             eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
+
             if is_generic_easyblock(cn):
-                target_path = os.path.join(subdir, GENERIC_EB, "%s.%s" % (eb_name, PYTHON_EXTENSION))
+                pkgdir = GENERIC_EASYBLOCK_PKG
             else:
-                target_path = os.path.join(subdir, eb_name[0], "%s.%s" % (eb_name, PYTHON_EXTENSION))
+                pkgdir = eb_name[0]
+
+            target_path = os.path.join(subdir, pkgdir, eb_name + '.py')
 
             full_target_path = os.path.join(target_dir, target_path)
             file_info['eb_names'].append(eb_name)
