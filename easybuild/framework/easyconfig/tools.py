@@ -90,7 +90,7 @@ _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 def skip_available(easyconfigs, modtool):
     """Skip building easyconfigs for existing modules."""
     module_names = [ec['full_mod_name'] for ec in easyconfigs]
-    modules_exist = modtool.exist(module_names)
+    modules_exist = modtool.exist(module_names, maybe_partial=False)
     retained_easyconfigs = []
     for ec, mod_name, mod_exists in zip(easyconfigs, module_names, modules_exist):
         if mod_exists:

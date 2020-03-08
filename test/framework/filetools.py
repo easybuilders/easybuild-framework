@@ -268,7 +268,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
         # checksum of length other than 32/64 yields an error
-        error_pattern = "Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        error_pattern = r"Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
         for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['sha256'] + 'foo']:
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
@@ -584,7 +584,7 @@ class FileToolsTest(EnhancedTestCase):
 
         txt2 = '\n'.join(['test', '123'])
         ft.write_file(fp, txt2, append=True)
-        self.assertEqual(ft.read_file(fp), txt+txt2)
+        self.assertEqual(ft.read_file(fp), txt + txt2)
 
         # test backing up of existing file
         ft.write_file(fp, 'foo', backup=True)
@@ -656,12 +656,34 @@ class FileToolsTest(EnhancedTestCase):
         # test use of 'mode' in read_file
         self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
 
+    def test_is_binary(self):
+        """Test is_binary function."""
+
+        for test in ['foo', '', b'foo', b'', "This is just a test", b"This is just a test", b"\xa0"]:
+            self.assertFalse(ft.is_binary(test))
+
+        self.assertTrue(ft.is_binary(b'\00'))
+        self.assertTrue(ft.is_binary(b"File is binary when it includes \00 somewhere"))
+        self.assertTrue(ft.is_binary(ft.read_file('/bin/ls', mode='rb')))
+
     def test_det_patched_files(self):
         """Test det_patched_files function."""
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', toy_patch_fn)
         self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
         self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
+
+        # create a patch file with a non-UTF8 character in it, should not result in problems
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3190)
+        test_patch = os.path.join(self.test_prefix, 'test.patch')
+        patch_txt = b'\n'.join([
+            b"--- foo",
+            b"+++ foo",
+            b"- test line",
+            b"+ test line with non-UTF8 char: '\xa0'",
+        ])
+        ft.write_file(test_patch, patch_txt)
+        self.assertEqual(ft.det_patched_files(test_patch), ['foo'])
 
     def test_guess_patch_level(self):
         "Test guess_patch_level."""
@@ -1800,7 +1822,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         # informative message printed, but file was not actually moved
-        regex = re.compile("^moved file .*/test\.txt to .*/new_test\.txt$")
+        regex = re.compile(r"^moved file .*/test\.txt to .*/new_test\.txt$")
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertEqual(stderr, '')
 
@@ -1863,7 +1885,7 @@ class FileToolsTest(EnhancedTestCase):
         ])
         res = ft.diff_files(foo, bar)
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
-        regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
+        regex = re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
     def test_get_source_tarball_from_git(self):
@@ -1954,42 +1976,52 @@ class FileToolsTest(EnhancedTestCase):
             'tag': 'master',
         }
         expected = '\n'.join([
-            '  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            '  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
+
+        git_config['keep_git_dir'] = True
+        expected = '\n'.join([
+            r'  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ])
+        run_check()
+        del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            '  running command "git clone --recursive git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "git checkout 8456f86 && git submodule update"',
-            "  \(in testrepository\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone --recursive git@github.com:hpcugent/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86 && git submodule update"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
 
         del git_config['recursive']
         expected = '\n'.join([
-            '  running command "git clone git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "git checkout 8456f86"',
-            "  \(in testrepository\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone git@github.com:hpcugent/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
 
@@ -2004,7 +2036,7 @@ class FileToolsTest(EnhancedTestCase):
             True,
             12345,
             '',
-            (a_sha256_checksum, ),
+            (a_sha256_checksum,),
             [],
         ]:
             self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
@@ -2064,7 +2096,6 @@ class FileToolsTest(EnhancedTestCase):
 
         from test_fake_vsc import pkgutil
         self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
-
 
 
 def suite():
