@@ -1743,6 +1743,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # --try-toolchain is overridden by --toolchain
             (['--try-toolchain=gompi,2018a', '--toolchain=system,system'], 'toy/0.0'),
+            # check we interpret SYSTEM correctly as a toolchain
+            (['--try-toolchain=SYSTEM'], 'toy/0.0'),
+            (['--toolchain=SYSTEM'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
@@ -2751,17 +2754,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        # PR for CMake 3.12.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6660
+        # PR for gzip 1.10 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/9921
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            '--review-pr=6660',
+            '--review-pr=9921',
         ]
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        regex = re.compile(r"^Comparing CMake-3.12.1-\S* with CMake-3.12.1-")
+        regex = re.compile(r"^Comparing gzip-1.10-\S* with gzip-1.10-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_set_tmpdir(self):
@@ -3467,6 +3470,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '4781',  # PR for easyconfig for EasyBuild-3.3.0.eb
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--pr-target-branch=some_branch',
         ]
 
         # merged PR for EasyBuild-3.3.0.eb, is missing approved review
@@ -3474,12 +3478,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
-            "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* milestone is set: OK (3.3.1)",
         ])
         expected_stderr = '\n'.join([
+            "* targets some_branch branch: FAILED; found 'develop' => not eligible for merging!",
             "* approved review: MISSING => not eligible for merging!",
             '',
             "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
@@ -3487,7 +3491,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
-        # full eligible merged PR
+        # full eligible merged PR, default target branch
+        del args[-1]
         args[1] = '4832'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)

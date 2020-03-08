@@ -78,6 +78,7 @@ CONT_TYPE_SINGULARITY = 'singularity'
 CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
+DEFAULT_BRANCH = 'develop'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -196,7 +197,6 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_commit_msg',
         'pr_descr',
         'pr_target_account',
-        'pr_target_branch',
         'pr_target_repo',
         'pr_title',
         'rpath_filter',
@@ -271,6 +271,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_CONT_TYPE: [
         'container_type',
+    ],
+    DEFAULT_BRANCH: [
+        'pr_target_branch',
     ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
