@@ -1690,20 +1690,22 @@ class FileToolsTest(EnhancedTestCase):
         # load_index just returns None if there is no index in specified directory
         self.assertEqual(ft.load_index(self.test_prefix), None)
 
-        # create index for test easyconfigs
-        index = ft.create_index(test_ecs)
-        self.assertEqual(len(index), 79)
+        # create index for test easyconfigs;
+        # test with specified path with and without trailing '/'s
+        for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
+            index = ft.create_index(path)
+            self.assertEqual(len(index), 79)
 
-        expected = [
-            os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
-            os.path.join('t', 'toy', 'toy-0.0.eb'),
-            os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'),
-        ]
-        for fn in expected:
-            self.assertTrue(fn in index)
+            expected = [
+                os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
+                os.path.join('t', 'toy', 'toy-0.0.eb'),
+                os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'),
+            ]
+            for fn in expected:
+                self.assertTrue(fn in index)
 
-        for fp in index:
-            self.assertTrue(fp.endswith('.eb'))
+            for fp in index:
+                self.assertTrue(fp.endswith('.eb'))
 
         # set up some files to create actual index file for
         ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))

@@ -611,15 +611,15 @@ def create_index(path, ignore_dirs=None):
     elif not os.path.isdir(path):
         raise EasyBuildError("Specified path is not a directory: %s", path)
 
-    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
+    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True, followlinks=True):
         for filename in filenames:
             # use relative paths in index
-            index.add(os.path.join(dirpath[len(path) + 1:], filename))
+            index.add(os.path.join(os.path.relpath(dirpath, path), filename))
 
         # do not consider (certain) hidden directories
         # note: we still need to consider e.g., .local !
         # replace list elements using [:], so os.walk doesn't process deleted directories
-        # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+        # see https://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
         dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return index

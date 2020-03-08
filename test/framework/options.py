@@ -785,13 +785,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         copy_file(toy_ec, self.test_prefix)
 
+        toy_ec_list = ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb']
+
         # install index that list more files than are actually available,
         # so we can check whether it's used
-        index_txt = '\n'.join([
-            'toy-0.0.eb',
-            'toy-1.2.3.eb',
-            'toy-4.5.6.eb',
-        ])
+        index_txt = '\n'.join(toy_ec_list)
         write_file(os.path.join(self.test_prefix, '.eb-path-index'), index_txt)
 
         args = [
@@ -803,7 +801,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
-        for toy_ec_fn in ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb']:
+        for toy_ec_fn in toy_ec_list:
             regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
