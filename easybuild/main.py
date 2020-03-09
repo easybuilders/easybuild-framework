@@ -57,13 +57,12 @@ from easybuild.tools.config import find_last_log, get_repository, get_repository
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, read_file, write_file
-from easybuild.tools.github import check_github, close_pr, new_branch_github, fetch_easyblocks_from_pr
-from easybuild.tools.github import find_easybuild_easyconfig
+from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import include_easyblocks, set_up_configuration, use_color
+from easybuild.tools.options import set_up_configuration, use_color
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
@@ -199,10 +198,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
-
-    if options.include_easyblocks_from_pr:
-        included_easyblocks = fetch_easyblocks_from_pr(options.include_easyblocks_from_pr)
-        include_easyblocks(options.tmpdir, included_easyblocks)
 
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
