@@ -111,8 +111,7 @@ class Extension(object):
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
 
-        # Add install/builddir templates, copied from update_config_template_run_step
-        # do we need to call self.cfg.generate_template_values() after?
+        # Add install/builddir templates with values from master.
         for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
             self.cfg.template_values[name[0]] = str(getattr(self.master, name[0], None))
 
