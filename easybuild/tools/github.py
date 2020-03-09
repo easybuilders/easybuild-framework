@@ -381,7 +381,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
 
 def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
-    """Fetch patched easyconfig files for a particular PR."""
+    """Fetch patched files for a particular PR."""
 
     if github_user is None:
         github_user = build_option('github_user')
@@ -398,10 +398,15 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
 
     if github_repo is None:
         github_repo = GITHUB_EASYCONFIGS_REPO
-    elif github_repo not in [GITHUB_EASYBLOCKS_REPO, GITHUB_EASYCONFIGS_REPO]:
+
+    if github_repo == GITHUB_EASYCONFIGS_REPO:
+        easyfiles = 'easyconfigs'
+    elif github_repo == GITHUB_EASYBLOCKS_REPO:
+        easyfiles = 'easyblocks'
+    else:
         raise EasyBuildError("Don't know how to fetch files from repo %s", github_repo)
 
-    easyfiles = 'easyconfigs' if github_repo == GITHUB_EASYCONFIGS_REPO else 'easyblocks'
+    subdir = os.path.join('easybuild', easyfiles)
 
     _log.debug("Fetching %s from %s/%s PR #%s into %s", easyfiles, github_account, github_repo, pr, path)
     pr_data, _ = fetch_pr_data(pr, github_account, github_repo, github_user)
@@ -449,9 +454,9 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
             print_warning("Using %s from closed PR #%s" % (easyfiles, pr))
 
         # obtain most recent version of patched files
-        for patched_file in patched_files:
+        for patched_file in [f for f in patched_files if subdir in f]:
             # path to patch file, incl. subdir it is in
-            fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+            fn = patched_file.split(subdir)[1].strip(os.path.sep)
             sha = pr_data['head']['sha']
             full_url = URL_SEPARATOR.join([GITHUB_RAW, github_account, github_repo, sha, patched_file])
             _log.info("Downloading %s from %s", fn, full_url)
@@ -461,14 +466,14 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
 
     # symlink directories into expected place if they're not there yet
     if final_path != path:
-        dirpath = os.path.join(final_path, 'easybuild', easyfiles)
+        dirpath = os.path.join(final_path, subdir)
         for eb_dir in os.listdir(dirpath):
             symlink(os.path.join(dirpath, eb_dir), os.path.join(path, os.path.basename(eb_dir)))
 
     # sanity check: make sure all patched files are downloaded
     files = []
-    for patched_file in [f for f in patched_files if not f.startswith('test/')]:
-        fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+    for patched_file in [f for f in patched_files if subdir in f]:
+        fn = patched_file.split(easyfiles)[1].strip(os.path.sep)
         full_path = os.path.join(path, fn)
         if os.path.exists(full_path):
             files.append(full_path)

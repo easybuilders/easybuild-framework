@@ -256,7 +256,7 @@ class GithubTest(EnhancedTestCase):
         })
 
         # PR with new easyblock plus non-easyblock file
-        all_ebs_pr1964 = ['.gitignore', 'lammps.py']
+        all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
         all_ebs_pr1967 = ['siesta.py']
