@@ -464,7 +464,8 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
             '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
-            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s && mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
+            ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
             '   }),',
             ']',
         ])
@@ -491,9 +492,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         # define actual installation dir
         pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
+        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
-            'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir,
+            'prebuildopts': expected_prebuildopts,
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
@@ -502,7 +504,7 @@ class EasyConfigTest(EnhancedTestCase):
         # also .cfg of Extension instance was updated correctly
         self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
         self.assertEqual(toy_ext.cfg['patches'], [toy_patch_fn])
-        self.assertEqual(toy_ext.cfg['prebuildopts'], "gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #" % pi_installdir)
+        self.assertEqual(toy_ext.cfg['prebuildopts'], expected_prebuildopts)
 
         # check whether files expected to be installed for 'toy' extension are in place
         self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'bin', 'toy')))
