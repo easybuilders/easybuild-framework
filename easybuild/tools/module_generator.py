@@ -1373,9 +1373,8 @@ class ModuleGeneratorLua(ModuleGenerator):
             mod_symlink_paths = []
 
         for mod_symlink_path in mod_symlink_paths:
-            mod_dir_name = os.path.basename(module_dir_path)
-            mod_symlink_dir = os.path.join(install_path('mod'), mod_symlink_path, mod_dir_name)
-            create_default_symlink(mod_symlink_dir)
+            mod_dir_name = os.path.dirname(self.get_module_filepath(mod_path_suffix=mod_symlink_path))
+            create_default_symlink(mod_dir_name)
 
     def set_environment(self, key, value, relpath=False):
         """
