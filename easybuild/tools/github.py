@@ -385,8 +385,15 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
 
     if github_user is None:
         github_user = build_option('github_user')
+
+    if github_repo is None:
+        github_repo = GITHUB_EASYCONFIGS_REPO
+
     if path is None:
-        path = build_option('pr_path')
+        if github_repo == GITHUB_EASYCONFIGS_REPO:
+            path = build_option('pr_path')
+        elif github_repo == GITHUB_EASYBLOCKS_REPO:
+            path = 'ebs_pr%s' % pr
 
     if path is None:
         path = tempfile.mkdtemp()
@@ -395,9 +402,6 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
         mkdir(path, parents=True)
 
     github_account = build_option('pr_target_account')
-
-    if github_repo is None:
-        github_repo = GITHUB_EASYCONFIGS_REPO
 
     if github_repo == GITHUB_EASYCONFIGS_REPO:
         easyfiles = 'easyconfigs'
