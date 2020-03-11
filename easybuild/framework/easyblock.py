@@ -75,7 +75,7 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_f
 from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
+from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file, dir_contains_files
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
@@ -1473,17 +1473,18 @@ class EasyBlock(object):
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
         res = []
-        for ext in self.exts:
-            cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
+        for ext_inst in self.ext_instances:
+            cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
             (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
-                self.log.info("Not skipping %s" % ext['name'])
-                self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
-                res.append(ext)
+                self.log.info("Not skipping %s", ext_inst.name)
+                self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
+                res.append(ext_inst)
             else:
-                self.log.info("Skipping %s" % ext['name'])
-        self.exts = res
+                self.log.info("Skipping %s", ext_inst.name)
+
+        self.ext_instances = res
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
@@ -2077,9 +2078,6 @@ class EasyBlock(object):
 
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
-        if self.skip:
-            self.skip_extensions()
-
         # actually install extensions
         self.log.debug("Installing extensions")
         exts_defaultclass = self.cfg['exts_defaultclass']
@@ -2100,14 +2098,8 @@ class EasyBlock(object):
 
         # get class instances for all extensions
         self.ext_instances = []
-        exts_cnt = len(self.exts)
-        for idx, ext in enumerate(self.exts):
-            self.log.debug("Starting extension %s" % ext['name'])
-            tup = (ext['name'], ext.get('version', ''), idx+1, exts_cnt)
-            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
-
-            # always go back to original work dir to avoid running stuff from a dir that no longer exists
-            change_dir(self.orig_workdir)
+        for ext in self.exts:
+            self.log.debug("Creating class instance for extension %s...", ext['name'])
 
             cls, inst = None, None
             class_name = encode_class_name(ext['name'])
@@ -2119,11 +2111,11 @@ class EasyBlock(object):
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
                 cls = get_easyblock_class(None, name=ext['name'], error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
-                self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
+                self.log.debug("Obtained class %s for extension %s", cls, ext['name'])
                 if cls is not None:
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
-                self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))
+                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext['name'], err)
 
             # alternative attempt: use class specified in class map (if any)
             if inst is None and ext['name'] in exts_classmap:
@@ -2141,7 +2133,7 @@ class EasyBlock(object):
             if inst is None:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
-                    self.log.debug("Obtained class %s for installing extension %s" % (cls, ext['name']))
+                    self.log.debug("Obtained class %s for installing extension %s", cls, ext['name'])
                     inst = cls(self, ext)
                     self.log.debug("Installing extension %s with default class %s (from %s)",
                                    ext['name'], default_class, default_class_modpath)
@@ -2149,7 +2141,23 @@ class EasyBlock(object):
                     raise EasyBuildError("Also failed to use default class %s from %s for extension %s: %s, giving up",
                                          default_class, default_class_modpath, ext['name'], err)
             else:
-                self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
+                self.log.debug("Installing extension %s with class %s (from %s)", ext['name'], class_name, mod_path)
+
+            self.ext_instances.append(inst)
+
+        if self.skip:
+            self.skip_extensions()
+
+        exts_cnt = len(self.exts)
+        for idx, (ext, ext_instance) in enumerate(zip(self.exts, self.ext_instances)):
+
+            self.log.debug("Starting extension %s" % ext['name'])
+
+            # always go back to original work dir to avoid running stuff from a dir that no longer exists
+            change_dir(self.orig_workdir)
+
+            tup = (ext['name'], ext.get('version', ''), idx+1, exts_cnt)
+            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
                 tup = (ext['name'], ext.get('version', ''), cls.__name__)
@@ -2165,18 +2173,15 @@ class EasyBlock(object):
             else:
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
-                inst.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                ext_instance.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                        rpath_filter_dirs=self.rpath_filter_dirs)
 
             # real work
-            inst.prerun()
-            txt = inst.run()
+            ext_instance.prerun()
+            txt = ext_instance.run()
             if txt:
                 self.module_extra_extensions += txt
-            inst.postrun()
-
-            # append so we can make us of it later (in sanity_check_step)
-            self.ext_instances.append(inst)
+            ext_instance.postrun()
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -2223,20 +2228,24 @@ class EasyBlock(object):
                                   lang, shebang, glob_pattern, paths)
                     for path in paths:
                         # check whether file should be patched by checking whether it has a shebang we want to tweak;
-                        # this also helps to skip binary files we may be hitting
+                        # this also helps to skip binary files we may be hitting (but only with Python 3)
                         try:
                             contents = read_file(path, mode='r')
                             should_patch = shebang_regex.match(contents)
                         except (TypeError, UnicodeDecodeError):
                             should_patch = False
+                            contents = None
 
+                        # if an existing shebang is found, patch it
                         if should_patch:
                             contents = shebang_regex.sub(shebang, contents)
                             write_file(path, contents)
-                        elif not contents.startswith('#!'):
+
+                        # if no shebang is present at all, add one (but only for non-binary files!)
+                        elif contents is not None and not is_binary(contents) and not contents.startswith('#!'):
                             self.log.info("The file '%s' doesn't have any shebang present, inserting it as first line.",
                                           path)
-                            contents = shebang + "\n" + contents
+                            contents = shebang + '\n' + contents
                             write_file(path, contents)
 
     def post_install_step(self):

@@ -38,6 +38,8 @@ before_install:
     - pip --version
     - pip install --upgrade pip
     - pip --version
+    # coveralls doesn't support Python 2.6 anymore, so don't try to install it when testing with Python 2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then pip install coveralls; fi    
     - pip install -r requirements.txt
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
@@ -88,8 +90,10 @@ script:
     # create file owned by root but writable by anyone (used by test_copy_file)
     - sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
     - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
-    # run test suite
-    - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+    # run coverage on all travis builds except for Python 2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then coverage run -m test.framework.suite 2>&1 | tee test_framework_suite.log; coverage report -m --ignore-errors; fi  
+    # invoke the regression test for Python 2.6 the original way without coverage
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log; fi
     # try and make sure output of running tests is clean (no printed messages/warnings)
     - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|requires Lmod as modules tool"
     # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
@@ -109,3 +113,6 @@ script:
     # simply sanity check on bootstrapped EasyBuild module
     - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all
     - module load EasyBuild; eb --version
+after_success:
+  - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then coveralls; fi  
+  
