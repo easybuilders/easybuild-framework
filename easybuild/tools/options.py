@@ -1042,8 +1042,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_easyconfig_licenses:
             msg += avail_easyconfig_licenses(self.options.output_format)
 
-        # dump available easyblocks
-        if self.options.list_easyblocks:
+        # dump available easyblocks (unless including easyblocks from pr, in which case it will be done later)
+        if self.options.list_easyblocks and not self.options.include_easyblocks_from_pr:
             msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
@@ -1087,7 +1087,8 @@ class EasyBuildOptions(GeneralOption):
             print(msg)
 
         # cleanup tmpdir and exit
-        cleanup_and_exit(self.tmpdir)
+        if not self.options.include_easyblocks_from_pr:
+            cleanup_and_exit(self.tmpdir)
 
     def avail_repositories(self):
         """Show list of known repository types."""
@@ -1397,8 +1398,26 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
     if eb_go.options.include_easyblocks_from_pr:
-        included_easyblocks = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
-        include_easyblocks(eb_go.options.tmpdir, included_easyblocks)
+        easyblocks_from_pr = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
+
+        if eb_go.options.include_easyblocks:
+            # make sure we're not including the same easyblock twice
+            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+            included_from_file = set([os.path.basename(eb) for eb in eb_go.options.include_easyblocks])
+            included_twice = included_from_pr & included_from_file
+            if included_twice:
+                raise EasyBuildError("Multiple inclusion of %s, check your --include-easyblocks options",
+                                     ','.join(included_twice))
+
+        include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+
+        if eb_go.options.list_easyblocks:
+            msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
+            if eb_go.options.unittest_file:
+                log.info(msg)
+            else:
+                print(msg)
+            cleanup_and_exit(tmpdir)
 
     check_python_version()
 

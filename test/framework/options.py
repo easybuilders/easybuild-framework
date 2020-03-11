@@ -2351,7 +2351,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
     def test_xxx_include_easyblocks(self):
-        """Test --include-easyblocks."""
+        """Test --include-easyblocks*."""
         orig_local_sys_path = sys.path[:]
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -2393,25 +2393,56 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # clear log
         write_file(self.logfile, '')
 
+        # include both extra EB_foo easyblock and an easyblock from a PR
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
+            '--include-easyblocks-from-pr=1915',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
         ]
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*',
-                                    'easybuild', 'easyblocks', 'foo.py')
-        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M)
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
+
+        foo_pattern = os.path.join(path_pattern, 'foo.py')
+        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % foo_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
-        # easyblock is found via get_easyblock_class
+        cmm_pattern = os.path.join(path_pattern, 'generic', 'cmakemake.py')
+        cmm_regex = re.compile(r"\|-- CMakeMake \(easybuild.easyblocks.generic.cmakemake @ %s\)" % cmm_pattern, re.M)
+        self.assertTrue(cmm_regex.search(logtxt), "Pattern '%s' found in: %s" % (cmm_regex.pattern, logtxt))
+
+        # easyblocks are found via get_easyblock_class
         klass = get_easyblock_class('EB_foo')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
-        # 'undo' import of foo easyblock
+        klass = get_easyblock_class('CMakeMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of foo and cmakemake easyblock
         del sys.modules['easybuild.easyblocks.foo']
+        del sys.modules['easybuild.easyblocks.generic.cmakemake']
+
+        # include extra test cmakemake easyblock
+        cmm_txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class CMakeMake(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
+
+        # including the same easyblock twice should fail
+        args = [
+            '--include-easyblocks=%s/cmakemake.py' % self.test_prefix,
+            '--include-easyblocks-from-pr=1915',
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.assertErrorRegex(EasyBuildError,
+                              "Multiple inclusion of cmakemake.py, check your --include-easyblocks options",
+                              self.eb_main, args, raise_error=True)
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
