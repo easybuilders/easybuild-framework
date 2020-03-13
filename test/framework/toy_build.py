@@ -1415,7 +1415,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # install (only) additional module under a hierarchical MNS
