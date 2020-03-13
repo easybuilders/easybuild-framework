@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -158,7 +158,7 @@ class IncludeTest(EnhancedTestCase):
         write_file(os.path.join(my_mns, '__init__.py'), "# dummy init, should not get included")
 
         my_mns_txt = '\n'.join([
-            "from easybuild.tools.module_naming_scheme import ModuleNamingScheme",
+            "from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme",
             "class MyMNS(ModuleNamingScheme):",
             "   pass",
         ])

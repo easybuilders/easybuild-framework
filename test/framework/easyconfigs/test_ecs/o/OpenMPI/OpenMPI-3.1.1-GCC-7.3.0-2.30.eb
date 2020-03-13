@@ -26,11 +26,11 @@ else:
     osdependencies = ['libibverbs-devel']
 
 sanity_check_paths = {
-    'files': ["bin/%s" % binfile for binfile in ["ompi_info", "opal_wrapper", "orterun"]] +
-             ["lib/lib%s.%s" % (libfile, SHLIB_EXT) for libfile in ["mpi_cxx", "mpi_f77", "mpi_f90",
-                                                                    "mpi", "ompitrace", "open-pal",
-                                                                    "open-rte", "vt", "vt-hyb",
-                                                                    "vt-mpi", "vt-mpi-unify"]] +
+    'files': ["bin/%s" % f for f in ["ompi_info", "opal_wrapper", "orterun"]] +
+             ["lib/lib%s.%s" % (l, SHLIB_EXT) for l in ["mpi_cxx", "mpi_f77", "mpi_f90",
+                                                        "mpi", "ompitrace", "open-pal",
+                                                        "open-rte", "vt", "vt-hyb",
+                                                        "vt-mpi", "vt-mpi-unify"]] +
              ["include/%s.h" % x for x in ["mpi-ext", "mpif-common", "mpif-config", "mpif",
                                            "mpif-mpi-io", "mpi", "mpi_portable_platform"]],
     'dirs': ["include/openmpi/ompi/mpi/cxx"],

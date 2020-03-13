@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,9 +38,9 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime
-from vsc.utils import fancylogger
-from vsc.utils.exceptions import LoggedException
 
+from easybuild.base import fancylogger
+from easybuild.base.exceptions import LoggedException
 from easybuild.tools.version import VERSION, this_is_easybuild
 
 
@@ -90,6 +90,12 @@ def raise_easybuilderror(msg, *args):
     raise EasyBuildError(msg, *args)
 
 
+def raise_nosupport(msg, ver):
+    """Construct error message for no longer supported behaviour, and raise an EasyBuildError."""
+    nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
+    raise_easybuilderror(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
+
+
 class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
@@ -99,7 +105,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def caller_info(self):
         """Return string with caller info."""
-        (filepath, line, function_name) = self.findCaller()
+        # findCaller returns a 3-tupe in Python 2, a 4-tuple in Python 3 (stack info as extra element)
+        (filepath, line, function_name) = self.findCaller()[:3]
         filepath_dirs = filepath.split(os.path.sep)
 
         for dirName in copy(filepath_dirs):
@@ -153,9 +160,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
-        """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
-        nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
-        raise EasyBuildError(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
+        """Raise error message for no longer supported behaviour, and raise an EasyBuildError."""
+        raise_nosupport(msg, ver)
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
@@ -197,6 +203,13 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
         fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
     else:
         if logfile is None:
+            # if logdir is specified but doesn't exist yet, create it first
+            if tmp_logdir and not os.path.exists(tmp_logdir):
+                try:
+                    os.makedirs(tmp_logdir)
+                except (IOError, OSError) as err:
+                    raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
+
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
             fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-', dir=tmp_logdir)
             os.close(fd)
@@ -345,10 +358,13 @@ def print_warning(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
+    log = kwargs.pop('log', None)
     silent = kwargs.pop('silent', False)
     if kwargs:
         raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
 
+    if log:
+        log.warning(msg)
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % msg)
 

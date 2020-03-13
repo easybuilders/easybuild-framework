@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2019 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain
 from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies, map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import change_dir, write_file
 
 
 class TweakTest(EnhancedTestCase):
@@ -127,14 +127,14 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(os.path.basename(ec_file), 'GCC-7.3.0-2.30.eb')
 
         # generate non-existing easyconfig
-        os.chdir(self.test_prefix)
+        change_dir(self.test_prefix)
         specs = {
             'name': 'GCC',
-            'version': '5.4.3',
+            'version': '4.9.0',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertTrue(generated)
-        self.assertEqual(os.path.basename(ec_file), 'GCC-5.4.3.eb')
+        self.assertEqual(os.path.basename(ec_file), 'GCC-4.9.0.eb')
 
     def test_tweak_one_version(self):
         """Test tweak_one function"""

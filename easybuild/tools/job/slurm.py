@@ -1,5 +1,5 @@
 ##
-# Copyright 2018-2019 Ghent University
+# Copyright 2018-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,8 +29,8 @@ Support for using Slurm as a backend for --job
 """
 import re
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
@@ -177,7 +177,7 @@ class SlurmJob(object):
         if hours is None:
             hours = max_walltime
         if hours > max_walltime:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            self.log.warning("Specified %s hours, but this is impossible. (resetting to %s)" % (hours, max_walltime))
             hours = max_walltime
         self.job_specs['time'] = hours * 60
 
@@ -185,4 +185,4 @@ class SlurmJob(object):
             self.job_specs['nodes'] = 1
             self.job_specs['ntasks'] = cores
         else:
-            self.log.warn("Number of cores to request not specified, falling back to whatever Slurm does by default")
+            self.log.warning("Number of cores to request not specified, falling back to whatever Slurm does by default")

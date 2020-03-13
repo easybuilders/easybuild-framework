@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,10 +34,11 @@ be used within an Easyconfig file.
 import copy
 import re
 import platform
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
@@ -57,6 +58,7 @@ TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
+    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',
@@ -225,7 +227,8 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
             else:
                 raise EasyBuildError("Unexpected type for dependency: %s", dep)
 
-            if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
+            if isinstance(dep_name, string_type) and dep_name.lower() == name.lower():
+                dep_version = pick_dep_version(dep_version)
                 template_values['%sver' % pref] = dep_version
                 dep_version_parts = dep_version.split('.')
                 template_values['%smajver' % pref] = dep_version_parts[0]
@@ -257,12 +260,14 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
     return template_values
 
 
-def to_template_str(value, templ_const, templ_val):
+def to_template_str(key, value, templ_const, templ_val):
     """
     Insert template values where possible
-        - value is a string
-        - templ_const is a dictionary of template strings (constants)
-        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
+
+    :param key: name of easyconfig parameter
+    :param value: string representing easyconfig parameter value
+    :param templ_const: dictionary of template strings (constants)
+    :param templ_val: (ordered) dictionary of template strings specific for this easyconfig file
     """
     old_value = None
     while value != old_value:
@@ -275,9 +280,15 @@ def to_template_str(value, templ_const, templ_val):
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
-            # by another non-alphanumeric.
-            if tval in value:
+            # by another non-alphanumeric;
+            # avoid introducing self-referencing easyconfig parameter value
+            # by taking into account given name of easyconfig parameter ('key')
+            if tval in value and tname != key:
                 value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+
+            # special case of %(pyshortver)s, where we should template 'python2.7' to 'python%(pyshortver)s'
+            if tname == 'pyshortver' and ('python' + tval) in value:
+                value = re.sub(r'(^|\W)python' + re.escape(tval) + r'(\W|$)', r'\1python%(' + tname + r')s\2', value)
 
     return value
 

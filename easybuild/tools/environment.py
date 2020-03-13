@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,11 +30,11 @@ Utility module for modifying os.environ
 """
 import copy
 import os
-from vsc.utils import fancylogger
-from vsc.utils.missing import shell_quote
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.utilities import shell_quote
 
 
 # take copy of original environemt, so we can restore (parts of) it later
@@ -113,7 +113,7 @@ def unset_env_vars(keys, verbose=True):
     if keys and verbose and build_option('extended_dry_run'):
         dry_run_msg("Undefining environment variables:\n", silent=build_option('silent'))
 
-    for key in keys:
+    for key in list(keys):
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
@@ -143,7 +143,7 @@ def read_environment(env_vars, strict=False):
     result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
 
     if not len(env_vars) == len(result):
-        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
+        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result])
         msg = 'Following name/variable not found in environment: %s' % missing
         if strict:
             raise EasyBuildError(msg)
@@ -155,24 +155,25 @@ def read_environment(env_vars, strict=False):
 
 def modify_env(old, new, verbose=True):
     """
-    Compares 2 os.environ dumps. Adapts final environment.
+    Compares two os.environ dumps. Adapts final environment.
     """
-    oldKeys = old.keys()
-    newKeys = new.keys()
-    for key in newKeys:
-        ## set them all. no smart checking for changed/identical values
-        if key in oldKeys:
-            ## hmm, smart checking with debug logging
+    old_keys = list(old.keys())
+    new_keys = list(new.keys())
+
+    for key in new_keys:
+        # set them all. no smart checking for changed/identical values
+        if key in old_keys:
+            # hmm, smart checking with debug logging
             if not new[key] == old[key]:
-                _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
+                _log.debug("Key in new environment found that is different from old one: %s (%s)", key, new[key])
                 setvar(key, new[key], verbose=verbose)
         else:
-            _log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
+            _log.debug("Key in new environment found that is not in old one: %s (%s)", key, new[key])
             setvar(key, new[key], verbose=verbose)
 
-    for key in oldKeys:
-        if not key in newKeys:
-            _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
+    for key in old_keys:
+        if key not in new_keys:
+            _log.debug("Key in old environment found that is not in new one: %s (%s)", key, old[key])
             os.unsetenv(key)
             del os.environ[key]
 

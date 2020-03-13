@@ -8,12 +8,12 @@ description = """OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 B
 
 toolchain = {'name': 'GCC', 'version': '6.4.0-2.28'}
 
-large_src = 'large.tgz'
-timing_src = 'timing.tgz'
+local_large_src = 'large.tgz'
+local_timing_src = 'timing.tgz'
 sources = [
     'v%(version)s.tar.gz',
-    large_src,
-    timing_src,
+    local_large_src,
+    local_timing_src,
 ]
 source_urls = [
     # order matters, trying to download the LAPACK tarball from GitHub causes trouble
@@ -24,15 +24,15 @@ source_urls = [
 
 patches = [
     'OpenBLAS-%(version)s_Makefile-LAPACK-sources.patch',
-    (large_src, '.'),
-    (timing_src, '.'),
+    (local_large_src, '.'),
+    (local_timing_src, '.'),
 ]
 
 skipsteps = ['configure']
 
-threading = 'USE_THREAD=1'
-buildopts = 'BINARY=64 ' + threading + ' CC="$CC" FC="$F77"'
-installopts = threading + " PREFIX=%(installdir)s"
+local_threading = 'USE_THREAD=1'
+buildopts = 'BINARY=64 ' + local_threading + ' CC="$CC" FC="$F77"'
+installopts = local_threading + " PREFIX=%(installdir)s"
 
 # extensive testing can be enabled by uncommenting the line below
 # runtest = 'PATH=.:$PATH lapack-timing'
