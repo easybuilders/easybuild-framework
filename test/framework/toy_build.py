@@ -2057,7 +2057,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
 
         # only subdirectories for software should be created
-        self.assertEqual(os.listdir(software_path), ['.locks', 'toy'])
+        self.assertEqual(sorted(os.listdir(software_path)), sorted(['.locks', 'toy']))
         self.assertEqual(sorted(os.listdir(os.path.join(software_path, 'toy'))), ['0.0-one', '0.0-two'])
 
         # only subdirectories for modules with alternative names should be created
