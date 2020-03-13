@@ -241,6 +241,13 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
+def is_binary(contents):
+    """
+    Check whether given bytestring represents the contents of a binary file or not.
+    """
+    return isinstance(contents, bytes) and b'\00' in bytes(contents)
+
+
 def resolve_path(path):
     """
     Return fully resolved path for given path.
@@ -1866,6 +1873,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
     recursive = git_config.pop('recursive', False)
+    keep_git_dir = git_config.pop('keep_git_dir', False)
 
     # input validation of git_config dict
     if git_config:
@@ -1914,7 +1922,10 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
-    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    if keep_git_dir:
+        tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
+    else:
+        tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
     run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)

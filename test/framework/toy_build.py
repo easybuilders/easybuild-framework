@@ -1231,6 +1231,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict\("toy"\)',
                 r'',
+                r'prepend_path\("CMAKE_PREFIX_PATH", root\)',
                 r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("PATH", pathJoin\(root, "bin"\)\)',
@@ -1268,6 +1269,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict toy',
                 r'',
+                r'prepend-path	CMAKE_PREFIX_PATH		\$root',
                 r'prepend-path	LD_LIBRARY_PATH		\$root/lib',
                 r'prepend-path	LIBRARY_PATH		\$root/lib',
                 r'prepend-path	PATH		\$root/bin',
@@ -2375,6 +2377,10 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = '\n'.join([
             toy_ec_txt,
             "postinstallcmds = ["
+            # copy of bin/toy to use in fix_python_shebang_for and fix_perl_shebang_for
+            "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.python',",
+            "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.perl',",
+
             # hardcoded path to bin/python
             "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
             # hardcoded path to bin/python3.6
@@ -2411,13 +2417,22 @@ class ToyBuildTest(EnhancedTestCase):
             "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
 
             "]",
-            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py', 'bin/toy', 'bin/b1.sh']",
-            "fix_perl_shebang_for = ['bin/*.pl', 'bin/b2.sh']",
+            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py', 'bin/toy.python', 'bin/b1.sh']",
+            "fix_perl_shebang_for = ['bin/*.pl', 'bin/b2.sh', 'bin/toy.perl']",
         ])
         write_file(test_ec, test_ec_txt)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
         toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
+
+        # bin/toy and bin/toy2 should *not* be patched, since they're binary files
+        toy_txt = read_file(os.path.join(toy_bindir, 'toy'), mode='rb')
+        for fn in ['toy.perl', 'toy.python']:
+            fn_txt = read_file(os.path.join(toy_bindir, fn), mode='rb')
+            # no shebang added
+            self.assertFalse(fn_txt.startswith(b"#!/"))
+            # exact same file as original binary (untouched)
+            self.assertEqual(toy_txt, fn_txt)
 
         # no re.M, this should match at start of file!
         py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
