@@ -255,6 +255,7 @@ class EasyBuildOptions(GeneralOption):
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
+            'lockpath': ("Specifies which path should be used to store lock files", None, 'store_or_None', None),
             'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
@@ -432,6 +433,8 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
+            'wait-on-lock': ("Wait until lock file is removed when a lock if found",
+                             None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
 
