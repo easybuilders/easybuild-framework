@@ -1455,7 +1455,7 @@ class ToyBuildTest(EnhancedTestCase):
             # existing install is reused
             modtxt3 = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
-            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
             # make sure load statements for dependencies are included
