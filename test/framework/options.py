@@ -4116,6 +4116,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
+        # --check-contrib passes if None values are used as checksum, but produces warning
+        toy = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'), toy)
+        toytxt = read_file(toy)
+        toytxt = toytxt + '\n'.join([
+            'checksums = [',
+            "    None,  # toy-0.0.tar.gz",
+            "    # toy-0.0_fix-silly-typo-in-printf-statement.patch",
+            "    '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',",
+            "    '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt",
+            ']\n',
+        ])
+        write_file(toy, toytxt)
+
+        args = ['--check-contrib', toy]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, raise_error=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, "WARNING: Found 1 None checksum value(s), please make sure this is intended!")
+
     def test_allow_use_as_root(self):
         """Test --allow-use-as-root-and-accept-consequences"""
 
