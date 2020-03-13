@@ -1430,7 +1430,7 @@ class ToyBuildTest(EnhancedTestCase):
         # existing install is reused
         modtxt2 = read_file(toy_core_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt2))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # make sure load statements for dependencies are included
