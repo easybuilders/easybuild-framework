@@ -757,7 +757,7 @@ def list_toolchains_rst(tcs):
     table_titles = nub(table_titles)
 
     table_values = [[] for i in range(len(table_titles))]
-    table_values[0] = ['**%s**' % tcname for tcname in tcs.keys()]
+    table_values[0] = ['**%s**' % tcname for tcname in sorted(tcs.keys())]
 
     for idx in range(1, len(table_titles)):
         for tc in tcs.values():
