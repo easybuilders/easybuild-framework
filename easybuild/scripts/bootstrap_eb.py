@@ -824,7 +824,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     eb_spec = {
         'name': 'EasyBuild',
         'hidden': False,
-        'toolchain': {'name': 'dummy', 'version': 'dummy'},
+        'toolchain': {'name': 'system', 'version': 'system'},
         'version': templates['version'],
         'versionprefix': '',
         'versionsuffix': '',
@@ -991,7 +991,7 @@ description = \"\"\"EasyBuild is a software build and installation framework
 written in Python that allows you to install software in a structured,
 repeatable and robust way.\"\"\"
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = {'name': 'system', 'version': 'system'}
 
 source_urls = [%(source_urls)s]
 sources = [%(sources)s]
