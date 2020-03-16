@@ -1233,6 +1233,39 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
 
+    def test_from_pr_token_log(self):
+        """Check that --from-pr doesn't leak GitHub token in log."""
+        if self.github_token is None:
+            print("Skipping test_from_pr_token_log, no GitHub token available?")
+            return
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
+            '--dry-run',
+            '--debug',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+        ]
+        try:
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertFalse(self.github_token in outtxt)
+            self.assertFalse(self.github_token in stdout)
+            self.assertFalse(self.github_token in stderr)
+
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr" % err)
+
     def test_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
         if self.github_token is None:
@@ -2710,17 +2743,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        # PR for CMake 3.12.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6660
+        # PR for gzip 1.10 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/9921
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            '--review-pr=6660',
+            '--review-pr=9921',
         ]
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        regex = re.compile(r"^Comparing CMake-3.12.1-\S* with CMake-3.12.1-")
+        regex = re.compile(r"^Comparing gzip-1.10-\S* with gzip-1.10-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_set_tmpdir(self):
