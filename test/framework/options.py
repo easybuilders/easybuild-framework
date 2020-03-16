@@ -1242,16 +1242,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        tmpdir = tempfile.mkdtemp()
         args = [
             # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
             '--from-pr=6424',
             '--dry-run',
             '--debug',
-            #'--logtostdout',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
-            #'--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
         ]
         try:
