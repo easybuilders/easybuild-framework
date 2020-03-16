@@ -8,6 +8,7 @@ v4.1.2 (March 16th 2020)
 
 bugfix release
 
+- fix gitdb dependency on Python 2.6 in test configuration (#3212)
 - fix broken test for --review-pr by using different PR to test with (#3226)
 - censor authorization part of headers before logging ReST API request (#3248)
 
