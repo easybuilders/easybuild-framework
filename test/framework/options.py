@@ -1233,6 +1233,39 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
 
+    def test_from_pr_token_log(self):
+        """Check that --from-pr doesn't leak GitHub token in log."""
+        if self.github_token is None:
+            print("Skipping test_from_pr_token_log, no GitHub token available?")
+            return
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
+            '--dry-run',
+            '--debug',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+        ]
+        try:
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertFalse(self.github_token in outtxt)
+            self.assertFalse(self.github_token in stdout)
+            self.assertFalse(self.github_token in stderr)
+
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr" % err)
+
     def test_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
         if self.github_token is None:
