@@ -74,6 +74,8 @@ class IntelMPI(Mpich2):
     def _set_mpi_variables(self):
         """Set the other MPI variables"""
 
+        super(IntelMPI, self)._set_mpi_variables()
+
         if (LooseVersion(self.version) >= LooseVersion('2019')):
             lib_dir = [os.path.join('intel64', 'lib', 'release')]
             incl_dir = [os.path.join('intel64', 'include')]
@@ -85,8 +87,6 @@ class IntelMPI(Mpich2):
                                              filename="lib%s.so" % self.MPI_LIBRARY_NAME)
                 self.variables.append_exists('MPI_LIB_DIR', root, lib_dir)
                 self.variables.append_exists('MPI_INC_DIR', root, incl_dir)
-
-        super(IntelMPI, self)._set_mpi_variables()
 
     MPI_LINK_INFO_OPTION = '-show'
 
