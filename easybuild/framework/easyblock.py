@@ -1869,9 +1869,14 @@ class EasyBlock(object):
             else:
                 valid_checksums = (checksum,)
 
-            if not all(is_sha256_checksum(c) for c in valid_checksums):
-                msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
-                checksum_issues.append(msg)
+            non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
+            if non_sha256_checksums:
+                if all(c is None for c in non_sha256_checksums):
+                    print_warning("Found %d None checksum value(s), please make sure this is intended!" %
+                                  len(non_sha256_checksums))
+                else:
+                    msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
+                    checksum_issues.append(msg)
 
         return checksum_issues
 
