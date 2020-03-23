@@ -54,8 +54,8 @@ except ImportError:
 
 # test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
-# the user & repo to use in this test (https://github.com/hpcugent/testrepository)
-GITHUB_USER = "hpcugent"
+# the user & repo to use in this test (https://github.com/easybuilders/testrepository)
+GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
@@ -220,10 +220,10 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         patterns = [
-            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "easybuilders/testrepository PR #2 was submitted by migueldiascosta",
             "[DRY RUN] Adding comment to testrepository issue #2: '" +
             "@migueldiascosta, this PR is being closed for the following reason(s): just a test",
-            "[DRY RUN] Closed hpcugent/testrepository PR #2",
+            "[DRY RUN] Closed easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
@@ -236,11 +236,11 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         patterns = [
-            "hpcugent/testrepository PR #2 was submitted by migueldiascosta",
+            "easybuilders/testrepository PR #2 was submitted by migueldiascosta",
             "[DRY RUN] Adding comment to testrepository issue #2: '" +
             "@migueldiascosta, this PR is being closed for the following reason(s): %s" % retest_msg,
-            "[DRY RUN] Closed hpcugent/testrepository PR #2",
-            "[DRY RUN] Reopened hpcugent/testrepository PR #2",
+            "[DRY RUN] Closed easybuilders/testrepository PR #2",
+            "[DRY RUN] Reopened easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
@@ -597,7 +597,7 @@ class GithubTest(EnhancedTestCase):
 
         client = RestClient('https://api.github.com', username=GITHUB_TEST_ACCOUNT, token=self.github_token)
 
-        status, body = client.repos['hpcugent']['testrepository'].contents.a_directory['a_file.txt'].get()
+        status, body = client.repos['easybuilders']['testrepository'].contents.a_directory['a_file.txt'].get()
         self.assertEqual(status, 200)
         # base64.b64encode requires & produces a 'bytes' value in Python 3,
         # but we need a string value hence the .decode() (also works in Python 2)
