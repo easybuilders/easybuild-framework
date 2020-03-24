@@ -1463,7 +1463,7 @@ class EasyBlock(object):
     def skip_extensions(self):
         """
         Called when self.skip is True
-        - use this to detect existing extensions and to remove them from self.exts
+        - use this to detect existing extensions and to remove them from self.ext_instances
         - based on initial R version
         """
         # obtaining untemplated reference value is required here to support legacy string templates like name/version
@@ -1482,7 +1482,7 @@ class EasyBlock(object):
                 self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
                 res.append(ext_inst)
             else:
-                self.log.info("Skipping %s", ext_inst.name)
+                print_msg("Skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
 
         self.ext_instances = res
 
@@ -2148,19 +2148,19 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        exts_cnt = len(self.exts)
-        for idx, (ext, ext_instance) in enumerate(zip(self.exts, self.ext_instances)):
+        exts_cnt = len(self.ext_instances)
+        for idx, ext in enumerate(self.ext_instances):
 
-            self.log.debug("Starting extension %s" % ext['name'])
+            self.log.debug("Starting extension %s" % ext.name)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            tup = (ext['name'], ext.get('version', ''), idx+1, exts_cnt)
+            tup = (ext.name, ext.version, idx+1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
-                tup = (ext['name'], ext.get('version', ''), cls.__name__)
+                tup = (ext.name, ext.version, cls.__name__)
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
@@ -2173,15 +2173,15 @@ class EasyBlock(object):
             else:
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
-                ext_instance.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                       rpath_filter_dirs=self.rpath_filter_dirs)
+                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                      rpath_filter_dirs=self.rpath_filter_dirs)
 
             # real work
-            ext_instance.prerun()
-            txt = ext_instance.run()
+            ext.prerun()
+            txt = ext.run()
             if txt:
                 self.module_extra_extensions += txt
-            ext_instance.postrun()
+            ext.postrun()
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
