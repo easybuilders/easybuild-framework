@@ -251,7 +251,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
-    _log.debug("get request result for %s: status: %d, data: %s", url, status, data)
+    _log.debug("get request result for %s: status: %d, data: %s", url.url, status, data)
     return (status, data)
 
 
@@ -284,7 +284,7 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
     else:
         raise EasyBuildError("FAILED: %s", data.get('message', "(unknown reason)"))
 
-    _log.debug("get request result for %s: status: %d, data: %s", url, status, data)
+    _log.debug("get request result for %s: status: %d, data: %s", url.url, status, data)
     return (status, data)
 
 
@@ -1597,22 +1597,28 @@ def check_online_status():
     Check whether we currently are online
     Return True if online, else a list of error messages
     """
-    # Try repeatedly and with different URLs to cater for flaky servers
-    # E.g. Github returned "HTTP Error 403: Forbidden" and "HTTP Error 406: Not Acceptable" randomly
-    # Timeout and repeats set to total 1 minute
-    urls = [GITHUB_URL, GITHUB_API_URL]
-    num_repeats = 6
-    errors = set()  # Use set to record only unique errors
-    for attempt in range(num_repeats):
-        # Cycle through URLs
-        url = urls[attempt % len(urls)]
-        try:
-            urlopen(url, timeout=10)
-            errors = None
-            break
-        except URLError as err:
-            errors.add('%s: %s' % (url, err))
-    return sorted(errors) if errors else True
+    result = True
+    # Try API request first to avoid running into rate limits
+    status, data = github_api_get_request(lambda x: x.rate_limit)
+    if status != HTTP_STATUS_OK or not data:
+        # Try repeatedly and with different URLs to cater for flaky servers
+        # E.g. Github returned "HTTP Error 403: Forbidden" and "HTTP Error 406: Not Acceptable" randomly
+        # Timeout and repeats set to total 1 minute
+        urls = [GITHUB_URL, GITHUB_API_URL, 'https://google.com']
+        num_repeats = 6
+        errors = set()  # Use set to record only unique errors
+        for attempt in range(num_repeats):
+            # Cycle through URLs
+            url = urls[attempt % len(urls)]
+            try:
+                urlopen(url, timeout=10)
+                errors = None
+                break
+            except URLError as err:
+                errors.add('%s: %s' % (url, err))
+        if errors:
+            result = sorted(errors)
+    return result
 
 
 def check_github():
