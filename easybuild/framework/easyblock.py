@@ -1482,7 +1482,7 @@ class EasyBlock(object):
                 self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
                 res.append(ext_inst)
             else:
-                print_msg("Skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
+                print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
 
         self.ext_instances = res
 
@@ -2156,7 +2156,7 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            tup = (ext.name, ext.version, idx+1, exts_cnt)
+            tup = (ext.name, ext.version or '', idx+1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
