@@ -76,7 +76,7 @@ from easybuild.tools.filetools import change_dir, convert_name, compute_checksum
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file, dir_contains_files
+from easybuild.tools.filetools import remove_file, verify_checksum, weld_paths, write_file, dir_contains_files
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -1437,7 +1437,7 @@ class EasyBlock(object):
             try:
                 self.modules_tool.unload([self.short_mod_name])
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
-                rmtree2(os.path.dirname(fake_mod_path))
+                remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)
         elif self.short_mod_name is None:
@@ -2671,7 +2671,7 @@ class EasyBlock(object):
             self.log.info("Cleaning up builddir %s (in %s)", self.builddir, os.getcwd())
 
             try:
-                rmtree2(self.builddir)
+                remove_dir(self.builddir)
                 base = os.path.dirname(self.builddir)
 
                 # keep removing empty directories until we either find a non-empty one
