@@ -834,6 +834,7 @@ class EasyBlockTest(EnhancedTestCase):
                 "ext1",
                 ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
                 ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
+                "ext4",
             ]
             exts_filter = ("\
                 if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
@@ -857,7 +858,8 @@ class EasyBlockTest(EnhancedTestCase):
         patterns = [
             r"^== skipping extension EXT-2",
             r"^== skipping extension ext3",
-            r"^== installing extension ext1  \(1/1\)\.\.\.",
+            r"^== installing extension ext1  \(1/2\)\.\.\.",
+            r"^== installing extension ext4  \(2/2\)\.\.\.",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
