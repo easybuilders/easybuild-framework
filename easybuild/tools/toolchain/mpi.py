@@ -174,6 +174,13 @@ class Mpi(Toolchain):
         }
         mpi_cmd_template = build_option('mpi_cmd_template')
         if mpi_cmd_template:
+            mpi_exec_template = build_option('mpi_exec_template')
+            if mpi_exec_template:
+                self.log.warning(
+                    "Overriding 'mpi_exec_template':\n%s\nwith 'mpi_cmd_template':\n%s",
+                    mpi_exec_template,
+                    mpi_cmd_template
+                )
             self.log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
         else:
             params['mpi_exec_nranks'] = self.mpi_exec_nranks(nr_ranks=nr_ranks)
