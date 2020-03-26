@@ -168,32 +168,51 @@ class Mpi(Toolchain):
 
     def mpi_cmd_for(self, cmd, nr_ranks):
         """Construct an MPI command for the given command and number of ranks."""
-
-        # parameter values for mpirun command
         params = {
             'nr_ranks': nr_ranks,
             'cmd': cmd,
         }
-
         mpi_cmd_template = build_option('mpi_cmd_template')
         if mpi_cmd_template:
             self.log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
         else:
+            params['mpi_exec_nranks'] = self.mpi_exec_nranks(nr_ranks=nr_ranks)
+            mpi_cmd_template = "%(mpi_exec_nranks)s %(cmd)s"
+
+        try:
+            res = mpi_cmd_template % params
+        except KeyError as err:
+            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: %s", mpi_cmd_template, params, err)
+
+        return res
+
+    def mpi_exec_nranks(self, nr_ranks=1):
+        """Construct an MPI execution command for the given number of ranks."""
+
+        # parameter values for mpirun command
+        params = {
+            'nr_ranks': nr_ranks,
+        }
+
+        mpi_exec_template = build_option('mpi_exec_template')
+        if mpi_exec_template:
+            self.log.info("Using specified template for MPI commands: %s", mpi_exec_template)
+        else:
             # different known mpirun commands
-            mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
+            mpirun_n = "mpirun -n %(nr_ranks)d"
             mpi_cmds = {
-                toolchain.OPENMPI: mpirun_n_cmd,
-                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",
-                toolchain.INTELMPI: mpirun_n_cmd,
-                toolchain.MVAPICH2: mpirun_n_cmd,
-                toolchain.MPICH: mpirun_n_cmd,
-                toolchain.MPICH2: mpirun_n_cmd,
+                toolchain.OPENMPI: mpirun_n,
+                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d",
+                toolchain.INTELMPI: mpirun_n,
+                toolchain.MVAPICH2: mpirun_n,
+                toolchain.MPICH: mpirun_n,
+                toolchain.MPICH2: mpirun_n,
             }
 
         mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_cmd_template is None:
+        if mpi_exec_template is None:
 
             if mpi_family == toolchain.INTELMPI:
 
@@ -201,7 +220,7 @@ class Mpi(Toolchain):
                 impi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
                 if LooseVersion(impi_ver) <= LooseVersion('4.1'):
 
-                    mpi_cmds[toolchain.INTELMPI] = "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s"
+                    mpi_cmds[toolchain.INTELMPI] = "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d"
 
                     # set temporary dir for MPD
                     # note: this needs to be kept *short*,
@@ -213,7 +232,7 @@ class Mpi(Toolchain):
                         self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s", mpd_tmpdir)
 
                     # temporary location for mpdboot and nodes files
-                    tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
+                    tmpdir = tempfile.mkdtemp(prefix='mpi_exec_for-')
 
                     # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
                     env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
@@ -235,14 +254,14 @@ class Mpi(Toolchain):
                     params.update({'nodesfile': "-machinefile %s" % nodes})
 
             if mpi_family in mpi_cmds.keys():
-                mpi_cmd_template = mpi_cmds[mpi_family]
-                self.log.info("Using template MPI command '%s' for MPI family '%s'", mpi_cmd_template, mpi_family)
+                mpi_exec_template = mpi_cmds[mpi_family]
+                self.log.info("Using template MPI execution '%s' for MPI family '%s'", mpi_exec_template, mpi_family)
             else:
                 raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
 
         try:
-            res = mpi_cmd_template % params
+            res = mpi_exec_template % params
         except KeyError as err:
-            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: %s", mpi_cmd_template, params, err)
+            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: %s", mpi_exec_template, params, err)
 
         return res

@@ -188,6 +188,7 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',
+        'mpi_exec_template',
         'only_blocks',
         'optarch',
         'package_tool_options',
