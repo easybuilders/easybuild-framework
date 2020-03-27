@@ -1128,6 +1128,13 @@ class EasyConfig(object):
         try:
             ectxt = self.parser.dump(self, default_values, templ_const, templ_val,
                                      toolchain_hierarchy=get_toolchain_hierarchy(self['toolchain']))
+        except EasyBuildError as err:
+            if 'No version found for subtoolchain' in str(err):
+                self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump',
+                                 self['toolchain'])
+                ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+            else:
+                raise err
         except NotImplementedError as err:
             # need to restore enable_templating value in case this method is caught in a try/except block and ignored
             # (the ability to dump is not a hard requirement for build success)
