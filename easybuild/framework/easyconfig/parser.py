@@ -226,6 +226,7 @@ class EasyConfigParser(object):
 
         return cfg
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=[]):
         """Dump easyconfig in format it was parsed from."""
-        return self._formatter.dump(ecfg, default_values, templ_const, templ_val)
+        return self._formatter.dump(ecfg, default_values, templ_const, templ_val,
+                                    toolchain_hierarchy=toolchain_hierarchy)
