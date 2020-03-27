@@ -36,6 +36,7 @@ import re
 import tempfile
 
 from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
@@ -71,9 +72,10 @@ def dump_dependency(dep, toolchain):
     if dep['external_module']:
         res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
     else:
-        # mininal spec: (name, version)
+        # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
-        if dep['toolchain'] != toolchain:
+        subtoolchains = get_toolchain_hierarchy(toolchain)
+        if any(all(v == subtoolchain[k] for k, v in dep['toolchain'].items()) for subtoolchain in subtoolchains):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
