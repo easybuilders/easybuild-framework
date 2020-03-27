@@ -57,6 +57,7 @@ import sys
 import tempfile
 
 from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -139,6 +140,15 @@ def env_vars_external_module(name, version, metadata):
         env_vars[get_software_version_env_var_name(name)] = version
 
     return env_vars
+
+
+def check_toolchain_in_hierarchy(toolchain, parent_toolchain):
+    hierarchy = get_toolchain_hierarchy(parent_toolchain)
+    if any(all(v == subtoolchain[k] for k, v in toolchain) for subtoolchain in hierarchy):
+        result = True
+    else:
+        result = False
+    return result
 
 
 class Toolchain(object):

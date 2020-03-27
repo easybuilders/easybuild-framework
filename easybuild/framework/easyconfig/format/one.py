@@ -36,7 +36,6 @@ import re
 import tempfile
 
 from easybuild.base import fancylogger
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
@@ -46,7 +45,7 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, check_toolchain_in_hierarchy
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
@@ -74,8 +73,7 @@ def dump_dependency(dep, toolchain):
     else:
         # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
-        subtoolchains = get_toolchain_hierarchy(toolchain)
-        if all(subtoolchain != dep['toolchain'] for subtoolchain in subtoolchains):
+        if not check_toolchain_in_hierarchy(dep['toolchain'], toolchain):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
