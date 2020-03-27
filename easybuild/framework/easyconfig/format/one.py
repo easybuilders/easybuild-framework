@@ -65,7 +65,7 @@ REFORMAT_ORDERED_ITEM_KEYS = {
 _log = fancylogger.getLogger('easyconfig.format.one', fname=False)
 
 
-def dump_dependency(dep, toolchain, toolchain_hierarchy=[]):
+def dump_dependency(dep, toolchain, toolchain_hierarchy=None):
     """Dump parsed dependency in tuple format"""
     if not toolchain_hierarchy:
         toolchain_hierarchy = [toolchain]
@@ -262,7 +262,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return res
 
-    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val, toolchain_hierarchy=[]):
+    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """
         Determine parameters in the dumped easyconfig file which have a non-default value.
         """
@@ -307,7 +307,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return eclines, printed_keys
 
-    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=[]):
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """
         Dump easyconfig in format v1.
 
