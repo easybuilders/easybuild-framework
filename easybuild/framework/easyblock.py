@@ -3052,8 +3052,8 @@ class EasyBlock(object):
                 raise EasyBuildError("Lock file %s already exists, aborting!", lock_fp)
 
         # create lock file to avoid that another installation running in parallel messes things up
-        print_msg("creating lock file %s" % lock_fp, silent=self.silent)
         write_file(lock_fp, 'lock for %s' % self.installdir)
+        self.log.info("Lock file created: %s", lock_fp)
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
@@ -3070,8 +3070,8 @@ class EasyBlock(object):
         except StopException:
             pass
         finally:
-            print_msg("removing lock file %s" % lock_fp, silent=self.silent)
             remove_file(lock_fp)
+            self.log.info("Lock file removed: %s", lock_fp)
 
         # return True for successfull build (or stopped build)
         return True
