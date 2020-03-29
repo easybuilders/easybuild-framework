@@ -836,6 +836,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_copy_ec(self):
         """Test --copy-ec."""
 
+        def mocked_main(args):
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, raise_error=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+            self.assertEqual(stderr, '')
+            return stdout.strip()
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
 
@@ -845,7 +855,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # basic test: copying one easyconfig file to a non-existing absolute path
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = ['--copy-ec', 'toy-0.0.eb', test_ec]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_ec)
 
         self.assertTrue(os.path.exists(test_ec))
         self.assertEqual(toy_ec_txt, read_file(test_ec))
@@ -858,7 +869,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(target_fn))
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to test.eb')
 
         change_dir(cwd)
 
@@ -869,7 +881,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
         mkdir(test_target_dir)
         args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_target_dir)
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_ec))
@@ -890,7 +903,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
 
         check_copied_files()
 
@@ -901,7 +915,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[-1] = os.path.basename(test_target_dir)
         self.assertFalse(os.path.exists(args[-1]))
 
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
 
         check_copied_files()
 
@@ -910,6 +925,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(target))
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
         error_pattern = ".*/test.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        # test use of --copy-ec with only one argument: copy to current working directory
+        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
+        mkdir(test_working_dir)
+        change_dir(test_working_dir)
+        self.assertEqual(len(os.listdir(os.getcwd())), 0)
+        args = ['--copy-ec', 'toy-0.0.eb']
+        stdout = mocked_main(args)
+        regex = re.compile('toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
+        self.assertTrue(regex.match(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        copied_toy_cwd = os.path.join(test_working_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_cwd))
+        self.assertEqual(read_file(copied_toy_cwd), toy_ec_txt)
+
+        # --copy-ec without arguments results in a proper error
+        args = ['--copy-ec']
+        error_pattern = "One of more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
     def test_dry_run(self):
