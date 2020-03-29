@@ -34,10 +34,12 @@ import grp
 import os
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from functools import wraps
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -2515,6 +2517,84 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertFalse(os.path.exists(toy_installdir))
+
+    def test_toy_build_lock(self):
+        """Test toy installation when a lock is already in place."""
+
+        locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_lock_fn = toy_installdir.replace(os.path.sep, '_') + '.lock'
+
+        write_file(os.path.join(locks_dir, toy_lock_fn), '')
+
+        error_pattern = "Lock file .*_software_toy_0.0.lock already exists, aborting!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+
+        locks_dir = os.path.join(self.test_prefix, 'locks')
+
+        # no lock in place, so installation proceeds as normal
+        extra_args = ['--locks-dir=%s' % locks_dir]
+        self.test_toy_build(extra_args=extra_args, verify=True, raise_error=True)
+
+        # put lock in place in custom locks dir, try again
+        toy_lock_fp = os.path.join(locks_dir, toy_lock_fn)
+        write_file(toy_lock_fp, '')
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
+
+        # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
+        class remove_lock_after:
+            def __init__(self, seconds, lock_fp):
+                self.seconds = seconds
+                self.lock_fp = lock_fp
+
+            def remove_lock(self, *args):
+                remove_file(self.lock_fp)
+
+            def __enter__(self):
+                signal.signal(signal.SIGALRM, self.remove_lock)
+                signal.alarm(self.seconds)
+
+            def __exit__(self, type, value, traceback):
+                pass
+
+        # wait for lock to be removed, with 1 second interval of checking
+        extra_args.append('--wait-on-lock=1')
+
+        wait_regex = re.compile("^== lock file .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
+        ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
+
+        self.assertTrue(os.path.exists(toy_lock_fp))
+
+        # use context manager to remove lock file after 3 seconds
+        with remove_lock_after(3, toy_lock_fp):
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertEqual(stderr, '')
+
+            wait_matches = wait_regex.findall(stdout)
+            # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
+            self.assertTrue(len(wait_matches) in range(2, 5))
+
+            self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+
+        # when there is no lock in place, --wait-on-lock has no impact
+        self.assertFalse(os.path.exists(toy_lock_fp))
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+        self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
 
 
 def suite():
