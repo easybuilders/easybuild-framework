@@ -255,6 +255,8 @@ class EasyBuildOptions(GeneralOption):
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
+            'ignore-locks': ("Ignore locks that prevent two identical installations running in parallel",
+                             None, 'store_true', False),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'locks-dir': ("Directory to store lock files (should be on a shared filesystem); "

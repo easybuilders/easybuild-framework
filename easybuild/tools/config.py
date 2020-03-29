@@ -226,6 +226,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
+        'ignore_locks',
         'install_latest_eb_release',
         'lib64_fallback_sanity_check',
         'logtostdout',

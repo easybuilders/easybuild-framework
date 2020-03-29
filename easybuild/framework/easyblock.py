@@ -3039,23 +3039,28 @@ class EasyBlock(object):
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
-        locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
-        lock_fp = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+        ignore_locks = build_option('ignore_locks')
 
-        # if lock already exists, either abort or wait until it disappears
-        if os.path.exists(lock_fp):
-            wait_on_lock = build_option('wait_on_lock')
-            if wait_on_lock:
-                while os.path.exists(lock_fp):
-                    print_msg("lock file %s exists, waiting %d seconds..." % (lock_fp, wait_on_lock),
-                              silent=self.silent)
-                    time.sleep(wait_on_lock)
-            else:
-                raise EasyBuildError("Lock file %s already exists, aborting!", lock_fp)
+        if ignore_locks:
+            self.log.info("Ignoring locks...")
+        else:
+            locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
+            lock_fp = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
 
-        # create lock file to avoid that another installation running in parallel messes things up
-        write_file(lock_fp, 'lock for %s' % self.installdir)
-        self.log.info("Lock file created: %s", lock_fp)
+            # if lock already exists, either abort or wait until it disappears
+            if os.path.exists(lock_fp):
+                wait_on_lock = build_option('wait_on_lock')
+                if wait_on_lock:
+                    while os.path.exists(lock_fp):
+                        print_msg("lock file %s exists, waiting %d seconds..." % (lock_fp, wait_on_lock),
+                                  silent=self.silent)
+                        time.sleep(wait_on_lock)
+                else:
+                    raise EasyBuildError("Lock file %s already exists, aborting!", lock_fp)
+
+            # create lock file to avoid that another installation running in parallel messes things up
+            write_file(lock_fp, 'lock for %s' % self.installdir)
+            self.log.info("Lock file created: %s", lock_fp)
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
@@ -3072,8 +3077,9 @@ class EasyBlock(object):
         except StopException:
             pass
         finally:
-            remove_file(lock_fp)
-            self.log.info("Lock file removed: %s", lock_fp)
+            if not ignore_locks:
+                remove_file(lock_fp)
+                self.log.info("Lock file removed: %s", lock_fp)
 
         # return True for successfull build (or stopped build)
         return True
