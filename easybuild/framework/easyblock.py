@@ -3044,10 +3044,12 @@ class EasyBlock(object):
 
         # if lock already exists, either abort or wait until it disappears
         if os.path.exists(lock_fp):
-            if build_option('wait_on_lock'):
+            wait_on_lock = build_option('wait_on_lock')
+            if wait_on_lock:
                 while os.path.exists(lock_fp):
-                    print_msg("lock file in %s exists, waiting 60 seconds..." % locks_dir, silent=self.silent)
-                    time.sleep(60)
+                    print_msg("lock file %s exists, waiting %d seconds..." % (lock_fp, wait_on_lock),
+                              silent=self.silent)
+                    time.sleep(wait_on_lock)
             else:
                 raise EasyBuildError("Lock file %s already exists, aborting!", lock_fp)
 
