@@ -185,7 +185,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_output_dir',
         'job_polling_interval',
         'job_target_resource',
-        'lockpath',
+        'locks_dir',
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',
