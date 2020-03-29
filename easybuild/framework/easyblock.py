@@ -3039,41 +3039,39 @@ class EasyBlock(object):
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
-        lockpath = build_option('lockpath') or os.path.join(install_path('software'), '.locks')
-        if not os.path.exists(lockpath):
-            mkdir(lockpath, parents=True)
-        lockfile_name = os.path.join(lockpath, ".%s.lock" % self.installdir.replace('/', '_'))
-        if os.path.exists(lockfile_name):
+        locks_dir = build_option('lockpath') or os.path.join(install_path('software'), '.locks')
+        lock_fp = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+
+        # if lock already exists, either abort or wait until it disappears
+        if os.path.exists(lock_fp):
             if build_option('wait_on_lock'):
-                while os.path.exists(lockfile_name):
-                    print_msg("Lock file %s exists. Waiting 60 seconds." % lockfile_name, silent=self.silent)
+                while os.path.exists(lock_fp):
+                    print_msg("lock file in %s exists, waiting 60 seconds..." % locks_dir, silent=self.silent)
                     time.sleep(60)
             else:
-                print_msg("Build aborted. Lock file %s exists." % lockfile_name, silent=self.silent)
-                return False
-        else:
-            try:
-                # create a new lock file
-                print_msg("Creating lock file %s" % lockfile_name, silent=self.silent)
-                f = open(lockfile_name, "w+")
-                f.close()
+                raise EasyBuildError("Lock file %s already exists, aborting!", lock_fp)
 
-                for (step_name, descr, step_methods, skippable) in steps:
-                    if self._skip_step(step_name, skippable):
-                        print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
+        # create lock file to avoid that another installation running in parallel messes things up
+        print_msg("creating lock file %s" % lock_fp, silent=self.silent)
+        write_file(lock_fp, 'lock for %s' % self.installdir)
+
+        try:
+            for (step_name, descr, step_methods, skippable) in steps:
+                if self._skip_step(step_name, skippable):
+                    print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
+                else:
+                    if self.dry_run:
+                        self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
-                        if self.dry_run:
-                            self.dry_run_msg("%s... [DRY RUN]\n", descr)
-                        else:
-                            print_msg("%s..." % descr, log=self.log, silent=self.silent)
-                        self.current_step = step_name
-                        self.run_step(step_name, step_methods)
+                        print_msg("%s..." % descr, log=self.log, silent=self.silent)
+                    self.current_step = step_name
+                    self.run_step(step_name, step_methods)
 
-            except StopException:
-                pass
-            finally:
-                print_msg("Removing lock file %s" % lockfile_name, silent=self.silent)
-                os.remove(lockfile_name)
+        except StopException:
+            pass
+        finally:
+            print_msg("removing lock file %s" % lock_fp, silent=self.silent)
+            remove_file(lock_fp)
 
         # return True for successfull build (or stopped build)
         return True
