@@ -256,6 +256,11 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     # post comment to report test result
     system_info = init_session_state['system_info']
+
+    # also mention CPU architecture name, but only if it's known
+    if system_info['cpu_arch_name'] != UNKNOWN:
+        system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
+
     short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
         'cpu_model': system_info['cpu_model'],
         'hostname': system_info['hostname'],
@@ -264,10 +269,6 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
         'os_version': system_info['os_version'],
         'pyver': system_info['python_version'].split(' ')[0],
     }
-
-    # also mention CPU architecture name, but only if it's known
-    if system_info['cpu_arch_name'] != UNKNOWN:
-        short_system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
 
     comment_lines = [
         "Test report by @%s" % user,
