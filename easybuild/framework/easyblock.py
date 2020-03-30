@@ -3060,7 +3060,13 @@ class EasyBlock(object):
 
             # create lock to avoid that another installation running in parallel messes things up;
             # we use a directory as a lock, since that's atomically created
-            mkdir(lock_path, parents=True)
+            try:
+                mkdir(lock_path, parents=True)
+            except EasyBuildError as err:
+                # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
+                stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
+                raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
+
             self.log.info("Lock created: %s", lock_path)
 
         try:
