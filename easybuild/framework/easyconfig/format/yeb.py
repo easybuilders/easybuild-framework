@@ -126,7 +126,7 @@ class FormatYeb(EasyConfigFormat):
 
         return full_txt
 
-    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=[]):
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """Dump parsed easyconfig in .yeb format"""
         raise NotImplementedError("Dumping of .yeb easyconfigs not supported yet")
 
