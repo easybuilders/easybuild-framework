@@ -3039,41 +3039,54 @@ class EasyBlock(object):
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
-        lockpath = build_option('lockpath') or os.path.join(install_path('software'), '.locks')
-        if not os.path.exists(lockpath):
-            mkdir(lockpath, parents=True)
-        lockfile_name = os.path.join(lockpath, ".%s.lock" % self.installdir.replace('/', '_'))
-        if os.path.exists(lockfile_name):
-            if build_option('wait_on_lock'):
-                while os.path.exists(lockfile_name):
-                    print_msg("Lock file %s exists. Waiting 60 seconds." % lockfile_name, silent=self.silent)
-                    time.sleep(60)
-            else:
-                print_msg("Build aborted. Lock file %s exists." % lockfile_name, silent=self.silent)
-                return False
+        ignore_locks = build_option('ignore_locks')
+
+        if ignore_locks:
+            self.log.info("Ignoring locks...")
         else:
+            locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
+            lock_path = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+
+            # if lock already exists, either abort or wait until it disappears
+            if os.path.exists(lock_path):
+                wait_on_lock = build_option('wait_on_lock')
+                if wait_on_lock:
+                    while os.path.exists(lock_path):
+                        print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
+                                  silent=self.silent)
+                        time.sleep(wait_on_lock)
+                else:
+                    raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+
+            # create lock to avoid that another installation running in parallel messes things up;
+            # we use a directory as a lock, since that's atomically created
             try:
-                # create a new lock file
-                print_msg("Creating lock file %s" % lockfile_name, silent=self.silent)
-                f = open(lockfile_name, "w+")
-                f.close()
+                mkdir(lock_path, parents=True)
+            except EasyBuildError as err:
+                # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
+                stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
+                raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
 
-                for (step_name, descr, step_methods, skippable) in steps:
-                    if self._skip_step(step_name, skippable):
-                        print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
+            self.log.info("Lock created: %s", lock_path)
+
+        try:
+            for (step_name, descr, step_methods, skippable) in steps:
+                if self._skip_step(step_name, skippable):
+                    print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
+                else:
+                    if self.dry_run:
+                        self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
-                        if self.dry_run:
-                            self.dry_run_msg("%s... [DRY RUN]\n", descr)
-                        else:
-                            print_msg("%s..." % descr, log=self.log, silent=self.silent)
-                        self.current_step = step_name
-                        self.run_step(step_name, step_methods)
+                        print_msg("%s..." % descr, log=self.log, silent=self.silent)
+                    self.current_step = step_name
+                    self.run_step(step_name, step_methods)
 
-            except StopException:
-                pass
-            finally:
-                print_msg("Removing lock file %s" % lockfile_name, silent=self.silent)
-                os.remove(lockfile_name)
+        except StopException:
+            pass
+        finally:
+            if not ignore_locks:
+                remove_dir(lock_path)
+                self.log.info("Lock removed: %s", lock_path)
 
         # return True for successfull build (or stopped build)
         return True

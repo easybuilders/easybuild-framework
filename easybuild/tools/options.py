@@ -255,9 +255,12 @@ class EasyBuildOptions(GeneralOption):
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
+            'ignore-locks': ("Ignore locks that prevent two identical installations running in parallel",
+                             None, 'store_true', False),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
-            'lockpath': ("Specifies which path should be used to store lock files", None, 'store_or_None', None),
+            'locks-dir': ("Directory to store lock files (should be on a shared filesystem); "
+                "None implies .locks subdirectory of software installation directory", None, 'store_or_None', None),
             'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
@@ -435,8 +438,8 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
-            'wait-on-lock': ("Wait until lock file is removed when a lock if found",
-                             None, 'store_true', False),
+            'wait-on-lock': ("Wait interval (in seconds) to use when waiting for existing lock to be removed "
+                "(0: implies no waiting, but exiting with an error)", int, 'store', 0),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
 
