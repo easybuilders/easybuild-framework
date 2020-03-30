@@ -39,7 +39,6 @@ import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from functools import wraps
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -2599,6 +2598,13 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
         self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
+
+        # check for clean error on creation of lock
+        extra_args = ['--locks-dir=/']
+        error_pattern = r"Failed to create lock /.*_software_toy_0.0.lock:.* "
+        error_pattern += r"(Read-only file system|Permission denied)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
 
 
 def suite():
