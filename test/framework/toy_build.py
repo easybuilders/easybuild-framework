@@ -2601,7 +2601,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # check for clean error on creation of lock
         extra_args = ['--locks-dir=/']
-        error_pattern = "Failed to create lock /.*_software_toy_0.0.lock:.* Read-only file system"
+        error_pattern = r"Failed to create lock /.*_software_toy_0.0.lock:.* "
+        error_pattern += r"(Read-only file system|Permission denied)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
                               extra_args=extra_args, raise_error=True, verbose=False)
 
