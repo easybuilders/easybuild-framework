@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,7 @@ import time
 from easybuild.base import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import rmtree2
+from easybuild.tools.filetools import remove_dir
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.utilities import only_if_module_is_available
 from easybuild.tools.version import VERSION
@@ -188,6 +188,6 @@ class GitRepository(FileRepository):
         """
         try:
             self.wc = os.path.dirname(self.wc)
-            rmtree2(self.wc)
+            remove_dir(self.wc)
         except IOError as err:
             raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

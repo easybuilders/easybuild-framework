@@ -3,6 +3,90 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.1.2 (March 16th 2020)
+------------------------
+
+bugfix release
+
+- fix gitdb dependency on Python 2.6 in test configuration (#3212)
+- fix broken test for --review-pr by using different PR to test with (#3226)
+- censor authorization part of headers before logging ReST API request (#3248)
+
+v4.1.1 (January 16th 2020)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add check_log_for_errors function (in easybuild.tools.run) to detect and handle multiple errors (#3118)
+  - implement support for 'eb --show-ec' to show contents of specified easyconfig file (#3132)
+  - also update $XDG_DATA_DIR (share/) and $GI_TYPELIB_PATH environment variables (lib*/girepository-*) in generated module files (#3133)
+  - add support for --copy-ec to copy easyconfig file to specified location (#3142)
+  - mention --disable-* option in --help output for boolean options enabled by default (#3151)
+  - add --cuda-compute-capabilities configuration option (#3161)
+- various bug fixes, including:
+  - ignore imports from vsc namespace made from pkgutil.py (#3120)
+  - only actually change permissions using os.chmod in adjust_permissions if the current permissions are not correct already (#3125)
+  - use shutil.copyfile to just copy file contents if target path exists and is owned by someone else (#3127)
+  - fix or avoid warnings that commonly arise in build log (#3129)
+  - disable buffering in asyncprocess.Popen using bufsize=0, to fix run_cmd_qa missing output (#3130)
+  - update pip & install wheel package in generated Singularity container recipes (#3136)
+  - avoid crash in modify_env & unset unset_env_vars when using (older versions) of Python 3.5 & 3.6 by using list(...) (#3140)
+  - take into account that lib64 could be a symlink to lib (or vice versa) in get_software_libdir function (#3141)
+  - only parse docstring if it exists in gen_easyblock_doc_section_rst function (#3144)
+  - only add useful entries for $CPATH, $(LD_)LIBRARY_PATH and $PATH (non-empty directories) (#3145, #3152)
+  - fix --list-software=detailed when using Python 3 by leveraging sort_looseversions function from py2vs3 module (#3146)
+  - ensure subdirectories in software install directory have correct search (exec) permission (#3147)
+  - take into account that a checksum value may be a tuple of valid checksum in EasyBlock.check_checksums (#3153)
+- other changes:
+  - bump to Lmod 8.2.9 in GitHub CI config (#3115)
+  - update copyright statements for 2020 (#3149)
+  - make Hound CI code style checker ignore "Black would make changes" produced by flake8-black (#3162)
+
+
+v4.1.0 (December 4th 2019)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - performance improvements:
+    - skip validation when copying EasyConfig object for extension (#3071)
+    - correctly specify that ActiveMNS & co are singleton classes when using Python 3 (#3073)
+    - don't call out to prohibitively expensive getRootLoggerName in getLogger, just use 'root' instead (#3074)
+    - fix inconsistent module path usage that leads to repeated reloading in HMNS (#3099)
+  - add support for specifying different dependency version based on processor architecture (#3047)
+  - support use of glob patterns for paths to files with external modules metadata (#3075)
+  - take into account that external modules may not be visible directly (due to module hierarchy) (#3083)
+  - add support for including 'extensions' statement in Lua modules with Lmod 8.2.8+ (#3085, #3107, #3110)
+  - add support for --sync-pr-with-develop (#3087)
+  - add support for --new-branch-github, --new-pr-from-branch, --sync-branch-with-develop, --update-branch-github (#3103)
+  - fix typo in docstring for new_branch_github (#3106)
+- various bug fixes, including:
+  - correctly handle iccifortcuda toolchain with standalone iccifort in det_toolchain_compilers (#3055)
+  - init git repo with git.repo.clone() instead of copy_dir() (#3062)
+  - fix regular expression so depends-on statements are recognized correctly in Tcl module files (#3065)
+  - update GitPython to latest version that supports Python 2.6 in requirements.txt to fix broken test_new_update_pr (#3066)
+  - imply --disable-pre-create-installdir with --inject-checksums (#3069)
+  - handle patches in extensions more like normal patches (#3067)
+  - take into account that platform.linux_distribution and platform.dist was removed in Python 3.8 (#3078)
+  - always include mandatory easyconfig parameters in dumped easyconfig (#3081)
+  - hide backup module file when using Lmod 6.x (fixes #9302) (#3089)
+  - add better error message when mandatory key is missing from a dictionary easyconfig parameter (#3092)
+  - also create symlinks for default modules in class module folders (#3093)
+  - fix semantics of --set-default-module: only set default for specified easyconfigs, not for the ones that are installed as dependencies via --robot (#3094)
+  - fix various issues in extracting comments from original easyconfig file and including them again in dumped easyconfig (#3095)
+  - don't use %(version)s template in exts_default_options in dumped easyconfig (#3096)
+  - fix generated module statements in case only a single version is listed in multi_deps (#3097)
+  - fix broken test_show_system_info on macOS due to 'Python' binary (#3105)
+  - take into account that dependency version could be a dict rather than a string value in template_constant_dict (#3111)
+- other changes:
+  - deprecate running EasyBuild with Python 2.6 via new check_python_version() function (#3076)
+  - deprecate support for using Lmod 6.x (#3077)
+  - trim set of test configurations in Travis CI (#3086)
+  - flesh out env_vars_external_module from Toolchain._simulated_load_dependency_module (#3088)
+
+
 v4.0.1 (October 15th 2019)
 --------------------------
 

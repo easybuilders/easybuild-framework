@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2019 Ghent University
+# Copyright 2015-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,6 +42,7 @@ from easybuild.tools.config import build_option, get_package_naming_scheme, log_
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
+from easybuild.tools.py2vs3 import create_base_metaclass
 from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
@@ -170,11 +171,14 @@ def check_pkg_support():
         raise EasyBuildError("Selected packaging tool '%s' not found", pkgtool)
 
 
-class ActivePNS(object):
+# singleton metaclass: only one instance is created
+BaseActivePNS = create_base_metaclass('BaseActivePNS', Singleton, object)
+
+
+class ActivePNS(BaseActivePNS):
     """
     The wrapper class for Package Naming Schemes.
     """
-    __metaclass__ = Singleton
 
     def __init__(self):
         """Initialize logger and find available PNSes to load"""

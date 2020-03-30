@@ -1,15 +1,10 @@
 language: python
-python: 2.6
-dist: trusty
+python: 2.7
+dist: xenial
 env:
   matrix:
-    # purposely specifying slowest builds first, to gain time overall
-    - LMOD_VERSION=6.5.1
-    - LMOD_VERSION=6.5.1 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - LMOD_VERSION=7.8.22
     - LMOD_VERSION=7.8.22 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - LMOD_VERSION=8.0.9
-    - LMOD_VERSION=8.0.9 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
@@ -19,44 +14,15 @@ matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
   include:
-    # also test default configuration with Python 2.7
+    # also test default configuration with Python 2.6
+    - python: 2.6
+      env: LMOD_VERSION=7.8.22 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Python26
+      dist: trusty
+    # single configuration to test with Lmod 6 and Python 2.7
     - python: 2.7
-      env: LMOD_VERSION=6.6.3
-      dist: xenial
+      env: LMOD_VERSION=6.5.1 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Lmod6
     # also test with Python 3.6
     - python: 3.6
-      env: LMOD_VERSION=6.6.3
-      dist: xenial
-    - python: 3.6
-      env: LMOD_VERSION=6.5.1 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
-    - python: 3.6
-      env: LMOD_VERSION=7.8.22
-      dist: xenial
-    - python: 3.6
-      env: LMOD_VERSION=7.8.22 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
-    - python: 3.6
-      env: LMOD_VERSION=8.0.9
-      dist: xenial
-    - python: 3.6
-      env: LMOD_VERSION=8.0.9 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
-    - python: 3.6
-      env: ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
-    - python: 3.6
-      env: ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-      dist: xenial
-    - python: 3.6
-      env: ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
-      dist: xenial
-    # also test most common configuration with Python 3.5 and 3.7
-    - python: 3.5
-      env: LMOD_VERSION=7.8.22
-      dist: xenial
-    - python: 3.7
-      dist: xenial
       env: LMOD_VERSION=7.8.22
 addons:
   apt:
@@ -72,6 +38,8 @@ before_install:
     - pip --version
     - pip install --upgrade pip
     - pip --version
+    # coveralls doesn't support Python 2.6 anymore, so don't try to install it when testing with Python 2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then pip install coveralls; fi    
     - pip install -r requirements.txt
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
@@ -89,14 +57,18 @@ script:
     - if [ ! -z $MOD_INIT ] && [ ! -z $LMOD_VERSION ]; then alias ml=foobar; fi
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; type module; fi
-    # install GitHub token
+    # install GitHub token;
+    # unset $GITHUB_TOKEN environment variable after installing token,
+    # to avoid that it is included in environment dump that is included in EasyBuild debug logs,
+    # which causes test_from_pr_token_log to fail...
     - if [ ! -z $GITHUB_TOKEN ]; then
         if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
             then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
             else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
         fi;
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
-      fi
+      fi;
+      unset GITHUB_TOKEN;
     - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # create 'source distribution' tarball, like we do when publishing a release to PyPI
@@ -119,8 +91,13 @@ script:
     - EB_VERBOSE=1 eb --version
     # check GitHub configuration
     - eb --check-github --github-user=easybuild_test
-    # run test suite
-    - python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+    # create file owned by root but writable by anyone (used by test_copy_file)
+    - sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+    - sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+    # run coverage on all travis builds except for Python 2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then coverage run -m test.framework.suite 2>&1 | tee test_framework_suite.log; coverage report -m --ignore-errors; fi  
+    # invoke the regression test for Python 2.6 the original way without coverage
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log; fi
     # try and make sure output of running tests is clean (no printed messages/warnings)
     - IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|lib/python2.6/site-packages|requires Lmod as modules tool"
     # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
@@ -131,12 +108,15 @@ script:
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20190922.01 778762479d77df641c247aba33c13203c8c5b8275e47f59464bab93917aaaf22"
+    - EB_BOOTSTRAP_EXPECTED="20200203.01 616bf3ce812c0844bf9ea3e690f9d88b394ed48f834ddb8424a73cf45fc64ea5"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
-    # test bootstrap script (skip when testing with Python 3 for now, since latest EasyBuild release is not compatible with Python 3 yet)
-    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap; fi
+    # test bootstrap script
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
-    # simply sanity check on bootstrapped EasyBuild module (skip when testing with Python 3, for now)
-    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; fi
-    - if [ ! "x$TRAVIS_PYTHON_VERSION" =~ x3.[0-9] ]; then module load EasyBuild; eb --version; fi
+    # simply sanity check on bootstrapped EasyBuild module
+    - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all
+    - module load EasyBuild; eb --version
+after_success:
+  - if [ "x$TRAVIS_PYTHON_VERSION" != 'x2.6' ]; then coveralls; fi  
+  

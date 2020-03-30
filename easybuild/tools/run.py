@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -175,6 +175,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if trace:
         trace_txt = "running command:\n"
         trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[working dir: %s]\n" % (path or os.getcwd())
+        if inp:
+            trace_txt += "\t[input: %s]\n" % inp
         trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
         trace_msg(trace_txt + '\t' + cmd_msg)
 
@@ -300,6 +303,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if trace:
         trace_txt = "running interactive command:\n"
         trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[working dir: %s]\n" % (path or os.getcwd())
         trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
         trace_msg(trace_txt + '\t' + cmd.strip())
 
@@ -539,7 +543,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if use_regexp or regexp:
         res = parse_log_for_error(stdouterr, regexp, msg="Command used: %s" % cmd)
         if len(res) > 0:
-            message = "Found %s errors in command output (output: %s)" % (len(res), ", ".join([r[0] for r in res]))
+            message = "Found %s errors in command output (output: %s)" % (len(res), "\n\t".join([r[0] for r in res]))
             if use_regexp:
                 raise EasyBuildError(message)
             else:
@@ -589,3 +593,70 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
                   (regExp, '\n'.join([x[0] for x in res])))
 
     return res
+
+
+def extract_errors_from_log(log_txt, reg_exps):
+    """
+    Check provided string (command output) for messages matching specified regular expressions,
+    and return 2-tuple with list of warnings and errors.
+    :param log_txt: String containing the log, will be split into individual lines
+    :param reg_exps: List of: regular expressions (as strings) to error on,
+                    or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
+    :return (warnings, errors) as lists of lines containing a match
+    """
+    actions = (IGNORE, WARN, ERROR)
+
+    # promote single string value to list, since code below expects a list
+    if isinstance(reg_exps, string_type):
+        reg_exps = [reg_exps]
+
+    re_tuples = []
+    for cur in reg_exps:
+        try:
+            if isinstance(cur, str):
+                # use ERROR as default action if only regexp pattern is specified
+                reg_exp, action = cur, ERROR
+            elif isinstance(cur, tuple) and len(cur) == 2:
+                reg_exp, action = cur
+            else:
+                raise TypeError("Incorrect type of value, expected string or 2-tuple")
+
+            if not isinstance(reg_exp, str):
+                raise TypeError("Regular expressions must be passed as string, got %s" % type(reg_exp))
+            if action not in actions:
+                raise TypeError("action must be one of %s, got %s" % (actions, action))
+
+            re_tuples.append((re.compile(reg_exp), action))
+        except Exception as err:
+            raise EasyBuildError("Invalid input: No regexp or tuple of regexp and action '%s': %s", str(cur), err)
+
+    warnings = []
+    errors = []
+    for line in log_txt.split('\n'):
+        for reg_exp, action in re_tuples:
+            if reg_exp.search(line):
+                if action == ERROR:
+                    errors.append(line)
+                elif action == WARN:
+                    warnings.append(line)
+                break
+    return warnings, errors
+
+
+def check_log_for_errors(log_txt, reg_exps):
+    """
+    Check log_txt for messages matching regExps in order and do appropriate action
+    :param log_txt: String containing the log, will be split into individual lines
+    :param reg_exps: List of: regular expressions (as strings) to error on,
+                    or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
+    """
+    global errors_found_in_log
+    warnings, errors = extract_errors_from_log(log_txt, reg_exps)
+
+    errors_found_in_log += len(warnings) + len(errors)
+    if warnings:
+        _log.warning("Found %s potential error(s) in command output (output: %s)",
+                     len(warnings), "\n\t".join(warnings))
+    if errors:
+        raise EasyBuildError("Found %s error(s) in command output (output: %s)",
+                             len(errors), "\n\t".join(errors))

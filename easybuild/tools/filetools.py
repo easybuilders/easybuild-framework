@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -241,6 +241,13 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
+def is_binary(contents):
+    """
+    Check whether given bytestring represents the contents of a binary file or not.
+    """
+    return isinstance(contents, bytes) and b'\00' in bytes(contents)
+
+
 def resolve_path(path):
     """
     Return fully resolved path for given path.
@@ -296,11 +303,27 @@ def remove_dir(path):
         dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
         return
 
-    try:
-        if os.path.exists(path):
-            rmtree2(path)
-    except OSError as err:
-        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+    if os.path.exists(path):
+        ok = False
+        errors = []
+        # Try multiple times to cater for temporary failures on e.g. NFS mounted paths
+        max_attempts = 3
+        for i in range(0, max_attempts):
+            try:
+                shutil.rmtree(path)
+                ok = True
+                break
+            except OSError as err:
+                _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, i, err))
+                errors.append(err)
+                time.sleep(2)
+                # make sure write permissions are enabled on entire directory
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
+        if ok:
+            _log.info("Path %s successfully removed." % path)
+        else:
+            raise EasyBuildError("Failed to remove directory %s even after %d attempts.\nReasons: %s",
+                                 path, max_attempts, errors)
 
 
 def remove(paths):
@@ -384,12 +407,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return find_base_dir()
 
 
-def which(cmd, retain_all=False, check_perms=True):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
+    :param log_ok: Log an info message where the command has been found (if any)
+    :param log_error: Log a warning message when command hasn't been found
     """
     if retain_all:
         res = []
@@ -401,7 +426,8 @@ def which(cmd, retain_all=False, check_perms=True):
         cmd_path = os.path.join(path, cmd)
         # only accept path if command is there
         if os.path.isfile(cmd_path):
-            _log.info("Command %s found at %s", cmd, cmd_path)
+            if log_ok:
+                _log.info("Command %s found at %s", cmd, cmd_path)
             if check_perms:
                 # check if read/executable permissions are available
                 if not os.access(cmd_path, os.R_OK | os.X_OK):
@@ -413,7 +439,7 @@ def which(cmd, retain_all=False, check_perms=True):
                 res = cmd_path
                 break
 
-    if not res:
+    if not res and log_error:
         _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return res
 
@@ -681,6 +707,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
+def dir_contains_files(path):
+    """Return True if the given directory does contain any file in itself or any subdirectory"""
+    return any(files for _root, _dirs, files in os.walk(path))
+
+
 def find_eb_script(script_name):
     """Find EasyBuild script with given name (in easybuild/scripts subdirectory)."""
     filetools, eb_dir = __file__, None
@@ -746,7 +777,7 @@ def calc_block_checksum(path, algorithm):
     try:
         # in hashlib, blocksize is a class parameter
         blocksize = algorithm.blocksize * 262144  # 2^18
-    except AttributeError as err:
+    except AttributeError:
         blocksize = 16777216  # 2^24
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
@@ -936,7 +967,9 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     patched_regex = re.compile(patched_regex, re.M)
 
     if path is not None:
-        txt = read_file(path)
+        # take into account that file may contain non-UTF-8 characters;
+        # so, read a byte string, and decode to UTF-8 string (ignoring any non-UTF-8 characters);
+        txt = read_file(path, mode='rb').decode('utf-8', 'replace')
     elif txt is None:
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
@@ -1130,10 +1163,21 @@ def convert_name(name, upper=False):
         return name
 
 
-def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
+def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
                        group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
     """
-    Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
+    Change permissions for specified path, using specified permission bits
+
+    :param add: add permissions relative to current permissions (only relevant if 'relative' is set to True)
+    :param onlyfiles: only change permissions on files (not directories)
+    :param onlydirs: only change permissions on directories (not files)
+    :param recursive: change permissions recursively (only makes sense if path is a directory)
+    :param group_id: also change group ownership to group with this group ID
+    :param relative: add/remove permissions relative to current permissions (if False, hard set specified permissions)
+    :param ignore_errors: ignore errors that occur when changing permissions
+                          (up to a maximum ratio specified by --max-fail-ratio-adjust-permissions configuration option)
+
+    Add or remove (if add is False) permission_bits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
 
@@ -1142,12 +1186,12 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         depr_msg += "(symlinks are never followed anymore)"
         _log.deprecated(depr_msg, '4.0')
 
-    name = os.path.abspath(name)
+    provided_path = os.path.abspath(provided_path)
 
     if recursive:
-        _log.info("Adjusting permissions recursively for %s" % name)
-        allpaths = [name]
-        for root, dirs, files in os.walk(name):
+        _log.info("Adjusting permissions recursively for %s", provided_path)
+        allpaths = [provided_path]
+        for root, dirs, files in os.walk(provided_path):
             paths = []
             if not onlydirs:
                 paths.extend(files)
@@ -1159,8 +1203,8 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 allpaths.append(os.path.join(root, path))
 
     else:
-        _log.info("Adjusting permissions for %s" % name)
-        allpaths = [name]
+        _log.info("Adjusting permissions for %s (no recursion)", provided_path)
+        allpaths = [provided_path]
 
     failed_paths = []
     fail_cnt = 0
@@ -1170,34 +1214,47 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
             # don't change permissions if path is a symlink, since we're not checking where the symlink points to
             # this is done because of security concerns (symlink may point out of installation directory)
             # (note: os.lchmod is not supported on Linux)
-            if not os.path.islink(path):
+            if os.path.islink(path):
+                _log.debug("Not changing permissions for %s, since it's a symlink", path)
+            else:
+                # determine current permissions
+                current_perms = os.lstat(path)[stat.ST_MODE]
+                _log.debug("Current permissions for %s: %s", path, oct(current_perms))
+
                 if relative:
-
                     # relative permissions (add or remove)
-                    perms = os.lstat(path)[stat.ST_MODE]
-
                     if add:
-                        os.chmod(path, perms | permissionBits)
+                        _log.debug("Adding permissions for %s: %s", path, oct(permission_bits))
+                        new_perms = current_perms | permission_bits
                     else:
-                        os.chmod(path, perms & ~permissionBits)
-
+                        _log.debug("Removing permissions for %s: %s", path, oct(permission_bits))
+                        new_perms = current_perms & ~permission_bits
                 else:
                     # hard permissions bits (not relative)
-                    os.chmod(path, permissionBits)
+                    new_perms = permission_bits
+                    _log.debug("Hard setting permissions for %s: %s", path, oct(new_perms))
+
+                # only actually do chmod if current permissions are not correct already
+                # (this is important because chmod requires that files are owned by current user)
+                if new_perms == current_perms:
+                    _log.debug("Current permissions for %s are already OK: %s", path, oct(current_perms))
+                else:
+                    _log.debug("Changing permissions for %s to %s", path, oct(new_perms))
+                    os.chmod(path, new_perms)
 
             if group_id:
                 # only change the group id if it the current gid is different from what we want
                 cur_gid = os.lstat(path).st_gid
-                if not cur_gid == group_id:
-                    _log.debug("Changing group id of %s to %s" % (path, group_id))
-                    os.lchown(path, -1, group_id)
+                if cur_gid == group_id:
+                    _log.debug("Group id of %s is already OK (%s)", path, group_id)
                 else:
-                    _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
+                    _log.debug("Changing group id of %s to %s", path, group_id)
+                    os.lchown(path, -1, group_id)
 
         except OSError as err:
             if ignore_errors:
                 # ignore errors while adjusting permissions (for example caused by bad links)
-                _log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
+                _log.info("Failed to chmod/chown %s (but ignoring it): %s", path, err)
                 fail_cnt += 1
             else:
                 failed_paths.append(path)
@@ -1213,7 +1270,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         raise EasyBuildError("%.2f%% of permissions/owner operations failed (more than %.2f%%), "
                              "something must be wrong...", 100 * fail_ratio, 100 * max_fail_ratio)
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that...", 100 * fail_ratio)
 
 
 def patch_perl_script_autoflush(path):
@@ -1342,22 +1399,8 @@ def path_matches(path, paths):
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
-    ok = False
-    for i in range(0, n):
-        try:
-            shutil.rmtree(path)
-            ok = True
-            break
-        except OSError as err:
-            _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
-            time.sleep(2)
-
-            # make sure write permissions are enabled on entire directory
-            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
-    if not ok:
-        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
-    else:
-        _log.info("Path %s successfully removed." % path)
+    _log.deprecated("Use 'remove_dir' rather than 'rmtree2'", '5.0')
+    remove_dir(path)
 
 
 def find_backup_name_candidate(src_file):
@@ -1720,20 +1763,49 @@ def copy_file(path, target_path, force_in_dry_run=False):
 
     :param path: the original filepath
     :param target_path: path to copy the file to
-    :param force_in_dry_run: force running the command during dry run
+    :param force_in_dry_run: force copying of file during dry run
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
-            if os.path.exists(target_path) and os.path.samefile(path, target_path):
+            target_exists = os.path.exists(target_path)
+            if target_exists and os.path.samefile(path, target_path):
                 _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            # if target file exists and is owned by someone else than the current user,
+            # try using shutil.copyfile to just copy the file contents
+            # since shutil.copy2 will fail when trying to copy over file metadata (since chown requires file ownership)
+            elif target_exists and os.stat(target_path).st_uid != os.getuid():
+                shutil.copyfile(path, target_path)
+                _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
                 shutil.copy2(path, target_path)
                 _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+
+def copy_files(paths, target_dir, force_in_dry_run=False):
+    """
+    Copy list of files to specified target directory (which is created if it doesn't exist yet).
+
+    :param filepaths: list of files to copy
+    :param target_dir: target directory to copy files into
+    :param force_in_dry_run: force copying of files during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("copied files %s to %s" % (paths, target_dir))
+    else:
+        if os.path.exists(target_dir):
+            if os.path.isdir(target_dir):
+                _log.info("Copying easyconfigs into existing directory %s...", target_dir)
+            else:
+                raise EasyBuildError("%s exists but is not a directory", target_dir)
+        else:
+            mkdir(target_dir, parents=True)
+        for path in paths:
+            copy_file(path, target_dir)
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
@@ -1803,6 +1875,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
     recursive = git_config.pop('recursive', False)
+    keep_git_dir = git_config.pop('keep_git_dir', False)
 
     # input validation of git_config dict
     if git_config:
@@ -1851,7 +1924,10 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
-    tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    if keep_git_dir:
+        tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
+    else:
+        tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
     run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
@@ -1902,6 +1978,7 @@ def install_fake_vsc():
     fake_vsc_path = os.path.join(tempfile.mkdtemp(prefix='fake_vsc_'))
 
     fake_vsc_init = '\n'.join([
+        'import os',
         'import sys',
         'import inspect',
         '',
@@ -1914,10 +1991,15 @@ def install_fake_vsc():
         '        filename, lineno = cand_filename, cand_lineno',
         '        break',
         '',
-        'sys.stderr.write("\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno))',
-        'sys.stderr.write("vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n")',
-        'sys.stderr.write("The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n")',
-        'sys.exit(1)',
+        '# ignore imports from pkgutil.py (part of Python standard library),',
+        '# which may happen due to a system-wide installation of vsc-base',
+        '# even if it is not actually actively used...',
+        'if os.path.basename(filename) != "pkgutil.py":',
+        '    error_msg = "\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno)',
+        '    error_msg += "vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n"',
+        '    error_msg += "The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n"',
+        '    sys.stderr.write(error_msg)',
+        '    sys.exit(1)',
     ])
 
     fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')

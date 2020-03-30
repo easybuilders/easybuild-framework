@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2019 Ghent University
+# Copyright 2015-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -658,6 +658,8 @@ class TypeCheckingTest(EnhancedTestCase):
             ['be662daa971a640e40be5c804d9d7d10', ('adler32', '0x998410035'), ('crc32', '0x1553842328'),
              ('md5', 'be662daa971a640e40be5c804d9d7d10'), ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
              ('size', 273)],
+            # None values should not be filtered out, but left in place
+            [None, 'fa618be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265', None],
         ]
         for checksums in test_inputs:
             self.assertEqual(to_checksums(checksums), checksums)

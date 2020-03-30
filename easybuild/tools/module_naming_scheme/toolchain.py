@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2019 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -102,23 +102,32 @@ def det_toolchain_compilers(ec):
     elif tc_elems[TOOLCHAIN_COMPILER]:
         tc_comps = []
 
-        # first consider concatenation of list of compiler module names as a single toolchain element
-        # (for example ['icc', 'ifort'] -> 'iccifort'
-        combined_comp_elem = ''.join(tc_elems[TOOLCHAIN_COMPILER])
+        tc_comp_elems = copy.copy(tc_elems[TOOLCHAIN_COMPILER])
+
+        # First consider a concatenation of list of compiler module names as a single toolchain element
+        combined_comp_elem = ''.join(tc_comp_elems)
+        elem_list = copy.copy(tc_comp_elems)
         combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, combined_comp_elem, allow_missing=True)
+
+        if not combined_comp_elem_details:
+            # for toolchains including icc & ifort (like iccifortcuda), always consider iccifort
+            if 'icc' in tc_comp_elems and 'ifort' in tc_comp_elems:
+                combined_comp_elem_details = det_toolchain_element_details(ec.toolchain, 'iccifort', allow_missing=True)
+                elem_list = ['icc', 'ifort']
+
         if combined_comp_elem_details:
-            # make sure compiler details is a regular dict value
             if isinstance(combined_comp_elem_details, EasyConfig):
                 combined_comp_elem_details = combined_comp_elem_details.asdict()
             # add details for each compiler separately, using details from combo
-            for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
+            for comp_elem in elem_list:
                 comp_elem_details = copy.copy(combined_comp_elem_details)
                 comp_elem_details['name'] = comp_elem
                 tc_comps.append(comp_elem_details)
-        else:
-            # consider individual compiler module names as fallback
-            for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
-                tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
+                tc_comp_elems.remove(comp_elem)
+
+        # consider any remaining individual compiler module names
+        for comp_elem in tc_comp_elems:
+            tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
     else:
         raise EasyBuildError("Empty list of compilers for %s toolchain definition: %s",
                              ec.toolchain.as_dict(), tc_elems)

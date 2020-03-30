@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,6 +90,12 @@ def raise_easybuilderror(msg, *args):
     raise EasyBuildError(msg, *args)
 
 
+def raise_nosupport(msg, ver):
+    """Construct error message for no longer supported behaviour, and raise an EasyBuildError."""
+    nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
+    raise_easybuilderror(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
+
+
 class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
@@ -154,9 +160,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
-        """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
-        nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
-        raise EasyBuildError(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
+        """Raise error message for no longer supported behaviour, and raise an EasyBuildError."""
+        raise_nosupport(msg, ver)
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
@@ -353,10 +358,13 @@ def print_warning(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
+    log = kwargs.pop('log', None)
     silent = kwargs.pop('silent', False)
     if kwargs:
         raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
 
+    if log:
+        log.warning(msg)
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % msg)
 

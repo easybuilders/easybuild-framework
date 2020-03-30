@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -67,8 +67,8 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, string_type
-from easybuild.tools.systemtools import check_os_dependency
+from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
+from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -410,7 +410,7 @@ class EasyConfig(object):
         if rawtxt is None:
             self.path = path
             self.rawtxt = read_file(path)
-            self.log.debug("Raw contents from supplied easyconfig file %s: %s" % (path, self.rawtxt))
+            self.log.debug("Raw contents from supplied easyconfig file %s: %s", path, self.rawtxt)
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
@@ -497,6 +497,8 @@ class EasyConfig(object):
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
 
+        self.set_default_module = False
+
         self.software_license = None
 
     def filename(self):
@@ -551,20 +553,29 @@ class EasyConfig(object):
         """
         Update a string configuration value with a value (i.e. append to it).
         """
-        prev_value = self[key]
-        if isinstance(prev_value, string_type):
-            if allow_duplicate or value not in prev_value:
-                self[key] = '%s %s ' % (prev_value, value)
-        elif isinstance(prev_value, list):
-            if allow_duplicate:
-                self[key] = prev_value + value
-            else:
-                for item in value:
-                    # add only those items that aren't already in the list
-                    if item not in prev_value:
-                        self[key] = prev_value + [item]
+        if isinstance(value, string_type):
+            lval = [value]
+        elif isinstance(value, list):
+            lval = value
+        else:
+            msg = "Can't update configuration value for %s, because the "
+            msg += "attempted update value, '%s', is not a string or list."
+            raise EasyBuildError(msg, key, value)
+
+        param_value = self[key]
+        if isinstance(param_value, string_type):
+            for item in lval:
+                # re.search: only add value to string if it's not there yet (surrounded by whitespace)
+                if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
+                    param_value = param_value + ' %s ' % item
+        elif isinstance(param_value, list):
+            for item in lval:
+                if allow_duplicate or item not in param_value:
+                    param_value = param_value + [item]
         else:
             raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
+
+        self[key] = param_value
 
     def set_keys(self, params):
         """
@@ -604,7 +615,7 @@ class EasyConfig(object):
                                  type(self.build_specs))
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
-        self.log.info("Parsing easyconfig file %s with rawcontent: %s" % (self.path, self.rawtxt))
+        self.log.info("Parsing easyconfig file %s with rawcontent: %s", self.path, self.rawtxt)
         self.parser.set_specifications(arg_specs)
         local_vars = self.parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
@@ -814,16 +825,17 @@ class EasyConfig(object):
         for opt in ITERATE_OPTIONS:
 
             # only when builddependencies is a list of lists are we iterating over them
-            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self[opt]):
+            if opt == 'builddependencies' and not all(isinstance(e, list) for e in self.get_ref(opt)):
                 continue
 
+            opt_value = self.get(opt, None, resolve=False)
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
-            if self.get(opt, None) is None:
+            if opt_value is None:
                 raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
-            if isinstance(self[opt], (list, tuple)):
-                opt_counts.append((opt, len(self[opt])))
+            if isinstance(opt_value, (list, tuple)):
+                opt_counts.append((opt, len(opt_value)))
 
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
@@ -1272,6 +1284,7 @@ class EasyConfig(object):
             # provides information on what this module represents (software name/version, install prefix, ...)
             'external_module_metadata': {},
         }
+
         if isinstance(dep, dict):
             dependency.update(dep)
 
@@ -1307,6 +1320,9 @@ class EasyConfig(object):
 
         else:
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        # Find the version to use on this system
+        dependency['version'] = pick_dep_version(dependency['version'])
 
         if dependency['external_module']:
             # check whether the external module is hidden
@@ -1485,6 +1501,10 @@ class EasyConfig(object):
 
         return value
 
+    def is_mandatory_param(self, key):
+        """Check whether specified easyconfig parameter is mandatory."""
+        return key in self.mandatory
+
     def get_ref(self, key):
         """
         Obtain reference to original/untemplated value of specified easyconfig parameter
@@ -1513,12 +1533,13 @@ class EasyConfig(object):
                                  key, value)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
-    def get(self, key, default=None):
+    def get(self, key, default=None, resolve=True):
         """
         Gets the value of a key in the config, with 'default' as fallback.
+        :param resolve: if False, disables templating via calling get_ref, else resolves template values
         """
         if key in self:
-            return self[key]
+            return self[key] if resolve else self.get_ref(key)
         else:
             return default
 
@@ -2212,10 +2233,12 @@ def fix_deprecated_easyconfigs(paths):
     print_msg("\nAll done! Fixed %d easyconfigs (out of %d found).\n", fixed_cnt, cnt, prefix=False)
 
 
-class ActiveMNS(object):
-    """Wrapper class for active module naming scheme."""
+# singleton metaclass: only one instance is created
+BaseActiveMNS = create_base_metaclass('BaseActiveMNS', Singleton, object)
 
-    __metaclass__ = Singleton
+
+class ActiveMNS(BaseActiveMNS):
+    """Wrapper class for active module naming scheme."""
 
     def __init__(self, *args, **kwargs):
         """Initialize logger."""

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -79,7 +79,7 @@ class RepositoryTest(EnhancedTestCase):
             print("(skipping GitRepository test)")
             return
 
-        test_repo_url = 'https://github.com/hpcugent/testrepository'
+        test_repo_url = 'https://github.com/easybuilders/testrepository'
 
         # URL
         repo = GitRepository(test_repo_url)
@@ -122,7 +122,7 @@ class RepositoryTest(EnhancedTestCase):
             return
 
         # GitHub also supports SVN
-        test_repo_url = 'https://github.com/hpcugent/testrepository'
+        test_repo_url = 'https://github.com/easybuilders/testrepository'
 
         repo = SvnRepository(test_repo_url)
         repo.init()
