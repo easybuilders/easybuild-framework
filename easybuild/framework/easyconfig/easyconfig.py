@@ -1129,7 +1129,7 @@ class EasyConfig(object):
         try:
             toolchain_hierarchy = get_toolchain_hierarchy(self['toolchain'])
         except EasyBuildError as err:
-            # don't fail hardjust because we can't get the hierarchy
+            # don't fail hard just because we can't get the hierarchy
             self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump method, '
                              'error:\n%s', self['toolchain'], str(err))
 
