@@ -2525,9 +2525,10 @@ class ToyBuildTest(EnhancedTestCase):
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         toy_lock_fn = toy_installdir.replace(os.path.sep, '_') + '.lock'
 
-        write_file(os.path.join(locks_dir, toy_lock_fn), '')
+        toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
+        mkdir(toy_lock_path, parents=True)
 
-        error_pattern = "Lock file .*_software_toy_0.0.lock already exists, aborting!"
+        error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
 
         locks_dir = os.path.join(self.test_prefix, 'locks')
@@ -2537,8 +2538,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(extra_args=extra_args, verify=True, raise_error=True)
 
         # put lock in place in custom locks dir, try again
-        toy_lock_fp = os.path.join(locks_dir, toy_lock_fn)
-        write_file(toy_lock_fp, '')
+        toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
+        mkdir(toy_lock_path, parents=True)
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
                               extra_args=extra_args, raise_error=True, verbose=False)
 
@@ -2552,7 +2553,7 @@ class ToyBuildTest(EnhancedTestCase):
                 self.lock_fp = lock_fp
 
             def remove_lock(self, *args):
-                remove_file(self.lock_fp)
+                remove_dir(self.lock_fp)
 
             def __enter__(self):
                 signal.signal(signal.SIGALRM, self.remove_lock)
@@ -2564,13 +2565,13 @@ class ToyBuildTest(EnhancedTestCase):
         # wait for lock to be removed, with 1 second interval of checking
         extra_args.append('--wait-on-lock=1')
 
-        wait_regex = re.compile("^== lock file .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
+        wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
         ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
 
-        self.assertTrue(os.path.exists(toy_lock_fp))
+        self.assertTrue(os.path.exists(toy_lock_path))
 
-        # use context manager to remove lock file after 3 seconds
-        with remove_lock_after(3, toy_lock_fp):
+        # use context manager to remove lock after 3 seconds
+        with remove_lock_after(3, toy_lock_path):
             self.mock_stderr(True)
             self.mock_stdout(True)
             self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
@@ -2587,7 +2588,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
 
         # when there is no lock in place, --wait-on-lock has no impact
-        self.assertFalse(os.path.exists(toy_lock_fp))
+        self.assertFalse(os.path.exists(toy_lock_path))
         self.mock_stderr(True)
         self.mock_stdout(True)
         self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)

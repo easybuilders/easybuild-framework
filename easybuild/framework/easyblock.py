@@ -3045,22 +3045,23 @@ class EasyBlock(object):
             self.log.info("Ignoring locks...")
         else:
             locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
-            lock_fp = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+            lock_path = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
 
             # if lock already exists, either abort or wait until it disappears
-            if os.path.exists(lock_fp):
+            if os.path.exists(lock_path):
                 wait_on_lock = build_option('wait_on_lock')
                 if wait_on_lock:
-                    while os.path.exists(lock_fp):
-                        print_msg("lock file %s exists, waiting %d seconds..." % (lock_fp, wait_on_lock),
+                    while os.path.exists(lock_path):
+                        print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
                                   silent=self.silent)
                         time.sleep(wait_on_lock)
                 else:
-                    raise EasyBuildError("Lock file %s already exists, aborting!", lock_fp)
+                    raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
 
-            # create lock file to avoid that another installation running in parallel messes things up
-            write_file(lock_fp, 'lock for %s' % self.installdir)
-            self.log.info("Lock file created: %s", lock_fp)
+            # create lock to avoid that another installation running in parallel messes things up;
+            # we use a directory as a lock, since that's atomically created
+            mkdir(lock_path, parents=True)
+            self.log.info("Lock created: %s", lock_path)
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
@@ -3078,8 +3079,8 @@ class EasyBlock(object):
             pass
         finally:
             if not ignore_locks:
-                remove_file(lock_fp)
-                self.log.info("Lock file removed: %s", lock_fp)
+                remove_dir(lock_path)
+                self.log.info("Lock removed: %s", lock_path)
 
         # return True for successfull build (or stopped build)
         return True
