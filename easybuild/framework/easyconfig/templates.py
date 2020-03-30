@@ -259,10 +259,17 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # step 5. add additional conditional templates
     if toolchain is not None and hasattr(toolchain, 'mpi_cmd_prefix'):
-        # get prefix for commands to be run with mpi runtime using default number of ranks
-        mpi_cmd_prefix = toolchain.mpi_cmd_prefix()
-        if mpi_cmd_prefix is not None:
-            template_values['mpi_cmd_prefix'] = mpi_cmd_prefix
+        try:
+            # get prefix for commands to be run with mpi runtime using default number of ranks
+            mpi_cmd_prefix = toolchain.mpi_cmd_prefix()
+            if mpi_cmd_prefix is not None:
+                template_values['mpi_cmd_prefix'] = mpi_cmd_prefix
+        except EasyBuildError as err:
+            # don't fail just because we couldn't resolve this template
+            if "get_software_version software version for" in str(err):
+                _log.warning("Failed to create mpi_cmd_prefix template, error was:\n" + str(err))
+            else:
+                raise err
 
     return template_values
 
