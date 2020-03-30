@@ -647,7 +647,7 @@ def check_os_dependency(dep):
     }
     os_name = get_os_name()
 
-    rh_based_os = any(os_name.startswith(x) for x in ['centos', 'fedora', 'redhat', 'rhel', 'sl'])
+    rh_based_os = os_name in ['centos', 'fedora', 'redhat', 'RHEL', 'SL']
     if rh_based_os:
         os_name = 'redhat'
 
