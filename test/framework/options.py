@@ -4565,7 +4565,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         if HAVE_ARCHSPEC:
-            patterns.append(r"^  -> arch name: \w+")
+            patterns.append(r"^  -> arch name: \w+$")
+        else:
+            patterns.append(r"^  -> arch name: UNKNOWN \(archspec is not installed\?\)$")
 
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
