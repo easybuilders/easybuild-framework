@@ -1469,7 +1469,7 @@ class EasyConfig(object):
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
         prev_enable_templating = self.enable_templating
         self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore)
+        template_values = template_constant_dict(self, ignore=ignore, toolchain=self.toolchain)
         self.enable_templating = prev_enable_templating
 
         # update the template_values dict

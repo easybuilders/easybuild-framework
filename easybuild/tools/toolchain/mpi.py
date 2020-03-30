@@ -166,6 +166,19 @@ class Mpi(Toolchain):
         else:
             raise EasyBuildError("mpi_family: MPI_FAMILY is undefined.")
 
+    def mpi_cmd_prefix(self, nr_ranks=1):
+        """Construct an MPI command prefix to precede an executable"""
+
+        # Verify that the command appears at the end of mpi_cmd_for
+        if self.mpi_cmd_for('xcommandx', '1').rstrip().endswith('xcommandx'):
+            result = self.mpi_cmd_for('', nr_ranks)
+        else:
+            self.log.warning("mpi_cmd_for cannot be used to construct mpi_cmd_prefix, requires that cmd template "
+                             "appears last in result")
+            result = None
+
+        return result
+
     def mpi_cmd_for(self, cmd, nr_ranks):
         """Construct an MPI command for the given command and number of ranks."""
 
@@ -180,10 +193,10 @@ class Mpi(Toolchain):
             self.log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
         else:
             # different known mpirun commands
-            mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
+            mpirun_n_cmd = "mpirun -n %(nr_ranks)s %(cmd)s"
             mpi_cmds = {
                 toolchain.OPENMPI: mpirun_n_cmd,
-                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",
+                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)s %(cmd)s",
                 toolchain.INTELMPI: mpirun_n_cmd,
                 toolchain.MVAPICH2: mpirun_n_cmd,
                 toolchain.MPICH: mpirun_n_cmd,
@@ -201,7 +214,7 @@ class Mpi(Toolchain):
                 impi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
                 if LooseVersion(impi_ver) <= LooseVersion('4.1'):
 
-                    mpi_cmds[toolchain.INTELMPI] = "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s"
+                    mpi_cmds[toolchain.INTELMPI] = "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)s %(cmd)s"
 
                     # set temporary dir for MPD
                     # note: this needs to be kept *short*,
@@ -230,7 +243,7 @@ class Mpi(Toolchain):
 
                     # create nodes file
                     nodes = os.path.join(tmpdir, 'nodes')
-                    write_file(nodes, "localhost\n" * nr_ranks)
+                    write_file(nodes, "localhost\n" * int(nr_ranks))
 
                     params.update({'nodesfile': "-machinefile %s" % nodes})
 
@@ -243,6 +256,13 @@ class Mpi(Toolchain):
         try:
             res = mpi_cmd_template % params
         except KeyError as err:
-            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: %s", mpi_cmd_template, params, err)
+            missing = []
+            for key in params:
+                tmpl = '%(' + key + ')s'
+                if tmpl not in mpi_cmd_template:
+                    missing.append(tmpl)
+            if missing:
+                raise EasyBuildError("Missing templates in mpi-cmd-template value '%s': %s", mpi_cmd_template,
+                                     ', '.join(missing))
 
         return res
