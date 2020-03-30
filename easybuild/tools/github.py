@@ -1271,7 +1271,6 @@ def merge_pr(pr):
         print_warning("Review indicates this PR should not be merged (use -f/--force to do so anyway)")
 
 
-@only_if_module_is_available('git', pkgname='GitPython')
 def post_pr_labels(pr, labels):
     """
     Update PR labels
@@ -1279,14 +1278,16 @@ def post_pr_labels(pr, labels):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    # fetch GitHub token (required to perform actions on GitHub)
+    # fetch GitHub token if available
     github_user = build_option('github_user')
     if github_user is None:
-        raise EasyBuildError("GitHub user must be specified to open a pull request")
+        _log.info("GitHub user not specified, not adding labels to PR# %s" % pr)
+        return False
 
     github_token = fetch_github_token(github_user)
     if github_token is None:
-        raise EasyBuildError("GitHub token for user '%s' must be available to open a pull request", github_user)
+        _log.info("GitHub token for user '%s' not found, not adding labels to PR# %s" % (github_user, pr))
+        return False
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
