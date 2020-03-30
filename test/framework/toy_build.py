@@ -1443,7 +1443,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_core_mod)
 
         # test installing (only) additional module in Lua syntax (if Lmod is available)
-        lmod_abspath = which('lmod')
+        lmod_abspath = os.environ.get('LMOD_CMD') or which('lmod')
         if lmod_abspath is not None:
             args = common_args[:-1] + [
                 '--allow-modules-tool-mismatch',
@@ -1457,7 +1457,7 @@ class ToyBuildTest(EnhancedTestCase):
             # existing install is reused
             modtxt3 = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
-            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
             # make sure load statements for dependencies are included
