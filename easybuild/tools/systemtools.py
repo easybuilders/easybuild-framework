@@ -59,6 +59,14 @@ except ImportError as err:
     _log.debug("Failed to import 'distro' Python module: %s", err)
     HAVE_DISTRO = False
 
+try:
+    from archspec.cpu import host as archspec_cpu_host
+    HAVE_ARCHSPEC = True
+except ImportError as err:
+    _log.debug("Failed to import 'archspec' Python module: %s", err)
+    HAVE_ARCHSPEC = False
+
+
 
 # Architecture constants
 AARCH32 = 'AArch32'
@@ -342,6 +350,22 @@ def get_cpu_family():
         _log.warning("Failed to determine CPU family, returning %s" % family)
 
     return family
+
+
+def get_cpu_arch_name():
+    """
+    Determine CPU architecture name via archspec (if available).
+    """
+    cpu_arch_name = None
+    if HAVE_ARCHSPEC:
+        res = archspec_cpu_host()
+        if res:
+            cpu_arch_name = res.name
+
+    if cpu_arch_name is None:
+        cpu_arch_name = UNKNOWN
+
+    return cpu_arch_name
 
 
 def get_cpu_model():
@@ -746,6 +770,7 @@ def get_system_info():
     return {
         'core_count': get_avail_core_count(),
         'total_memory': get_total_memory(),
+        'cpu_arch_name': get_cpu_arch_name(),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),

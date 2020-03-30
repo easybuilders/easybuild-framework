@@ -50,3 +50,5 @@ GC3Pie
 python-graph-dot
 python-hglib
 requests
+
+archspec; python_version >= '2.7'

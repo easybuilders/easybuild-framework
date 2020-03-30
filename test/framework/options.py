@@ -59,6 +59,7 @@ from easybuild.tools.options import EasyBuildOptions, parse_external_modules_met
 from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
+from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
@@ -4620,6 +4621,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^  -> Python binary: .*/[pP]ython[0-9]?",
             "^  -> Python version: [0-9.]+",
         ]
+
+        if HAVE_ARCHSPEC:
+            patterns.append(r"^  -> arch name: \w+$")
+        else:
+            patterns.append(r"^  -> arch name: UNKNOWN \(archspec is not installed\?\)$")
+
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))

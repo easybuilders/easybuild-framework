@@ -95,8 +95,8 @@ from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import get_cpu_features, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -1153,6 +1153,7 @@ class EasyBuildOptions(GeneralOption):
         """Show system information."""
         system_info = get_system_info()
         cpu_features = get_cpu_features()
+        cpu_arch_name = system_info['cpu_arch_name']
         lines = [
             "System information (%s):" % system_info['hostname'],
             '',
@@ -1166,6 +1167,13 @@ class EasyBuildOptions(GeneralOption):
             "  -> vendor: %s" % system_info['cpu_vendor'],
             "  -> architecture: %s" % get_cpu_architecture(),
             "  -> family: %s" % get_cpu_family(),
+        ]
+        if cpu_arch_name == UNKNOWN:
+            lines.append("  -> arch name: UNKNOWN (archspec is not installed?)")
+        else:
+            lines.append("  -> arch name: %s" % cpu_arch_name)
+
+        lines.extend([
             "  -> model: %s" % system_info['cpu_model'],
             "  -> speed: %s" % system_info['cpu_speed'],
             "  -> cores: %s" % system_info['core_count'],
@@ -1175,7 +1183,8 @@ class EasyBuildOptions(GeneralOption):
             "  -> glibc version: %s" % system_info['glibc_version'],
             "  -> Python binary: %s" % sys.executable,
             "  -> Python version: %s" % sys.version.split(' ')[0],
-        ]
+        ])
+
         return '\n'.join(lines)
 
     def show_config(self):
