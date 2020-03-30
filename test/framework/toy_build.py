@@ -39,7 +39,6 @@ import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from functools import wraps
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
