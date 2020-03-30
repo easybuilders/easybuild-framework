@@ -2600,6 +2600,12 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
         self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
 
+        # check for clean error on creation of lock
+        extra_args = ['--locks-dir=/']
+        error_pattern = "Failed to create lock /.*_software_toy_0.0.lock:.* Read-only file system"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
+
 
 def suite():
     """ return all the tests in this file """
