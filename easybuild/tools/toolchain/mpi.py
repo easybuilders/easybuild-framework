@@ -170,11 +170,14 @@ class Mpi(Toolchain):
         """Construct an MPI command prefix to precede an executable"""
 
         # Verify that the command appears at the end of mpi_cmd_for
-        if self.mpi_cmd_for('xcommandx', '1').rstrip().endswith('xcommandx'):
-            result = self.mpi_cmd_for('', nr_ranks)
+        test_cmd = 'xxx_command_xxx'
+        mpi_cmd = self.mpi_cmd_for(test_cmd, nr_ranks)
+        if mpi_cmd.rstrip().endswith(test_cmd):
+            result = mpi_cmd.replace(test_cmd, '').rstrip()
         else:
-            self.log.warning("mpi_cmd_for cannot be used to construct mpi_cmd_prefix, requires that cmd template "
-                             "appears last in result")
+            warning_msg = "mpi_cmd_for cannot be used by mpi_cmd_prefix, "
+            warning_msg += "requires that %(cmd)s template appears at the end"
+            self.log.warning(warning_msg)
             result = None
 
         return result
@@ -253,16 +256,19 @@ class Mpi(Toolchain):
             else:
                 raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
 
+        missing = []
+        for key in sorted(params.keys()):
+            tmpl = '%(' + key + ')s'
+            if tmpl not in mpi_cmd_template:
+                missing.append(tmpl)
+        if missing:
+            raise EasyBuildError("Missing templates in mpi-cmd-template value '%s': %s",
+                                 mpi_cmd_template, ', '.join(missing))
+
         try:
             res = mpi_cmd_template % params
         except KeyError as err:
-            missing = []
-            for key in params:
-                tmpl = '%(' + key + ')s'
-                if tmpl not in mpi_cmd_template:
-                    missing.append(tmpl)
-            if missing:
-                raise EasyBuildError("Missing templates in mpi-cmd-template value '%s': %s", mpi_cmd_template,
-                                     ', '.join(missing))
+            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: KeyError %s",
+                                 mpi_cmd_template, params, err)
 
         return res
