@@ -266,10 +266,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                 template_values['mpi_cmd_prefix'] = mpi_cmd_prefix
         except EasyBuildError as err:
             # don't fail just because we couldn't resolve this template
-            if "get_software_version software version for" in str(err):
-                _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", str(err))
-            else:
-                raise err
+            _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", err)
 
     return template_values
 
