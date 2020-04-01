@@ -1019,7 +1019,8 @@ class ToolchainTest(EnhancedTestCase):
         # check whether expected error is raised when a template with missing keys is used;
         # %(ranks)s should be %(nr_ranks)s
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(ranks)s -- %(cmd)s", 'silent': True})
-        error_pattern = r"Missing templates in mpi-cmd-template value 'mpiexec -np %\(ranks\)s -- %\(cmd\)s': %\(nr_ranks\)s"
+        error_pattern = \
+            r"Missing templates in mpi-cmd-template value 'mpiexec -np %\(ranks\)s -- %\(cmd\)s': %\(nr_ranks\)s"
         self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
 
         init_config(build_options={'mpi_cmd_template': "mpirun %(foo)s -np %(nr_ranks)s %(cmd)s", 'silent': True})
