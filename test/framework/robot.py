@@ -432,7 +432,7 @@ class RobotTest(EnhancedTestCase):
             "   ('SQLite', '3.8.10.2'),",
             "]",
             # toolchain as list line, for easy modification later;
-            "toolchain = {'name': 'foss', 'version': '2018a'}",
+            "toolchain = {'name': 'foss', 'version': '%(version_minor)s018a'}",
         ]
         write_file(barec, '\n'.join(barec_lines))
         bar = process_easyconfig(barec)[0]
