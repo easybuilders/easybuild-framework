@@ -1096,7 +1096,7 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
-    def dump(self, fp, always_overwrite=True, backup=False):
+    def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
         """
         Dump this easyconfig to file, with the given filename.
 
@@ -1126,12 +1126,13 @@ class EasyConfig(object):
                 templ_val[self.template_values[key]] = key
 
         toolchain_hierarchy = None
-        try:
-            toolchain_hierarchy = get_toolchain_hierarchy(self['toolchain'])
-        except EasyBuildError as err:
-            # don't fail hard just because we can't get the hierarchy
-            self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump method, '
-                             'error:\n%s', self['toolchain'], str(err))
+        if not explicit_toolchains:
+            try:
+                toolchain_hierarchy = get_toolchain_hierarchy(self['toolchain'])
+            except EasyBuildError as err:
+                # don't fail hard just because we can't get the hierarchy
+                self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump method, '
+                                 'error:\n%s', self['toolchain'], str(err))
 
         try:
             ectxt = self.parser.dump(self, default_values, templ_const, templ_val,

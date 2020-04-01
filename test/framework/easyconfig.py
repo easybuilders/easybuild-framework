@@ -1684,7 +1684,16 @@ class EasyConfigTest(EnhancedTestCase):
         # dict representation of EasyConfig instance should not change after dump
         self.assertEqual(ecdict, ec.asdict())
         ectxt = read_file(test_ec)
+        dumped_ec = EasyConfig(test_ec)
+        self.assertEqual(ecdict, dumped_ec.asdict())
         self.assertTrue(r"'toy', '0.0')," in ectxt)
+        # test case where we ask for explicit toolchains
+        ec.dump(test_ec, explicit_toolchains=True)
+        self.assertEqual(ecdict, ec.asdict())
+        ectxt = read_file(test_ec)
+        dumped_ec = EasyConfig(test_ec)
+        self.assertEqual(ecdict, dumped_ec.asdict())
+        self.assertTrue(r"'toy', '0.0', '', ('gompi', '2018a'))," in ectxt)
 
     def test_dump_order(self):
         """Test order of easyconfig parameters in dumped easyconfig."""
