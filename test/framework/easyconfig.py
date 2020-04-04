@@ -1008,6 +1008,19 @@ class EasyConfigTest(EnhancedTestCase):
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
         self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
+        # test use of %(mpi_cmd_prefix)s template
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        gompi_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(gompi_ec) + "\nsanity_check_commands = ['%(mpi_cmd_prefix)s toy']")
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['sanity_check_commands'], ['mpirun -n 1 toy'])
+
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s  "})
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
+
     def test_templating_doc(self):
         """test templating documentation"""
         doc = avail_easyconfig_templates()
