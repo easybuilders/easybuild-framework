@@ -692,6 +692,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         raise EasyBuildError("No paths specified")
 
     pr_target_repo = det_pr_target_repo(paths)
+    if pr_target_repo is None:
+        raise EasyBuildError("Failed to determine target repository, please specify it via --pr-target-repo!")
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
@@ -1232,7 +1234,7 @@ def close_pr(pr, motivation_msg=None):
         raise EasyBuildError("GitHub user must be specified to use --close-pr")
 
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
@@ -1305,7 +1307,7 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
     print_msg("Listing PRs with parameters: %s" % ', '.join(k + '=' + str(parameters[k]) for k in sorted(parameters)))
 
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     pr_data, _ = fetch_pr_data(None, pr_target_account, pr_target_repo, github_user, **parameters)
 
@@ -1325,7 +1327,7 @@ def merge_pr(pr):
         raise EasyBuildError("GitHub user must be specified to use --merge-pr")
 
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
@@ -1388,7 +1390,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
     pr_target_account = build_option('pr_target_account')
     pr_target_branch = build_option('pr_target_branch')
     if pr_target_repo is None:
-        pr_target_repo = build_option('pr_target_repo')
+        pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     # fetch GitHub token (required to perform actions on GitHub)
     github_user = build_option('github_user')
@@ -1623,7 +1625,7 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 
     pr_target_account = build_option('pr_target_account')
     if pr_target_repo is None:
-        pr_target_repo = build_option('pr_target_repo')
+        pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     pr_data, _ = fetch_pr_data(pr_id, pr_target_account, pr_target_repo, github_user)
 
@@ -1637,24 +1639,42 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 
 
 def det_pr_target_repo(paths):
-    """Determine pr_target_repo from cagetorized list of files
+    """Determine target repository for pull request from given cagetorized list of files
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, .py files)
     """
-
     pr_target_repo = build_option('pr_target_repo')
 
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        if paths['py_files']:
-            if any([get_easyblock_class_name(path) for path in paths['py_files']]):
+    # determine target repository for PR based on which files are provided
+    # (see categorize_files_by_type function)
+    if pr_target_repo is None:
+
+        _log.info("Trying to derive target repository based on specified files...")
+
+        easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
+
+        # Python files provided, and no easyconfig files or patches
+        if py_files and not (easyconfigs or patch_files):
+
+            _log.info("Only Python files provided, no easyconfig files or patches...")
+
+            # if all Python files are easyblocks, target repo should be easyblocks;
+            # otherwise, target repo is assumed to be framework
+            if all([get_easyblock_class_name(path) for path in py_files]):
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
+                _log.info("All Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
             else:
-                raise EasyBuildError("You are submitting python files that are not easyblocks, "
-                                     "did you forget to specify --pr-target-repo=easybuild-framework?")
-    else:
-        if paths['easyconfigs'] or paths['patch_files']:
-            raise EasyBuildError("You are submitting easyconfigs and/or patches, "
-                                 "shouldn\'t this PR target the easyconfigs repo?")
+                pr_target_repo = GITHUB_FRAMEWORK_REPO
+                _log.info("Not all Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
+
+        # if no Python files are provided, only easyconfigs & patches, or if files to delete are .eb files,
+        # then target repo is assumed to be easyconfigs
+        elif easyconfigs or patch_files or (files_to_delete and all(x.endswith('.eb') for x in files_to_delete)):
+            pr_target_repo = GITHUB_EASYCONFIGS_REPO
+            _log.info("Only easyconfig and patch files found, target repository is assumed to be %s", pr_target_repo)
+
+        else:
+            _log.info("No Python files, easyconfigs or patches found, can't derive target repository...")
 
     return pr_target_repo
 
@@ -1703,6 +1723,8 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
     """
 
     pr_target_repo = det_pr_target_repo(paths)
+    if pr_target_repo is None:
+        raise EasyBuildError("Failed to determine target repository, please specify it via --pr-target-repo!")
 
     github_account, branch_name = det_account_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
 
@@ -2163,7 +2185,7 @@ def sync_pr_with_develop(pr_id):
         raise EasyBuildError("GitHub user must be specified to use --sync-pr-with-develop")
 
     target_account = build_option('pr_target_account')
-    target_repo = build_option('pr_target_repo')
+    target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     pr_account, pr_branch = det_account_branch_for_pr(pr_id)
 
@@ -2186,7 +2208,7 @@ def sync_branch_with_develop(branch_name):
         raise EasyBuildError("GitHub user must be specified to use --sync-branch-with-develop")
 
     target_account = build_option('pr_target_account')
-    target_repo = build_option('pr_target_repo')
+    target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')

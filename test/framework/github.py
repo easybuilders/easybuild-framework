@@ -37,6 +37,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 from easybuild.base.rest import RestClient
+from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
@@ -665,6 +666,58 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertEqual(account, 'migueldiascosta')
         self.assertEqual(branch, 'fix_inject_checksums')
+
+    def test_det_pr_target_repo(self):
+        """Test det_pr_target_repo."""
+
+        # no files => return default target repo (None)
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
+
+        # easyconfigs/patches (incl. files to delete) => easyconfigs repo
+        # this is solely based on filenames, actual files are not opened
+        test_cases = [
+            ['toy.eb'],
+            ['toy.patch'],
+            ['toy.eb', 'toy.patch'],
+            [':toy.eb'],  # deleting toy.eb
+            ['one.eb', 'two.eb'],
+            ['one.eb', 'two.eb', 'toy.patch', ':todelete.eb'],
+        ]
+        for test_case in test_cases:
+            self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(test_case)), 'easybuild-easyconfigs')
+
+        # if only Python files are involved, result is easyblocks or framework repo;
+        # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
+        # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
+        github_py = os.path.abspath(__file__)
+        testdir = os.path.dirname(github_py)
+
+        configuremake = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        self.assertTrue(os.path.exists(configuremake))
+        toy_eb = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        self.assertTrue(os.path.exists(toy_eb))
+
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'easybuild-easyblocks')
+        py_files = [github_py, configuremake]
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
+        py_files[0] = toy_eb
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-easyblocks')
+        py_files.append(github_py)
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
+
+        # as soon as an easyconfig file or patch files is involved => result is easybuild-easyconfigs repo
+        for fn in ['toy.eb', 'toy.patch']:
+            self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files + [fn])), 'easybuild-easyconfigs')
+
+        # if --pr-target-repo is specified, we always get this value (no guessing anymore)
+        init_config(build_options={'pr_target_repo': 'thisisjustatest'})
+
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(['toy.eb', 'toy.patch'])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
 
     def test_push_branch_to_github(self):
         """Test push_branch_to_github."""
