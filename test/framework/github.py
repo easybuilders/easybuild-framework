@@ -748,6 +748,21 @@ class GithubTest(EnhancedTestCase):
         regex = re.compile(pattern)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
+    def test_get_easyblock_class_name(self):
+        """Test for get_easyblock_class_name function."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
+        self.assertEqual(gh.get_easyblock_class_name(configuremake), 'ConfigureMake')
+
+        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
+        self.assertEqual(gh.get_easyblock_class_name(gcc_eb), 'EB_GCC')
+
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        self.assertEqual(gh.get_easyblock_class_name(toy_eb), 'EB_toy')
+
 
 def suite():
     """ returns all the testcases in this module """

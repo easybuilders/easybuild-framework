@@ -991,7 +991,7 @@ def get_easyblock_class_name(path):
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:
             ancestors = inspect.getmro(co)
-            if ancestors[-2].__name__ == 'EasyBlock':
+            if any(a.__name__ == 'EasyBlock' for a in ancestors):
                 return cn
     return None
 
