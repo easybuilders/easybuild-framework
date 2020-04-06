@@ -33,8 +33,6 @@ import base64
 import copy
 import getpass
 import glob
-import imp
-import inspect
 import os
 import random
 import re
@@ -48,16 +46,16 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
-from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
-from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
-from easybuild.tools.filetools import apply_patch, copy_dir, copy_file, det_patched_files, decode_class_name
-from easybuild.tools.filetools import download_file, extract_file, mkdir, read_file, symlink
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_file, copy_framework_files
+from easybuild.tools.filetools import det_patched_files, decode_class_name, download_file, extract_file
+from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
-from easybuild.tools.utilities import nub, only_if_module_is_available, remove_unwanted_chars
+from easybuild.tools.utilities import nub, only_if_module_is_available
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -981,87 +979,6 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     sys.stdout.write('\n')
     return soft_name
-
-
-def get_easyblock_class_name(path):
-    """Make sure file is an easyblock and get easyblock class name"""
-    fn = os.path.basename(path).split('.')[0]
-    mod = imp.load_source(fn, path)
-    clsmembers = inspect.getmembers(mod, inspect.isclass)
-    for cn, co in clsmembers:
-        if co.__module__ == mod.__name__:
-            ancestors = inspect.getmro(co)
-            if any(a.__name__ == 'EasyBlock' for a in ancestors):
-                return cn
-    return None
-
-
-def copy_easyblocks(paths, target_dir):
-    """ Find right location for easyblock file and copy it there"""
-    file_info = {
-        'eb_names': [],
-        'paths_in_repo': [],
-        'new': [],
-    }
-
-    subdir = os.path.join('easybuild', 'easyblocks')
-    if os.path.exists(os.path.join(target_dir, subdir)):
-        for path in paths:
-            cn = get_easyblock_class_name(path)
-            if not cn:
-                raise EasyBuildError("Could not determine easyblock class from file %s" % path)
-
-            eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
-
-            if is_generic_easyblock(cn):
-                pkgdir = GENERIC_EASYBLOCK_PKG
-            else:
-                pkgdir = eb_name[0]
-
-            target_path = os.path.join(subdir, pkgdir, eb_name + '.py')
-
-            full_target_path = os.path.join(target_dir, target_path)
-            file_info['eb_names'].append(eb_name)
-            file_info['paths_in_repo'].append(full_target_path)
-            file_info['new'].append(not os.path.exists(full_target_path))
-            copy_file(path, full_target_path, force_in_dry_run=True)
-
-    else:
-        raise EasyBuildError("Could not find %s" % os.path.join(target_dir, subdir))
-
-    return file_info
-
-
-def copy_framework_files(paths, target_dir):
-    """ Find right location for framework file and copy it there"""
-    file_info = {
-        'paths_in_repo': [],
-        'new': [],
-    }
-
-    paths = [os.path.abspath(path) for path in paths]
-
-    target_path = None
-    for path in paths:
-        dirnames = os.path.dirname(path).split(os.path.sep)
-
-        if 'easybuild-framework' in dirnames:
-            ind = dirnames.index('easybuild-framework') + 1
-            parent_dir = os.path.join(*dirnames[ind:])
-
-            if os.path.exists(os.path.join(target_dir, parent_dir)):
-                target_path = os.path.join(target_dir, parent_dir)
-
-        if target_path is None:
-            raise EasyBuildError("Couldn't find parent folder of updated file: %s" % path)
-
-        full_target_path = os.path.join(target_path, os.path.basename(path))
-
-        file_info['paths_in_repo'].append(full_target_path)
-        file_info['new'].append(not os.path.exists(full_target_path))
-        copy_file(path, full_target_path)
-
-    return file_info
 
 
 def check_pr_eligible_to_merge(pr_data):

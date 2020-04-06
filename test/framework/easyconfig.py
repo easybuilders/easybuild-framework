@@ -2983,6 +2983,9 @@ class EasyConfigTest(EnhancedTestCase):
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
 
+        # is_generic_easyblock in easyconfig.py is deprecated, moved to filetools.py
+        self.allow_deprecated_behaviour()
+
         for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
             self.assertTrue(is_generic_easyblock(name))
 

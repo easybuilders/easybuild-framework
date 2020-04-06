@@ -45,6 +45,7 @@ import os
 import re
 from distutils.version import LooseVersion
 
+import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -61,7 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
-from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
+from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
@@ -1682,8 +1683,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
 
 def is_generic_easyblock(easyblock):
     """Return whether specified easyblock name is a generic easyblock or not."""
-
-    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+    _log.deprecated("is_generic_easyblock function was moved to easybuild.tools.filetools", '5.0')
+    return filetools.is_generic_easyblock(easyblock)
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -1698,7 +1699,7 @@ def get_module_path(name, generic=None, decode=True):
         return None
 
     if generic is None:
-        generic = is_generic_easyblock(name)
+        generic = filetools.is_generic_easyblock(name)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:
