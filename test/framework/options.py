@@ -2970,7 +2970,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--new-branch-github',
-            '--pr-target-repo=easybuild-easyblocks',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_eb,
             '--pr-title="add easyblock for toy"',
@@ -2986,15 +2985,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
-        # test framework
-        test_ebs = os.path.join(topdir, 'sandbox')
-        toy_py = os.path.join(test_ebs, 'a_test.py')
+        # test framework with tweaked copy of test_module_naming_scheme.py
+        test_mns_py = os.path.join(topdir, 'sandbox', 'easybuild', 'tools', 'module_naming_scheme',
+                              'test_module_naming_scheme.py')
+        target_dir = os.path.join(self.test_prefix, 'easybuild-framework', 'test', 'framework', 'sandbox',
+                                  'easybuild', 'tools', 'module_naming_scheme')
+        mkdir(target_dir, parents=True)
+        copy_file(test_mns_py, target_dir)
+        test_mns_py = os.path.join(target_dir, os.path.basename(test_mns_py))
+        write_file(test_mns_py, '\n\n', append=True)
 
         args = [
             '--new-branch-github',
-            '--pr-target-repo=easybuild-framework',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            toy_py,
+            test_mns_py,
             '--pr-commit-msg="a test"',
             '-D',
         ]
