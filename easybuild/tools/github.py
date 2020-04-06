@@ -393,7 +393,9 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
         if github_repo == GITHUB_EASYCONFIGS_REPO:
             path = build_option('pr_path')
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
-            path = 'ebs_pr%s' % pr
+            path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
+        else:
+            raise EasyBuildError("Unknown repo: %s" % github_repo)
 
     if path is None:
         path = tempfile.mkdtemp()
