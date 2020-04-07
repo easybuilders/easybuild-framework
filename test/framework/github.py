@@ -718,8 +718,8 @@ class GithubTest(EnhancedTestCase):
         # if only Python files are involved, result is easyblocks or framework repo;
         # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
         # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
-        github_py = os.path.abspath(__file__)
-        testdir = os.path.dirname(github_py)
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        github_py = os.path.join(testdir, 'github.py')
 
         configuremake = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
         self.assertTrue(os.path.exists(configuremake))
