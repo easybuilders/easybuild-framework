@@ -2206,7 +2206,15 @@ class FileToolsTest(EnhancedTestCase):
             os.path.join('test', 'framework', 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'),
             os.path.join('setup.py'),
         ]
-        test_paths = [os.path.join(topdir, f) for f in test_files]
+
+        # files being copied are expected to be in a directory named 'easybuild-framework',
+        # so we need to make sure that's the case here as well (may not be in workspace dir on Travis from example)
+        framework_dir = os.path.join(self.test_prefix, 'easybuild-framework')
+        for test_file in test_files:
+            ft.copy_file(os.path.join(topdir, test_file), os.path.join(framework_dir, test_file))
+
+        test_paths = [os.path.join(framework_dir, f) for f in test_files]
+
         res = ft.copy_framework_files(test_paths, target_dir)
 
         self.assertEqual(sorted(os.listdir(target_dir)), ['easybuild', 'setup.py', 'test'])
