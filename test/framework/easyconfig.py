@@ -3002,11 +3002,15 @@ class EasyConfigTest(EnhancedTestCase):
         # is_generic_easyblock in easyconfig.py is deprecated, moved to filetools.py
         self.allow_deprecated_behaviour()
 
+        self.mock_stderr(True)
+
         for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
             self.assertTrue(is_generic_easyblock(name))
 
         for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
             self.assertFalse(is_generic_easyblock(name))
+
+        self.mock_stderr(False)
 
     def test_get_module_path(self):
         """Test get_module_path function."""
