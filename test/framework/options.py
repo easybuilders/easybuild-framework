@@ -3162,7 +3162,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test framework with tweaked copy of test_module_naming_scheme.py
         test_mns_py = os.path.join(topdir, 'sandbox', 'easybuild', 'tools', 'module_naming_scheme',
-                              'test_module_naming_scheme.py')
+                                   'test_module_naming_scheme.py')
         target_dir = os.path.join(self.test_prefix, 'easybuild-framework', 'test', 'framework', 'sandbox',
                                   'easybuild', 'tools', 'module_naming_scheme')
         mkdir(target_dir, parents=True)

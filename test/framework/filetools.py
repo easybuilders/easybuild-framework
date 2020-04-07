@@ -2166,7 +2166,7 @@ class FileToolsTest(EnhancedTestCase):
         copied_gcc_eb = os.path.join(g_dir, 'gcc.py')
         self.assertEqual(ft.read_file(copied_gcc_eb), ft.read_file(gcc_eb))
         self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_gcc_eb))
-        
+
         gen_dir = os.path.join(easyblocks_dir, 'generic')
         self.assertEqual(sorted(os.listdir(gen_dir)), ['configuremake.py'])
         copied_configuremake = os.path.join(gen_dir, 'configuremake.py')
