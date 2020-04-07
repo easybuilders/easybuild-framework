@@ -80,7 +80,7 @@ from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import fetch_github_token
+from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -601,6 +601,8 @@ class EasyBuildOptions(GeneralOption):
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
+            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", int, 'store', None,
+                                           {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
@@ -934,7 +936,7 @@ class EasyBuildOptions(GeneralOption):
         """Check whether (combination of) configuration options make sense."""
 
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
-        if self.options.from_pr or self.options.upload_test_report:
+        if self.options.from_pr or self.options.include_easyblocks_from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
                 raise EasyBuildError("Required support for using GitHub API is not available (see warnings)")
 
@@ -1052,8 +1054,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_easyconfig_licenses:
             msg += avail_easyconfig_licenses(self.options.output_format)
 
-        # dump available easyblocks
-        if self.options.list_easyblocks:
+        # dump available easyblocks (unless including easyblocks from pr, in which case it will be done later)
+        if self.options.list_easyblocks and not self.options.include_easyblocks_from_pr:
             msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
@@ -1097,7 +1099,8 @@ class EasyBuildOptions(GeneralOption):
             print(msg)
 
         # cleanup tmpdir and exit
-        cleanup_and_exit(self.tmpdir)
+        if not self.options.include_easyblocks_from_pr:
+            cleanup_and_exit(self.tmpdir)
 
     def avail_repositories(self):
         """Show list of known repository types."""
@@ -1413,6 +1416,29 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
+
+    # done here instead of in _postprocess_include because github integration requires build_options to be initialized
+    if eb_go.options.include_easyblocks_from_pr:
+        easyblocks_from_pr = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
+
+        if eb_go.options.include_easyblocks:
+            # make sure we're not including the same easyblock twice
+            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+            included_from_file = set([os.path.basename(eb) for eb in eb_go.options.include_easyblocks])
+            included_twice = included_from_pr & included_from_file
+            if included_twice:
+                raise EasyBuildError("Multiple inclusion of %s, check your --include-easyblocks options",
+                                     ','.join(included_twice))
+
+        include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+
+        if eb_go.options.list_easyblocks:
+            msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
+            if eb_go.options.unittest_file:
+                log.info(msg)
+            else:
+                print(msg)
+            cleanup_and_exit(tmpdir)
 
     check_python_version()
 

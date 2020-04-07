@@ -2471,7 +2471,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks', 'foo.py')
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks',
+                                    'foo.py')
         foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
@@ -2514,7 +2515,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks',
                                     'generic', 'foobar.py')
         foo_regex = re.compile(r"^\|-- FooBar \(easybuild.easyblocks.generic.foobar @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
@@ -2552,7 +2553,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         mod_pattern = 'easybuild.easyblocks.generic.generictest'
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks',
                                     'generic', 'generictest.py')
         foo_regex = re.compile(r"^\|-- GenericTest \(%s @ %s\)" % (mod_pattern, path_pattern), re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
@@ -2562,6 +2563,113 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.generic.generictest']
+
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks_from_pr(self):
+        """Test --include-easyblocks-from-pr."""
+        if self.github_token is None:
+            print("Skipping test_preview_pr, no GitHub token available?")
+            return
+
+        orig_local_sys_path = sys.path[:]
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        # include extra test easyblock
+        foo_txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class EB_foo(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'foo.py'), foo_txt)
+
+        args = [
+            '--include-easyblocks=%s/*.py' % self.test_prefix,  # this shouldn't interfere
+            '--include-easyblocks-from-pr=1915',  # a PR for CMakeMake easyblock
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        # easyblock included from pr is found
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
+        cmm_pattern = os.path.join(path_pattern, 'generic', 'cmakemake.py')
+        cmm_regex = re.compile(r"\|-- CMakeMake \(easybuild.easyblocks.generic.cmakemake @ %s\)" % cmm_pattern, re.M)
+        self.assertTrue(cmm_regex.search(logtxt), "Pattern '%s' found in: %s" % (cmm_regex.pattern, logtxt))
+
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('CMakeMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of easyblocks
+        del sys.modules['easybuild.easyblocks.foo']
+        del sys.modules['easybuild.easyblocks.generic.cmakemake']
+        os.remove(os.path.join(self.test_prefix, 'foo.py'))
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
+
+        # include test cmakemake easyblock
+        cmm_txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class CMakeMake(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
+
+        # including the same easyblock twice should fail
+        args = [
+            '--include-easyblocks=%s/cmakemake.py' % self.test_prefix,
+            '--include-easyblocks-from-pr=1915',
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        self.assertErrorRegex(EasyBuildError,
+                              "Multiple inclusion of cmakemake.py, check your --include-easyblocks options",
+                              self.eb_main, args, raise_error=True)
+
+        os.remove(os.path.join(self.test_prefix, 'cmakemake.py'))
+
+        # clear log
+        write_file(self.logfile, '')
+
+        args = [
+            '--from-pr=9979',  # PR for CMake easyconfig
+            '--include-easyblocks-from-pr=1936',  # PR for EB_CMake easyblock
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--extended-dry-run',
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        # easyconfig from pr is found
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr9979', 'c', 'CMake',
+                                  'CMake-3.16.4-GCCcore-9.2.0.eb')
+        ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
+        self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
+
+        # easyblock included from pr is found
+        eb_regex = re.compile(r"Successfully obtained EB_CMake class instance from easybuild.easyblocks.cmake", re.M)
+        self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
+
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('EB_CMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of easyblocks
+        del sys.modules['easybuild.easyblocks.cmake']
 
     def mk_eb_test_cmd(self, args):
         """Construct test command for 'eb' with given options."""

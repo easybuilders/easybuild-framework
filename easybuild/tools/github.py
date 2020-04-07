@@ -85,6 +85,7 @@ GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'easybuilders'
+GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_DEVELOP_BRANCH = 'develop'
 GITHUB_FILE_TYPE = u'file'
@@ -369,13 +370,32 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     return extracted_path
 
 
+def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
+    """Fetch patched easyconfig files for a particular PR."""
+    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
+
+
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
+    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYCONFIGS_REPO)
+
+
+def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
+    """Fetch patched files for a particular PR."""
 
     if github_user is None:
         github_user = build_option('github_user')
+
+    if github_repo is None:
+        github_repo = GITHUB_EASYCONFIGS_REPO
+
     if path is None:
-        path = build_option('pr_path')
+        if github_repo == GITHUB_EASYCONFIGS_REPO:
+            path = build_option('pr_path')
+        elif github_repo == GITHUB_EASYBLOCKS_REPO:
+            path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
+        else:
+            raise EasyBuildError("Unknown repo: %s" % github_repo)
 
     if path is None:
         path = tempfile.mkdtemp()
@@ -384,9 +404,17 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         mkdir(path, parents=True)
 
     github_account = build_option('pr_target_account')
-    github_repo = GITHUB_EASYCONFIGS_REPO
 
-    _log.debug("Fetching easyconfigs from %s/%s PR #%s into %s", github_account, github_repo, pr, path)
+    if github_repo == GITHUB_EASYCONFIGS_REPO:
+        easyfiles = 'easyconfigs'
+    elif github_repo == GITHUB_EASYBLOCKS_REPO:
+        easyfiles = 'easyblocks'
+    else:
+        raise EasyBuildError("Don't know how to fetch files from repo %s", github_repo)
+
+    subdir = os.path.join('easybuild', easyfiles)
+
+    _log.debug("Fetching %s from %s/%s PR #%s into %s", easyfiles, github_account, github_repo, pr, path)
     pr_data, _ = fetch_pr_data(pr, github_account, github_repo, github_user)
 
     pr_merged = pr_data['merged']
@@ -429,12 +457,12 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     if final_path is None:
 
         if pr_closed:
-            print_warning("Using easyconfigs from closed PR #%s" % pr)
+            print_warning("Using %s from closed PR #%s" % (easyfiles, pr))
 
         # obtain most recent version of patched files
-        for patched_file in patched_files:
+        for patched_file in [f for f in patched_files if subdir in f]:
             # path to patch file, incl. subdir it is in
-            fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+            fn = patched_file.split(subdir)[1].strip(os.path.sep)
             sha = pr_data['head']['sha']
             full_url = URL_SEPARATOR.join([GITHUB_RAW, github_account, github_repo, sha, patched_file])
             _log.info("Downloading %s from %s", fn, full_url)
@@ -444,21 +472,21 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # symlink directories into expected place if they're not there yet
     if final_path != path:
-        dirpath = os.path.join(final_path, 'easybuild', 'easyconfigs')
+        dirpath = os.path.join(final_path, subdir)
         for eb_dir in os.listdir(dirpath):
             symlink(os.path.join(dirpath, eb_dir), os.path.join(path, os.path.basename(eb_dir)))
 
     # sanity check: make sure all patched files are downloaded
-    ec_files = []
-    for patched_file in [f for f in patched_files if not f.startswith('test/')]:
-        fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+    files = []
+    for patched_file in [f for f in patched_files if subdir in f]:
+        fn = patched_file.split(easyfiles)[1].strip(os.path.sep)
         full_path = os.path.join(path, fn)
         if os.path.exists(full_path):
-            ec_files.append(full_path)
+            files.append(full_path)
         else:
             raise EasyBuildError("Couldn't find path to patched file %s", full_path)
 
-    return ec_files
+    return files
 
 
 def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
