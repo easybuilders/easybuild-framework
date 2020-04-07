@@ -1893,7 +1893,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'https://github.com/hpcugent',
+            'url': 'https://github.com/easybuilders',
             'tag': 'master',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
@@ -1918,7 +1918,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'git@github.com:hpcugent',
+            'url': 'git@github.com:easybuilders',
             'tag': 'master',
         }
         args = ['test.tar.gz', self.test_prefix, git_config]
@@ -1972,11 +1972,11 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'git@github.com:hpcugent',
+            'url': 'git@github.com:easybuilders',
             'tag': 'master',
         }
         expected = '\n'.join([
-            r'  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
+            r'  running command "git clone --branch master git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -1985,7 +1985,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
+            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -1994,7 +1994,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
+            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2005,7 +2005,7 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --recursive git@github.com:hpcugent/testrepository.git"',
+            r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86 && git submodule update"',
             r"  \(in testrepository\)",
@@ -2016,7 +2016,7 @@ class FileToolsTest(EnhancedTestCase):
 
         del git_config['recursive']
         expected = '\n'.join([
-            r'  running command "git clone git@github.com:hpcugent/testrepository.git"',
+            r'  running command "git clone git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86"',
             r"  \(in testrepository\)",

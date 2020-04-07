@@ -305,11 +305,27 @@ def remove_dir(path):
         dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
         return
 
-    try:
-        if os.path.exists(path):
-            rmtree2(path)
-    except OSError as err:
-        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+    if os.path.exists(path):
+        ok = False
+        errors = []
+        # Try multiple times to cater for temporary failures on e.g. NFS mounted paths
+        max_attempts = 3
+        for i in range(0, max_attempts):
+            try:
+                shutil.rmtree(path)
+                ok = True
+                break
+            except OSError as err:
+                _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, i, err))
+                errors.append(err)
+                time.sleep(2)
+                # make sure write permissions are enabled on entire directory
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
+        if ok:
+            _log.info("Path %s successfully removed." % path)
+        else:
+            raise EasyBuildError("Failed to remove directory %s even after %d attempts.\nReasons: %s",
+                                 path, max_attempts, errors)
 
 
 def remove(paths):
@@ -1385,22 +1401,8 @@ def path_matches(path, paths):
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
-    ok = False
-    for i in range(0, n):
-        try:
-            shutil.rmtree(path)
-            ok = True
-            break
-        except OSError as err:
-            _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
-            time.sleep(2)
-
-            # make sure write permissions are enabled on entire directory
-            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
-    if not ok:
-        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
-    else:
-        _log.info("Path %s successfully removed." % path)
+    _log.deprecated("Use 'remove_dir' rather than 'rmtree2'", '5.0')
+    remove_dir(path)
 
 
 def find_backup_name_candidate(src_file):

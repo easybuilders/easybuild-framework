@@ -188,6 +188,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_output_dir',
         'job_polling_interval',
         'job_target_resource',
+        'locks_dir',
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',
@@ -228,6 +229,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
+        'ignore_locks',
         'install_latest_eb_release',
         'lib64_fallback_sanity_check',
         'logtostdout',
@@ -252,6 +254,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_f90cache',
         'use_existing_modules',
         'set_default_module',
+        'wait_on_lock',
     ],
     True: [
         'cleanup_builddir',

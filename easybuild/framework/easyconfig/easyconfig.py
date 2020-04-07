@@ -1461,17 +1461,32 @@ class EasyConfig(object):
 
     def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
-        if self.template_values is None:
-            self.template_values = {}
 
         # step 0. self.template_values can/should be updated from outside easyconfig
-        # (eg the run_setp code in EasyBlock)
+        # (eg the run_step code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
         prev_enable_templating = self.enable_templating
+
         self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore)
+
+        if self.template_values is None:
+            # if no template values are set yet, initiate with a minimal set of template values;
+            # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
+            # which is a pretty weird use case, but fine...
+            self.template_values = template_constant_dict(self, ignore=ignore)
+
+        self.enable_templating = prev_enable_templating
+
+        # grab toolchain instance with templating support enabled,
+        # which is important in case the Toolchain instance was not created yet
+        toolchain = self.toolchain
+
+        # get updated set of template values, now with toolchain instance
+        # (which is used to define the %(mpi_cmd_prefix)s template)
+        self.enable_templating = False
+        template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
         self.enable_templating = prev_enable_templating
 
         # update the template_values dict
