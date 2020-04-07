@@ -2734,17 +2734,26 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
-        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
+        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': []},
+                         categorize_files_by_type([]))
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs_dir = os.path.join(test_dir, 'easyconfigs')
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', toy_patch_fn)
+
+        easyblocks_dir = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks')
+        configuremake = os.path.join(easyblocks_dir, 'generic', 'configuremake.py')
+        toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
+
         paths = [
             'bzip2-1.0.6.eb',
+            toy_easyblock,
             os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
             toy_patch,
             'foo',
             ':toy-0.0-deps.eb',
+            configuremake,
         ]
         res = categorize_files_by_type(paths)
         expected = [
@@ -2755,6 +2764,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['easyconfigs'], expected)
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
+        self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
 
     def test_resolve_template(self):
         """Test resolve_template function."""
@@ -2989,11 +2999,18 @@ class EasyConfigTest(EnhancedTestCase):
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
 
+        # is_generic_easyblock in easyconfig.py is deprecated, moved to filetools.py
+        self.allow_deprecated_behaviour()
+
+        self.mock_stderr(True)
+
         for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
             self.assertTrue(is_generic_easyblock(name))
 
         for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
             self.assertFalse(is_generic_easyblock(name))
+
+        self.mock_stderr(False)
 
     def test_get_module_path(self):
         """Test get_module_path function."""

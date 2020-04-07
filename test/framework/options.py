@@ -3118,6 +3118,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         topdir = os.path.dirname(os.path.abspath(__file__))
+
+        # test easyconfigs
         test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
@@ -3132,10 +3134,59 @@ class CommandLineOptionsTest(EnhancedTestCase):
         remote = 'git@github.com:%s/easybuild-easyconfigs.git' % GITHUB_TEST_ACCOUNT
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git\.\.\.",
-            r"^== copying easyconfigs to .*/easybuild-easyconfigs\.\.\.",
+            r"^== copying files to .*/easybuild-easyconfigs\.\.\.",
             r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
+
+        # test easyblocks
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+
+        args = [
+            '--new-branch-github',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            toy_eb,
+            '--pr-title="add easyblock for toy"',
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        remote = 'git@github.com:%s/easybuild-easyblocks.git' % GITHUB_TEST_ACCOUNT
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyblocks.git\.\.\.",
+            r"^== copying files to .*/easybuild-easyblocks\.\.\.",
+            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+        ]
+        self._assert_regexs(regexs, txt)
+
+        # test framework with tweaked copy of test_module_naming_scheme.py
+        test_mns_py = os.path.join(topdir, 'sandbox', 'easybuild', 'tools', 'module_naming_scheme',
+                                   'test_module_naming_scheme.py')
+        target_dir = os.path.join(self.test_prefix, 'easybuild-framework', 'test', 'framework', 'sandbox',
+                                  'easybuild', 'tools', 'module_naming_scheme')
+        mkdir(target_dir, parents=True)
+        copy_file(test_mns_py, target_dir)
+        test_mns_py = os.path.join(target_dir, os.path.basename(test_mns_py))
+        write_file(test_mns_py, '\n\n', append=True)
+
+        args = [
+            '--new-branch-github',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            test_mns_py,
+            '--pr-commit-msg="a test"',
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        remote = 'git@github.com:%s/easybuild-framework.git' % GITHUB_TEST_ACCOUNT
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-framework.git\.\.\.",
+            r"^== copying files to .*/easybuild-framework\.\.\.",
+            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+        ]
+        self._assert_regexs(regexs, txt)
+
 
     def test_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
@@ -3197,7 +3248,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         full_repo = 'boegel/easybuild-easyconfigs'
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/%s.git\.\.\." % full_repo,
-            r"^== copying easyconfigs to .*/git-working-dir.*/easybuild-easyconfigs...",
+            r"^== copying files to .*/git-working-dir.*/easybuild-easyconfigs...",
             r"^== pushing branch 'develop' to remote '.*' \(git@github.com:%s.git\) \[DRY RUN\]" % full_repo,
             r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| 32",
             r"== pushed updated branch 'develop' to boegel/easybuild-easyconfigs \[DRY RUN\]",

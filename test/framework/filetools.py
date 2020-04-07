@@ -2097,6 +2097,154 @@ class FileToolsTest(EnhancedTestCase):
         from test_fake_vsc import pkgutil
         self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
 
+    def test_is_generic_easyblock(self):
+        """Test for is_generic_easyblock function."""
+
+        for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
+            self.assertTrue(ft.is_generic_easyblock(name))
+
+        for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
+            self.assertFalse(ft.is_generic_easyblock(name))
+
+    def test_get_easyblock_class_name(self):
+        """Test for get_easyblock_class_name function."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
+        self.assertEqual(ft.get_easyblock_class_name(configuremake), 'ConfigureMake')
+
+        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
+        self.assertEqual(ft.get_easyblock_class_name(gcc_eb), 'EB_GCC')
+
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        self.assertEqual(ft.get_easyblock_class_name(toy_eb), 'EB_toy')
+
+    def test_copy_easyblocks(self):
+        """Test for copy_easyblocks function."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        # easybuild/easyblocks subdirectory must exist in target directory
+        error_pattern = "Could not find easybuild/easyblocks subdir in .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_easyblocks, [], self.test_prefix)
+
+        easyblocks_dir = os.path.join(self.test_prefix, 'easybuild', 'easyblocks')
+
+        # passing empty list works fine
+        ft.mkdir(easyblocks_dir, parents=True)
+        res = ft.copy_easyblocks([], self.test_prefix)
+        self.assertEqual(os.listdir(easyblocks_dir), [])
+        self.assertEqual(res, {'eb_names': [], 'new': [], 'paths_in_repo': []})
+
+        # check with different types of easyblocks
+        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
+        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        test_ebs = [gcc_eb, configuremake, toy_eb]
+
+        # copy them straight into tmpdir first, to check whether correct subdir is derived correctly
+        ft.copy_files(test_ebs, self.test_prefix)
+
+        # touch empty toy.py easyblock, to check whether 'new' aspect is determined correctly
+        ft.write_file(os.path.join(easyblocks_dir, 't', 'toy.py'), '')
+
+        # check whether easyblocks were copied as expected, and returned dict is correct
+        test_ebs = [os.path.join(self.test_prefix, os.path.basename(e)) for e in test_ebs]
+        res = ft.copy_easyblocks(test_ebs, self.test_prefix)
+
+        self.assertEqual(sorted(res.keys()), ['eb_names', 'new', 'paths_in_repo'])
+        self.assertEqual(res['eb_names'], ['gcc', 'configuremake', 'toy'])
+        self.assertEqual(res['new'], [True, True, False])  # toy.py is not new
+
+        self.assertEqual(sorted(os.listdir(easyblocks_dir)), ['g', 'generic', 't'])
+
+        g_dir = os.path.join(easyblocks_dir, 'g')
+        self.assertEqual(sorted(os.listdir(g_dir)), ['gcc.py'])
+        copied_gcc_eb = os.path.join(g_dir, 'gcc.py')
+        self.assertEqual(ft.read_file(copied_gcc_eb), ft.read_file(gcc_eb))
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_gcc_eb))
+
+        gen_dir = os.path.join(easyblocks_dir, 'generic')
+        self.assertEqual(sorted(os.listdir(gen_dir)), ['configuremake.py'])
+        copied_configuremake = os.path.join(gen_dir, 'configuremake.py')
+        self.assertEqual(ft.read_file(copied_configuremake), ft.read_file(configuremake))
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][1], copied_configuremake))
+
+        t_dir = os.path.join(easyblocks_dir, 't')
+        self.assertEqual(sorted(os.listdir(t_dir)), ['toy.py'])
+        copied_toy_eb = os.path.join(t_dir, 'toy.py')
+        self.assertEqual(ft.read_file(copied_toy_eb), ft.read_file(toy_eb))
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][2], copied_toy_eb))
+
+    def test_copy_framework_files(self):
+        """Test for copy_framework_files function."""
+
+        target_dir = os.path.join(self.test_prefix, 'target')
+        ft.mkdir(target_dir)
+
+        res = ft.copy_framework_files([], target_dir)
+
+        self.assertEqual(os.listdir(target_dir), [])
+        self.assertEqual(res, {'paths_in_repo': [], 'new': []})
+
+        foo_py = os.path.join(self.test_prefix, 'foo.py')
+        ft.write_file(foo_py, '')
+
+        error_pattern = "Specified path '.*/foo.py' does not include a 'easybuild-framework' directory!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_framework_files, [foo_py], self.test_prefix)
+
+        # create empty test/framework/modules.py, to check whether 'new' is set correctly in result
+        ft.write_file(os.path.join(target_dir, 'test', 'framework', 'modules.py'), '')
+
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        test_files = [
+            os.path.join('easybuild', 'tools', 'filetools.py'),
+            os.path.join('test', 'framework', 'modules.py'),
+            os.path.join('test', 'framework', 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'),
+        ]
+        expected_entries = ['easybuild', 'test']
+        # test/framework/modules.py is not new
+        expected_new = [True, False, True]
+
+        # we include setup.py conditionally because it may not be there,
+        # for example when running the tests on an actual easybuild-framework instalation,
+        # as opposed to when running from a repository checkout...
+        # setup.py is an important test case, since it has no parent directory
+        # (it's straight in the easybuild-framework directory)
+        setup_py = 'setup.py'
+        if os.path.exists(os.path.join(topdir, setup_py)):
+            test_files.append(os.path.join(setup_py))
+            expected_entries.append(setup_py)
+            expected_new.append(True)
+
+        # files being copied are expected to be in a directory named 'easybuild-framework',
+        # so we need to make sure that's the case here as well (may not be in workspace dir on Travis from example)
+        framework_dir = os.path.join(self.test_prefix, 'easybuild-framework')
+        for test_file in test_files:
+            ft.copy_file(os.path.join(topdir, test_file), os.path.join(framework_dir, test_file))
+
+        test_paths = [os.path.join(framework_dir, f) for f in test_files]
+
+        res = ft.copy_framework_files(test_paths, target_dir)
+
+        self.assertEqual(sorted(os.listdir(target_dir)), sorted(expected_entries))
+
+        self.assertEqual(sorted(res.keys()), ['new', 'paths_in_repo'])
+
+        for idx, test_file in enumerate(test_files):
+            orig_path = os.path.join(topdir, test_file)
+            copied_path = os.path.join(target_dir, test_file)
+
+            self.assertTrue(os.path.exists(copied_path))
+            self.assertEqual(ft.read_file(orig_path, mode='rb'), ft.read_file(copied_path, mode='rb'))
+
+            self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
+
+        self.assertEqual(res['new'], expected_new)
+
 
 def suite():
     """ returns all the testcases in this module """
