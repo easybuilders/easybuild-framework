@@ -40,7 +40,6 @@ Set of file tools.
 """
 import datetime
 import difflib
-import distutils
 import fileinput
 import glob
 import hashlib
@@ -52,6 +51,7 @@ import sys
 import tempfile
 import time
 import zlib
+from distutils.dir_util import copy_tree
 from xml.etree import ElementTree
 
 from easybuild.base import fancylogger
@@ -1847,7 +1847,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 # Check if there are other named arguments
                 if len(kwargs) > 0:
                     raise EasyBuildError("You can't use 'dirs_exist_ok=True' with other named arguments: %s", kwargs)
-                distutils.dir_util.copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
+                copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
 
             else:
                 # Use shutil.copytree WITHOUT 'dirs_exist_ok'
