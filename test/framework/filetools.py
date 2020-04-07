@@ -2218,7 +2218,7 @@ class FileToolsTest(EnhancedTestCase):
             copied_path = os.path.join(target_dir, test_file)
 
             self.assertTrue(os.path.exists(copied_path))
-            self.assertEqual(ft.read_file(orig_path), ft.read_file(copied_path))
+            self.assertEqual(ft.read_file(orig_path, mode='rb'), ft.read_file(copied_path, mode='rb'))
 
             self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
 
