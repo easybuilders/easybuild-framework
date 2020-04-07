@@ -40,6 +40,7 @@ Set of file tools.
 """
 import datetime
 import difflib
+import distutils
 import fileinput
 import glob
 import hashlib
