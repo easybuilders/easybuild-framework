@@ -2204,8 +2204,21 @@ class FileToolsTest(EnhancedTestCase):
             os.path.join('easybuild', 'tools', 'filetools.py'),
             os.path.join('test', 'framework', 'modules.py'),
             os.path.join('test', 'framework', 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'),
-            os.path.join('setup.py'),
         ]
+        expected_entries = ['easybuild', 'test']
+        # test/framework/modules.py is not new
+        expected_new = [True, False, True]
+
+        # we include setup.py conditionally because it may not be there,
+        # for example when running the tests on an actual easybuild-framework instalation,
+        # as opposed to when running from a repository checkout...
+        # setup.py is an important test case, since it has no parent directory
+        # (it's straight in the easybuild-framework directory)
+        setup_py = 'setup.py'
+        if os.path.exists(os.path.join(topdir, setup_py)):
+            test_files.append(os.path.join(setup_py))
+            expected_entries.append(setup_py)
+            expected_new.append(True)
 
         # files being copied are expected to be in a directory named 'easybuild-framework',
         # so we need to make sure that's the case here as well (may not be in workspace dir on Travis from example)
@@ -2217,7 +2230,7 @@ class FileToolsTest(EnhancedTestCase):
 
         res = ft.copy_framework_files(test_paths, target_dir)
 
-        self.assertEqual(sorted(os.listdir(target_dir)), ['easybuild', 'setup.py', 'test'])
+        self.assertEqual(sorted(os.listdir(target_dir)), sorted(expected_entries))
 
         self.assertEqual(sorted(res.keys()), ['new', 'paths_in_repo'])
 
@@ -2230,7 +2243,7 @@ class FileToolsTest(EnhancedTestCase):
 
             self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
 
-        self.assertEqual(res['new'], [True, False, True, True])  # test/framework/moduels.py is not new
+        self.assertEqual(res['new'], expected_new)
 
 
 def suite():
