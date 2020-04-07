@@ -1470,6 +1470,24 @@ class FileToolsTest(EnhancedTestCase):
         ft.mkdir(testdir)
         self.assertErrorRegex(EasyBuildError, "Target location .* already exists", ft.copy_dir, to_copy, testdir)
 
+        # if the directory already exists and 'dirs_exist_ok' is True, copy_dir should succeed
+        ft.copy_dir(to_copy, testdir, dirs_exist_ok=True)
+        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(testdir)))
+
+        # if the directory already exists and 'dirs_exist_ok' is True and there is another named argument (ignore)
+        # we expect clean error on Python < 3.8 and pass the test on Python >= 3.8
+        # NOTE: reused ignore from previous test
+        shutil.rmtree(testdir)
+        ft.mkdir(testdir)
+        if (sys.version_info[0] == 3 and sys.version_info[1] >= 8) or sys.version_info[0] > 3:
+            ft.copy_dir(to_copy, testdir, dirs_exist_ok=True,
+                        ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
+            self.assertEqual(sorted(os.listdir(testdir)), expected)
+            self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
+        else:
+            self.assertErrorRegex(EasyBuildError, "You can't use 'dirs_exist_ok=True' with other named arguments .*",
+                                  ft.copy_dir, to_copy, testdir, dirs_exist_ok=True, ignore=lambda src, names: [])
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
