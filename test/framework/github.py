@@ -39,7 +39,7 @@ from unittest import TextTestRunner
 from easybuild.base.rest import RestClient
 from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
@@ -697,6 +697,8 @@ class GithubTest(EnhancedTestCase):
     def test_det_pr_target_repo(self):
         """Test det_pr_target_repo."""
 
+        self.assertEqual(build_option('pr_target_repo'), None)
+
         # no files => return default target repo (None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
 
@@ -724,6 +726,7 @@ class GithubTest(EnhancedTestCase):
         toy_eb = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
         self.assertTrue(os.path.exists(toy_eb))
 
+        self.assertEqual(build_option('pr_target_repo'), None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'easybuild-easyblocks')
         py_files = [github_py, configuremake]
