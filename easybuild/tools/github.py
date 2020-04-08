@@ -45,7 +45,7 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info, det_labels
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -1428,11 +1428,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         file_info = det_file_info(ec_paths, target_dir)
 
     # label easyconfigs for new software and/or new easyconfigs for existing software
-    labels = []
-    if any(file_info['new_folder']):
-        labels.append('new')
-    if any(file_info['new_file_in_existing_folder']):
-        labels.append('update')
+    labels = det_labels(file_info)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]

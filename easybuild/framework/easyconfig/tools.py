@@ -47,7 +47,7 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, det_labels, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
@@ -541,10 +541,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
 
     labels = []
     file_info = det_file_info(pr_files, download_repo_path)
-    if any(file_info['new_folder']):
-        labels.append('new')
-    if any(file_info['new_file_in_existing_folder']):
-        labels.append('update')
+    labels = det_labels(file_info)
 
     github_account = build_option('pr_target_account')
     github_repo = build_option('pr_target_repo')

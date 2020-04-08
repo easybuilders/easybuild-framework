@@ -2145,6 +2145,18 @@ def det_file_info(paths, target_dir):
     return file_info
 
 
+def det_labels(file_info):
+    """Determine labels from file_info.
+    Currently only detects whether easyconfig is for a new software or an update.
+    """
+    labels = []
+    if any(file_info['new_folder']):
+        labels.append('new')
+    if any(file_info['new_file_in_existing_folder']):
+        labels.append('update')
+    return labels
+
+
 def copy_easyconfigs(paths, target_dir):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
