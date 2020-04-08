@@ -59,7 +59,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import ,GENERIC_EASYBLOCK_PKG build_option
+from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
 
