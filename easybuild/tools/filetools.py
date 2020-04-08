@@ -1846,7 +1846,8 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                     preserve_symlinks = kwargs.pop('symlinks', False)
                 # Check if there are other named arguments
                 if len(kwargs) > 0:
-                    raise EasyBuildError("You can't use 'dirs_exist_ok=True' with other named arguments: %s", kwargs)
+                    raise EasyBuildError("You can't use 'dirs_exist_ok=True' with other named arguments: %s",
+                                         list(kwargs.keys()))
                 copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
 
             else:
