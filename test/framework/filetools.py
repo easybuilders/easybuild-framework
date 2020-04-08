@@ -1479,6 +1479,7 @@ class FileToolsTest(EnhancedTestCase):
         # NOTE: reused ignore from previous test
         def ignore_func(_, names):
             return [x for x in names if '6.4.0-2.28' in x]
+
         shutil.rmtree(testdir)
         ft.mkdir(testdir)
         if sys.version_info >= (3, 8):
@@ -1486,8 +1487,9 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(sorted(os.listdir(testdir)), expected)
             self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
         else:
-            self.assertErrorRegex(EasyBuildError, "You can't use 'dirs_exist_ok=True' with other named arguments:.*",
-                                  ft.copy_dir, to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
+            error_pattern = "Unknown named arguments passed to copy_dir with dirs_exist_ok=True: ignore"
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_dir, to_copy, testdir,
+                                  dirs_exist_ok=True, ignore=ignore_func)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
