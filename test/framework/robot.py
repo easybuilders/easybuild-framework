@@ -88,6 +88,10 @@ class MockModule(modules.ModulesTool):
             txt = 'Module %s not found' % modname
         return txt
 
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """Dummy implementation of get_setenv_value_from_modulefile, always returns None."""
+        return None
+
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
