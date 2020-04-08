@@ -555,8 +555,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             missing_labels.append(label)
 
     if missing_labels:
-        if not post_pr_labels(pr, labels):
-            lines.extend(['', "This PR should be labeled %s" % ', '.join(missing_labels)])
+        lines.extend(['', "This PR should be labeled %s" % ', '.join(missing_labels)])
 
     return '\n'.join(lines)
 
