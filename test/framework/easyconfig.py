@@ -1488,7 +1488,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
         foobar_metadata = {
             'name': ['foobar'],
-            'prefix': 'CRAY_FOOBAR_DIR',
+            'prefix': '/software/foobar/2.3.4',
             'version': ['2.3.4'],
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
@@ -1496,7 +1496,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
         pi_metadata = {
             'name': ['pi'],
-            'prefix': 'PI_ROOT',
+            'prefix': '/software/pi/3.14',
             'version': ['3.14'],
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
@@ -1532,7 +1532,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
         foobar_metadata = {
             'name': ['foobar'],  # probed from 'foobar' module
-            'prefix': 'CRAY_FOOBAR_DIR',  # probed from 'foobar' module
+            'prefix': '/software/foobar/2.3.4',  # probed from 'foobar' module
             'version': ['1.2.3'],  # from [foobar/1.2.3] entry in metadata file
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
@@ -1546,7 +1546,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
         pi_metadata = {
             'name': ['PI'],  # from [pi/3.14] entry in metadata file
-            'prefix': 'PI_ROOT',  # probed from 'pi/3.14' module
+            'prefix': '/software/pi/3.14',  # probed from 'pi/3.14' module
             'version': ['3.14.0'],  # from [pi/3.14] entry in metadata file
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
