@@ -5016,7 +5016,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
         # also test creating index that's infinitely valid
-        args.extend(['--index-max-ag=0', '--force'])
+        args.extend(['--index-max-age=0', '--force'])
         self._run_mock_eb(args, raise_error=True)
         index_txt = read_file(index_fp)
         regex = re.compile(r"^# valid until: 9999-12-31 23:59:59", re.M)
