@@ -40,6 +40,7 @@ Set of file tools.
 """
 import datetime
 import difflib
+import distutils.dir_util
 import fileinput
 import glob
 import hashlib
@@ -51,7 +52,6 @@ import sys
 import tempfile
 import time
 import zlib
-from distutils.dir_util import copy_tree
 from xml.etree import ElementTree
 
 from easybuild.base import fancylogger
@@ -1835,20 +1835,19 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
             # On Python >= 3.8
-            if (sys.version_info[0] == 3 and sys.version_info[1] >= 8) or sys.version_info[0] > 3:
+            if sys.version_info >= (3, 8):
                 # Use the shutil.copytree WITH 'dirs_exist_ok'
                 shutil.copytree(path, target_path, dirs_exist_ok=dirs_exist_ok, **kwargs)
 
             elif dirs_exist_ok:
-                preserve_symlinks = False
                 # Get symlinks named argument and use distutils.dir_util.copy_tree instead.
-                if 'symlinks' in kwargs:
-                    preserve_symlinks = kwargs.pop('symlinks', False)
+                preserve_symlinks = kwargs.pop('symlinks', False)
+
                 # Check if there are other named arguments
-                if len(kwargs) > 0:
+                if kwargs:
                     raise EasyBuildError("You can't use 'dirs_exist_ok=True' with other named arguments: %s",
                                          list(kwargs.keys()))
-                copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
+                distutils.dir_util.copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
 
             else:
                 # Use shutil.copytree WITHOUT 'dirs_exist_ok'

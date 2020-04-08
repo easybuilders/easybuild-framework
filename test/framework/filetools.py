@@ -1477,16 +1477,17 @@ class FileToolsTest(EnhancedTestCase):
         # if the directory already exists and 'dirs_exist_ok' is True and there is another named argument (ignore)
         # we expect clean error on Python < 3.8 and pass the test on Python >= 3.8
         # NOTE: reused ignore from previous test
+        def ignore_func(_, names):
+            return [x for x in names if '6.4.0-2.28' in x]
         shutil.rmtree(testdir)
         ft.mkdir(testdir)
-        if (sys.version_info[0] == 3 and sys.version_info[1] >= 8) or sys.version_info[0] > 3:
-            ft.copy_dir(to_copy, testdir, dirs_exist_ok=True,
-                        ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
+        if sys.version_info >= (3, 8):
+            ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
             self.assertEqual(sorted(os.listdir(testdir)), expected)
             self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
         else:
             self.assertErrorRegex(EasyBuildError, "You can't use 'dirs_exist_ok=True' with other named arguments:.*",
-                                  ft.copy_dir, to_copy, testdir, dirs_exist_ok=True, ignore=lambda src, names: [])
+                                  ft.copy_dir, to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
