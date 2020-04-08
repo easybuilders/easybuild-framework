@@ -656,6 +656,8 @@ class ModulesTool(object):
         :param mod_name: module name
         :param regex: (compiled) regular expression, with one group
         """
+        value = None
+
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
             res = regex.search(modinfo)
@@ -664,9 +666,7 @@ class ModulesTool(object):
             elif strict:
                 raise EasyBuildError("Failed to determine value from 'show' (pattern: '%s') in %s",
                                      regex.pattern, modinfo)
-            else:
-                value = None
-        else:
+        elif strict:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
         return value

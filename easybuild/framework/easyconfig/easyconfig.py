@@ -1166,37 +1166,52 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
-    def _handle_ext_module_metadata_by_probing_modules(self, dep_name, dependency=None):
+    def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
-        helper function for handle_external_module_metadata
-        handles metadata for external module dependencies when there is not entry in the
-        metadata file
+        Helper function for handle_external_module_metadata.
 
-        It should look for the pair of variables definitions in the available modules
-          1. CRAY_XXXX_PREFIX and CRAY_XXXX_VERSION
-          2. CRAY_XXXX_DIR and CRAY_XXXX_VERSION
-          2. CRAY_XXXX_ROOT and CRAY_XXXX_VERSION
-          5. XXXX_PREFIX and XXXX_VERSION
-          4. XXXX_DIR and XXXX_VERSION
-          5. XXXX_ROOT and XXXX_VERSION
-          3. XXXX_HOME and XXXX_VERSION
+        Tries to determine metadata for external module when there is not entry in the metadata file,
+        by looking at the variables defined by the module file.
 
-        If neither of the pairs is found, then an empty dictionary is returned
+        This is mainly intended for modules provided in the Cray Programming Environment,
+        but it could also be useful in other contexts.
+
+        The following pairs of variables are considered (in order, first hit wins),
+        where 'XXX' is the software name in capitals:
+          1. $CRAY_XXX_PREFIX and $CRAY_XXX_VERSION
+          1. $CRAY_XXX_PREFIX_DIR and $CRAY_XXX_VERSION
+          2. $CRAY_XXX_DIR and $CRAY_XXX_VERSION
+          2. $CRAY_XXX_ROOT and $CRAY_XXX_VERSION
+          5. $XXX_PREFIX and $XXX_VERSION
+          4. $XXX_DIR and $XXX_VERSION
+          5. $XXX_ROOT and $XXX_VERSION
+          3. $XXX_HOME and $XXX_VERSION
+
+        If none of the pairs is found, then an empty dictionary is returned.
+
+        :param mod_name: name of the external module
+        :param metadata: already available metadata for this external module (if any)
         """
-        if dependency is None:
-            dependency = dict()
+        res = {}
 
-        short_ext_modname = dep_name.split('/')[0]
-        if not 'name' in dependency:
-            dependency['name'] = [short_ext_modname]
+        if existing_metadata is None:
+            existing_metadata = {}
 
-        if short_ext_modname.startswith('cray-'):
-            short_ext_modname = short_ext_modname.split('cray-')[1]
+        soft_name = existing_metadata.get('name')
 
-        short_ext_modname.replace('-', '_')
-        short_ext_modname_upper = convert_name(short_ext_modname, upper=True)
+        if soft_name is None:
+            # if the software name is not known yet, use the first part of the module name as software name,
+            # but strip off the leading 'cray-' part first (examples: cray-netcdf/4.6.1.3,  cray-fftw/3.3.8.2)
+            soft_name = mod_name.split('/')[0]
 
-        allowed_pairs = [
+            cray_prefix = 'cray-'
+            if soft_name.startswith(cray_prefix):
+                soft_name = soft_name[len(cray_prefix):]
+
+        # determine software name to use in names of environment variables (upper case, '-' becomes '_')
+        soft_name_in_mod_name = convert_name(soft_name.replace('-', '_'), upper=True)
+
+        var_name_pairs = [
             ('CRAY_%s_PREFIX', 'CRAY_%s_VERSION'),
             ('CRAY_%s_PREFIX_DIR', 'CRAY_%s_VERSION'),
             ('CRAY_%s_DIR', 'CRAY_%s_VERSION'),
@@ -1207,71 +1222,78 @@ class EasyConfig(object):
             ('%s_HOME', '%s_VERSION'),
         ]
 
-        for prefix, version in allowed_pairs:
-            prefix = prefix % short_ext_modname_upper
-            version = version % short_ext_modname_upper
+        for prefix_var_name, version_var_name in var_name_pairs:
+            prefix_var_name = prefix_var_name % soft_name_in_mod_name
+            version_var_name = version_var_name % soft_name_in_mod_name
 
-            dep_prefix = self.modules_tool.get_setenv_value_from_modulefile(dep_name, prefix)
-            dep_version = self.modules_tool.get_setenv_value_from_modulefile(dep_name, version)
+            prefix = self.modules_tool.get_setenv_value_from_modulefile(mod_name, prefix_var_name)
+            version = self.modules_tool.get_setenv_value_from_modulefile(mod_name, version_var_name)
 
-            # only update missing values with both keys are found
-            if dep_prefix and dep_version:
-                # version should hold the value, not the key
-                if 'version' not in dependency:
-                    dependency['version'] = [dep_version]
-                    self.log.info('setting external module %s version to be %s' % (dep_name, dep_version))
-                # prefix should hold the key, not the value
-                if 'prefix' not in dependency:
-                    dependency['prefix'] = prefix
-                    self.log.info('setting external module %s prefix to be %s' % (dep_name, dep_prefix))
+            # we only have a hit when values for *both* variables are found
+            if prefix and version:
+
+                if 'name' not in existing_metadata:
+                    res['name'] = [soft_name]
+
+                # 'version' metadata should hold the *value* of the corresponding variable;
+                # if a version is already set in the available metadata, we retain it
+                if 'version' not in existing_metadata:
+                    res['version'] = [version]
+                    self.log.info('setting external module %s version to be %s', mod_name, version)
+
+                # 'prefix' should hold the name of the variable, not the value
+                # if a prefix is already set in the available metadata, we retain it
+                # FIXME?
+                if 'prefix' not in existing_metadata:
+                    res['prefix'] = prefix_var_name
+                    self.log.info('setting external module %s prefix to be %s', mod_name, prefix_var_name)
                 break
 
-        return dependency
+        return res
 
-    def handle_external_module_metadata(self, dep_name):
+    def handle_external_module_metadata(self, mod_name):
         """
-        helper function for _parse_dependency
-        handles metadata for external module dependencies
+        Helper function for _parse_dependency; collects metadata for external module dependencies.
+
+        :param mod_name: name of external module to collect metadata for
         """
-        dependency = {}
-        dep_name_no_version = dep_name.split('/')[0]
-        metadata_fields = ['name', 'version', 'prefix']
-        external_metadata = {}
+        partial_mod_name = mod_name.split('/')[0]
 
-        if dep_name in self.external_modules_metadata:
-            external_metadata = self.external_modules_metadata[dep_name]
-            if not all(d in external_metadata for d in metadata_fields):
-                external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name,
-                                                                                        dependency=external_metadata)
-            if external_metadata:
-                self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
-                              dep_name, external_metadata)
-                dependency['external_module_metadata'] = external_metadata
-            else:
-                self.log.info("No metadata available for external module %s.", dep_name)
-        elif dep_name_no_version in self.external_modules_metadata:
-            external_metadata = self.external_modules_metadata[dep_name_no_version]
-            if not all(d in external_metadata for d in metadata_fields):
-                external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name_no_version,
-                                                                                        dependency=external_metadata)
-                if external_metadata:
-                    self.log.info("Updated dependency info with metadata from available modules for external module "
-                                  "%s: %s", dep_name, external_metadata)
-                    dependency['external_module_metadata'] = external_metadata
-                else:
-                    self.log.info("No metadata available for external module %s.", dep_name)
-        else:
-            self.log.info("No metadata available for external module %s. Attempting to read from available modules",
-                          dep_name)
-            external_metadata = self._handle_ext_module_metadata_by_probing_modules(dep_name)
-            if external_metadata:
-                dependency['external_module_metadata'] = external_metadata
-                self.log.info("Updated dependency info with metadata from available modules for external module %s: %s",
-                              dep_name, external_metadata)
-            else:
-                self.log.info("No metadata available for external module %s.", dep_name)
+        # check whether existing metadata for external modules already has metadata for this module;
+        # first using full module name (as it is provided), for example 'cray-netcdf/4.6.1.3',
+        # then with partial module name, for example 'cray-netcdf'
+        metadata = self.external_modules_metadata.get(mod_name, {})
+        self.log.info("Available metadata for external module %s: %s", mod_name, metadata)
 
-        return dependency
+        partial_mod_name_metadata = self.external_modules_metadata.get(partial_mod_name, {})
+        self.log.info("Available metadata for external module using partial module name %s: %s",
+                      partial_mod_name, partial_mod_name_metadata)
+
+        for key in partial_mod_name_metadata:
+            if key not in metadata:
+                metadata[key] = partial_mod_name_metadata[key]
+
+        self.log.info("Combined available metadata for external module %s: %s", mod_name, metadata)
+
+        # if not all metadata is available (name/version/prefix), probe external module to collect more metadata;
+        # first with full module name, and then with partial module name if first probe didn't return anything;
+        # note: result of probe_external_module_metadata only contains metadata for keys that were not set yet
+        if not all(key in metadata for key in ['name', 'prefix', 'version']):
+            self.log.info("Not all metadata found yet for external module %s, probing module...", mod_name)
+            probed_metadata = self.probe_external_module_metadata(mod_name, existing_metadata=metadata)
+            if probed_metadata:
+                self.log.info("Extra metadata found by probing external module %s: %s", mod_name, probed_metadata)
+                metadata.update(probed_metadata)
+            else:
+                self.log.info("No extra metadata found by probing %s, trying with partial module name...", mod_name)
+                probed_metadata = self.probe_external_module_metadata(partial_mod_name, existing_metadata=metadata)
+                self.log.info("Extra metadata for external module %s found by probing partial module name %s: %s",
+                              mod_name, partial_mod_name, probed_metadata)
+                metadata.update(probed_metadata)
+
+            self.log.info("Obtained metadata after module probing: %s", metadata)
+
+        return {'external_module_metadata': metadata}
 
     def handle_multi_deps(self):
         """
