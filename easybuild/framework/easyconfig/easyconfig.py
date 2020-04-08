@@ -1211,8 +1211,8 @@ class EasyConfig(object):
             prefix = prefix % short_ext_modname_upper
             version = version % short_ext_modname_upper
 
-            dep_prefix = self.modules_tool.get_variable_from_modulefile(dep_name, prefix)
-            dep_version = self.modules_tool.get_variable_from_modulefile(dep_name, version)
+            dep_prefix = self.modules_tool.get_setenv_value_from_modulefile(dep_name, prefix)
+            dep_version = self.modules_tool.get_setenv_value_from_modulefile(dep_name, version)
 
             # only update missing values with both keys are found
             if dep_prefix and dep_version:
