@@ -145,7 +145,7 @@ for ext in extensions:
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None):
+def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
@@ -256,6 +256,17 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
             template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = value.lower()
         except Exception:
             _log.warning("Failed to get .lower() for name %s value %s (type %s)", name, value, type(value))
+
+    # step 5. add additional conditional templates
+    if toolchain is not None and hasattr(toolchain, 'mpi_cmd_prefix'):
+        try:
+            # get prefix for commands to be run with mpi runtime using default number of ranks
+            mpi_cmd_prefix = toolchain.mpi_cmd_prefix()
+            if mpi_cmd_prefix is not None:
+                template_values['mpi_cmd_prefix'] = mpi_cmd_prefix
+        except EasyBuildError as err:
+            # don't fail just because we couldn't resolve this template
+            _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", err)
 
     return template_values
 

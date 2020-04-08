@@ -113,6 +113,9 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+# package name for generic easyblocks
+GENERIC_EASYBLOCK_PKG = 'generic'
+
 # general module class
 GENERAL_CLASS = 'all'
 
@@ -186,6 +189,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_output_dir',
         'job_polling_interval',
         'job_target_resource',
+        'locks_dir',
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',
@@ -227,6 +231,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hidden',
         'ignore_checksums',
         'ignore_index',
+        'ignore_locks',
         'install_latest_eb_release',
         'lib64_fallback_sanity_check',
         'logtostdout',
@@ -251,6 +256,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_f90cache',
         'use_existing_modules',
         'set_default_module',
+        'wait_on_lock',
     ],
     True: [
         'cleanup_builddir',

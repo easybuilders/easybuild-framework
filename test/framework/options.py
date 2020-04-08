@@ -59,6 +59,7 @@ from easybuild.tools.options import EasyBuildOptions, parse_external_modules_met
 from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
+from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
@@ -877,6 +878,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_copy_ec(self):
         """Test --copy-ec."""
 
+        def mocked_main(args):
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, raise_error=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+            self.assertEqual(stderr, '')
+            return stdout.strip()
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
 
@@ -886,7 +897,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # basic test: copying one easyconfig file to a non-existing absolute path
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = ['--copy-ec', 'toy-0.0.eb', test_ec]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_ec)
 
         self.assertTrue(os.path.exists(test_ec))
         self.assertEqual(toy_ec_txt, read_file(test_ec))
@@ -899,7 +911,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(target_fn))
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to test.eb')
 
         change_dir(cwd)
 
@@ -910,7 +923,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
         mkdir(test_target_dir)
         args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_target_dir)
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_ec))
@@ -931,7 +945,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
 
         check_copied_files()
 
@@ -942,7 +957,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[-1] = os.path.basename(test_target_dir)
         self.assertFalse(os.path.exists(args[-1]))
 
-        self.eb_main(args)
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
 
         check_copied_files()
 
@@ -951,6 +967,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(target))
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
         error_pattern = ".*/test.eb exists but is not a directory"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        # test use of --copy-ec with only one argument: copy to current working directory
+        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
+        mkdir(test_working_dir)
+        change_dir(test_working_dir)
+        self.assertEqual(len(os.listdir(os.getcwd())), 0)
+        args = ['--copy-ec', 'toy-0.0.eb']
+        stdout = mocked_main(args)
+        regex = re.compile('toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
+        self.assertTrue(regex.match(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        copied_toy_cwd = os.path.join(test_working_dir, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_cwd))
+        self.assertEqual(read_file(copied_toy_cwd), toy_ec_txt)
+
+        # --copy-ec without arguments results in a proper error
+        args = ['--copy-ec']
+        error_pattern = "One of more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
     def test_dry_run(self):
@@ -1273,6 +1307,39 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
+
+    def test_from_pr_token_log(self):
+        """Check that --from-pr doesn't leak GitHub token in log."""
+        if self.github_token is None:
+            print("Skipping test_from_pr_token_log, no GitHub token available?")
+            return
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
+            '--from-pr=6424',
+            '--dry-run',
+            '--debug',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+        ]
+        try:
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertFalse(self.github_token in outtxt)
+            self.assertFalse(self.github_token in stdout)
+            self.assertFalse(self.github_token in stderr)
+
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr" % err)
 
     def test_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
@@ -2445,7 +2512,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks', 'foo.py')
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks',
+                                    'foo.py')
         foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
@@ -2488,7 +2556,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks',
                                     'generic', 'foobar.py')
         foo_regex = re.compile(r"^\|-- FooBar \(easybuild.easyblocks.generic.foobar @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
@@ -2526,7 +2594,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         mod_pattern = 'easybuild.easyblocks.generic.generictest'
-        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks',
                                     'generic', 'generictest.py')
         foo_regex = re.compile(r"^\|-- GenericTest \(%s @ %s\)" % (mod_pattern, path_pattern), re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
@@ -2536,6 +2604,113 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.generic.generictest']
+
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks_from_pr(self):
+        """Test --include-easyblocks-from-pr."""
+        if self.github_token is None:
+            print("Skipping test_preview_pr, no GitHub token available?")
+            return
+
+        orig_local_sys_path = sys.path[:]
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        # include extra test easyblock
+        foo_txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class EB_foo(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'foo.py'), foo_txt)
+
+        args = [
+            '--include-easyblocks=%s/*.py' % self.test_prefix,  # this shouldn't interfere
+            '--include-easyblocks-from-pr=1915',  # a PR for CMakeMake easyblock
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        # easyblock included from pr is found
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
+        cmm_pattern = os.path.join(path_pattern, 'generic', 'cmakemake.py')
+        cmm_regex = re.compile(r"\|-- CMakeMake \(easybuild.easyblocks.generic.cmakemake @ %s\)" % cmm_pattern, re.M)
+        self.assertTrue(cmm_regex.search(logtxt), "Pattern '%s' found in: %s" % (cmm_regex.pattern, logtxt))
+
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('CMakeMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of easyblocks
+        del sys.modules['easybuild.easyblocks.foo']
+        del sys.modules['easybuild.easyblocks.generic.cmakemake']
+        os.remove(os.path.join(self.test_prefix, 'foo.py'))
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
+
+        # include test cmakemake easyblock
+        cmm_txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class CMakeMake(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
+
+        # including the same easyblock twice should fail
+        args = [
+            '--include-easyblocks=%s/cmakemake.py' % self.test_prefix,
+            '--include-easyblocks-from-pr=1915',
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        self.assertErrorRegex(EasyBuildError,
+                              "Multiple inclusion of cmakemake.py, check your --include-easyblocks options",
+                              self.eb_main, args, raise_error=True)
+
+        os.remove(os.path.join(self.test_prefix, 'cmakemake.py'))
+
+        # clear log
+        write_file(self.logfile, '')
+
+        args = [
+            '--from-pr=9979',  # PR for CMake easyconfig
+            '--include-easyblocks-from-pr=1936',  # PR for EB_CMake easyblock
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--extended-dry-run',
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        # easyconfig from pr is found
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr9979', 'c', 'CMake',
+                                  'CMake-3.16.4-GCCcore-9.2.0.eb')
+        ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
+        self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
+
+        # easyblock included from pr is found
+        eb_regex = re.compile(r"Successfully obtained EB_CMake class instance from easybuild.easyblocks.cmake", re.M)
+        self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
+
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('EB_CMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of easyblocks
+        del sys.modules['easybuild.easyblocks.cmake']
 
     def mk_eb_test_cmd(self, args):
         """Construct test command for 'eb' with given options."""
@@ -2984,6 +3159,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         topdir = os.path.dirname(os.path.abspath(__file__))
+
+        # test easyconfigs
         test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
@@ -2998,10 +3175,59 @@ class CommandLineOptionsTest(EnhancedTestCase):
         remote = 'git@github.com:%s/easybuild-easyconfigs.git' % GITHUB_TEST_ACCOUNT
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git\.\.\.",
-            r"^== copying easyconfigs to .*/easybuild-easyconfigs\.\.\.",
+            r"^== copying files to .*/easybuild-easyconfigs\.\.\.",
             r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
+
+        # test easyblocks
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+
+        args = [
+            '--new-branch-github',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            toy_eb,
+            '--pr-title="add easyblock for toy"',
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        remote = 'git@github.com:%s/easybuild-easyblocks.git' % GITHUB_TEST_ACCOUNT
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyblocks.git\.\.\.",
+            r"^== copying files to .*/easybuild-easyblocks\.\.\.",
+            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+        ]
+        self._assert_regexs(regexs, txt)
+
+        # test framework with tweaked copy of test_module_naming_scheme.py
+        test_mns_py = os.path.join(topdir, 'sandbox', 'easybuild', 'tools', 'module_naming_scheme',
+                                   'test_module_naming_scheme.py')
+        target_dir = os.path.join(self.test_prefix, 'easybuild-framework', 'test', 'framework', 'sandbox',
+                                  'easybuild', 'tools', 'module_naming_scheme')
+        mkdir(target_dir, parents=True)
+        copy_file(test_mns_py, target_dir)
+        test_mns_py = os.path.join(target_dir, os.path.basename(test_mns_py))
+        write_file(test_mns_py, '\n\n', append=True)
+
+        args = [
+            '--new-branch-github',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            test_mns_py,
+            '--pr-commit-msg="a test"',
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        remote = 'git@github.com:%s/easybuild-framework.git' % GITHUB_TEST_ACCOUNT
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-framework.git\.\.\.",
+            r"^== copying files to .*/easybuild-framework\.\.\.",
+            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+        ]
+        self._assert_regexs(regexs, txt)
+
 
     def test_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
@@ -3063,7 +3289,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         full_repo = 'boegel/easybuild-easyconfigs'
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/%s.git\.\.\." % full_repo,
-            r"^== copying easyconfigs to .*/git-working-dir.*/easybuild-easyconfigs...",
+            r"^== copying files to .*/git-working-dir.*/easybuild-easyconfigs...",
             r"^== pushing branch 'develop' to remote '.*' \(git@github.com:%s.git\) \[DRY RUN\]" % full_repo,
             r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| 32",
             r"== pushed updated branch 'develop' to boegel/easybuild-easyconfigs \[DRY RUN\]",
@@ -4157,6 +4383,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
+        # --check-contrib passes if None values are used as checksum, but produces warning
+        toy = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'), toy)
+        toytxt = read_file(toy)
+        toytxt = toytxt + '\n'.join([
+            'checksums = [',
+            "    None,  # toy-0.0.tar.gz",
+            "    # toy-0.0_fix-silly-typo-in-printf-statement.patch",
+            "    '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',",
+            "    '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt",
+            ']\n',
+        ])
+        write_file(toy, toytxt)
+
+        args = ['--check-contrib', toy]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, raise_error=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, "WARNING: Found 1 None checksum value(s), please make sure this is intended!")
+
     def test_allow_use_as_root(self):
         """Test --allow-use-as-root-and-accept-consequences"""
 
@@ -4605,6 +4854,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^  -> Python binary: .*/[pP]ython[0-9]?",
             "^  -> Python version: [0-9.]+",
         ]
+
+        if HAVE_ARCHSPEC:
+            patterns.append(r"^  -> arch name: \w+$")
+        else:
+            patterns.append(r"^  -> arch name: UNKNOWN \(archspec is not installed\?\)$")
+
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))

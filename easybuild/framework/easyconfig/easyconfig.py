@@ -45,6 +45,7 @@ import os
 import re
 from distutils.version import LooseVersion
 
+import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -58,7 +59,8 @@ from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACE
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
+from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
 from easybuild.tools.filetools import create_index, find_backup_name_candidate, find_easyconfigs, load_index
@@ -1461,17 +1463,32 @@ class EasyConfig(object):
 
     def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
-        if self.template_values is None:
-            self.template_values = {}
 
         # step 0. self.template_values can/should be updated from outside easyconfig
-        # (eg the run_setp code in EasyBlock)
+        # (eg the run_step code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
         prev_enable_templating = self.enable_templating
+
         self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore)
+
+        if self.template_values is None:
+            # if no template values are set yet, initiate with a minimal set of template values;
+            # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
+            # which is a pretty weird use case, but fine...
+            self.template_values = template_constant_dict(self, ignore=ignore)
+
+        self.enable_templating = prev_enable_templating
+
+        # grab toolchain instance with templating support enabled,
+        # which is important in case the Toolchain instance was not created yet
+        toolchain = self.toolchain
+
+        # get updated set of template values, now with toolchain instance
+        # (which is used to define the %(mpi_cmd_prefix)s template)
+        self.enable_templating = False
+        template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
         self.enable_templating = prev_enable_templating
 
         # update the template_values dict
@@ -1683,8 +1700,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
 
 def is_generic_easyblock(easyblock):
     """Return whether specified easyblock name is a generic easyblock or not."""
-
-    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+    _log.deprecated("is_generic_easyblock function was moved to easybuild.tools.filetools", '5.0')
+    return filetools.is_generic_easyblock(easyblock)
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -1699,7 +1716,7 @@ def get_module_path(name, generic=None, decode=True):
         return None
 
     if generic is None:
-        generic = is_generic_easyblock(name)
+        generic = filetools.is_generic_easyblock(name)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:
@@ -1708,7 +1725,7 @@ def get_module_path(name, generic=None, decode=True):
 
     modpath = ['easybuild', 'easyblocks']
     if generic:
-        modpath.append('generic')
+        modpath.append(GENERIC_EASYBLOCK_PKG)
 
     return '.'.join(modpath + [module_name])
 

@@ -299,8 +299,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
-    # last path is target when --copy-ec is used, so remove that from the list
-    target_path = orig_paths.pop() if options.copy_ec else None
+    if len(orig_paths) == 1:
+        # if only one easyconfig file is specified, use current directory as target directory
+        target_path = os.getcwd()
+    elif orig_paths:
+        # last path is target when --copy-ec is used, so remove that from the list
+        target_path = orig_paths.pop() if options.copy_ec else None
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
@@ -318,8 +322,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if options.copy_ec:
             if len(determined_paths) == 1:
                 copy_file(determined_paths[0], target_path)
-            else:
+                print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=False)
+            elif len(determined_paths) > 1:
                 copy_files(determined_paths, target_path)
+                print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=False)
+            else:
+                raise EasyBuildError("One of more files to copy should be specified!")
 
         elif options.fix_deprecated_easyconfigs:
             fix_deprecated_easyconfigs(determined_paths)

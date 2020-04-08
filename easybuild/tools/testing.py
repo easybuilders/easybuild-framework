@@ -50,7 +50,7 @@ from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import UNKNOWN, get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
@@ -260,6 +260,11 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     # post comment to report test result
     system_info = init_session_state['system_info']
+
+    # also mention CPU architecture name, but only if it's known
+    if system_info['cpu_arch_name'] != UNKNOWN:
+        system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
+
     short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
         'cpu_model': system_info['cpu_model'],
         'hostname': system_info['hostname'],
@@ -268,6 +273,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
         'os_version': system_info['os_version'],
         'pyver': system_info['python_version'].split(' ')[0],
     }
+
     comment_lines = [
         "Test report by @%s" % github_user,
         ('**FAILED**', '**SUCCESS**')[success],

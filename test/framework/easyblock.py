@@ -822,7 +822,6 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
-        init_config(build_options={'silent': True})
 
         self.contents = cleandoc("""
             easyblock = "ConfigureMake"
@@ -835,6 +834,7 @@ class EasyBlockTest(EnhancedTestCase):
                 "ext1",
                 ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
                 ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
+                "ext4",
             ]
             exts_filter = ("\
                 if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
@@ -849,7 +849,22 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
         eb.skip = True
+
+        self.mock_stdout(True)
         eb.extensions_step(fetch=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            r"^== skipping extension EXT-2",
+            r"^== skipping extension ext3",
+            r"^== installing extension ext1  \(1/2\)\.\.\.",
+            r"^== installing extension ext4  \(2/2\)\.\.\.",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
         # 'ext1' should be in eb.ext_instances
         eb_exts = [x.name for x in eb.ext_instances]
         self.assertTrue('ext1' in eb_exts)

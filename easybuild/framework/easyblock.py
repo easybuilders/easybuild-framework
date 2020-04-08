@@ -76,7 +76,7 @@ from easybuild.tools.filetools import change_dir, convert_name, compute_checksum
 from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file, dir_contains_files
+from easybuild.tools.filetools import remove_file, verify_checksum, weld_paths, write_file, dir_contains_files
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -1437,7 +1437,7 @@ class EasyBlock(object):
             try:
                 self.modules_tool.unload([self.short_mod_name])
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
-                rmtree2(os.path.dirname(fake_mod_path))
+                remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)
         elif self.short_mod_name is None:
@@ -1463,7 +1463,7 @@ class EasyBlock(object):
     def skip_extensions(self):
         """
         Called when self.skip is True
-        - use this to detect existing extensions and to remove them from self.exts
+        - use this to detect existing extensions and to remove them from self.ext_instances
         - based on initial R version
         """
         # obtaining untemplated reference value is required here to support legacy string templates like name/version
@@ -1482,7 +1482,7 @@ class EasyBlock(object):
                 self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
                 res.append(ext_inst)
             else:
-                self.log.info("Skipping %s", ext_inst.name)
+                print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
 
         self.ext_instances = res
 
@@ -1869,9 +1869,14 @@ class EasyBlock(object):
             else:
                 valid_checksums = (checksum,)
 
-            if not all(is_sha256_checksum(c) for c in valid_checksums):
-                msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
-                checksum_issues.append(msg)
+            non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
+            if non_sha256_checksums:
+                if all(c is None for c in non_sha256_checksums):
+                    print_warning("Found %d None checksum value(s), please make sure this is intended!" %
+                                  len(non_sha256_checksums))
+                else:
+                    msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
+                    checksum_issues.append(msg)
 
         return checksum_issues
 
@@ -2148,19 +2153,19 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        exts_cnt = len(self.exts)
-        for idx, (ext, ext_instance) in enumerate(zip(self.exts, self.ext_instances)):
+        exts_cnt = len(self.ext_instances)
+        for idx, ext in enumerate(self.ext_instances):
 
-            self.log.debug("Starting extension %s" % ext['name'])
+            self.log.debug("Starting extension %s" % ext.name)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            tup = (ext['name'], ext.get('version', ''), idx+1, exts_cnt)
+            tup = (ext.name, ext.version or '', idx+1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
-                tup = (ext['name'], ext.get('version', ''), cls.__name__)
+                tup = (ext.name, ext.version, cls.__name__)
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
@@ -2173,15 +2178,15 @@ class EasyBlock(object):
             else:
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
-                ext_instance.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                       rpath_filter_dirs=self.rpath_filter_dirs)
+                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                      rpath_filter_dirs=self.rpath_filter_dirs)
 
             # real work
-            ext_instance.prerun()
-            txt = ext_instance.run()
+            ext.prerun()
+            txt = ext.run()
             if txt:
                 self.module_extra_extensions += txt
-            ext_instance.postrun()
+            ext.postrun()
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -2666,7 +2671,7 @@ class EasyBlock(object):
             self.log.info("Cleaning up builddir %s (in %s)", self.builddir, os.getcwd())
 
             try:
-                rmtree2(self.builddir)
+                remove_dir(self.builddir)
                 base = os.path.dirname(self.builddir)
 
                 # keep removing empty directories until we either find a non-empty one
@@ -3038,6 +3043,37 @@ class EasyBlock(object):
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
+
+        ignore_locks = build_option('ignore_locks')
+
+        if ignore_locks:
+            self.log.info("Ignoring locks...")
+        else:
+            locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
+            lock_path = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+
+            # if lock already exists, either abort or wait until it disappears
+            if os.path.exists(lock_path):
+                wait_on_lock = build_option('wait_on_lock')
+                if wait_on_lock:
+                    while os.path.exists(lock_path):
+                        print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
+                                  silent=self.silent)
+                        time.sleep(wait_on_lock)
+                else:
+                    raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+
+            # create lock to avoid that another installation running in parallel messes things up;
+            # we use a directory as a lock, since that's atomically created
+            try:
+                mkdir(lock_path, parents=True)
+            except EasyBuildError as err:
+                # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
+                stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
+                raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
+
+            self.log.info("Lock created: %s", lock_path)
+
         try:
             for (step_name, descr, step_methods, skippable) in steps:
                 if self._skip_step(step_name, skippable):
@@ -3052,6 +3088,10 @@ class EasyBlock(object):
 
         except StopException:
             pass
+        finally:
+            if not ignore_locks:
+                remove_dir(lock_path)
+                self.log.info("Lock removed: %s", lock_path)
 
         # return True for successfull build (or stopped build)
         return True

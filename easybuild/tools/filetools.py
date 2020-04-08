@@ -43,6 +43,8 @@ import difflib
 import fileinput
 import glob
 import hashlib
+import imp
+import inspect
 import os
 import re
 import shutil
@@ -57,9 +59,9 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import build_option
+from easybuild.tools.config import ,GENERIC_EASYBLOCK_PKG build_option
 from easybuild.tools.py2vs3 import std_urllib, string_type
-from easybuild.tools.utilities import nub
+from easybuild.tools.utilities import nub, remove_unwanted_chars
 
 try:
     import requests
@@ -304,11 +306,27 @@ def remove_dir(path):
         dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
         return
 
-    try:
-        if os.path.exists(path):
-            rmtree2(path)
-    except OSError as err:
-        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+    if os.path.exists(path):
+        ok = False
+        errors = []
+        # Try multiple times to cater for temporary failures on e.g. NFS mounted paths
+        max_attempts = 3
+        for i in range(0, max_attempts):
+            try:
+                shutil.rmtree(path)
+                ok = True
+                break
+            except OSError as err:
+                _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, i, err))
+                errors.append(err)
+                time.sleep(2)
+                # make sure write permissions are enabled on entire directory
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
+        if ok:
+            _log.info("Path %s successfully removed." % path)
+        else:
+            raise EasyBuildError("Failed to remove directory %s even after %d attempts.\nReasons: %s",
+                                 path, max_attempts, errors)
 
 
 def remove(paths):
@@ -1499,22 +1517,8 @@ def path_matches(path, paths):
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
-    ok = False
-    for i in range(0, n):
-        try:
-            shutil.rmtree(path)
-            ok = True
-            break
-        except OSError as err:
-            _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
-            time.sleep(2)
-
-            # make sure write permissions are enabled on entire directory
-            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
-    if not ok:
-        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
-    else:
-        _log.info("Path %s successfully removed." % path)
+    _log.deprecated("Use 'remove_dir' rather than 'rmtree2'", '5.0')
+    remove_dir(path)
 
 
 def find_backup_name_candidate(src_file):
@@ -2125,3 +2129,94 @@ def install_fake_vsc():
     sys.path.insert(0, fake_vsc_path)
 
     return fake_vsc_path
+
+
+def get_easyblock_class_name(path):
+    """Make sure file is an easyblock and get easyblock class name"""
+    fn = os.path.basename(path).split('.')[0]
+    mod = imp.load_source(fn, path)
+    clsmembers = inspect.getmembers(mod, inspect.isclass)
+    for cn, co in clsmembers:
+        if co.__module__ == mod.__name__:
+            ancestors = inspect.getmro(co)
+            if any(a.__name__ == 'EasyBlock' for a in ancestors):
+                return cn
+    return None
+
+
+def is_generic_easyblock(easyblock):
+    """Return whether specified easyblock name is a generic easyblock or not."""
+
+    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+
+
+def copy_easyblocks(paths, target_dir):
+    """ Find right location for easyblock file and copy it there"""
+    file_info = {
+        'eb_names': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    subdir = os.path.join('easybuild', 'easyblocks')
+    if os.path.exists(os.path.join(target_dir, subdir)):
+        for path in paths:
+            cn = get_easyblock_class_name(path)
+            if not cn:
+                raise EasyBuildError("Could not determine easyblock class from file %s" % path)
+
+            eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
+
+            if is_generic_easyblock(cn):
+                pkgdir = GENERIC_EASYBLOCK_PKG
+            else:
+                pkgdir = eb_name[0]
+
+            target_path = os.path.join(subdir, pkgdir, eb_name + '.py')
+
+            full_target_path = os.path.join(target_dir, target_path)
+            file_info['eb_names'].append(eb_name)
+            file_info['paths_in_repo'].append(full_target_path)
+            file_info['new'].append(not os.path.exists(full_target_path))
+            copy_file(path, full_target_path, force_in_dry_run=True)
+
+    else:
+        raise EasyBuildError("Could not find %s subdir in %s", subdir, target_dir)
+
+    return file_info
+
+
+def copy_framework_files(paths, target_dir):
+    """ Find right location for framework file and copy it there"""
+    file_info = {
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    paths = [os.path.abspath(path) for path in paths]
+
+    framework_topdir = 'easybuild-framework'
+
+    for path in paths:
+        target_path = None
+        dirnames = os.path.dirname(path).split(os.path.sep)
+
+        if framework_topdir in dirnames:
+            # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
+            subdirs = []
+            while(dirnames[-1] != framework_topdir):
+                subdirs.insert(0, dirnames.pop())
+
+            parent_dir = os.path.join(*subdirs) if subdirs else ''
+            target_path = os.path.join(target_dir, parent_dir, os.path.basename(path))
+        else:
+            raise EasyBuildError("Specified path '%s' does not include a '%s' directory!", path, framework_topdir)
+
+        if target_path:
+            file_info['paths_in_repo'].append(target_path)
+            file_info['new'].append(not os.path.exists(target_path))
+            copy_file(path, target_path)
+        else:
+            raise EasyBuildError("Couldn't find parent folder of updated file: %s", path)
+
+    return file_info
