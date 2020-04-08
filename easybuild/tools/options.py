@@ -55,13 +55,14 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
+from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
-from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_FORCE_DOWNLOAD, DEFAULT_JOB_BACKEND
-from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS, DEFAULT_MNS
-from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
+from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD
+from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
+from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
 from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
@@ -79,7 +80,7 @@ from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import fetch_github_token
+from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -92,9 +93,10 @@ from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import get_cpu_features, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -253,8 +255,13 @@ class EasyBuildOptions(GeneralOption):
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
+            'ignore-locks': ("Ignore locks that prevent two identical installations running in parallel",
+                             None, 'store_true', False),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
+            'locks-dir': ("Directory to store lock files (should be on a shared filesystem); "
+                          "None implies .locks subdirectory of software installation directory",
+                          None, 'store_or_None', None),
             'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
@@ -432,6 +439,8 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
+            'wait-on-lock': ("Wait interval (in seconds) to use when waiting for existing lock to be removed "
+                             "(0: implies no waiting, but exiting with an error)", int, 'store', 0),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
 
@@ -592,6 +601,8 @@ class EasyBuildOptions(GeneralOption):
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
+            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", int, 'store', None,
+                                           {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
@@ -609,8 +620,9 @@ class EasyBuildOptions(GeneralOption):
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
             'pr-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
-            'pr-target-branch': ("Target branch for new PRs", str, 'store', 'develop'),
-            'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
+            'pr-target-branch': ("Target branch for new PRs", str, 'store', DEFAULT_BRANCH),
+            'pr-target-repo': ("Target repository for new/updating PRs (default: auto-detect based on provided files)",
+                               str, 'store', None),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
             'preview-pr': ("Preview a new pull request", None, 'store_true', False),
             'sync-branch-with-develop': ("Sync branch with current 'develop' branch", str, 'store', None),
@@ -738,8 +750,11 @@ class EasyBuildOptions(GeneralOption):
         for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
             val = getattr(self.options, opt.replace('-', '_'))
             if val and len(val) != 2:
-                msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
-                error_msgs.append(msg)
+                if opt in ['toolchain', 'try-toolchain'] and val == [TC_CONSTANT_SYSTEM]:
+                    setattr(self.options, opt.replace('-', '_'), [SYSTEM_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME])
+                else:
+                    msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
+                    error_msgs.append(msg)
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
@@ -922,7 +937,7 @@ class EasyBuildOptions(GeneralOption):
         """Check whether (combination of) configuration options make sense."""
 
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
-        if self.options.from_pr or self.options.upload_test_report:
+        if self.options.from_pr or self.options.include_easyblocks_from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
                 raise EasyBuildError("Required support for using GitHub API is not available (see warnings)")
 
@@ -1040,8 +1055,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_easyconfig_licenses:
             msg += avail_easyconfig_licenses(self.options.output_format)
 
-        # dump available easyblocks
-        if self.options.list_easyblocks:
+        # dump available easyblocks (unless including easyblocks from pr, in which case it will be done later)
+        if self.options.list_easyblocks and not self.options.include_easyblocks_from_pr:
             msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
@@ -1085,7 +1100,8 @@ class EasyBuildOptions(GeneralOption):
             print(msg)
 
         # cleanup tmpdir and exit
-        cleanup_and_exit(self.tmpdir)
+        if not self.options.include_easyblocks_from_pr:
+            cleanup_and_exit(self.tmpdir)
 
     def avail_repositories(self):
         """Show list of known repository types."""
@@ -1148,6 +1164,7 @@ class EasyBuildOptions(GeneralOption):
         """Show system information."""
         system_info = get_system_info()
         cpu_features = get_cpu_features()
+        cpu_arch_name = system_info['cpu_arch_name']
         lines = [
             "System information (%s):" % system_info['hostname'],
             '',
@@ -1161,6 +1178,13 @@ class EasyBuildOptions(GeneralOption):
             "  -> vendor: %s" % system_info['cpu_vendor'],
             "  -> architecture: %s" % get_cpu_architecture(),
             "  -> family: %s" % get_cpu_family(),
+        ]
+        if cpu_arch_name == UNKNOWN:
+            lines.append("  -> arch name: UNKNOWN (archspec is not installed?)")
+        else:
+            lines.append("  -> arch name: %s" % cpu_arch_name)
+
+        lines.extend([
             "  -> model: %s" % system_info['cpu_model'],
             "  -> speed: %s" % system_info['cpu_speed'],
             "  -> cores: %s" % system_info['core_count'],
@@ -1170,7 +1194,8 @@ class EasyBuildOptions(GeneralOption):
             "  -> glibc version: %s" % system_info['glibc_version'],
             "  -> Python binary: %s" % sys.executable,
             "  -> Python version: %s" % sys.version.split(' ')[0],
-        ]
+        ])
+
         return '\n'.join(lines)
 
     def show_config(self):
@@ -1392,6 +1417,29 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
+
+    # done here instead of in _postprocess_include because github integration requires build_options to be initialized
+    if eb_go.options.include_easyblocks_from_pr:
+        easyblocks_from_pr = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
+
+        if eb_go.options.include_easyblocks:
+            # make sure we're not including the same easyblock twice
+            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+            included_from_file = set([os.path.basename(eb) for eb in eb_go.options.include_easyblocks])
+            included_twice = included_from_pr & included_from_file
+            if included_twice:
+                raise EasyBuildError("Multiple inclusion of %s, check your --include-easyblocks options",
+                                     ','.join(included_twice))
+
+        include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+
+        if eb_go.options.list_easyblocks:
+            msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
+            if eb_go.options.unittest_file:
+                log.info(msg)
+            else:
+                print(msg)
+            cleanup_and_exit(tmpdir)
 
     check_python_version()
 

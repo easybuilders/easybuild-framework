@@ -10,11 +10,13 @@ set -e
 # Print script help
 print_usage()
 {
-    echo "Usage: $0 <github_username> <install_dir>"
+    echo "Usage: $0 <github_username> <install_dir> <easyconfigs_branch>"
     echo
     echo "    github_username:     username on GitHub for which the EasyBuild repositories should be cloned"
     echo
     echo "    install_dir:         directory were all the EasyBuild files will be installed"
+    echo
+    echo "    easyconfigs_branch:  easybuild-easyconfigs branch to check out"
     echo
 }
 
@@ -25,14 +27,27 @@ github_clone_branch()
     BRANCH="$2"
 
     cd "${INSTALL_DIR}"
-    echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
-    git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
 
-    echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
-    cd "${REPO}"
-    git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
-    git fetch github_easybuilders
-    git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
+    # Check if BRANCH already exists in the ${GITHUB_USRENAME}/${REPO}
+    if [[ ! -z $(git ls-remote --heads "git@github.com:${GITHUB_USERNAME}/${REPO}.git" "${BRANCH}") ]]; then
+        echo "=== Cloning ${GITHUB_USERNAME}/${REPO} branch ${BRANCH} ..."
+        git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
+
+	echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
+	cd "${REPO}"
+	git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
+	git fetch github_easybuilders
+	git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
+    else
+        echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
+        git clone "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
+
+        echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
+        cd "${REPO}"
+        git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
+        git fetch github_easybuilders
+        git checkout -b "${BRANCH}" "github_easybuilders/${BRANCH}"
+    fi
 }
 
 # Print the content of the module
@@ -85,7 +100,7 @@ if [ "$1" = "-h" -o "$1" = "--help" ] ; then
 fi
 
 # Check the number of parameters
-if [ $# -ne 2 ] ; then
+if [ $# -ne 3 ] ; then
     echo "Error: invalid arguments"
     echo
     print_usage
@@ -95,6 +110,7 @@ fi
 # Read parameters
 GITHUB_USERNAME="$1"
 INSTALL_DIR="$2"
+EASYCONFIGS_BRANCH="$3"
 
 # Create install directory
 mkdir -p "${INSTALL_DIR}"
@@ -104,10 +120,7 @@ INSTALL_DIR="${PWD}" # get the full path
 # Clone code repositories with the 'develop' branch
 github_clone_branch "easybuild-framework"   "develop"
 github_clone_branch "easybuild-easyblocks"  "develop"
-github_clone_branch "easybuild-easyconfigs" "develop"
-
-# Clone base repository with the 'develop' branch
-github_clone_branch "easybuild" "develop"
+github_clone_branch "easybuild-easyconfigs" "${EASYCONFIGS_BRANCH}"
 
 # Clone wiki repository with the 'master' branch
 #github_clone_branch "easybuild-wiki" "master"

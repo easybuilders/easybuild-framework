@@ -237,11 +237,11 @@ class BuildLogTest(EnhancedTestCase):
 
     def test_print_warning(self):
         """Test print_warning"""
-        def run_check(args, silent=False, expected_stderr=''):
+        def run_check(args, silent=False, expected_stderr='', **kwargs):
             """Helper function to check stdout/stderr produced via print_warning."""
             self.mock_stderr(True)
             self.mock_stdout(True)
-            print_warning(*args, silent=silent)
+            print_warning(*args, silent=silent, **kwargs)
             stderr = self.get_stderr()
             stdout = self.get_stdout()
             self.mock_stdout(False)
@@ -257,6 +257,14 @@ class BuildLogTest(EnhancedTestCase):
         run_check(['You %s %s %s.', 'have', 'been', 'warned'], silent=True)
 
         self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_warning, 'foo', unknown_arg='bar')
+
+        # test passing of logger to print_warning
+        tmp_logfile = os.path.join(self.test_prefix, 'test.log')
+        logger, _ = init_logging(tmp_logfile, silent=True)
+        expected = "\nWARNING: Test log message with a logger involved.\n\n"
+        run_check(["Test log message with a logger involved."], expected_stderr=expected, log=logger)
+        log_txt = read_file(tmp_logfile)
+        self.assertTrue("WARNING Test log message with a logger involved." in log_txt)
 
     def test_print_error(self):
         """Test print_error"""
