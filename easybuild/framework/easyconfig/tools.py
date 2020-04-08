@@ -47,7 +47,7 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, det_labels, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
@@ -55,7 +55,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
-from easybuild.tools.github import download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import det_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain

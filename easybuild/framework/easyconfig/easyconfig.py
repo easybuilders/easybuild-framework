@@ -64,7 +64,6 @@ from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
-from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -2170,22 +2169,6 @@ def det_file_info(paths, target_dir):
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
 
     return file_info
-
-
-def det_labels(file_info, pr_target_repo):
-    """Determine labels from file_info.
-    Currently only detects whether easyconfig is for a new software or an update or an easyblock is new.
-    """
-    labels = []
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        if any(file_info['new_folder']):
-            labels.append('new')
-            if any(file_info['new_file_in_existing_folder']):
-                labels.append('update')
-    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
-        if any(file_info['new']):
-            labels.append('new')
-    return labels
 
 
 def copy_easyconfigs(paths, target_dir):

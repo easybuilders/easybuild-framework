@@ -45,7 +45,7 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info, det_labels
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -1304,6 +1304,23 @@ def merge_pr(pr):
             github_api_put_request(merge_url, github_user, body=body)
     else:
         print_warning("Review indicates this PR should not be merged (use -f/--force to do so anyway)")
+
+
+def det_labels(file_info, pr_target_repo):
+    """
+    Determine labels from file_info.
+    Currently only detects whether easyconfig is for a new software or an update or an easyblock is new.
+    """
+    labels = []
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if any(file_info['new_folder']):
+            labels.append('new')
+            if any(file_info['new_file_in_existing_folder']):
+                labels.append('update')
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+        if any(file_info['new']):
+            labels.append('new')
+    return labels
 
 
 def post_pr_labels(pr, labels):
