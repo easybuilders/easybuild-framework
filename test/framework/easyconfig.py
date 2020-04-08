@@ -464,7 +464,8 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
             '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
-            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s && mv toy-%(version)s toy #",',
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
+            ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
             '   }),',
             ']',
         ])
@@ -489,9 +490,12 @@ class EasyConfigTest(EnhancedTestCase):
         for patch in toy_ext.patches:
             patches.append(patch['path'])
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
+        # define actual installation dir
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
+        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
-            'prebuildopts': 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #',
+            'prebuildopts': expected_prebuildopts,
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
@@ -500,10 +504,9 @@ class EasyConfigTest(EnhancedTestCase):
         # also .cfg of Extension instance was updated correctly
         self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
         self.assertEqual(toy_ext.cfg['patches'], [toy_patch_fn])
-        self.assertEqual(toy_ext.cfg['prebuildopts'], "gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy #")
+        self.assertEqual(toy_ext.cfg['prebuildopts'], expected_prebuildopts)
 
         # check whether files expected to be installed for 'toy' extension are in place
-        pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
         self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'bin', 'toy')))
         self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'lib', 'libtoy.a')))
 
@@ -1004,6 +1007,19 @@ class EasyConfigTest(EnhancedTestCase):
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
         self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
+
+        # test use of %(mpi_cmd_prefix)s template
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        gompi_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(gompi_ec) + "\nsanity_check_commands = ['%(mpi_cmd_prefix)s toy']")
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['sanity_check_commands'], ['mpirun -n 1 toy'])
+
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s  "})
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
 
     def test_templating_doc(self):
         """test templating documentation"""
@@ -1515,20 +1531,25 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('description', "- just a test")
         self.assertEqual(ec['description'].strip(), "Toy C program, 100% toy. - just a test")
 
-        # spaces in between multiple updates for stirng values
+        # spaces in between multiple updates for string values
         ec.update('configopts', 'CC="$CC"')
         ec.update('configopts', 'CXX="$CXX"')
         self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+        # spaces in between multiple updates for string values from list
+        ec.update('configopts', ['MORE_VALUE', 'EVEN_MORE'])
+        self.assertTrue(ec['configopts'].strip().endswith('MORE_VALUE  EVEN_MORE'))
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
-        # for unallowed duplicates
+        # for unallowed duplicates on string values
         ec.update('configopts', 'SOME_VALUE')
         configopts_tmp = ec['configopts']
         ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
+        self.assertEqual(ec['configopts'], configopts_tmp)
+        ec.update('configopts', ['CC="$CC"', 'SOME_VALUE'], allow_duplicate=False)
         self.assertEqual(ec['configopts'], configopts_tmp)
 
         # for unallowed duplicates when a list is used
@@ -2713,17 +2734,26 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
-        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
+        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': []},
+                         categorize_files_by_type([]))
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs_dir = os.path.join(test_dir, 'easyconfigs')
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', toy_patch_fn)
+
+        easyblocks_dir = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks')
+        configuremake = os.path.join(easyblocks_dir, 'generic', 'configuremake.py')
+        toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
+
         paths = [
             'bzip2-1.0.6.eb',
+            toy_easyblock,
             os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
             toy_patch,
             'foo',
             ':toy-0.0-deps.eb',
+            configuremake,
         ]
         res = categorize_files_by_type(paths)
         expected = [
@@ -2734,6 +2764,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['easyconfigs'], expected)
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
+        self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
 
     def test_resolve_template(self):
         """Test resolve_template function."""
@@ -2968,11 +2999,18 @@ class EasyConfigTest(EnhancedTestCase):
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
 
+        # is_generic_easyblock in easyconfig.py is deprecated, moved to filetools.py
+        self.allow_deprecated_behaviour()
+
+        self.mock_stderr(True)
+
         for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
             self.assertTrue(is_generic_easyblock(name))
 
         for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
             self.assertFalse(is_generic_easyblock(name))
+
+        self.mock_stderr(False)
 
     def test_get_module_path(self):
         """Test get_module_path function."""
