@@ -39,7 +39,7 @@ jobs:
             python: 3.8
       fail-fast: false
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
 
     - name: set up Python
       uses: actions/setup-python@v1
@@ -49,6 +49,14 @@ jobs:
 
     - name: install OS & Python packages
       run: |
+        # use apt-spy2 to select closest apt mirror,
+        # which helps avoid connectivity issues in Azure;
+        # see https://github.com/actions/virtual-environments/issues/675
+        sudo gem install apt-spy2
+        sudo apt-spy2 check
+        sudo apt-spy2 fix --commit
+        # after selecting a specific mirror, we need to run 'apt-get update'
+        sudo apt-get update
         # for modules tool
         sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
@@ -153,19 +161,15 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20190922.01 7927513e7448d886decfb1bb5daf840e85dc7367f57cc75e51b68f21fe109d53"
+          EB_BOOTSTRAP_EXPECTED="20200203.01 616bf3ce812c0844bf9ea3e690f9d88b394ed48f834ddb8424a73cf45fc64ea5"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
-          # test bootstrap script (only compatible with Python 2 for now)
-          if [[ ${{matrix.python}} =~ '2.' ]]; then
-              export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
-              python easybuild/scripts/bootstrap_eb.py $PREFIX
-              # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
-              unset PYTHONPATH
-              # simple sanity check on bootstrapped EasyBuild module (skip when testing with Python 3, for now)
-              module use $PREFIX/modules/all
-              module load EasyBuild
-              eb --version
-          else
-              echo "Testing of bootstrap script skipped when testing with Python ${{matrix.python}}"
-          fi
+          # test bootstrap script
+          export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
+          python easybuild/scripts/bootstrap_eb.py $PREFIX
+          # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
+          unset PYTHONPATH
+          # simple sanity check on bootstrapped EasyBuild module
+          module use $PREFIX/modules/all
+          module load EasyBuild
+          eb --version

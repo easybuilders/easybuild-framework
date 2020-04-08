@@ -34,6 +34,7 @@ import grp
 import os
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
@@ -1231,6 +1232,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict\("toy"\)',
                 r'',
+                r'prepend_path\("CMAKE_PREFIX_PATH", root\)',
                 r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("PATH", pathJoin\(root, "bin"\)\)',
@@ -1268,6 +1270,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict toy',
                 r'',
+                r'prepend-path	CMAKE_PREFIX_PATH		\$root',
                 r'prepend-path	LD_LIBRARY_PATH		\$root/lib',
                 r'prepend-path	LIBRARY_PATH		\$root/lib',
                 r'prepend-path	PATH		\$root/bin',
@@ -1413,7 +1416,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # install (only) additional module under a hierarchical MNS
@@ -1428,7 +1431,7 @@ class ToyBuildTest(EnhancedTestCase):
         # existing install is reused
         modtxt2 = read_file(toy_core_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt2))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # make sure load statements for dependencies are included
@@ -1439,7 +1442,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_core_mod)
 
         # test installing (only) additional module in Lua syntax (if Lmod is available)
-        lmod_abspath = which('lmod')
+        lmod_abspath = os.environ.get('LMOD_CMD') or which('lmod')
         if lmod_abspath is not None:
             args = common_args[:-1] + [
                 '--allow-modules-tool-mismatch',
@@ -1453,7 +1456,7 @@ class ToyBuildTest(EnhancedTestCase):
             # existing install is reused
             modtxt3 = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
-            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
             # make sure load statements for dependencies are included
@@ -2055,7 +2058,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
 
         # only subdirectories for software should be created
-        self.assertEqual(os.listdir(software_path), ['toy'])
+        self.assertEqual(sorted(os.listdir(software_path)), sorted(['toy', '.locks']))
         self.assertEqual(sorted(os.listdir(os.path.join(software_path, 'toy'))), ['0.0-one', '0.0-two'])
 
         # only subdirectories for modules with alternative names should be created
@@ -2076,17 +2079,24 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         patterns = [
-            "^  >> installation prefix: .*/software/toy/0\.0$",
-            "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
-            "^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
-            "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
-            "  >> command completed: exit 0, ran in .*",
-            '^' + '\n'.join([
-                "== sanity checking\.\.\.",
-                "  >> file 'bin/yot' or 'bin/toy' found: OK",
-                "  >> \(non-empty\) directory 'bin' found: OK",
-            ]) + '$',
-            "^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
+            r"^  >> installation prefix: .*/software/toy/0\.0$",
+            r"^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
+            r"^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
+            r'\n'.join([
+                r"^  >> running command:",
+                r"\t\[started at: .*\]",
+                r"\t\[working dir: .*\]",
+                r"\t\[output logged in .*\]",
+                r"\tgcc toy.c -o toy\n"
+                r'',
+            ]),
+            r"  >> command completed: exit 0, ran in .*",
+            r'^' + r'\n'.join([
+                r"== sanity checking\.\.\.",
+                r"  >> file 'bin/yot' or 'bin/toy' found: OK",
+                r"  >> \(non-empty\) directory 'bin' found: OK",
+            ]) + r'$',
+            r"^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -2368,6 +2378,10 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = '\n'.join([
             toy_ec_txt,
             "postinstallcmds = ["
+            # copy of bin/toy to use in fix_python_shebang_for and fix_perl_shebang_for
+            "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.python',",
+            "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.perl',",
+
             # hardcoded path to bin/python
             "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
             # hardcoded path to bin/python3.6
@@ -2378,6 +2392,12 @@ class ToyBuildTest(EnhancedTestCase):
             "   'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
             # 'env python3.6'
             "   'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
+            # shebang with space, should strip the space
+            "   'echo \"#! /usr/bin/env python\\n# test\" > %(installdir)s/bin/t6.py',",
+            # no shebang python
+            "   'echo \"# test\" > %(installdir)s/bin/t7.py',",
+            # shebang bash
+            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b1.sh',",
 
             # tests for perl shebang
             # hardcoded path to bin/perl
@@ -2390,19 +2410,34 @@ class ToyBuildTest(EnhancedTestCase):
             "   'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
             # space after #! + 'env perl5'
             "   'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
+            # shebang with space, should strip the space
+            "   'echo \"#! /usr/bin/env perl\\n# test\" > %(installdir)s/bin/t6.pl',",
+            # no shebang perl
+            "   'echo \"# test\" > %(installdir)s/bin/t7.pl',",
+            # shebang bash
+            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
 
             "]",
-            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py', 'bin/toy']",
-            "fix_perl_shebang_for = 'bin/*.pl'",
+            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py', 'bin/toy.python', 'bin/b1.sh']",
+            "fix_perl_shebang_for = ['bin/*.pl', 'bin/b2.sh', 'bin/toy.perl']",
         ])
         write_file(test_ec, test_ec_txt)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
         toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
 
+        # bin/toy and bin/toy2 should *not* be patched, since they're binary files
+        toy_txt = read_file(os.path.join(toy_bindir, 'toy'), mode='rb')
+        for fn in ['toy.perl', 'toy.python']:
+            fn_txt = read_file(os.path.join(toy_bindir, fn), mode='rb')
+            # no shebang added
+            self.assertFalse(fn_txt.startswith(b"#!/"))
+            # exact same file as original binary (untouched)
+            self.assertEqual(toy_txt, fn_txt)
+
         # no re.M, this should match at start of file!
         py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
-        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py']:
+        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py']:
             pybin_path = os.path.join(toy_bindir, pybin)
             pybin_txt = read_file(pybin_path)
             self.assertTrue(py_shebang_regex.match(pybin_txt),
@@ -2410,11 +2445,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no re.M, this should match at start of file!
         perl_shebang_regex = re.compile(r'^#!/usr/bin/env perl\n# test$')
-        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl']:
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl']:
             perlbin_path = os.path.join(toy_bindir, perlbin)
             perlbin_txt = read_file(perlbin_path)
             self.assertTrue(perl_shebang_regex.match(perlbin_txt),
                             "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+
+        # There are 2 bash files which shouldn't be influenced by fix_shebang
+        bash_shebang_regex = re.compile(r'^#!/usr/bin/env bash\n# test$')
+        for bashbin in ['b1.sh', 'b2.sh']:
+            bashbin_path = os.path.join(toy_bindir, bashbin)
+            bashbin_txt = read_file(bashbin_path)
+            self.assertTrue(bash_shebang_regex.match(bashbin_txt),
+                            "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
 
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
@@ -2473,6 +2516,95 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertFalse(os.path.exists(toy_installdir))
+
+    def test_toy_build_lock(self):
+        """Test toy installation when a lock is already in place."""
+
+        locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_lock_fn = toy_installdir.replace(os.path.sep, '_') + '.lock'
+
+        toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
+        mkdir(toy_lock_path, parents=True)
+
+        error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+
+        locks_dir = os.path.join(self.test_prefix, 'locks')
+
+        # no lock in place, so installation proceeds as normal
+        extra_args = ['--locks-dir=%s' % locks_dir]
+        self.test_toy_build(extra_args=extra_args, verify=True, raise_error=True)
+
+        # put lock in place in custom locks dir, try again
+        toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
+        mkdir(toy_lock_path, parents=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
+
+        # also test use of --ignore-locks
+        self.test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
+
+        # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
+        class remove_lock_after:
+            def __init__(self, seconds, lock_fp):
+                self.seconds = seconds
+                self.lock_fp = lock_fp
+
+            def remove_lock(self, *args):
+                remove_dir(self.lock_fp)
+
+            def __enter__(self):
+                signal.signal(signal.SIGALRM, self.remove_lock)
+                signal.alarm(self.seconds)
+
+            def __exit__(self, type, value, traceback):
+                pass
+
+        # wait for lock to be removed, with 1 second interval of checking
+        extra_args.append('--wait-on-lock=1')
+
+        wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
+        ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
+
+        self.assertTrue(os.path.exists(toy_lock_path))
+
+        # use context manager to remove lock after 3 seconds
+        with remove_lock_after(3, toy_lock_path):
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertEqual(stderr, '')
+
+            wait_matches = wait_regex.findall(stdout)
+            # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
+            self.assertTrue(len(wait_matches) in range(2, 5))
+
+            self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+
+        # when there is no lock in place, --wait-on-lock has no impact
+        self.assertFalse(os.path.exists(toy_lock_path))
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+        self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
+
+        # check for clean error on creation of lock
+        extra_args = ['--locks-dir=/']
+        error_pattern = r"Failed to create lock /.*_software_toy_0.0.lock:.* "
+        error_pattern += r"(Read-only file system|Permission denied)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
 
 
 def suite():
