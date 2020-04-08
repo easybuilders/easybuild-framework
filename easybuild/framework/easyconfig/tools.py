@@ -55,7 +55,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
-from easybuild.tools.github import download_repo, fetch_easyconfigs_from_pr, fetch_pr_data, post_pr_labels
+from easybuild.tools.github import download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -539,15 +539,15 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
-    labels = []
     file_info = det_file_info(pr_files, download_repo_path)
-    labels = det_labels(file_info)
 
     github_account = build_option('pr_target_account')
     github_repo = build_option('pr_target_repo')
     github_user = build_option('github_user')
     pr_data, _ = fetch_pr_data(pr, github_account, github_repo, github_user)
     pr_labels = [label['name'] for label in pr_data['labels']]
+
+    labels = det_labels(file_info, github_repo)
 
     missing_labels = []
     for label in labels:

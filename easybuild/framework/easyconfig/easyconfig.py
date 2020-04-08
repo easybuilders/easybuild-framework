@@ -2145,15 +2145,19 @@ def det_file_info(paths, target_dir):
     return file_info
 
 
-def det_labels(file_info):
+def det_labels(file_info, pr_target_repo):
     """Determine labels from file_info.
-    Currently only detects whether easyconfig is for a new software or an update.
+    Currently only detects whether easyconfig is for a new software or an update or an easyblock is new.
     """
     labels = []
-    if any(file_info['new_folder']):
-        labels.append('new')
-    if any(file_info['new_file_in_existing_folder']):
-        labels.append('update')
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if any(file_info['new_folder']):
+            labels.append('new')
+            if any(file_info['new_file_in_existing_folder']):
+                labels.append('update')
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+        if any(file_info['new']):
+            labels.append('new')
     return labels
 
 

@@ -1428,17 +1428,18 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_metadata=None):
         file_info = det_file_info(ec_paths, target_dir)
 
     # label easyconfigs for new software and/or new easyconfigs for existing software
-    labels = det_labels(file_info)
+    labels = det_labels(file_info, pr_target_repo)
 
-    # only use most common toolchain(s) in toolchain label of PR title
-    toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-    toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-    toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        # only use most common toolchain(s) in toolchain label of PR title
+        toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
+        toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+        toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
 
-    # only use most common module class(es) in moduleclass label of PR title
-    classes = [ec['moduleclass'] for ec in file_info['ecs']]
-    classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-    class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+        # only use most common module class(es) in moduleclass label of PR title
+        classes = [ec['moduleclass'] for ec in file_info['ecs']]
+        classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+        class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
 
