@@ -1154,6 +1154,9 @@ class EnvironmentModulesC(ModulesTool):
         regex = re.compile(r'^setenv\s+%s\s+(?P<value>.+)' % var_name, re.M)
         value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
+        if value:
+            value = value.strip()
+
         return value
 
 
@@ -1435,6 +1438,9 @@ class Lmod(ModulesTool):
         # - line ends with )
         regex = re.compile(r'^setenv\("%s"\s*,\s*"(?P<value>.+)"\)' % var_name, re.M)
         value = self.get_value_from_modulefile(mod_name, regex, strict=False)
+
+        if value:
+            value = value.strip()
 
         return value
 
