@@ -58,7 +58,7 @@ from xml.etree import ElementTree
 from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
@@ -111,6 +111,7 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
+PATH_INDEX_FILENAME = '.eb-path-index'
 
 CHECKSUM_TYPE_MD5 = 'md5'
 CHECKSUM_TYPE_SHA256 = 'sha256'
@@ -614,6 +615,120 @@ def download_file(filename, url, path, forced=False):
         return None
 
 
+def create_index(path, ignore_dirs=None):
+    """
+    Create index for files in specified path.
+    """
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    index = set()
+
+    if not os.path.exists(path):
+        raise EasyBuildError("Specified path does not exist: %s", path)
+    elif not os.path.isdir(path):
+        raise EasyBuildError("Specified path is not a directory: %s", path)
+
+    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True, followlinks=True):
+        for filename in filenames:
+            # use relative paths in index
+            rel_dirpath = os.path.relpath(dirpath, path)
+            # avoid that relative paths start with './'
+            if rel_dirpath == '.':
+                rel_dirpath = ''
+            index.add(os.path.join(rel_dirpath, filename))
+
+        # do not consider (certain) hidden directories
+        # note: we still need to consider e.g., .local !
+        # replace list elements using [:], so os.walk doesn't process deleted directories
+        # see https://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+
+    return index
+
+
+def dump_index(path, max_age_sec=None):
+    """
+    Create index for files in specified path, and dump it to file (alphabetically sorted).
+    """
+    if max_age_sec is None:
+        max_age_sec = build_option('index_max_age')
+
+    index_fp = os.path.join(path, PATH_INDEX_FILENAME)
+    index_contents = create_index(path)
+
+    curr_ts = datetime.datetime.now()
+    if max_age_sec == 0:
+        end_ts = datetime.datetime.max
+    else:
+        end_ts = curr_ts + datetime.timedelta(0, max_age_sec)
+
+    lines = [
+        "# created at: %s" % str(curr_ts),
+        "# valid until: %s" % str(end_ts),
+    ]
+    lines.extend(sorted(index_contents))
+
+    write_file(index_fp, '\n'.join(lines), always_overwrite=False)
+
+    return index_fp
+
+
+def load_index(path, ignore_dirs=None):
+    """
+    Load index for specified path, and return contents (or None if no index exists).
+    """
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    index_fp = os.path.join(path, PATH_INDEX_FILENAME)
+    index = set()
+
+    if build_option('ignore_index'):
+        _log.info("Ignoring index for %s...", path)
+
+    elif os.path.exists(index_fp):
+        lines = read_file(index_fp).splitlines()
+
+        valid_ts_regex = re.compile("^# valid until: (.*)", re.M)
+        valid_ts = None
+
+        for line in lines:
+
+            # extract "valid until" timestamp, so we can check whether index is still valid
+            if valid_ts is None:
+                res = valid_ts_regex.match(line)
+            else:
+                res = None
+
+            if res:
+                valid_ts = res.group(1)
+                try:
+                    valid_ts = datetime.datetime.strptime(valid_ts, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError as err:
+                    raise EasyBuildError("Failed to parse timestamp '%s' for index at %s: %s", valid_ts, path, err)
+
+            elif line.startswith('#'):
+                _log.info("Ignoring unknown header line '%s' in index for %s", line, path)
+
+            else:
+                # filter out files that are in an ignored directory
+                path_dirs = line.split(os.path.sep)[:-1]
+                if not any(d in path_dirs for d in ignore_dirs):
+                    index.add(line)
+
+        # check whether index is still valid
+        if valid_ts:
+            curr_ts = datetime.datetime.now()
+            if curr_ts > valid_ts:
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                index = None
+            else:
+                print_msg("found valid index for %s, so using it...", path)
+
+    return index or None
+
+
 def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
@@ -679,22 +794,26 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
-            for filename in filenames:
-                if query.search(filename):
-                    if not path_hits:
-                        var = "CFGS%d" % var_index
-                        var_index += 1
-                    if filename_only:
-                        path_hits.append(filename)
-                    else:
-                        path_hits.append(os.path.join(dirpath, filename))
+        path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index is None or build_option('ignore_index'):
+            if os.path.exists(path):
+                _log.info("No index found for %s, creating one...", path)
+                path_index = create_index(path, ignore_dirs=ignore_dirs)
+            else:
+                path_index = []
+        else:
+            _log.info("Index found for %s, so using it...", path)
 
-            # do not consider (certain) hidden directories
-            # note: we still need to consider e.g., .local !
-            # replace list elements using [:], so os.walk doesn't process deleted directories
-            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+        for filepath in path_index:
+            filename = os.path.basename(filepath)
+            if query.search(filename):
+                if not path_hits:
+                    var = "CFGS%d" % var_index
+                    var_index += 1
+                if filename_only:
+                    path_hits.append(filename)
+                else:
+                    path_hits.append(os.path.join(path, filepath))
 
         path_hits = sorted(path_hits)
 

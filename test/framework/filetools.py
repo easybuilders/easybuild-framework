@@ -38,6 +38,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -1673,6 +1674,129 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
+
+    def test_index_functions(self):
+        """Test *_index functions."""
+
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # create_index checks whether specified path is an existing directory
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        self.assertErrorRegex(EasyBuildError, "Specified path does not exist", ft.create_index, doesnotexist)
+
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        self.assertErrorRegex(EasyBuildError, "Specified path is not a directory", ft.create_index, toy_ec)
+
+        # load_index just returns None if there is no index in specified directory
+        self.assertEqual(ft.load_index(self.test_prefix), None)
+
+        # create index for test easyconfigs;
+        # test with specified path with and without trailing '/'s
+        for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
+            index = ft.create_index(path)
+            self.assertEqual(len(index), 79)
+
+            expected = [
+                os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
+                os.path.join('t', 'toy', 'toy-0.0.eb'),
+                os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'),
+            ]
+            for fn in expected:
+                self.assertTrue(fn in index)
+
+            for fp in index:
+                self.assertTrue(fp.endswith('.eb'))
+
+        # set up some files to create actual index file for
+        ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
+
+        # test dump_index function
+        index_fp = ft.dump_index(self.test_prefix)
+        self.assertTrue(os.path.exists(index_fp))
+        self.assertTrue(os.path.samefile(self.test_prefix, os.path.dirname(index_fp)))
+
+        datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
+        expected_header = [
+            "# created at: " + datestamp_pattern,
+            "# valid until: " + datestamp_pattern,
+        ]
+        expected = [
+            os.path.join('g', 'gzip', 'gzip-1.4.eb'),
+            os.path.join('g', 'GCC', 'GCC-7.3.0-2.30.eb'),
+            os.path.join('g', 'gompic', 'gompic-2018a.eb'),
+        ]
+        index_txt = ft.read_file(index_fp)
+        for fn in expected_header + expected:
+            regex = re.compile('^%s$' % fn, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        # test load_index function
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(len(index), 24)
+        for fn in expected:
+            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+
+        # dump_index will not overwrite existing index without force
+        error_pattern = "File exists, not overwriting it without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, self.test_prefix)
+
+        ft.remove_file(index_fp)
+
+        # test creating index file that's infinitely valid
+        index_fp = ft.dump_index(self.test_prefix, max_age_sec=0)
+        index_txt = ft.read_file(index_fp)
+        expected_header[1] = r"# valid until: 9999-12-31 23:59:59\.9+"
+        for fn in expected_header + expected:
+            regex = re.compile('^%s$' % fn, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(len(index), 24)
+        for fn in expected:
+            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+
+        ft.remove_file(index_fp)
+
+        # test creating index file that's only valid for a (very) short amount of time
+        index_fp = ft.dump_index(self.test_prefix, max_age_sec=1)
+        time.sleep(3)
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertTrue(index is None)
+        self.assertFalse(stdout)
+        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % self.test_prefix)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # check whether load_index takes into account --ignore-index
+        init_config(build_options={'ignore_index': True})
+        self.assertEqual(ft.load_index(self.test_prefix), None)
 
     def test_search_file(self):
         """Test search_file function."""
