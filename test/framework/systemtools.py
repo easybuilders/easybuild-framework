@@ -44,8 +44,8 @@ from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, U
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import check_python_version, pick_dep_version
-from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
+from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_arch_name, get_cpu_architecture
+from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
 
@@ -338,6 +338,11 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_platform_uname = st.platform.uname
         self.orig_get_tool_version = st.get_tool_version
         self.orig_sys_version_info = st.sys.version_info
+        self.orig_HAVE_ARCHSPEC = st.HAVE_ARCHSPEC
+        if hasattr(st, 'archspec_cpu_host'):
+            self.orig_archspec_cpu_host = st.archspec_cpu_host
+        else:
+            self.orig_archspec_cpu_host = None
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -349,6 +354,9 @@ class SystemToolsTest(EnhancedTestCase):
         st.platform.uname = self.orig_platform_uname
         st.get_tool_version = self.orig_get_tool_version
         st.sys.version_info = self.orig_sys_version_info
+        st.HAVE_ARCHSPEC = self.orig_HAVE_ARCHSPEC
+        if self.orig_archspec_cpu_host is not None:
+            st.archspec_cpu_host = self.orig_archspec_cpu_host
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
@@ -528,6 +536,27 @@ class SystemToolsTest(EnhancedTestCase):
         for name in machine_names:
             MACHINE_NAME = name
             self.assertEqual(get_cpu_architecture(), machine_names[name])
+
+    def test_cpu_arch_name_native(self):
+        """Test getting CPU arch name."""
+        arch_name = get_cpu_arch_name()
+        self.assertTrue(isinstance(arch_name, string_type))
+
+    def test_cpu_arch_name(self):
+        """Test getting CPU arch name."""
+
+        class MicroArch(object):
+            def __init__(self, name):
+                self.name = name
+
+        st.HAVE_ARCHSPEC = True
+        st.archspec_cpu_host = lambda: MicroArch('haswell')
+        arch_name = get_cpu_arch_name()
+        self.assertEqual(arch_name, 'haswell')
+
+        st.archspec_cpu_host = lambda: None
+        arch_name = get_cpu_arch_name()
+        self.assertEqual(arch_name, 'UNKNOWN')
 
     def test_cpu_vendor_native(self):
         """Test getting CPU vendor."""

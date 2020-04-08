@@ -78,6 +78,7 @@ CONT_TYPE_SINGULARITY = 'singularity'
 CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
+DEFAULT_BRANCH = 'develop'
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -110,6 +111,9 @@ FORCE_DOWNLOAD_PATCHES = 'patches'
 FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
+
+# package name for generic easyblocks
+GENERIC_EASYBLOCK_PKG = 'generic'
 
 # general module class
 GENERAL_CLASS = 'all'
@@ -184,6 +188,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_output_dir',
         'job_polling_interval',
         'job_target_resource',
+        'locks_dir',
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',
@@ -195,7 +200,6 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_commit_msg',
         'pr_descr',
         'pr_target_account',
-        'pr_target_branch',
         'pr_target_repo',
         'pr_title',
         'rpath_filter',
@@ -225,6 +229,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
+        'ignore_locks',
         'install_latest_eb_release',
         'lib64_fallback_sanity_check',
         'logtostdout',
@@ -249,6 +254,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_f90cache',
         'use_existing_modules',
         'set_default_module',
+        'wait_on_lock',
     ],
     True: [
         'cleanup_builddir',
@@ -269,6 +275,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_CONT_TYPE: [
         'container_type',
+    ],
+    DEFAULT_BRANCH: [
+        'pr_target_branch',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',

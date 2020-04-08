@@ -358,10 +358,13 @@ def print_warning(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
+    log = kwargs.pop('log', None)
     silent = kwargs.pop('silent', False)
     if kwargs:
         raise EasyBuildError("Unknown named arguments passed to print_warning: %s", kwargs)
 
+    if log:
+        log.warning(msg)
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % msg)
 
