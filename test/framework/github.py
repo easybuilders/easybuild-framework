@@ -43,6 +43,7 @@ from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
+from easybuild.tools.testing import post_easyconfigs_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -777,6 +778,39 @@ class GithubTest(EnhancedTestCase):
         ]) + r'$'
         regex = re.compile(pattern)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
+
+    def test_post_easyconfigs_pr_test_report(self):
+        """Test for post_easyconfigs_pr_test_report function."""
+        if self.skip_github_tests:
+            print("Skipping test_post_easyconfigs_pr_test_report, no GitHub token available?")
+            return
+
+        init_config(build_options={
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+        })
+
+        test_report = os.path.join(self.test_prefix, 'test_report.txt')
+        write_file(test_report, "This is a test report!")
+
+        init_session_state = session_state()
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        post_easyconfigs_pr_test_report('1234', test_report, "OK!", init_session_state, True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
+            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
