@@ -1198,8 +1198,10 @@ class EasyConfig(object):
             existing_metadata = {}
 
         soft_name = existing_metadata.get('name')
-
-        if soft_name is None:
+        if soft_name:
+            # software name is a list of names in metadata, just grab first one
+            soft_name = soft_name[0]
+        else:
             # if the software name is not known yet, use the first part of the module name as software name,
             # but strip off the leading 'cray-' part first (examples: cray-netcdf/4.6.1.3,  cray-fftw/3.3.8.2)
             soft_name = mod_name.split('/')[0]
