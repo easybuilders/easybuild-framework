@@ -684,7 +684,10 @@ def load_index(path, ignore_dirs=None):
     index_fp = os.path.join(path, PATH_INDEX_FILENAME)
     index = set()
 
-    if os.path.exists(index_fp):
+    if build_option('ignore_index'):
+        _log.info("Ignoring index for %s...", path)
+
+    elif os.path.exists(index_fp):
         lines = read_file(index_fp).splitlines()
 
         valid_ts_regex = re.compile("^# valid until: (.*)", re.M)

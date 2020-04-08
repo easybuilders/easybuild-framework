@@ -1794,6 +1794,10 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % self.test_prefix)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
+        # check whether load_index takes into account --ignore-index
+        init_config(build_options={'ignore_index': True})
+        self.assertEqual(ft.load_index(self.test_prefix), None)
+
     def test_search_file(self):
         """Test search_file function."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
