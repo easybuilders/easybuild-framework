@@ -493,6 +493,9 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
 
 def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     """Create a gist with the provided text."""
+
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
     if descr is None:
         descr = "(none)"
 
@@ -508,8 +511,12 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
             }
         }
     }
-    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-    status, data = g.gists.post(body=body)
+
+    if dry_run:
+        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/DRY_RUN'}
+    else:
+        g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+        status, data = g.gists.post(body=body)
 
     if status != HTTP_STATUS_CREATED:
         raise EasyBuildError("Failed to create gist; status %s, data: %s", status, data)
