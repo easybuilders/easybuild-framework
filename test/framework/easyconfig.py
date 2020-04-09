@@ -64,8 +64,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file, remove_file
-from easybuild.tools.filetools import symlink, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file
+from easybuild.tools.filetools import remove_dir, remove_file, symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -1445,14 +1445,114 @@ class EasyConfigTest(EnhancedTestCase):
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 7)
-        correct_deps = ['somebuilddep/0.1', 'intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14',
-                        'hidden/.1.2.3']
+        correct_deps = ['somebuilddep/0.1', 'intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3',
+                        'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['external_module'] for d in deps], [True, False, True, True, True, True, True])
         self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, False, True])
+        # no metadata available for deps
+        expected = [{}] * len(deps)
+        self.assertEqual([d['external_module_metadata'] for d in deps], expected)
 
+        # test probing done by handle_external_module_metadata via probe_external_module_metadata,
+        # by adding a couple of matching module files with some useful data in them
+        # (use Tcl syntax, so it works with all varieties of module tools)
+        mod_dir = os.path.join(self.test_prefix, 'modules')
+        self.modtool.use(mod_dir)
+
+        pi_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv PI_ROOT /software/pi/3.14",
+            "setenv PI_VERSION 3.14",
+        ])
+        write_file(os.path.join(mod_dir, 'pi/3.14'), pi_mod_txt)
+
+        # foobar module with different version than the one used as an external dep;
+        # will still be used for probing (as a fallback)
+        foobar_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv CRAY_FOOBAR_DIR /software/foobar/2.3.4",
+            "setenv CRAY_FOOBAR_VERSION 2.3.4",
+        ])
+        write_file(os.path.join(mod_dir, 'foobar/2.3.4'), foobar_mod_txt)
+
+        ec = EasyConfig(toy_ec)
+        deps = ec.dependencies()
+
+        self.assertEqual(len(deps), 7)
+
+        for idx in [0, 1, 2, 4, 6]:
+            self.assertEqual(deps[idx]['external_module_metadata'], {})
+
+        self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
+        foobar_metadata = {
+            'name': ['foobar'],
+            'prefix': '/software/foobar/2.3.4',
+            'version': ['2.3.4'],
+        }
+        self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
+
+        self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
+        pi_metadata = {
+            'name': ['pi'],
+            'prefix': '/software/pi/3.14',
+            'version': ['3.14'],
+        }
+        self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
+
+        # provide file with partial metadata for some external modules;
+        # metadata obtained from probing modules should be added to it...
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
+        metadatatxt = '\n'.join([
+            '[pi/3.14]',
+            'name = PI',
+            'version = 3.14.0',
+            '[foobar]',
+            'version = 1.0',
+            '[foobar/1.2.3]',
+            'version = 1.2.3',
+            '[test]',
+            'name = TEST',
+        ])
+        write_file(metadata, metadatatxt)
+        build_options = {
+            'external_modules_metadata': parse_external_modules_metadata([metadata]),
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        ec = EasyConfig(toy_ec)
+        deps = ec.dependencies()
+
+        self.assertEqual(len(deps), 7)
+
+        for idx in [0, 1, 2, 6]:
+            self.assertEqual(deps[idx]['external_module_metadata'], {})
+
+        self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
+        foobar_metadata = {
+            'name': ['foobar'],  # probed from 'foobar' module
+            'prefix': '/software/foobar/2.3.4',  # probed from 'foobar' module
+            'version': ['1.2.3'],  # from [foobar/1.2.3] entry in metadata file
+        }
+        self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
+
+        self.assertEqual(deps[4]['full_mod_name'], 'test/9.7.5')
+        self.assertEqual(deps[4]['external_module_metadata'], {
+            # from [test] entry in metadata file
+            'name': ['TEST'],
+        })
+
+        self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
+        pi_metadata = {
+            'name': ['PI'],  # from [pi/3.14] entry in metadata file
+            'prefix': '/software/pi/3.14',  # probed from 'pi/3.14' module
+            'version': ['3.14.0'],  # from [pi/3.14] entry in metadata file
+        }
+        self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
+
+        # provide file with full metadata for external modules;
+        # this data wins over probed metadata from modules (for backwards compatibility)
         metadatatxt = '\n'.join([
             '[pi/3.14]',
             'name = PI',
@@ -1500,6 +1600,10 @@ class EasyConfigTest(EnhancedTestCase):
             'prefix': 'PI_PREFIX',
         }
         self.assertEqual(ec.dependencies()[5]['external_module_metadata'], metadata)
+
+        # get rid of modules first
+        self.modtool.unuse(mod_dir)
+        remove_dir(mod_dir)
 
         # check whether $EBROOT*/$EBVERSION* environment variables are defined correctly for external modules
         os.environ['PI_PREFIX'] = '/test/prefix/PI'
