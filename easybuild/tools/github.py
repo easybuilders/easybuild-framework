@@ -1315,8 +1315,8 @@ def det_labels(file_info, pr_target_repo):
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         if any(file_info['new_folder']):
             labels.append('new')
-            if any(file_info['new_file_in_existing_folder']):
-                labels.append('update')
+        if any(file_info['new_file_in_existing_folder']):
+            labels.append('update')
     elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
         if any(file_info['new']):
             labels.append('new')
