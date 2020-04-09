@@ -777,6 +777,47 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 args = [opt, pattern, '--robot', test_easyconfigs_dir]
                 self.assertErrorRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
 
+    def test_ignore_index(self):
+        """
+        Test use of --ignore-index.
+        """
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        copy_file(toy_ec, self.test_prefix)
+
+        toy_ec_list = ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb']
+
+        # install index that list more files than are actually available,
+        # so we can check whether it's used
+        index_txt = '\n'.join(toy_ec_list)
+        write_file(os.path.join(self.test_prefix, '.eb-path-index'), index_txt)
+
+        args = [
+            '--search=toy',
+            '--robot-paths=%s' % self.test_prefix,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        for toy_ec_fn in toy_ec_list:
+            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        args.append('--ignore-index')
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(re.escape(os.path.join(self.test_prefix, 'toy-0.0.eb')), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        for toy_ec_fn in ['toy-1.2.3.eb', 'toy-4.5.6.eb']:
+            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
+            self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
         args = ['--search-filename=^intel']
@@ -4950,6 +4991,51 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
+
+    def test_create_index(self):
+        """Test --create-index option."""
+        test_ecs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        remove_dir(self.test_prefix)
+        copy_dir(test_ecs, self.test_prefix)
+
+        args = ['--create-index', self.test_prefix]
+        stdout, stderr = self._run_mock_eb(args, raise_error=True)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            r"^Creating index for %s\.\.\.$",
+            r"^Index created at %s/\.eb-path-index \([0-9]+ files\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern % self.test_prefix, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern %s matches in: %s" % (regex.pattern, stdout))
+
+        # check contents of index
+        index_fp = os.path.join(self.test_prefix, '.eb-path-index')
+        index_txt = read_file(index_fp)
+
+        datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
+        patterns = [
+            r"^# created at: " + datestamp_pattern + '$',
+            r"^# valid until: " + datestamp_pattern + '$',
+            r"^g/GCC/GCC-7.3.0-2.30.eb",
+            r"^t/toy/toy-0\.0\.eb",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        # existing index is not overwritten without --force
+        error_pattern = "File exists, not overwriting it without --force: .*/.eb-path-index"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+
+        # also test creating index that's infinitely valid
+        args.extend(['--index-max-age=0', '--force'])
+        self._run_mock_eb(args, raise_error=True)
+        index_txt = read_file(index_fp)
+        regex = re.compile(r"^# valid until: 9999-12-31 23:59:59", re.M)
+        self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
 
 
 def suite():

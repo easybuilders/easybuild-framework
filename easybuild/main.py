@@ -56,7 +56,8 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, dump_index, load_index
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
@@ -255,9 +256,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.list_software:
         print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
 
+    elif options.create_index:
+        print_msg("Creating index for %s..." % options.create_index, prefix=False)
+        index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
+        index = load_index(options.create_index)
+        print_msg("Index created at %s (%d files)" % (index_fp, len(index)), prefix=False)
+
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.check_github,
+        options.create_index,
         options.install_github_token,
         options.list_installed_software,
         options.list_software,

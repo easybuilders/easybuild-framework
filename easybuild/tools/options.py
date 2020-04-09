@@ -59,8 +59,8 @@ from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_warning, raise_easybuilderror
-from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
-from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD
+from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
@@ -693,8 +693,12 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Options for Easyconfigs", "Options that affect all specified easyconfig files.")
 
         opts = OrderedDict({
+            'create-index': ("Create index for files in specified directory", None, 'store', None),
             'fix-deprecated-easyconfigs': ("Fix use of deprecated functionality in specified easyconfig files.",
                                            None, 'store_true', False),
+            'ignore-index': ("Ignore index when searching for files", None, 'store_true', False),
+            'index-max-age': ("Maximum age for index before it is considered stale (in seconds)",
+                              int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
