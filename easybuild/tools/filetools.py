@@ -40,6 +40,7 @@ Set of file tools.
 """
 import datetime
 import difflib
+import distutils.dir_util
 import fileinput
 import glob
 import hashlib
@@ -1929,24 +1930,51 @@ def copy_files(paths, target_dir, force_in_dry_run=False):
             copy_file(path, target_dir)
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
+def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
     """
     Copy a directory from specified location to specified location
 
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
+    :param dirs_exist_ok: wrapper around shutil.copytree option, which was added in Python 3.8
 
-    Additional specified named arguments are passed down to shutil.copytree
+    On Python >= 3.8 shutil.copytree is always used
+    On Python < 3.8 if 'dirs_exist_ok' is False - shutil.copytree is used
+    On Python < 3.8 if 'dirs_exist_ok' is True - distutils.dir_util.copy_tree is used
+
+    Additional specified named arguments are passed down to shutil.copytree if used.
+
+    Because distutils.dir_util.copy_tree supports only 'symlinks' named argument,
+    using any other will raise EasyBuildError.
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
-            if os.path.exists(target_path):
+            if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            shutil.copytree(path, target_path, **kwargs)
+            if sys.version_info >= (3, 8):
+                # on Python >= 3.8, shutil.copytree works fine, thanks to availability of dirs_exist_ok named argument
+                shutil.copytree(path, target_path, dirs_exist_ok=dirs_exist_ok, **kwargs)
+
+            elif dirs_exist_ok:
+                # use distutils.dir_util.copy_tree with Python < 3.8 if dirs_exist_ok is enabled
+
+                # first get value for symlinks named argument (if any)
+                preserve_symlinks = kwargs.pop('symlinks', False)
+
+                # check if there are other named arguments (there shouldn't be, only 'symlinks' is supported)
+                if kwargs:
+                    raise EasyBuildError("Unknown named arguments passed to copy_dir with dirs_exist_ok=True: %s",
+                                         ', '.join(sorted(kwargs.keys())))
+                distutils.dir_util.copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
+
+            else:
+                # if dirs_exist_ok is not enabled, just use shutil.copytree
+                shutil.copytree(path, target_path, **kwargs)
+
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
