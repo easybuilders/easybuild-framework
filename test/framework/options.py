@@ -2903,7 +2903,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        # closed, unlabeled PR for gzip 1.2.8 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/5365
+        # closed, unlabeled PR for gzip 1.2.8 easyconfig,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/5365
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
