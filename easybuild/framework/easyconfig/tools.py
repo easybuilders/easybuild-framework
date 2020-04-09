@@ -55,6 +55,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
@@ -513,6 +514,10 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
     """
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Reviewing PRs for repositories other than easyconfigs hasn't been implemented yet")
+
     tmpdir = tempfile.mkdtemp()
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
@@ -541,13 +546,12 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
 
     file_info = det_file_info(pr_files, download_repo_path)
 
-    github_account = build_option('pr_target_account')
-    github_repo = build_option('pr_target_repo')
+    pr_target_account = build_option('pr_target_account')
     github_user = build_option('github_user')
-    pr_data, _ = fetch_pr_data(pr, github_account, github_repo, github_user)
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
     pr_labels = [label['name'] for label in pr_data['labels']]
 
-    labels = det_labels(file_info, github_repo)
+    labels = det_labels(file_info, pr_target_repo)
 
     missing_labels = []
     for label in labels:
