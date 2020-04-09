@@ -42,7 +42,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.github import VALID_CLOSE_PR_REASONS
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, VALID_CLOSE_PR_REASONS
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -564,6 +564,38 @@ class GithubTest(EnhancedTestCase):
         # all checks pass, PR is eligible for merging
         expected_warning = ''
         self.assertEqual(run_check(True), '')
+
+    def test_det_labels(self):
+        """Test for det_labels function."""
+
+        file_info = {'new_folder': [False], 'new_file_in_existing_folder': [True]}
+        self.mock_stdout(True)
+        res = gh.det_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.mock_stdout(False)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], 'update')
+
+        file_info = {'new_folder': [True], 'new_file_in_existing_folder': [False]}
+        self.mock_stdout(True)
+        res = gh.det_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.mock_stdout(False)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], 'new')
+
+        file_info = {'new_folder': [True, False], 'new_file_in_existing_folder': [False, True]}
+        self.mock_stdout(True)
+        res = gh.det_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.mock_stdout(False)
+        self.assertEqual(len(res), 2)
+        self.assertTrue('new' in res)
+        self.assertTrue('update' in res)
+
+        file_info = {'new': [True]}
+        self.mock_stdout(True)
+        res = gh.det_labels(file_info, GITHUB_EASYBLOCKS_REPO)
+        self.mock_stdout(False)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], 'new')
 
     def test_det_patch_specs(self):
         """Test for det_patch_specs function."""
