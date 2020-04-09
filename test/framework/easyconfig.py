@@ -1622,6 +1622,57 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBVERSIONPI'), '3.14')
         self.assertEqual(os.environ.get('EBVERSIONTEST'), '9.7.5')
 
+    def test_external_dependencies_templates(self):
+        """Test use of templates for dependencies marked as external modules."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ectxt = read_file(toy_ec)
+
+        extra_ectxt = '\n'.join([
+            "versionsuffix = '-Python-%(pyver)s-Perl-%(perlshortver)s'",
+            '',
+            "dependencies = [",
+            "    ('cray-python/3.6.5.7', EXTERNAL_MODULE),",
+            "    ('perl/5.30.0-1', EXTERNAL_MODULE),",
+            "]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ectxt + '\n' + extra_ectxt)
+
+        # put metadata in place so templates can be defined
+        metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
+        metadatatxt = '\n'.join([
+            '[cray-python]',
+            'name = Python',
+            '[cray-python/3.6.5.7]',
+            'version = 3.6.5',
+            '[perl/5.30.0-1]',
+            'name = Perl',
+            'version = 5.30.0',
+        ])
+        write_file(metadata, metadatatxt)
+        build_options = {
+            'external_modules_metadata': parse_external_modules_metadata([metadata]),
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(test_ec)
+
+        expected_template_values = {
+            'perlmajver': '5',
+            'perlshortver': '5.30',
+            'perlver': '5.30.0',
+            'pymajver': '3',
+            'pyshortver': '3.6',
+            'pyver': '3.6.5',
+        }
+        for key in expected_template_values:
+            self.assertEqual(ec.template_values[key], expected_template_values[key])
+
+        self.assertEqual(ec['versionsuffix'], '-Python-3.6.5-Perl-5.30')
+
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""
         topdir = os.path.abspath(os.path.dirname(__file__))
