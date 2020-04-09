@@ -649,32 +649,27 @@ class ModulesTool(object):
 
         return ans
 
-    def get_variable_from_modulefile(self, mod_name, var_name):
-        """
-        Get info from the module file for the specified module.
-
-        :param mod_name: module name
-        :param var_name: name of the variable value to be extracted
-        """
-        pass
-
-    def get_value_from_modulefile(self, mod_name, regex):
+    def get_value_from_modulefile(self, mod_name, regex, strict=True):
         """
         Get info from the module file for the specified module.
 
         :param mod_name: module name
         :param regex: (compiled) regular expression, with one group
         """
+        value = None
+
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
             res = regex.search(modinfo)
             if res:
-                return res.group(1)
-            else:
+                value = res.group(1)
+            elif strict:
                 raise EasyBuildError("Failed to determine value from 'show' (pattern: '%s') in %s",
                                      regex.pattern, modinfo)
-        else:
+        elif strict:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
+
+        return value
 
     def modulefile_path(self, mod_name, strip_ext=False):
         """
@@ -1095,6 +1090,15 @@ class ModulesTool(object):
         self.log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
         return path
 
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """
+        Get value for specific 'setenv' statement from module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable being set for which value should be returned
+        """
+        raise NotImplementedError
+
     def update(self):
         """Update after new modules were added."""
         raise NotImplementedError
@@ -1135,21 +1139,26 @@ class EnvironmentModulesC(ModulesTool):
         """Update after new modules were added."""
         pass
 
-    def get_variable_from_modulefile(self, mod_name, var_name):
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
-        Get info from the module file for the specified module.
+        Get value for specific 'setenv' statement from module file for the specified module.
 
         :param mod_name: module name
-        :param var_name: name of the variable value to be extracted
+        :param var_name: name of the variable being set for which value should be returned
         """
-        try:
-            # Tcl syntax
-            regex = re.compile(r'^setenv\s+%s\s+(?P<value>\S*)' % var_name, re.M)
-            ans = self.get_value_from_modulefile(mod_name, regex)
-        except Exception:
-            return None
+        # Tcl-based module tools produce "module show" output with setenv statements like:
+        # "setenv		 GCC_PATH /opt/gcc/8.3.0"
+        # - line starts with 'setenv'
+        # - whitespace (spaces & tabs) around variable name
+        # - no quotes or parentheses around value (which can contain spaces!)
+        regex = re.compile(r'^setenv\s+%s\s+(?P<value>.+)' % var_name, re.M)
+        value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
-        return ans
+        if value:
+            value = value.strip()
+
+        return value
+
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
@@ -1414,21 +1423,27 @@ class Lmod(ModulesTool):
         return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
                                        skip_avail=skip_avail, maybe_partial=maybe_partial)
 
-    def get_variable_from_modulefile(self, mod_name, var_name):
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
-        Get info from the module file for the specified module.
+        Get value for specific 'setenv' statement from module file for the specified module.
 
         :param mod_name: module name
-        :param var_name: name of the variable value to be extracted
+        :param var_name: name of the variable being set for which value should be returned
         """
-        try:
-            # Lua syntax
-            regex = re.compile(r'^setenv\(\"%s\",\s*\"(?P<value>\S*)\"\)' % var_name, re.M)
-            ans = self.get_value_from_modulefile(mod_name, regex)
-        except Exception:
-            return None
+        # Lmod produces "module show" output with setenv statements like:
+        # setenv("EBROOTBZIP2","/tmp/software/bzip2/1.0.6")
+        # - line starts with setenv(
+        # - both variable name and value are enclosed in double quotes, separated by comma
+        # - value can contain spaces!
+        # - line ends with )
+        regex = re.compile(r'^setenv\("%s"\s*,\s*"(?P<value>.+)"\)' % var_name, re.M)
+        value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
-        return ans
+        if value:
+            value = value.strip()
+
+        return value
+
 
 def get_software_root_env_var_name(name):
     """Return name of environment variable for software root."""

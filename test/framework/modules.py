@@ -42,9 +42,11 @@ from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
@@ -1206,6 +1208,32 @@ class ModulesTest(EnhancedTestCase):
         modtool = EnvironmentModulesC()
         modtool.run_module('load', 'test123')
         self.assertEqual(os.getenv('TEST123'), 'test123')
+
+    def test_get_setenv_value_from_modulefile(self):
+        """Test for ModulesTool.get_setenv_value_from_modulefile method."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(eb_path))
+        write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
+
+        toy_eb = EasyBlock(EasyConfig(test_ec))
+        toy_eb.make_module_step()
+
+        expected_root = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        ebroot = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBROOTTOY')
+        self.assertTrue(os.path.samefile(ebroot, expected_root))
+
+        ebversion = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBVERSIONTOY')
+        self.assertEqual(ebversion, '0.0')
+
+        foo = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'FOO')
+        self.assertEqual(foo, "value with spaces")
+
+        res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
+        self.assertEqual(res, None)
 
 
 def suite():
