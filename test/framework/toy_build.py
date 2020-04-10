@@ -1362,7 +1362,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'module load nosuchbuilddep/0.0.0\\' failed"
+            err_msg = r"Module command \\'.*load nosuchbuilddep/0.0.0\\' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
@@ -1374,7 +1374,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'module load nosuchmodule/1.2.3\\' failed"
+            err_msg = r"Module command \\'.*load nosuchmodule/1.2.3\\' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 

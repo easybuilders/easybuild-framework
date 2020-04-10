@@ -771,8 +771,8 @@ class ModulesTool(object):
         # also catch and check exit code
         exit_code = proc.returncode
         if kwargs.get('check_exit_code', True) and exit_code != 0:
-            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
-                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
+            raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list), exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
