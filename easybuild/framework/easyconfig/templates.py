@@ -77,6 +77,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 # software names for which to define <pref>ver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
     # software name, prefix for *ver and *shortver
+    ('CUDA', 'cuda'),
     ('Java', 'java'),
     ('Perl', 'perl'),
     ('Python', 'py'),
