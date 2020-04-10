@@ -148,9 +148,9 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.run_module('list')
         self.assertEqual(res, [{'mod_name': 'GCC/6.4.0-2.28', 'default': None}])
 
-        res = self.modtool.run_module('avail', 'GCC/4.6')
+        res = self.modtool.run_module('avail', 'GCC/4.6.3')
         self.assertTrue(isinstance(res, list))
-        self.assertEqual(sorted([x['mod_name'] for x in res]), ['GCC/4.6.3', 'GCC/4.6.4'])
+        self.assertEqual(sorted([x['mod_name'] for x in res]), ['GCC/4.6.3'])
 
         # loading a module produces no output, so we get an empty list
         res = self.modtool.run_module('load', 'OpenMPI/2.1.2-GCC-6.4.0-2.28')
