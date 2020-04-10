@@ -114,17 +114,34 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.run_module(['load', 'GCC/6.4.0-2.28'])
         self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
 
-        # by default, exit code is checked and an error is raised if we run something that fails
-        error_pattern = "Module command 'module thisdoesnotmakesense' failed with exit code [1-9]"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
+        # skip tests that rely on exit codes when using EnvironmentModulesTcl modules tool,
+        # because it doesn't use proper exit codes
+        if not isinstance(self.modtool, EnvironmentModulesTcl):
 
-        error_pattern = "Module command 'module load nosuchmodule/1.2.3' failed with exit code [1-9]"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
+            # by default, exit code is checked and an error is raised if we run something that fails
+            error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
+
+            # we need to use a different error pattern here with EnvironmentModulesC,
+            # because a load of a non-existing module doesnt' trigger a non-zero exit code...
+            # it will still fail though, just differently
+            if isinstance(self.modtool, EnvironmentModulesC):
+                error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
+            else:
+                error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
 
         # we can choose to blatently ignore the exit code,
-        # and also disable the output check that serves as a fallback
-        self.modtool.run_module('thisdoesnotmakesense', check_exit_code=False, check_output=False)
-        self.modtool.run_module('load', 'nosuchmodule/1.2.3', check_exit_code=False, check_output=False)
+        # and also disable the output check that serves as a fallback;
+        # we also enable return_output here, because trying to apply the environment changes produced
+        # by a faulty command is bound to cause trouble...
+        kwargs = {
+            'check_exit_code': False,
+            'check_output': False,
+            'return_output': True,
+        }
+        self.modtool.run_module('thisdoesnotmakesense', **kwargs)
+        self.modtool.run_module('load', 'nosuchmodule/1.2.3', **kwargs)
 
         # by default, the output (stdout+stderr) produced by the command is processed;
         # result is a list of useful info (module names in case of list/avail)
@@ -1185,7 +1202,7 @@ class ModulesTest(EnhancedTestCase):
     def test_exit_code_check(self):
         """Verify that EasyBuild checks exit code of executed module commands"""
         if isinstance(self.modtool, Lmod):
-            error_pattern = "Module command 'module load nosuchmoduleavailableanywhere' failed with exit code"
+            error_pattern = "Module command '.*load nosuchmoduleavailableanywhere' failed with exit code"
         else:
             # Tcl implementations exit with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
