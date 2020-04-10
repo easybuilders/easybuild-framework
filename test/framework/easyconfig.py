@@ -961,12 +961,14 @@ class EasyConfigTest(EnhancedTestCase):
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s"],',
             '}',
             'dependencies = [',
+            '   ("CUDA", "10.1.105"),'
             '   ("Java", "1.7.80"),'
             '   ("Perl", "5.22.0"),'
             '   ("Python", "2.7.10"),'
             '   ("R", "3.2.3"),'
             ']',
             'modloadmsg = "%s"' % '; '.join([
+                'CUDA: %%(cudaver)s, %%(cudamajver)s, %%(cudashortver)s',
                 'Java: %%(javaver)s, %%(javamajver)s, %%(javashortver)s',
                 'Python: %%(pyver)s, %%(pymajver)s, %%(pyshortver)s',
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlshortver)s',
@@ -1000,7 +1002,7 @@ class EasyConfigTest(EnhancedTestCase):
         dirs1 = eb['sanity_check_paths']['dirs'][1]
         self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
-        expected = "Java: 1.7.80, 1, 1.7; Python: 2.7.10, 2, 2.7; Perl: 5.22.0, 5, 5.22; R: 3.2.3, 3, 3.2"
+        expected = "CUDA: 10.1.105, 10, 10.1; Java: 1.7.80, 1, 1.7; Python: 2.7.10, 2, 2.7; Perl: 5.22.0, 5, 5.22; R: 3.2.3, 3, 3.2"
         self.assertEqual(eb['modloadmsg'], expected)
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
