@@ -1816,6 +1816,59 @@ class EasyConfigTest(EnhancedTestCase):
                 if param in ec:
                     self.assertEqual(ec[param], dumped_ec[param])
 
+    def test_toolchain_hierarchy_aware_dump(self):
+        """Test that EasyConfig's dump() method is aware of the toolchain hierarchy."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_dir],
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        rawtxt = '\n'.join([
+            "easyblock = 'EB_foo'",
+            '',
+            "name = 'foo'",
+            "version = '0.0.1'",
+            '',
+            "toolchain = {'name': 'foss', 'version': '2018a'}",
+            '',
+            "homepage = 'http://foo.com/'",
+            'description = "foo description"',
+            '',
+            'sources = [SOURCE_TAR_GZ]',
+            'source_urls = ["http://example.com"]',
+            'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
+            '',
+            "dependencies = [",
+            "    ('toy', '0.0', '', ('gompi', '2018a')),",
+            "    ('bar', '1.0'),",
+            "    ('foobar/1.2.3', EXTERNAL_MODULE),",
+            "]",
+            '',
+            "foo_extra1 = 'foobar'",
+            '',
+            'moduleclass = "tools"',
+        ])
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ecdict = ec.asdict()
+        ec.dump(test_ec)
+        # dict representation of EasyConfig instance should not change after dump
+        self.assertEqual(ecdict, ec.asdict())
+        ectxt = read_file(test_ec)
+        dumped_ec = EasyConfig(test_ec)
+        self.assertEqual(ecdict, dumped_ec.asdict())
+        self.assertTrue(r"'toy', '0.0')," in ectxt)
+        # test case where we ask for explicit toolchains
+        ec.dump(test_ec, explicit_toolchains=True)
+        self.assertEqual(ecdict, ec.asdict())
+        ectxt = read_file(test_ec)
+        dumped_ec = EasyConfig(test_ec)
+        self.assertEqual(ecdict, dumped_ec.asdict())
+        self.assertTrue(r"'toy', '0.0', '', ('gompi', '2018a'))," in ectxt)
+
     def test_dump_order(self):
         """Test order of easyconfig parameters in dumped easyconfig."""
         rawtxt = '\n'.join([

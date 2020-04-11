@@ -3330,7 +3330,7 @@ def reproduce_build(app, reprod_dir_root):
     reprod_dir = find_backup_name_candidate(os.path.join(reprod_dir_root, REPROD))
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
-        app.cfg.dump(reprod_spec)
+        app.cfg.dump(reprod_spec, explicit_toolchains=True)
         _log.info("Dumped easyconfig instance to %s", reprod_spec)
     except NotImplementedError as err:
         _log.warning("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
