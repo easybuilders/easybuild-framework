@@ -37,11 +37,13 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 from easybuild.base.rest import RestClient
+from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
+from easybuild.tools.testing import post_easyconfigs_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -244,6 +246,33 @@ class GithubTest(EnhancedTestCase):
         ]
         for pattern in patterns:
             self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_fetch_easyblocks_from_pr(self):
+        """Test fetch_easyblocks_from_pr function."""
+        if self.skip_github_tests:
+            print("Skipping test_fetch_easyblocks_from_pr, no GitHub token available?")
+            return
+
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
+
+        # PR with new easyblock plus non-easyblock file
+        all_ebs_pr1964 = ['lammps.py']
+
+        # PR with changed easyblock
+        all_ebs_pr1967 = ['siesta.py']
+
+        # PR with more than one easyblock
+        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
+
+        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
+            try:
+                tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
+                eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                self.assertEqual(sorted(all_ebs), sorted([os.path.basename(f) for f in eb_files]))
+            except URLError as err:
+                print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
 
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
@@ -666,6 +695,61 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(account, 'migueldiascosta')
         self.assertEqual(branch, 'fix_inject_checksums')
 
+    def test_det_pr_target_repo(self):
+        """Test det_pr_target_repo."""
+
+        self.assertEqual(build_option('pr_target_repo'), None)
+
+        # no files => return default target repo (None)
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
+
+        # easyconfigs/patches (incl. files to delete) => easyconfigs repo
+        # this is solely based on filenames, actual files are not opened
+        test_cases = [
+            ['toy.eb'],
+            ['toy.patch'],
+            ['toy.eb', 'toy.patch'],
+            [':toy.eb'],  # deleting toy.eb
+            ['one.eb', 'two.eb'],
+            ['one.eb', 'two.eb', 'toy.patch', ':todelete.eb'],
+        ]
+        for test_case in test_cases:
+            self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(test_case)), 'easybuild-easyconfigs')
+
+        # if only Python files are involved, result is easyblocks or framework repo;
+        # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
+        # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        github_py = os.path.join(testdir, 'github.py')
+
+        configuremake = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        self.assertTrue(os.path.exists(configuremake))
+        toy_eb = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        self.assertTrue(os.path.exists(toy_eb))
+
+        self.assertEqual(build_option('pr_target_repo'), None)
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'easybuild-easyblocks')
+        py_files = [github_py, configuremake]
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
+        py_files[0] = toy_eb
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-easyblocks')
+        py_files.append(github_py)
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
+
+        # as soon as an easyconfig file or patch files is involved => result is easybuild-easyconfigs repo
+        for fn in ['toy.eb', 'toy.patch']:
+            self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files + [fn])), 'easybuild-easyconfigs')
+
+        # if --pr-target-repo is specified, we always get this value (no guessing anymore)
+        init_config(build_options={'pr_target_repo': 'thisisjustatest'})
+
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(['toy.eb', 'toy.patch'])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
+
     def test_push_branch_to_github(self):
         """Test push_branch_to_github."""
 
@@ -694,6 +778,39 @@ class GithubTest(EnhancedTestCase):
         ]) + r'$'
         regex = re.compile(pattern)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
+
+    def test_post_easyconfigs_pr_test_report(self):
+        """Test for post_easyconfigs_pr_test_report function."""
+        if self.skip_github_tests:
+            print("Skipping test_post_easyconfigs_pr_test_report, no GitHub token available?")
+            return
+
+        init_config(build_options={
+            'dry_run': True,
+            'github_user': GITHUB_TEST_ACCOUNT,
+        })
+
+        test_report = os.path.join(self.test_prefix, 'test_report.txt')
+        write_file(test_report, "This is a test report!")
+
+        init_session_state = session_state()
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        post_easyconfigs_pr_test_report('1234', test_report, "OK!", init_session_state, True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
+            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
