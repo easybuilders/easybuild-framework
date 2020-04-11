@@ -1494,10 +1494,14 @@ class RobotTest(EnhancedTestCase):
         ]
         self.assertEqual(paths, ref_paths)
 
-        # Now do a case sensitive search
+        # now do a case sensitive search
         paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False, case_sensitive=True)
         ref_paths = [os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb')]
         self.assertEqual(paths, ref_paths)
+
+        # test use of filename_only
+        paths = search_easyconfigs('hwloc-1.8', consider_extra_paths=False, print_result=False, filename_only=True)
+        self.assertEqual(paths, ['hwloc-1.8-gcccuda-2018a.eb'])
 
 
 def suite():

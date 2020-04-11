@@ -506,12 +506,12 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
         else:
             hits.append(hit)
 
-    if print_result:
-        # check whether only filenames should be printed
-        if filename_only:
-            hits = [os.path.basename(hit) for hit in hits]
-            archived_hits = [os.path.basename(hit) for hit in archived_hits]
+    # check whether only filenames should be used
+    if filename_only:
+        hits = [os.path.basename(hit) for hit in hits]
+        archived_hits = [os.path.basename(hit) for hit in archived_hits]
 
+    if print_result:
         # prepare output format
         if terse:
             lines, tmpl = [], '%s'
