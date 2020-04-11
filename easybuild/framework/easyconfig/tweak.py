@@ -938,9 +938,10 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     """
     Take an easyconfig spec, parse it, map it to a target toolchain and dump it out
 
-    :param ec_spec: Location of original easyconfig file
-    :param toolchain_mapping: Mapping between source toolchain and target toolchain
-    :param targetdir: Directory to dump the modified easyconfig file in
+    :param ec_spec: location of original easyconfig file
+    :param toolchain_mapping: mapping between source toolchain and target toolchain
+    :param targetdir: directory to dump the modified easyconfig file in
+    :param update_build_specs: dict with names and values of easyconfig parameters to tweak
     :param update_dep_versions: boolean indicating whether dependency versions should be updated
 
     :return: Location of the modified easyconfig file
