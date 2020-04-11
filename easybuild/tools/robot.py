@@ -490,7 +490,9 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
     extra_search_paths = build_option('search_paths')
     # If we're returning a list of possible resolutions by the robot, don't include the extra_search_paths
     if extra_search_paths and consider_extra_paths:
-        search_path.extend(extra_search_paths)
+        # we shouldn't use += or .extend here but compose a new list,
+        # to avoid adding a path to the list returned by build_option('robot_path') !
+        search_path = search_path + extra_search_paths
 
     ignore_dirs = build_option('ignore_dirs')
 

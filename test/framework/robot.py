@@ -1478,11 +1478,25 @@ class RobotTest(EnhancedTestCase):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'robot_path': [test_ecs],
+            'search_paths': [self.test_prefix],
         })
+
+        # copy some files to search_paths location
+        copy_file(os.path.join(test_ecs, 'b', 'binutils', 'binutils-2.25-GCCcore-4.9.3.eb'), self.test_prefix)
+        copy_file(os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'), self.test_prefix)
+
         paths = search_easyconfigs('binutils-.*-GCCcore-4.9.3', consider_extra_paths=False, print_result=False)
         ref_paths = [os.path.join(test_ecs, 'b', 'binutils', x) for x in ['binutils-2.25-GCCcore-4.9.3.eb',
                                                                           'binutils-2.26-GCCcore-4.9.3.eb']]
+        self.assertEqual(len(paths), 2)
         self.assertEqual(paths, ref_paths)
+
+        # search_paths location is considered by default
+        paths = search_easyconfigs('binutils-.*-GCCcore-4.9.3', print_result=False)
+        self.assertEqual(len(paths), 3)
+        self.assertEqual(paths[:2], ref_paths)
+        # last hit is the one from search_paths
+        self.assertTrue(os.path.samefile(paths[2], os.path.join(self.test_prefix, 'binutils-2.25-GCCcore-4.9.3.eb')))
 
         paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False)
         ref_paths = [
@@ -1507,7 +1521,7 @@ class RobotTest(EnhancedTestCase):
         for filename_only in [None, False, True]:
             self.mock_stderr(True)
             self.mock_stdout(True)
-            kwargs = {}
+            kwargs = {'consider_extra_paths': False}
             if filename_only is not None:
                 kwargs['filename_only'] = filename_only
             search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
