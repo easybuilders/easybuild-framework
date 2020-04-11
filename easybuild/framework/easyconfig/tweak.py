@@ -887,7 +887,7 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                     # make sure we have a have an integer value for the major version
                     int(major_version)
                 except ValueError:
-                    _log.info("Cannot extract major version for %s from %s", prefix_stub, version)
+                    _log.warning("Cannot extract major version for %s from %s", prefix_stub, version)
 
             # Use these values to construct a dependency
             software_as_dep = {
@@ -918,6 +918,7 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
 
 def get_matching_easyconfig_candidates(prefix_stub, toolchain):
     """
+    Find easyconfigs that match specified requirements w.r.t. toolchain and partial filename pattern.
 
     :param prefix_stub: stub used in regex (e.g., 'Python-' or 'Python-2')
     :param toolchain: the toolchain to use with the search
