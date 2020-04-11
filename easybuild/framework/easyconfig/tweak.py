@@ -957,8 +957,9 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
 
     if update_build_specs is not None:
-        # automagically clear out list of checksums if software version is being tweaked
         if 'version' in update_build_specs:
+
+            # take into account that version in exts_list may have to be updated as well
             if 'exts_list' in parsed_ec and parsed_ec['exts_list']:
                 _log.warning("Found 'exts_list' in %s, will only update extension version of %s (if applicable)",
                              ec_spec, parsed_ec['name'])
@@ -976,10 +977,12 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                             parsed_ec.get_ref('exts_list')[idx] = tuple(ext_as_list)
                             _log.info("Updated extension found in %s with new version", ec_spec)
 
+            # automagically clear out list of checksums if software version is being tweaked
             if 'checksums' not in update_build_specs:
                 update_build_specs['checksums'] = []
                 _log.warning("Tweaking version: checksums cleared, verification disabled.")
-        # Update the keys according to the build specs
+
+        # update the keys according to the build specs
         for key in update_build_specs:
             parsed_ec[key] = update_build_specs[key]
 
@@ -1003,8 +1006,10 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             orig_val = flatten(orig_val)
 
         for idx, dep in enumerate(val):
+
             # reference to original dep dict, this is the one we should be updating
             orig_dep = orig_val[idx]
+
             # skip dependencies that are marked as external modules
             if dep['external_module']:
                 continue
@@ -1020,11 +1025,11 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 dep_changed = True
 
             elif update_dep_versions:
-                # Search for available updates for this dependency:
-                # First get highest version candidate paths for this (include search through subtoolchains)
+                # search for available updates for this dependency:
+                # first get highest version candidate paths for this (include search through subtoolchains)
                 potential_version_mappings = find_potential_version_mappings(dep, toolchain_mapping,
                                                                              versionsuffix_mapping=versonsuffix_mapping)
-                # Only highest version match is retained by default in potential_version_mappings,
+                # only highest version match is retained by default in potential_version_mappings,
                 # compare that version to the original version and replace if appropriate (upgrades only).
                 if potential_version_mappings:
                     highest_version_match = potential_version_mappings[0]['version']
@@ -1042,7 +1047,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             if dep_changed:
                 _log.debug("Modified dependency %s of %s", dep['name'], ec_spec)
 
-    # Determine the name of the modified easyconfig and dump it to target_dir
+    # determine the name of the modified easyconfig and dump it to target_dir
     if parsed_ec['versionsuffix'] in versonsuffix_mapping:
         parsed_ec['versionsuffix'] = versonsuffix_mapping[parsed_ec['versionsuffix']]
     ec_filename = '%s-%s.eb' % (parsed_ec['name'], det_full_ec_version(parsed_ec))
