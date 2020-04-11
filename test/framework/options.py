@@ -1178,6 +1178,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(anti_pattern, re.M)
             self.assertFalse(regex.search(outtxt), "Pattern '%s' NOT found in: %s" % (regex.pattern, outtxt))
 
+    def test_try_update_deps(self):
+        """Test for --try-update-deps."""
+
+        # first, construct a toy easyconfig that is well suited for testing (multiple deps)
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'test'",
+            "version = '1.2.3'",
+            ''
+            "homepage = 'https://test.org'",
+            "description = 'this is just a test'",
+            '',
+            "toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}",
+            '',
+            "builddependencies = [('gzip', '1.4')]",
+            "dependencies = [('hwloc', '1.6.2')]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ectxt)
+
+        args = [
+            test_ec,
+            '--try-toolchain-version=6.4.0-2.28',
+            '--try-update-deps',
+            '-D',
+        ]
+
+        self.assertErrorRegex(EasyBuildError, "Experimental functionality", self.eb_main, args, raise_error=True)
+
+        args.append('--experimental')
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+
+        patterns = [
+            # toolchain got updated
+            r"^ \* \[x\] .*/test_ecs/g/GCC/GCC-6.4.0-2.28.eb \(module: GCC/6.4.0-2.28\)$",
+            # no version update for gzip (because there's no gzip easyconfig using GCC/6.4.0-2.28 (sub)toolchain)
+            r"^ \* \[ \] .*/tweaked_dep_easyconfigs/gzip-1.4-GCC-6.4.0-2.28.eb \(module: gzip/1.4-GCC-6.4.0-2.28\)$",
+            # hwloc was updated to 1.11.8, thanks to available easyconfig
+            r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
+            # also generated easyconfig for test/1.2.3 with expected toolchain
+            r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
+
     def test_dry_run_hierarchical(self):
         """Test dry run using a hierarchical module naming scheme."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1804,9 +1851,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_cases = [
             ([], 'toy/0.0'),
-            # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
-            # to doing a simple regex substitution on the toolchain
-            (['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
+            # try-* only uses the subtoolchain with matching necessary features
+            (['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-GCC-6.4.0-2.28'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             # --try-toolchain is overridden by --toolchain
             (['--try-toolchain=gompi,2018a', '--toolchain=system,system'], 'toy/0.0'),
@@ -1815,9 +1861,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--toolchain=SYSTEM'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
-            # combining --try-toolchain with other build options is too complicated, in this case the code defaults back
-            # to doing a simple regex substitution on the toolchain
-            (['--try-software-version=1.2.3', '--try-toolchain=gompi,2018a'], 'toy/1.2.3-gompi-2018a'),
+            (['--try-software-version=1.2.3', '--try-toolchain=gompi,2018a'], 'toy/1.2.3-GCC-6.4.0.2.28'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
             (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
@@ -1831,9 +1875,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # define extra list-typed parameter
             (['--try-amend=versionsuffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
             # only --try causes other build specs to be included too
-            # --try-toolchain* has a different branch to all other try options, combining defaults back to regex
-            (['--try-software=foo,1.2.3', '--toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
-            (['--software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-gompi-2018a'),
+            (['--try-software=foo,1.2.3', '--toolchain=gompi,2018a'], 'foo/1.2.3-GCC-6.4.0-2.28'),
+            (['--software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-GCC-6.4.0-2.28'),
             (['--software=foo,1.2.3', '--try-amend=versionsuffix=-test'], 'foo/1.2.3-test'),
         ]
 
@@ -1900,7 +1943,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
             # toolchain GCC/4.7.2 (subtoolchain of gompi/2018a) should be listed (and present)
 
-            tc_regex = re.compile("^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
+            tc_regex = re.compile(r"^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
             # both toy and gzip dependency should be listed with new toolchains
@@ -1912,23 +1955,44 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     mod = ec_name.replace('-', '/')
                 else:
                     mod = '%s-GCC-6.4.0-2.28' % ec_name.replace('-', '/')
-                mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                mod_regex = re.compile(r"^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
-        # clear fictious dependency
+        # recursive try also when --(try-)software(-X) is involved
+        for extra_args in [[],
+                           ['--module-naming-scheme=HierarchicalMNS']]:
+            outtxt = self.eb_main(args + extra_args + ['--try-software-version=1.2.3'], verbose=True, raise_error=True)
+
+            # toolchain GCC/6.4.0-2.28 (subtoolchain of gompi/2018a) should be listed (and present)
+            tc_regex = re.compile(r"^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
+            self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
+
+            # both toy and gzip dependency should be listed with new toolchains
+            # in this case we map original toolchain `dummy` to the compiler-only GCC subtoolchain of gompi/2018a
+            # since this subtoolchain already has sufficient capabilities (we do not map higher than necessary)
+            for ec_name in ['gzip-1.4', 'toy-1.2.3']:
+                ec = '%s-GCC-6.4.0-2.28.eb' % ec_name
+                mod = ec_name.replace('-', '/')
+                if not extra_args:
+                    mod += '-GCC-6.4.0-2.28'
+                mod_regex = re.compile(r"^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
+        # clear fictitious dependency
         f = open(tweaked_toy_ec, 'a')
         f.write("dependencies = []\n")
         f.close()
 
-        # no recursive try if --(try-)software(-X) is involved
+        # no recursive try if --disable-map-toolchains is involved
         for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
-            outtxt = self.eb_main(args + extra_args, raise_error=True)
+            outtxt = self.eb_main(args + ['--disable-map-toolchains'] + extra_args, raise_error=True)
             for mod in ['toy/1.2.3-gompi-2018a', 'gompi/2018a', 'GCC/6.4.0-2.28']:
-                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
             for mod in ['gompi/1.2.3', 'GCC/1.2.3']:
-                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
                 self.assertFalse(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
 
     def test_cleanup_builddir(self):
         """Test cleaning up of build dir and --disable-cleanup-builddir."""

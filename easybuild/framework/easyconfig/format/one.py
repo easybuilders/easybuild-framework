@@ -71,7 +71,7 @@ def dump_dependency(dep, toolchain):
     if dep['external_module']:
         res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
     else:
-        # mininal spec: (name, version)
+        # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
         if dep['toolchain'] != toolchain:
             if dep[SYSTEM_TOOLCHAIN_NAME]:

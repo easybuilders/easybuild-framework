@@ -758,7 +758,8 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False,
+                case_sensitive=False):
     """
     Search for files using in specified paths using specified search query (regular expression)
 
@@ -782,7 +783,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
 
     # compile regex, case-insensitive
     try:
-        query = re.compile(query, re.I)
+        if case_sensitive:
+            query = re.compile(query)
+        else:
+            # compile regex, case-insensitive
+            query = re.compile(query, re.I)
     except re.error as err:
         raise EasyBuildError("Invalid search query: %s", err)
 
