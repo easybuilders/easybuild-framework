@@ -1057,6 +1057,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
 def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mapping=None, highest_versions_only=True):
     """
     Find potential version mapping for a dependency in a new hierarchy
+
     :param dep: dependency specification (dict)
     :param toolchain_mapping: toolchain mapping used for search
     :param versionsuffix_mapping: mapping of version suffixes
@@ -1087,13 +1088,13 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
     if versionsuffix in versionsuffix_mapping:
         versionsuffix = versionsuffix_mapping[versionsuffix]
 
-    # the candidate version is a regex string, let's be conservative and search for patch upgrade first, if that doesn't
-    # work look for a minor version upgrade and if that fails will we try a global search, i.e, a major version upgrade
-    # (assumes major.minor.XXX versioning)
+    # the candidate version is a regex string, let's be conservative and search for patch upgrade first;
+    # if that doesn't work look for a minor version upgrade and if that fails will we try a global search,
+    # i.e, a major version upgrade (assumes major.minor.xxx versioning)
     candidate_ver_list = []
     version_components = dep['version'].split('.')
     major_version = version_components[0]
-    if len(version_components) > 2:  # Have something like major.minor.XXX
+    if len(version_components) > 2:  # Have something like major.minor.xxx
         minor_version = version_components[1]
         candidate_ver_list.append(r'%s\.%s\..*' % (major_version, minor_version))
     if len(version_components) > 1:  # Have at least major.minor
@@ -1103,7 +1104,10 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
     potential_version_mappings, highest_version = [], None
 
     for candidate_ver in candidate_ver_list:
+
+        # if any potential version mappings were found already at this point, we don't add more
         if not potential_version_mappings:
+
             for toolchain in toolchain_hierarchy:
 
                 # determine search pattern based on toolchain, version prefix/suffix & version regex
@@ -1116,11 +1120,11 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                 cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False,
                                                 case_sensitive=True)
 
-                # Filter out easyconfigs that have been tweaked in this instance, they are not relevant here
+                # filter out easyconfigs that have been tweaked in this instance, they are not relevant here
                 tweaked_ecs_paths, _ = alt_easyconfig_paths(tempfile.gettempdir(), tweaked_ecs=True)
                 cand_paths = [path for path in cand_paths if not path.startswith(tweaked_ecs_paths)]
 
-                # Add what is left to the possibilities
+                # add what is left to the possibilities
                 for path in cand_paths:
                     version = fetch_parameters_from_easyconfig(read_file(path), ['version'])[0]
                     if version:

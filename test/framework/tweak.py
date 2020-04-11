@@ -373,9 +373,12 @@ class TweakTest(EnhancedTestCase):
         potential_versions = find_potential_version_mappings(gzip_dep, tc_mapping)
         self.assertEqual(len(potential_versions), 1)
         # Should see version 1.6 of gzip with iccifort toolchain
-        expected_dep_path = os.path.join(test_easyconfigs, 'g', 'gzip',
-                                         'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb')
-        self.assertEqual(potential_versions[0]['path'], expected_dep_path)
+        expected = {
+            'path': os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
+            'toolchain': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+            'version': '1.6',
+        }
+        self.assertEqual(potential_versions[0], expected)
 
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""
