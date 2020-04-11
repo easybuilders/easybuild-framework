@@ -1178,6 +1178,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(anti_pattern, re.M)
             self.assertFalse(regex.search(outtxt), "Pattern '%s' NOT found in: %s" % (regex.pattern, outtxt))
 
+    def test_try_update_deps(self):
+        """Test for --try-update-deps."""
+
+        # first, construct a toy easyconfig that is well suited for testing (multiple deps)
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'test'",
+            "version = '1.2.3'",
+            ''
+            "homepage = 'https://test.org'",
+            "description = 'this is just a test'",
+            '',
+            "toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}",
+            '',
+            "builddependencies = [('gzip', '1.4')]",
+            "dependencies = [('hwloc', '1.6.2')]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ectxt)
+
+        args = [
+            test_ec,
+            '--try-toolchain-version=6.4.0-2.28',
+            '--try-update-deps',
+            '-D',
+        ]
+
+        self.assertErrorRegex(EasyBuildError, "Experimental functionality", self.eb_main, args, raise_error=True)
+
+        args.append('--experimental')
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+
+        patterns = [
+            # toolchain got updated
+            r"^ \* \[x\] .*/test_ecs/g/GCC/GCC-6.4.0-2.28.eb \(module: GCC/6.4.0-2.28\)$",
+            # no version update for gzip (because there's no gzip easyconfig using GCC/6.4.0-2.28 (sub)toolchain)
+            r"^ \* \[ \] .*/tweaked_dep_easyconfigs/gzip-1.4-GCC-6.4.0-2.28.eb \(module: gzip/1.4-GCC-6.4.0-2.28\)$",
+            # hwloc was updated to 1.11.8, thanks to available easyconfig
+            r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
+            # also generated easyconfig for test/1.2.3 with expected toolchain
+            r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
+
     def test_dry_run_hierarchical(self):
         """Test dry run using a hierarchical module naming scheme."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
