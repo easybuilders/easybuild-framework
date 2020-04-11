@@ -2955,7 +2955,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("This PR should be labeled update" in txt)
+        self.assertTrue("This PR should be labeled with 'update'" in txt)
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""

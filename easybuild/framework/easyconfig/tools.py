@@ -56,7 +56,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import det_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import det_pr_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -551,15 +551,15 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
     pr_labels = [label['name'] for label in pr_data['labels']]
 
-    labels = det_labels(file_info, pr_target_repo)
+    expected_labels = det_pr_labels(file_info, pr_target_repo)
 
     missing_labels = []
-    for label in labels:
+    for label in expected_labels:
         if label not in pr_labels:
             missing_labels.append(label)
 
     if missing_labels:
-        lines.extend(['', "This PR should be labeled %s" % ', '.join(missing_labels)])
+        lines.extend(['', "This PR should be labeled with %s" % ', '.join(["'%s'" % l for l in missing_labels])])
 
     return '\n'.join(lines)
 

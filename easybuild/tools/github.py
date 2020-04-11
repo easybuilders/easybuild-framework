@@ -1313,10 +1313,9 @@ def merge_pr(pr):
         print_warning("Review indicates this PR should not be merged (use -f/--force to do so anyway)")
 
 
-def det_labels(file_info, pr_target_repo):
+def det_pr_labels(file_info, pr_target_repo):
     """
-    Determine labels from file_info.
-    Currently only detects whether easyconfig is for a new software or an update or an easyblock is new.
+    Determine labels for a pull request based on provided information on files changed by that pull request.
     """
     labels = []
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
@@ -1486,8 +1485,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
 
         file_info = det_file_info(ec_paths, target_dir)
 
-    # label easyconfigs for new software and/or new easyconfigs for existing software
-    labels = det_labels(file_info, pr_target_repo)
+    labels = det_pr_labels(file_info, pr_target_repo)
 
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         # only use most common toolchain(s) in toolchain label of PR title

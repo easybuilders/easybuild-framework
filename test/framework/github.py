@@ -566,37 +566,24 @@ class GithubTest(EnhancedTestCase):
         expected_warning = ''
         self.assertEqual(run_check(True), '')
 
-    def test_det_labels(self):
-        """Test for det_labels function."""
+    def test_det_pr_labels(self):
+        """Test for det_pr_labels function."""
 
         file_info = {'new_folder': [False], 'new_file_in_existing_folder': [True]}
-        self.mock_stdout(True)
-        res = gh.det_labels(file_info, GITHUB_EASYCONFIGS_REPO)
-        self.mock_stdout(False)
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0], 'update')
+        res = gh.det_pr_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.assertEqual(res, ['update'])
 
         file_info = {'new_folder': [True], 'new_file_in_existing_folder': [False]}
-        self.mock_stdout(True)
-        res = gh.det_labels(file_info, GITHUB_EASYCONFIGS_REPO)
-        self.mock_stdout(False)
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0], 'new')
+        res = gh.det_pr_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.assertEqual(res, ['new'])
 
         file_info = {'new_folder': [True, False], 'new_file_in_existing_folder': [False, True]}
-        self.mock_stdout(True)
-        res = gh.det_labels(file_info, GITHUB_EASYCONFIGS_REPO)
-        self.mock_stdout(False)
-        self.assertEqual(len(res), 2)
-        self.assertTrue('new' in res)
-        self.assertTrue('update' in res)
+        res = gh.det_pr_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.assertTrue(sorted(res), ['new', 'update'])
 
         file_info = {'new': [True]}
-        self.mock_stdout(True)
-        res = gh.det_labels(file_info, GITHUB_EASYBLOCKS_REPO)
-        self.mock_stdout(False)
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0], 'new')
+        res = gh.det_pr_labels(file_info, GITHUB_EASYBLOCKS_REPO)
+        self.assertEqual(res, ['new'])
 
     def test_det_patch_specs(self):
         """Test for det_patch_specs function."""
