@@ -1804,8 +1804,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for extra_args in [[],
                            ['--module-naming-scheme=HierarchicalMNS']]:
             outtxt = self.eb_main(args + extra_args + ['--try-software-version=1.2.3'], verbose=True, raise_error=True)
-            # toolchain GCC/4.7.2 (subtoolchain of gompi/2018a) should be listed (and present)
 
+            # toolchain GCC/6.4.0-2.28 (subtoolchain of gompi/2018a) should be listed (and present)
             tc_regex = re.compile(r"^ \* \[x\] .*/GCC-6.4.0-2.28.eb \(module: .*GCC/6.4.0-2.28\)$", re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
@@ -1814,10 +1814,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # since this subtoolchain already has sufficient capabilities (we do not map higher than necessary)
             for ec_name in ['gzip-1.4', 'toy-1.2.3']:
                 ec = '%s-GCC-6.4.0-2.28.eb' % ec_name
-                if extra_args:
-                    mod = ec_name.replace('-', '/')
-                else:
-                    mod = '%s-GCC-6.4.0-2.28' % ec_name.replace('-', '/')
+                mod = ec_name.replace('-', '/')
+                if not extra_args:
+                    mod += '-GCC-6.4.0-2.28'
                 mod_regex = re.compile(r"^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
