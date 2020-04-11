@@ -604,17 +604,21 @@ def dump_env_script(easyconfigs):
 
 def categorize_files_by_type(paths):
     """
-    Splits list of filepaths into a 3 separate lists: easyconfigs, files to delete and patch files
+    Splits list of filepaths into a 4 separate lists: easyconfigs, files to delete, patch files and
+    files with extension .py
     """
     res = {
         'easyconfigs': [],
         'files_to_delete': [],
         'patch_files': [],
+        'py_files': [],
     }
 
     for path in paths:
         if path.startswith(':'):
             res['files_to_delete'].append(path[1:])
+        elif path.endswith('.py'):
+            res['py_files'].append(path)
         # file must exist in order to check whether it's a patch file
         elif os.path.isfile(path) and is_patch_file(path):
             res['patch_files'].append(path)

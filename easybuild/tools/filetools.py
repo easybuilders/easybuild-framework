@@ -40,9 +40,12 @@ Set of file tools.
 """
 import datetime
 import difflib
+import distutils.dir_util
 import fileinput
 import glob
 import hashlib
+import imp
+import inspect
 import os
 import re
 import shutil
@@ -56,10 +59,10 @@ from xml.etree import ElementTree
 from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
-from easybuild.tools.config import build_option
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
+from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
 from easybuild.tools.py2vs3 import std_urllib, string_type
-from easybuild.tools.utilities import nub
+from easybuild.tools.utilities import nub, remove_unwanted_chars
 
 try:
     import requests
@@ -109,6 +112,7 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
+PATH_INDEX_FILENAME = '.eb-path-index'
 
 CHECKSUM_TYPE_MD5 = 'md5'
 CHECKSUM_TYPE_SHA256 = 'sha256'
@@ -303,11 +307,27 @@ def remove_dir(path):
         dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
         return
 
-    try:
-        if os.path.exists(path):
-            rmtree2(path)
-    except OSError as err:
-        raise EasyBuildError("Failed to remove directory %s: %s", path, err)
+    if os.path.exists(path):
+        ok = False
+        errors = []
+        # Try multiple times to cater for temporary failures on e.g. NFS mounted paths
+        max_attempts = 3
+        for i in range(0, max_attempts):
+            try:
+                shutil.rmtree(path)
+                ok = True
+                break
+            except OSError as err:
+                _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, i, err))
+                errors.append(err)
+                time.sleep(2)
+                # make sure write permissions are enabled on entire directory
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
+        if ok:
+            _log.info("Path %s successfully removed." % path)
+        else:
+            raise EasyBuildError("Failed to remove directory %s even after %d attempts.\nReasons: %s",
+                                 path, max_attempts, errors)
 
 
 def remove(paths):
@@ -596,6 +616,120 @@ def download_file(filename, url, path, forced=False):
         return None
 
 
+def create_index(path, ignore_dirs=None):
+    """
+    Create index for files in specified path.
+    """
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    index = set()
+
+    if not os.path.exists(path):
+        raise EasyBuildError("Specified path does not exist: %s", path)
+    elif not os.path.isdir(path):
+        raise EasyBuildError("Specified path is not a directory: %s", path)
+
+    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True, followlinks=True):
+        for filename in filenames:
+            # use relative paths in index
+            rel_dirpath = os.path.relpath(dirpath, path)
+            # avoid that relative paths start with './'
+            if rel_dirpath == '.':
+                rel_dirpath = ''
+            index.add(os.path.join(rel_dirpath, filename))
+
+        # do not consider (certain) hidden directories
+        # note: we still need to consider e.g., .local !
+        # replace list elements using [:], so os.walk doesn't process deleted directories
+        # see https://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+
+    return index
+
+
+def dump_index(path, max_age_sec=None):
+    """
+    Create index for files in specified path, and dump it to file (alphabetically sorted).
+    """
+    if max_age_sec is None:
+        max_age_sec = build_option('index_max_age')
+
+    index_fp = os.path.join(path, PATH_INDEX_FILENAME)
+    index_contents = create_index(path)
+
+    curr_ts = datetime.datetime.now()
+    if max_age_sec == 0:
+        end_ts = datetime.datetime.max
+    else:
+        end_ts = curr_ts + datetime.timedelta(0, max_age_sec)
+
+    lines = [
+        "# created at: %s" % str(curr_ts),
+        "# valid until: %s" % str(end_ts),
+    ]
+    lines.extend(sorted(index_contents))
+
+    write_file(index_fp, '\n'.join(lines), always_overwrite=False)
+
+    return index_fp
+
+
+def load_index(path, ignore_dirs=None):
+    """
+    Load index for specified path, and return contents (or None if no index exists).
+    """
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    index_fp = os.path.join(path, PATH_INDEX_FILENAME)
+    index = set()
+
+    if build_option('ignore_index'):
+        _log.info("Ignoring index for %s...", path)
+
+    elif os.path.exists(index_fp):
+        lines = read_file(index_fp).splitlines()
+
+        valid_ts_regex = re.compile("^# valid until: (.*)", re.M)
+        valid_ts = None
+
+        for line in lines:
+
+            # extract "valid until" timestamp, so we can check whether index is still valid
+            if valid_ts is None:
+                res = valid_ts_regex.match(line)
+            else:
+                res = None
+
+            if res:
+                valid_ts = res.group(1)
+                try:
+                    valid_ts = datetime.datetime.strptime(valid_ts, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError as err:
+                    raise EasyBuildError("Failed to parse timestamp '%s' for index at %s: %s", valid_ts, path, err)
+
+            elif line.startswith('#'):
+                _log.info("Ignoring unknown header line '%s' in index for %s", line, path)
+
+            else:
+                # filter out files that are in an ignored directory
+                path_dirs = line.split(os.path.sep)[:-1]
+                if not any(d in path_dirs for d in ignore_dirs):
+                    index.add(line)
+
+        # check whether index is still valid
+        if valid_ts:
+            curr_ts = datetime.datetime.now()
+            if curr_ts > valid_ts:
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                index = None
+            else:
+                print_msg("found valid index for %s, so using it...", path)
+
+    return index or None
+
+
 def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
@@ -666,22 +800,26 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
-            for filename in filenames:
-                if query.search(filename):
-                    if not path_hits:
-                        var = "CFGS%d" % var_index
-                        var_index += 1
-                    if filename_only:
-                        path_hits.append(filename)
-                    else:
-                        path_hits.append(os.path.join(dirpath, filename))
+        path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index is None or build_option('ignore_index'):
+            if os.path.exists(path):
+                _log.info("No index found for %s, creating one...", path)
+                path_index = create_index(path, ignore_dirs=ignore_dirs)
+            else:
+                path_index = []
+        else:
+            _log.info("Index found for %s, so using it...", path)
 
-            # do not consider (certain) hidden directories
-            # note: we still need to consider e.g., .local !
-            # replace list elements using [:], so os.walk doesn't process deleted directories
-            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+        for filepath in path_index:
+            filename = os.path.basename(filepath)
+            if query.search(filename):
+                if not path_hits:
+                    var = "CFGS%d" % var_index
+                    var_index += 1
+                if filename_only:
+                    path_hits.append(filename)
+                else:
+                    path_hits.append(os.path.join(path, filepath))
 
         path_hits = sorted(path_hits)
 
@@ -1388,22 +1526,8 @@ def path_matches(path, paths):
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
-    ok = False
-    for i in range(0, n):
-        try:
-            shutil.rmtree(path)
-            ok = True
-            break
-        except OSError as err:
-            _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
-            time.sleep(2)
-
-            # make sure write permissions are enabled on entire directory
-            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
-    if not ok:
-        raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
-    else:
-        _log.info("Path %s successfully removed." % path)
+    _log.deprecated("Use 'remove_dir' rather than 'rmtree2'", '5.0')
+    remove_dir(path)
 
 
 def find_backup_name_candidate(src_file):
@@ -1811,24 +1935,51 @@ def copy_files(paths, target_dir, force_in_dry_run=False):
             copy_file(path, target_dir)
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
+def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
     """
     Copy a directory from specified location to specified location
 
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
+    :param dirs_exist_ok: wrapper around shutil.copytree option, which was added in Python 3.8
 
-    Additional specified named arguments are passed down to shutil.copytree
+    On Python >= 3.8 shutil.copytree is always used
+    On Python < 3.8 if 'dirs_exist_ok' is False - shutil.copytree is used
+    On Python < 3.8 if 'dirs_exist_ok' is True - distutils.dir_util.copy_tree is used
+
+    Additional specified named arguments are passed down to shutil.copytree if used.
+
+    Because distutils.dir_util.copy_tree supports only 'symlinks' named argument,
+    using any other will raise EasyBuildError.
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
-            if os.path.exists(target_path):
+            if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            shutil.copytree(path, target_path, **kwargs)
+            if sys.version_info >= (3, 8):
+                # on Python >= 3.8, shutil.copytree works fine, thanks to availability of dirs_exist_ok named argument
+                shutil.copytree(path, target_path, dirs_exist_ok=dirs_exist_ok, **kwargs)
+
+            elif dirs_exist_ok:
+                # use distutils.dir_util.copy_tree with Python < 3.8 if dirs_exist_ok is enabled
+
+                # first get value for symlinks named argument (if any)
+                preserve_symlinks = kwargs.pop('symlinks', False)
+
+                # check if there are other named arguments (there shouldn't be, only 'symlinks' is supported)
+                if kwargs:
+                    raise EasyBuildError("Unknown named arguments passed to copy_dir with dirs_exist_ok=True: %s",
+                                         ', '.join(sorted(kwargs.keys())))
+                distutils.dir_util.copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
+
+            else:
+                # if dirs_exist_ok is not enabled, just use shutil.copytree
+                shutil.copytree(path, target_path, **kwargs)
+
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
@@ -2014,3 +2165,94 @@ def install_fake_vsc():
     sys.path.insert(0, fake_vsc_path)
 
     return fake_vsc_path
+
+
+def get_easyblock_class_name(path):
+    """Make sure file is an easyblock and get easyblock class name"""
+    fn = os.path.basename(path).split('.')[0]
+    mod = imp.load_source(fn, path)
+    clsmembers = inspect.getmembers(mod, inspect.isclass)
+    for cn, co in clsmembers:
+        if co.__module__ == mod.__name__:
+            ancestors = inspect.getmro(co)
+            if any(a.__name__ == 'EasyBlock' for a in ancestors):
+                return cn
+    return None
+
+
+def is_generic_easyblock(easyblock):
+    """Return whether specified easyblock name is a generic easyblock or not."""
+
+    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+
+
+def copy_easyblocks(paths, target_dir):
+    """ Find right location for easyblock file and copy it there"""
+    file_info = {
+        'eb_names': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    subdir = os.path.join('easybuild', 'easyblocks')
+    if os.path.exists(os.path.join(target_dir, subdir)):
+        for path in paths:
+            cn = get_easyblock_class_name(path)
+            if not cn:
+                raise EasyBuildError("Could not determine easyblock class from file %s" % path)
+
+            eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
+
+            if is_generic_easyblock(cn):
+                pkgdir = GENERIC_EASYBLOCK_PKG
+            else:
+                pkgdir = eb_name[0]
+
+            target_path = os.path.join(subdir, pkgdir, eb_name + '.py')
+
+            full_target_path = os.path.join(target_dir, target_path)
+            file_info['eb_names'].append(eb_name)
+            file_info['paths_in_repo'].append(full_target_path)
+            file_info['new'].append(not os.path.exists(full_target_path))
+            copy_file(path, full_target_path, force_in_dry_run=True)
+
+    else:
+        raise EasyBuildError("Could not find %s subdir in %s", subdir, target_dir)
+
+    return file_info
+
+
+def copy_framework_files(paths, target_dir):
+    """ Find right location for framework file and copy it there"""
+    file_info = {
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    paths = [os.path.abspath(path) for path in paths]
+
+    framework_topdir = 'easybuild-framework'
+
+    for path in paths:
+        target_path = None
+        dirnames = os.path.dirname(path).split(os.path.sep)
+
+        if framework_topdir in dirnames:
+            # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
+            subdirs = []
+            while(dirnames[-1] != framework_topdir):
+                subdirs.insert(0, dirnames.pop())
+
+            parent_dir = os.path.join(*subdirs) if subdirs else ''
+            target_path = os.path.join(target_dir, parent_dir, os.path.basename(path))
+        else:
+            raise EasyBuildError("Specified path '%s' does not include a '%s' directory!", path, framework_topdir)
+
+        if target_path:
+            file_info['paths_in_repo'].append(target_path)
+            file_info['new'].append(not os.path.exists(target_path))
+            copy_file(path, target_path)
+        else:
+            raise EasyBuildError("Couldn't find parent folder of updated file: %s", path)
+
+    return file_info

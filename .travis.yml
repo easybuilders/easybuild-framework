@@ -57,14 +57,18 @@ script:
     - if [ ! -z $MOD_INIT ] && [ ! -z $LMOD_VERSION ]; then alias ml=foobar; fi
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; type module; fi
-    # install GitHub token
+    # install GitHub token;
+    # unset $GITHUB_TOKEN environment variable after installing token,
+    # to avoid that it is included in environment dump that is included in EasyBuild debug logs,
+    # which causes test_from_pr_token_log to fail...
     - if [ ! -z $GITHUB_TOKEN ]; then
         if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
             then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
             else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
         fi;
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
-      fi
+      fi;
+      unset GITHUB_TOKEN;
     - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # create 'source distribution' tarball, like we do when publishing a release to PyPI

@@ -36,6 +36,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+:author: Victor Holanda (CSCS, ETH Zurich)
 """
 
 import copy
@@ -45,6 +46,7 @@ import os
 import re
 from distutils.version import LooseVersion
 
+import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -58,10 +60,12 @@ from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACE
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN
+from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
-from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, copy_file, decode_class_name, encode_class_name
-from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, read_file, write_file
+from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
+from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -102,6 +106,7 @@ except ImportError as err:
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
+_path_indexes = {}
 
 
 def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
@@ -1161,20 +1166,133 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
-    def handle_external_module_metadata(self, dep_name):
+    def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
-        helper function for _parse_dependency
-        handles metadata for external module dependencies
-        """
-        dependency = {}
-        if dep_name in self.external_modules_metadata:
-            dependency['external_module_metadata'] = self.external_modules_metadata[dep_name]
-            self.log.info("Updated dependency info with available metadata for external module %s: %s",
-                          dep_name, dependency['external_module_metadata'])
-        else:
-            self.log.info("No metadata available for external module %s", dep_name)
+        Helper function for handle_external_module_metadata.
 
-        return dependency
+        Tries to determine metadata for external module when there is not entry in the metadata file,
+        by looking at the variables defined by the module file.
+
+        This is mainly intended for modules provided in the Cray Programming Environment,
+        but it could also be useful in other contexts.
+
+        The following pairs of variables are considered (in order, first hit wins),
+        where 'XXX' is the software name in capitals:
+          1. $CRAY_XXX_PREFIX and $CRAY_XXX_VERSION
+          1. $CRAY_XXX_PREFIX_DIR and $CRAY_XXX_VERSION
+          2. $CRAY_XXX_DIR and $CRAY_XXX_VERSION
+          2. $CRAY_XXX_ROOT and $CRAY_XXX_VERSION
+          5. $XXX_PREFIX and $XXX_VERSION
+          4. $XXX_DIR and $XXX_VERSION
+          5. $XXX_ROOT and $XXX_VERSION
+          3. $XXX_HOME and $XXX_VERSION
+
+        If none of the pairs is found, then an empty dictionary is returned.
+
+        :param mod_name: name of the external module
+        :param metadata: already available metadata for this external module (if any)
+        """
+        res = {}
+
+        if existing_metadata is None:
+            existing_metadata = {}
+
+        soft_name = existing_metadata.get('name')
+        if soft_name:
+            # software name is a list of names in metadata, just grab first one
+            soft_name = soft_name[0]
+        else:
+            # if the software name is not known yet, use the first part of the module name as software name,
+            # but strip off the leading 'cray-' part first (examples: cray-netcdf/4.6.1.3,  cray-fftw/3.3.8.2)
+            soft_name = mod_name.split('/')[0]
+
+            cray_prefix = 'cray-'
+            if soft_name.startswith(cray_prefix):
+                soft_name = soft_name[len(cray_prefix):]
+
+        # determine software name to use in names of environment variables (upper case, '-' becomes '_')
+        soft_name_in_mod_name = convert_name(soft_name.replace('-', '_'), upper=True)
+
+        var_name_pairs = [
+            ('CRAY_%s_PREFIX', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_PREFIX_DIR', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_DIR', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_ROOT', 'CRAY_%s_VERSION'),
+            ('%s_PREFIX', '%s_VERSION'),
+            ('%s_DIR', '%s_VERSION'),
+            ('%s_ROOT', '%s_VERSION'),
+            ('%s_HOME', '%s_VERSION'),
+        ]
+
+        for prefix_var_name, version_var_name in var_name_pairs:
+            prefix_var_name = prefix_var_name % soft_name_in_mod_name
+            version_var_name = version_var_name % soft_name_in_mod_name
+
+            prefix = self.modules_tool.get_setenv_value_from_modulefile(mod_name, prefix_var_name)
+            version = self.modules_tool.get_setenv_value_from_modulefile(mod_name, version_var_name)
+
+            # we only have a hit when values for *both* variables are found
+            if prefix and version:
+
+                if 'name' not in existing_metadata:
+                    res['name'] = [soft_name]
+
+                # if a version is already set in the available metadata, we retain it
+                if 'version' not in existing_metadata:
+                    res['version'] = [version]
+                    self.log.info('setting external module %s version to be %s', mod_name, version)
+
+                # if a prefix is already set in the available metadata, we retain it
+                if 'prefix' not in existing_metadata:
+                    res['prefix'] = prefix
+                    self.log.info('setting external module %s prefix to be %s', mod_name, prefix_var_name)
+                break
+
+        return res
+
+    def handle_external_module_metadata(self, mod_name):
+        """
+        Helper function for _parse_dependency; collects metadata for external module dependencies.
+
+        :param mod_name: name of external module to collect metadata for
+        """
+        partial_mod_name = mod_name.split('/')[0]
+
+        # check whether existing metadata for external modules already has metadata for this module;
+        # first using full module name (as it is provided), for example 'cray-netcdf/4.6.1.3',
+        # then with partial module name, for example 'cray-netcdf'
+        metadata = self.external_modules_metadata.get(mod_name, {})
+        self.log.info("Available metadata for external module %s: %s", mod_name, metadata)
+
+        partial_mod_name_metadata = self.external_modules_metadata.get(partial_mod_name, {})
+        self.log.info("Available metadata for external module using partial module name %s: %s",
+                      partial_mod_name, partial_mod_name_metadata)
+
+        for key in partial_mod_name_metadata:
+            if key not in metadata:
+                metadata[key] = partial_mod_name_metadata[key]
+
+        self.log.info("Combined available metadata for external module %s: %s", mod_name, metadata)
+
+        # if not all metadata is available (name/version/prefix), probe external module to collect more metadata;
+        # first with full module name, and then with partial module name if first probe didn't return anything;
+        # note: result of probe_external_module_metadata only contains metadata for keys that were not set yet
+        if not all(key in metadata for key in ['name', 'prefix', 'version']):
+            self.log.info("Not all metadata found yet for external module %s, probing module...", mod_name)
+            probed_metadata = self.probe_external_module_metadata(mod_name, existing_metadata=metadata)
+            if probed_metadata:
+                self.log.info("Extra metadata found by probing external module %s: %s", mod_name, probed_metadata)
+                metadata.update(probed_metadata)
+            else:
+                self.log.info("No extra metadata found by probing %s, trying with partial module name...", mod_name)
+                probed_metadata = self.probe_external_module_metadata(partial_mod_name, existing_metadata=metadata)
+                self.log.info("Extra metadata for external module %s found by probing partial module name %s: %s",
+                              mod_name, partial_mod_name, probed_metadata)
+                metadata.update(probed_metadata)
+
+            self.log.info("Obtained metadata after module probing: %s", metadata)
+
+        return {'external_module_metadata': metadata}
 
     def handle_multi_deps(self):
         """
@@ -1459,17 +1577,32 @@ class EasyConfig(object):
 
     def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
-        if self.template_values is None:
-            self.template_values = {}
 
         # step 0. self.template_values can/should be updated from outside easyconfig
-        # (eg the run_setp code in EasyBlock)
+        # (eg the run_step code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
         prev_enable_templating = self.enable_templating
+
         self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore)
+
+        if self.template_values is None:
+            # if no template values are set yet, initiate with a minimal set of template values;
+            # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
+            # which is a pretty weird use case, but fine...
+            self.template_values = template_constant_dict(self, ignore=ignore)
+
+        self.enable_templating = prev_enable_templating
+
+        # grab toolchain instance with templating support enabled,
+        # which is important in case the Toolchain instance was not created yet
+        toolchain = self.toolchain
+
+        # get updated set of template values, now with toolchain instance
+        # (which is used to define the %(mpi_cmd_prefix)s template)
+        self.enable_templating = False
+        template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
         self.enable_templating = prev_enable_templating
 
         # update the template_values dict
@@ -1681,8 +1814,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
 
 def is_generic_easyblock(easyblock):
     """Return whether specified easyblock name is a generic easyblock or not."""
-
-    return easyblock and not easyblock.startswith(EASYBLOCK_CLASS_PREFIX)
+    _log.deprecated("is_generic_easyblock function was moved to easybuild.tools.filetools", '5.0')
+    return filetools.is_generic_easyblock(easyblock)
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -1697,7 +1830,7 @@ def get_module_path(name, generic=None, decode=True):
         return None
 
     if generic is None:
-        generic = is_generic_easyblock(name)
+        generic = filetools.is_generic_easyblock(name)
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:
@@ -1706,7 +1839,7 @@ def get_module_path(name, generic=None, decode=True):
 
     modpath = ['easybuild', 'easyblocks']
     if generic:
-        modpath.append('generic')
+        modpath.append(GENERIC_EASYBLOCK_PKG)
 
     return '.'.join(modpath + [module_name])
 
@@ -1899,10 +2032,29 @@ def robot_find_easyconfig(name, version):
 
     res = None
     for path in paths:
+
+        if build_option('ignore_index'):
+            _log.info("Ignoring index for %s...", path)
+            path_index = []
+        elif path in _path_indexes:
+            path_index = _path_indexes[path]
+            _log.info("Found loaded index for %s", path)
+        elif os.path.exists(path):
+            path_index = load_index(path)
+            if path_index is None:
+                _log.info("No index found for %s, so creating it...", path)
+                path_index = create_index(path)
+            else:
+                _log.info("Loaded index for %s", path)
+
+            _path_indexes[path] = path_index
+        else:
+            path_index = []
+
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
-            if os.path.isfile(easyconfig_path):
+            if easyconfig_path in path_index or os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                 _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
                 res = _easyconfig_files_cache[key]

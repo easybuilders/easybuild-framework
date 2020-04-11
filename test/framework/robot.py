@@ -88,6 +88,10 @@ class MockModule(modules.ModulesTool):
             txt = 'Module %s not found' % modname
         return txt
 
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """Dummy implementation of get_setenv_value_from_modulefile, always returns None."""
+        return None
+
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
@@ -424,14 +428,14 @@ class RobotTest(EnhancedTestCase):
             # to test resolving of dependencies with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
-            "   ('OpenMPI', '2.1.2'),",  # available with GCC/6.4.0-2.28
+            # the use of %(version_minor)s here is mainly to check if templates are being handled correctly
+            # (it doesn't make much sense, but it serves the purpose)
+            "   ('OpenMPI', '%(version_minor)s.1.2'),",  # available with GCC/6.4.0-2.28
             "   ('OpenBLAS', '0.2.20'),",  # available with GCC/6.4.0-2.28
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20'),",  # available with gompi/2018a
             "   ('SQLite', '3.8.10.2'),",
             "]",
             # toolchain as list line, for easy modification later;
-            # the use of %(version_minor)s here is mainly to check if templates are being handled correctly
-            # (it doesn't make much sense, but it serves the purpose)
             "toolchain = {'name': 'foss', 'version': '%(version_minor)s018a'}",
         ]
         write_file(barec, '\n'.join(barec_lines))
