@@ -1503,6 +1503,31 @@ class RobotTest(EnhancedTestCase):
         paths = search_easyconfigs('hwloc-1.8', consider_extra_paths=False, print_result=False, filename_only=True)
         self.assertEqual(paths, ['hwloc-1.8-gcccuda-2018a.eb'])
 
+        # test use of print_result (enabled by default)
+        for filename_only in [None, False, True]:
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            kwargs = {}
+            if filename_only is not None:
+                kwargs['filename_only'] = filename_only
+            search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+            self.assertEqual(len(stdout.splitlines()), 2)
+            pattern = []
+            for ec_fn in ['binutils-2.25-GCCcore-4.9.3.eb', 'binutils-2.26-GCCcore-4.9.3.eb']:
+                if filename_only:
+                    path = ec_fn
+                else:
+                    path = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs', 'b', 'binutils', ec_fn)
+                pattern.append(r"^ \* .*%s$" % path)
+
+            regex = re.compile('\n'.join(pattern), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ returns all the testcases in this module """
