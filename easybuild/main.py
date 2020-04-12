@@ -247,7 +247,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing))
 
     elif options.list_installed_software:
         detailed = options.list_installed_software == 'detailed'

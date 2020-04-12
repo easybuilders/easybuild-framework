@@ -506,13 +506,14 @@ def find_related_easyconfigs(path, ec):
     return sorted(res)
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop'):
+def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
     :param paths: path tuples (path, generated) of easyconfigs to review
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
+    :param testing: whether to ignore PR labels (used in test_review_pr)
     """
     pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
     if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
@@ -549,7 +550,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     pr_target_account = build_option('pr_target_account')
     github_user = build_option('github_user')
     pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
-    pr_labels = [label['name'] for label in pr_data['labels']]
+    pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
 
     expected_labels = det_pr_labels(file_info, pr_target_repo)
 
