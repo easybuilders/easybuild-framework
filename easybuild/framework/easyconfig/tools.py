@@ -545,22 +545,23 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
-    file_info = det_file_info(pr_files, download_repo_path)
+    if pr:
+        file_info = det_file_info(pr_files, download_repo_path)
 
-    pr_target_account = build_option('pr_target_account')
-    github_user = build_option('github_user')
-    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
-    pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
+        pr_target_account = build_option('pr_target_account')
+        github_user = build_option('github_user')
+        pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+        pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
 
-    expected_labels = det_pr_labels(file_info, pr_target_repo)
+        expected_labels = det_pr_labels(file_info, pr_target_repo)
 
-    missing_labels = []
-    for label in expected_labels:
-        if label not in pr_labels:
-            missing_labels.append(label)
+        missing_labels = []
+        for label in expected_labels:
+            if label not in pr_labels:
+                missing_labels.append(label)
 
-    if missing_labels:
-        lines.extend(['', "This PR should be labeled with %s" % ', '.join(["'%s'" % l for l in missing_labels])])
+        if missing_labels:
+            lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % l for l in missing_labels])])
 
     return '\n'.join(lines)
 

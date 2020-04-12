@@ -76,7 +76,7 @@ from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, 
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
-from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import GITHUB_EB_MAIN
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
@@ -591,6 +591,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
+            'add-pr-labels': ("Try to add labels to PR based on files changed", int, 'store', None, {'metavar': 'PR#'}),
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-contrib': ("Runs checks to see whether the given easyconfigs are ready to be contributed back",
                               None, 'store_true', False),

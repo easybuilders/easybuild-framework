@@ -1334,7 +1334,7 @@ def post_pr_labels(pr, labels):
     Update PR labels
     """
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     # fetch GitHub token if available
     github_user = build_option('github_user')
@@ -1363,6 +1363,45 @@ def post_pr_labels(pr, labels):
             return False
     else:
         return True
+
+
+def add_pr_labels(pr, branch='develop'):
+    """
+    Try to determine and add labels to PR.
+    :param pr: pull request number in easybuild-easyconfigs repo
+    :param branch: easybuild-easyconfigs branch to compare with
+    """
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet")
+
+    tmpdir = tempfile.mkdtemp()
+
+    download_repo_path = download_repo(branch=branch, path=tmpdir)
+
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+
+    file_info = det_file_info(pr_files, download_repo_path)
+
+    pr_target_account = build_option('pr_target_account')
+    github_user = build_option('github_user')
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+    pr_labels = [label['name'] for label in pr_data['labels']]
+
+    expected_labels = det_pr_labels(file_info, pr_target_repo)
+
+    missing_labels = []
+    for label in expected_labels:
+        if label not in pr_labels:
+            missing_labels.append(label)
+
+    if missing_labels:
+        missing_labels_txt = ', '.join(["'%s'" % l for l in missing_labels])
+        print_msg("PR #%s should be labelled %s" % (pr, missing_labels_txt), log=_log, prefix=False)
+        if not post_pr_labels(pr, missing_labels):
+            print_msg("Could not add labels %s to PR #%s" % (missing_labels_txt, pr), log=_log, prefix=False)
+    else:
+        print_msg("Could not determine any missing labels for PR #%s" % pr, log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -1574,7 +1613,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
         if labels:
             pr = data['html_url'].split('/')[-1]
             if not post_pr_labels(pr, labels):
-                print_msg("This PR should be labeled %s" % ', '.join(labels), log=_log, prefix=False)
+                print_msg("This PR should be labelled %s" % ', '.join(labels), log=_log, prefix=False)
 
 
 def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
