@@ -1471,6 +1471,27 @@ class FileToolsTest(EnhancedTestCase):
         ft.mkdir(testdir)
         self.assertErrorRegex(EasyBuildError, "Target location .* already exists", ft.copy_dir, to_copy, testdir)
 
+        # if the directory already exists and 'dirs_exist_ok' is True, copy_dir should succeed
+        ft.copy_dir(to_copy, testdir, dirs_exist_ok=True)
+        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(testdir)))
+
+        # if the directory already exists and 'dirs_exist_ok' is True and there is another named argument (ignore)
+        # we expect clean error on Python < 3.8 and pass the test on Python >= 3.8
+        # NOTE: reused ignore from previous test
+        def ignore_func(_, names):
+            return [x for x in names if '6.4.0-2.28' in x]
+
+        shutil.rmtree(testdir)
+        ft.mkdir(testdir)
+        if sys.version_info >= (3, 8):
+            ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
+            self.assertEqual(sorted(os.listdir(testdir)), expected)
+            self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
+        else:
+            error_pattern = "Unknown named arguments passed to copy_dir with dirs_exist_ok=True: ignore"
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_dir, to_copy, testdir,
+                                  dirs_exist_ok=True, ignore=ignore_func)
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -1694,7 +1715,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 79)
+            self.assertEqual(len(index), 81)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -1743,7 +1764,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 24)
+        self.assertEqual(len(index), 26)
         for fn in expected:
             self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
 
@@ -1773,7 +1794,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 24)
+        self.assertEqual(len(index), 26)
         for fn in expected:
             self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
 
@@ -1812,6 +1833,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
         self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
         self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
+
+        # also test case-sensitive searching
+        var_defs, hits_bis = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits_bis, [])
+
+        var_defs, hits_bis = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits_bis, hits)
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)

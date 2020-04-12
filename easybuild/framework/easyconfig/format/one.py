@@ -65,15 +65,17 @@ REFORMAT_ORDERED_ITEM_KEYS = {
 _log = fancylogger.getLogger('easyconfig.format.one', fname=False)
 
 
-def dump_dependency(dep, toolchain):
+def dump_dependency(dep, toolchain, toolchain_hierarchy=None):
     """Dump parsed dependency in tuple format"""
+    if not toolchain_hierarchy:
+        toolchain_hierarchy = [toolchain]
 
     if dep['external_module']:
         res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
     else:
-        # mininal spec: (name, version)
+        # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
-        if dep['toolchain'] != toolchain:
+        if all(dep['toolchain'] != subtoolchain for subtoolchain in toolchain_hierarchy):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
@@ -260,7 +262,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return res
 
-    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val):
+    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """
         Determine parameters in the dumped easyconfig file which have a non-default value.
         """
@@ -279,12 +281,18 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                                 # the way that builddependencies are constructed with multi_deps
                                 # we just need to dump the first entry without the dependencies
                                 # that are listed in multi_deps
-                                valstr = [dump_dependency(d, ecfg['toolchain']) for d in val[0]
-                                          if d['name'] not in ecfg['multi_deps']]
+                                valstr = [
+                                    dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
+                                    for d in val[0] if d['name'] not in ecfg['multi_deps']
+                                ]
                             else:
-                                valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                                valstr = [
+                                    [dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
+                                     for d in dep] for dep in val
+                                ]
                         else:
-                            valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                            valstr = [dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
+                                      for d in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
@@ -299,7 +307,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return eclines, printed_keys
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """
         Dump easyconfig in format v1.
 
@@ -307,12 +315,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         :param default_values: default values for easyconfig parameters
         :param templ_const: known template constants
         :param templ_val: known template values
+        :param toolchain_hierarchy: hierarchy of toolchains for easyconfig
         """
         # include header comments first
         dump = self.comments['header'][:]
 
         # print easyconfig parameters ordered and in groups specified above
-        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val)
+        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val,
+                                                         toolchain_hierarchy=toolchain_hierarchy)
         dump.extend(params)
 
         # print other easyconfig parameters at the end

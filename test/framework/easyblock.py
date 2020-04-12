@@ -1765,11 +1765,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         # full check also catches checksum issues with extensions
         res = eb.check_checksums()
-        self.assertEqual(len(res), 5)
+        self.assertEqual(len(res), 4)
         run_checks()
 
         idx = 2
-        for ext in ['bar', 'barbar', 'toy']:
+        for ext in ['bar', 'barbar']:
             expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
             self.assertTrue(res[idx].startswith(expected))
             idx += 1
