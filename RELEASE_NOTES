@@ -8,18 +8,23 @@ v4.2.0 (April 14th 2020)
 
 feature release
 
-- various enhancements, including:
-  - add support for --try-update-deps, to upgrade dependencies based on available easyconfigs (#2599)
+- add support for --try-update-deps (experimental feature), to upgrade dependencies based on available easyconfigs (#2599)
+- adding locking to prevent two parallel builds of the same installation directory (#3009)
+  - for more information, see https://easybuild.readthedocs.io/en/latest/Locks.html
+- significantly speed up -D/--dry-run by avoiding useless 'module show' (#3203)
+- add support for creating an index & using it when searching for easyconfigs (#3210)
+  - for more information, see https://easybuild.readthedocs.io/en/latest/Easyconfigs_index.html
+- additional GitHub integration features:
+    - add support for targeting easyblocks and framework repositories in --new-pr (#1876, #3189)
+    - add support for --include-easyblocks-from-pr (#3206)
+    - for more information, https://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html
+- various other enhancements, including:
   - add a contrib/hooks dir with some examples of hooks used (#2777)
-  - adding locking to prevent two parallel builds of the same installation directory (#3009)
   - also mention working directory + input passed via stdin (if any) in trace output of run_cmd (#3168)
-  - add probe of PREFIX and VERSION variable in external modules (#3174)
+  - probe external modules for missing metadata that is not provided via extermal module metadata file (#3174)
   - also update $CMAKE_PREFIX_PATH and $CMAKE_LIBRARY_PATH in generated module file (#3176)
-  - add support for targeting easyblocks and framework in --new-pr (#3189)
   - optionally call log.warning in print_warning (#3195)
   - add an option to git_config to retain the .git directory (#3197)
-  - add support for --include-easyblocks-from-pr (#3206)
-  - add support for creating an index & using it when searching for easyconfigs (#3210)
   - allow use of SYSTEM as --try-toolchain option (#3213)
   - mention CPU arch name in comment for uploaded test report, if it's known by archspec (#3227)
   - make --merge-pr take into account --pr-target-branch (#3236)
@@ -30,15 +35,14 @@ feature release
   - support template name for CUDA version (#3274)
 - various bug fixes, including:
   - use correct module for errors_found_in_log (#3119)
-  - fix EasyConfig.update code to handle both strings and lists as input. (#3170)
+  - fix EasyConfig.update code to handle both strings and lists as input (#3170)
   - fix removing temporary branch on --check-github (#3182)
   - fix shebang even if first line doesn't start with '#!' (#3183)
   - make boostrap script work with Python 3 (#3186)
   - read patch files as bytestring to avoid UnicodeDecodeError for patches that include funky characters (#3191)
   - fix online check in --check-github: try repeatedly and with different URLs to cater for HTTP issues (#3194)
-  - don't crash when GitPython is not installed in Python3 (#3198)
+  - don't crash when GitPython is not installed when using Python 3 (#3198)
   - fix os_name_map for RHEL8 (#3201)
-  - significantly speed up -D/--dry-run by avoiding useless 'module show' (#3203)
   - don't add shebang to binary files (#3208)
   - use checkout@v2 in GitHub Actions to fix broken re-triggered tests (#3219)
   - don't filter out None values in to_checksums, leave them in place (#3225)
@@ -52,7 +56,6 @@ feature release
   - show easyconfig filenames for parallel build (#3258)
   - make EasyConfig.dump aware of toolchain hierarchy, to avoid hardcoded subtoolchains in dependencies easyconfig parameters (#3261)
   - fix use of --copy-ec with a single argument, assume copy to current working directory (#3262)
-  - use apt-spy2 before using apt in GitHub Actions (#3268)
   - fix posting of comment in PR with --upload-test-report (#3272)
   - take into account dependencies marked as external modules when composing template values like %(pyver)s (#3273)
 - other changes:
@@ -61,7 +64,6 @@ feature release
   - enable tracking of test suite coverage using coveralls (#3204)
   - make tests use easybuilders/testrepository rather than hpcugent/testrepository after it was moved (#3238)
   - improve raised error in remove_dir and deprecate rmtree2 (#3228)
-  - stop using apt-spy2 to pick an alternative mirror, it's expensive and may result in picking a faulty mirror (#3276)
 
 
 v4.1.2 (March 16th 2020)
@@ -72,6 +74,7 @@ bugfix release
 - fix gitdb dependency on Python 2.6 in test configuration (#3212)
 - fix broken test for --review-pr by using different PR to test with (#3226)
 - censor authorization part of headers before logging ReST API request (#3248)
+  - see also https://github.com/easybuilders/easybuild-framework/security/advisories/GHSA-2wx6-wc87-rmjm
 
 
 v4.1.1 (January 16th 2020)
