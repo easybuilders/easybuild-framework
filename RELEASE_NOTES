@@ -3,6 +3,67 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.2.0 (April 14th 2020)
+------------------------
+
+feature release
+
+- various enhancements, including:
+  - add support for --try-update-deps, to upgrade dependencies based on available easyconfigs (#2599)
+  - add a contrib/hooks dir with some examples of hooks used (#2777)
+  - adding locking to prevent two parallel builds of the same installation directory (#3009)
+  - also mention working directory + input passed via stdin (if any) in trace output of run_cmd (#3168)
+  - add probe of PREFIX and VERSION variable in external modules (#3174)
+  - also update $CMAKE_PREFIX_PATH and $CMAKE_LIBRARY_PATH in generated module file (#3176)
+  - add support for targeting easyblocks and framework in --new-pr (#3189)
+  - optionally call log.warning in print_warning (#3195)
+  - add an option to git_config to retain the .git directory (#3197)
+  - add support for --include-easyblocks-from-pr (#3206)
+  - add support for creating an index & using it when searching for easyconfigs (#3210)
+  - allow use of SYSTEM as --try-toolchain option (#3213)
+  - mention CPU arch name in comment for uploaded test report, if it's known by archspec (#3227)
+  - make --merge-pr take into account --pr-target-branch (#3236)
+  - make --check-contrib print a warning when None is used for checksums (#3244)
+  - update install-EasyBuild-develop.sh script and create script for 2020a merge sprint (#3245)
+  - add template for mpi_cmd_prefix (#3264)
+  - update copy_dir to include option to merge directories (#3270)
+  - support template name for CUDA version (#3274)
+- various bug fixes, including:
+  - use correct module for errors_found_in_log (#3119)
+  - fix EasyConfig.update code to handle both strings and lists as input. (#3170)
+  - fix removing temporary branch on --check-github (#3182)
+  - fix shebang even if first line doesn't start with '#!' (#3183)
+  - make boostrap script work with Python 3 (#3186)
+  - read patch files as bytestring to avoid UnicodeDecodeError for patches that include funky characters (#3191)
+  - fix online check in --check-github: try repeatedly and with different URLs to cater for HTTP issues (#3194)
+  - don't crash when GitPython is not installed in Python3 (#3198)
+  - fix os_name_map for RHEL8 (#3201)
+  - significantly speed up -D/--dry-run by avoiding useless 'module show' (#3203)
+  - don't add shebang to binary files (#3208)
+  - use checkout@v2 in GitHub Actions to fix broken re-triggered tests (#3219)
+  - don't filter out None values in to_checksums, leave them in place (#3225)
+  - fix defining of $MPI_INC_* and $MPI_LIB_* environment variables for impi version 2019 and later (#3229)
+  - use correct target account/repo when creating test report & posting comment in PR (#3234)
+  - reorganize EasyBlock.extensions_step to ensure correct filtering of extensions (#3235)
+  - also support %(installdir)s and %(builddir)s templates for extensions (#3237)
+  - unset $GITHUB_TOKEN in Travis after installing token, to avoid failing test_from_pr_token_log (#3252)
+  - fix reporting when skipping extensions (#3254)
+  - avoid API rate limit errors on online check in --check-github (#3257)
+  - show easyconfig filenames for parallel build (#3258)
+  - make EasyConfig.dump aware of toolchain hierarchy, to avoid hardcoded subtoolchains in dependencies easyconfig parameters (#3261)
+  - fix use of --copy-ec with a single argument, assume copy to current working directory (#3262)
+  - use apt-spy2 before using apt in GitHub Actions (#3268)
+  - fix posting of comment in PR with --upload-test-report (#3272)
+  - take into account dependencies marked as external modules when composing template values like %(pyver)s (#3273)
+- other changes:
+  - increase timeout & use api.github.com for connectivity check in check_github (#3192)
+  - restore flake8 default ignores (#3193)
+  - enable tracking of test suite coverage using coveralls (#3204)
+  - make tests use easybuilders/testrepository rather than hpcugent/testrepository after it was moved (#3238)
+  - improve raised error in remove_dir and deprecate rmtree2 (#3228)
+  - stop using apt-spy2 to pick an alternative mirror, it's expensive and may result in picking a faulty mirror (#3276)
+
+
 v4.1.2 (March 16th 2020)
 ------------------------
 
@@ -11,6 +72,7 @@ bugfix release
 - fix gitdb dependency on Python 2.6 in test configuration (#3212)
 - fix broken test for --review-pr by using different PR to test with (#3226)
 - censor authorization part of headers before logging ReST API request (#3248)
+
 
 v4.1.1 (January 16th 2020)
 --------------------------
