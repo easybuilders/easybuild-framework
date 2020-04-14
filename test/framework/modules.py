@@ -317,8 +317,11 @@ class ModulesTest(EnhancedTestCase):
         # And completely different name
         self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
+        # Allow for now...
+        self.allow_deprecated_behaviour()
         self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
         self.assertEqual(self.modtool.module_wrapper_exists('Java/site_default'), 'Java/1.8.0_181')
+        self.disallow_deprecated_behaviour()
 
         reset_module_caches()
 
@@ -330,8 +333,11 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
         self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
         self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
+
+        self.allow_deprecated_behaviour()
         self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
         self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/site_default'), 'Core/Java/1.8.0_181')
+        self.disallow_deprecated_behaviour()
 
         # also check with .modulerc.lua for Lmod 7.8 or newer
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
@@ -356,8 +362,10 @@ class ModulesTest(EnhancedTestCase):
             # And completely different name
             self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
+            self.allow_deprecated_behaviour()
             self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
             self.assertEqual(self.modtool.module_wrapper_exists('Java/site_default'), 'Java/1.8.0_181')
+            self.disallow_deprecated_behaviour()
 
             reset_module_caches()
 
@@ -367,8 +375,11 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
             self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
             self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
+
+            self.allow_deprecated_behaviour()
             self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
             self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/site_default'), 'Core/Java/1.8.0_181')
+            self.disallow_deprecated_behaviour()
 
         # Test alias in home directory .modulerc
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
