@@ -1292,8 +1292,8 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
         self.assertTrue(eb340_url, res)
         pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern_md5 = pattern + 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
-        pattern_sha256 = pattern + 'easybuild-[0-9rc.]+.tar.gz#sha256=[a-f0-9]{64}$'
+        pattern_md5 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#md5=[a-f0-9]{32}$'
+        pattern_sha256 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#sha256=[a-f0-9]{64}$'
         regex_md5 = re.compile(pattern_md5)
         regex_sha256 = re.compile(pattern_sha256)
         for url in res:
