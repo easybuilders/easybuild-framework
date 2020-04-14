@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import DOCKER_BASE_IMAGE_CENTOS, DOCKER_BASE_IMAGE_UBUNTU
 from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.containers.utils import det_os_deps
-from easybuild.tools.filetools import rmtree2
+from easybuild.tools.filetools import remove_dir
 from easybuild.tools.run import run_cmd
 
 
@@ -157,4 +157,4 @@ class DockerContainer(ContainerGenerator):
         run_cmd(docker_cmd, path=tempdir, stream_output=True)
         print_msg("Docker image created at %s" % container_name, log=self.log)
 
-        rmtree2(tempdir)
+        remove_dir(tempdir)

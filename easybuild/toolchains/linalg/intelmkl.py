@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -141,7 +141,8 @@ class IntelMKL(LinAlg):
 
         # exact paths/linking statements depend on imkl version
         found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
-        if LooseVersion(found_version) < LooseVersion('10.3'):
+        ver = LooseVersion(found_version)
+        if ver < LooseVersion('10.3'):
             if self.options.get('32bit', None):
                 self.BLAS_LIB_DIR = ['lib/32']
             else:
@@ -152,7 +153,11 @@ class IntelMKL(LinAlg):
                 raise EasyBuildError("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)",
                                      found_version)
             else:
-                self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
+                self.BLAS_LIB_DIR = ['mkl/lib/intel64']
+                if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
+                    self.BLAS_LIB_DIR.append('compiler/lib/intel64')
+                else:
+                    self.BLAS_LIB_DIR.append('lib/intel64')
 
             self.BLAS_INCLUDE_DIR = ['mkl/include']
 

@@ -73,4 +73,5 @@ else
         eval ${PRECONFIG_CMD}
     fi
     ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
+    cd - > /dev/null
 fi

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,3 +32,11 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 
 class DummyExtension(ExtensionEasyBlock):
     """Support for building/installing dummy extensions."""
+
+    def __init__(self, *args, **kwargs):
+
+        super(DummyExtension, self).__init__(*args, **kwargs)
+
+        # use lowercase name as default value for expected module name, and replace '-' with '_'
+        if 'modulename' not in self.options:
+            self.options['modulename'] = self.name.lower().replace('-', '_')

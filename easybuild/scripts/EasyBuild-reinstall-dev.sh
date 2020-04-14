@@ -3,7 +3,7 @@
 if [ $# -ne 1 ]
 then
     echo "Usage: source <script> <installation prefix>"
-    return 1
+    exit 1
 else
     PREFIX=$1
 
@@ -28,7 +28,7 @@ else
         then
             echo
             echo "ERROR: installation of easybuild-$pkg failed, see error messages in ${logfile}"
-            return $exit_code
+            exit $exit_code
         fi
     done
 
@@ -51,6 +51,6 @@ else
     if [ $ec -ne 0 ]
     then
         echo "ERROR: Sanity check failed."
-        return $ec
+        exit $ec
     fi
 fi

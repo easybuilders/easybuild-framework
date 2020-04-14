@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ import os
 import re
 import tempfile
 import shutil
+import stat
 import sys
 from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -41,8 +42,10 @@ from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
@@ -50,7 +53,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 78
+TEST_MODULES_COUNT = 81
 
 
 class ModulesTest(EnhancedTestCase):
@@ -281,6 +284,106 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertFalse(loaded_modules[-1] == 'GCC/6.4.0-2.28')
 
+    def test_curr_module_paths(self):
+        """Test for curr_module_paths function."""
+
+        # first, create a couple of (empty) directories to use as entries in $MODULEPATH
+        test1 = os.path.join(self.test_prefix, 'test1')
+        mkdir(test1)
+        test2 = os.path.join(self.test_prefix, 'test2')
+        mkdir(test2)
+        test3 = os.path.join(self.test_prefix, 'test3')
+        mkdir(test3)
+
+        os.environ['MODULEPATH'] = ''
+        self.assertEqual(curr_module_paths(), [])
+
+        os.environ['MODULEPATH'] = '%s:%s:%s' % (test1, test2, test3)
+        self.assertEqual(curr_module_paths(), [test1, test2, test3])
+
+        # empty entries and non-existing directories are filtered out
+        os.environ['MODULEPATH'] = '/doesnotexist:%s::%s:' % (test2, test1)
+        self.assertEqual(curr_module_paths(), [test2, test1])
+
+    def test_check_module_path(self):
+        """Test ModulesTool.check_module_path() method"""
+
+        # first, create a couple of (empty) directories to use as entries in $MODULEPATH
+        test1 = os.path.join(self.test_prefix, 'test1')
+        mkdir(test1)
+        test2 = os.path.join(self.test_prefix, 'test2')
+        mkdir(test2)
+        test3 = os.path.join(self.test_prefix, 'test3')
+        mkdir(test3)
+
+        os.environ['MODULEPATH'] = test1
+
+        modtool = modules_tool()
+
+        # directory where modules are installed based on current configuration is automatically added in front
+        mod_install_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1])
+
+        # if mod_paths is reset, it can be restored using check_module_path
+        modtool.mod_paths = None
+        modtool.check_module_path()
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1])
+
+        # no harm done with multiple subsequent calls
+        modtool.check_module_path()
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1])
+
+        # if $MODULEPATH is tweaked, mod_paths and $MODULEPATH can be corrected with check_module_path
+        os.environ['MODULEPATH'] = test2
+        modtool.check_module_path()
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test2])
+        self.assertEqual(os.environ['MODULEPATH'], mod_install_dir + ':' + test1 + ':' + test2)
+
+        # check behaviour if non-existing directories are included in $MODULEPATH
+        os.environ['MODULEPATH'] = '%s:/does/not/exist:%s' % (test3, test2)
+        modtool.check_module_path()
+        # non-existing dir is filtered from mod_paths, but stays in $MODULEPATH
+        self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test3, test2])
+        self.assertEqual(os.environ['MODULEPATH'], ':'.join([mod_install_dir, test1, test3, '/does/not/exist', test2]))
+
+    def test_check_module_path_hmns(self):
+        """Test behaviour of check_module_path with HierarchicalMNS."""
+
+        # to verify that https://github.com/easybuilders/easybuild-framework/issues/3084 is fixed
+        # (see also https://github.com/easybuilders/easybuild-framework/issues/2226);
+        # this bug can be triggered by having at least one non-existing directory in $MODULEPATH,
+        # and using HierarchicalMNS
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config()
+
+        top_mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        core_mod_dir = os.path.join(top_mod_dir, 'Core')
+        mkdir(core_mod_dir, parents=True)
+
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        self.assertFalse(os.path.exists(doesnotexist))
+
+        os.environ['MODULEPATH'] = '%s:%s' % (core_mod_dir, doesnotexist)
+        modtool = modules_tool()
+
+        self.assertEqual(modtool.mod_paths, [os.path.dirname(core_mod_dir), core_mod_dir])
+        self.assertEqual(os.environ['MODULEPATH'], '%s:%s:%s' % (top_mod_dir, core_mod_dir, doesnotexist))
+
+        # hack prepend_module_path to make sure it's not called again if check_module_path is called again;
+        # prepend_module_path is fairly expensive, so should be avoided,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3084
+        def broken_prepend_module_path(*args, **kwargs):
+            raise EasyBuildError("broken prepend_module_path")
+
+        modtool.prepend_module_path = broken_prepend_module_path
+
+        # if this doesn't trigger a raised error from the hacked prepend_module_path, the bug is fixed
+        modtool.check_module_path()
+
+        self.assertEqual(modtool.mod_paths, [os.path.dirname(core_mod_dir), core_mod_dir])
+        self.assertEqual(os.environ['MODULEPATH'], '%s:%s:%s' % (top_mod_dir, core_mod_dir, doesnotexist))
+
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
         test_path = tempfile.mkdtemp(prefix=self.test_prefix)
@@ -361,7 +464,7 @@ class ModulesTest(EnhancedTestCase):
         for (name, env_var_name) in test_cases:
             # mock stuff that get_software_X functions rely on
             root = os.path.join(tmpdir, name)
-            os.makedirs(os.path.join(root, 'lib'))
+            mkdir(os.path.join(root, 'lib'), parents=True)
             os.environ['EBROOT%s' % env_var_name] = root
             version = '0.0-%s' % root
             os.environ['EBVERSION%s' % env_var_name] = version
@@ -375,7 +478,7 @@ class ModulesTest(EnhancedTestCase):
 
         # check expected result of get_software_libdir with multiple lib subdirs
         root = os.path.join(tmpdir, name)
-        os.makedirs(os.path.join(root, 'lib64'))
+        mkdir(os.path.join(root, 'lib64'))
         os.environ['EBROOT%s' % env_var_name] = root
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
@@ -383,6 +486,19 @@ class ModulesTest(EnhancedTestCase):
         # only directories containing files in specified list should be retained
         open(os.path.join(root, 'lib64', 'foo'), 'w').write('foo')
         self.assertEqual(get_software_libdir(name, fs=['foo']), 'lib64')
+
+        # duplicate paths due to symlink get filtered
+        remove_dir(os.path.join(root, 'lib64'))
+        symlink(os.path.join(root, 'lib'), os.path.join(root, 'lib64'))
+        self.assertEqual(get_software_libdir(name), 'lib')
+
+        # same goes for lib symlinked to lib64
+        remove_file(os.path.join(root, 'lib64'))
+        remove_dir(os.path.join(root, 'lib'))
+        mkdir(os.path.join(root, 'lib64'))
+        symlink(os.path.join(root, 'lib64'), os.path.join(root, 'lib'))
+        # still returns 'lib' because that's the first subdir considered
+        self.assertEqual(get_software_libdir(name), 'lib')
 
         # clean up for previous tests
         os.environ.pop('EBROOT%s' % env_var_name)
@@ -535,7 +651,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(res, ['impi/2016', 'intel/2016'])
 
         else:
-            print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
+            print("Skipping test_path_to_top_of_module_tree_lua, requires Lmod as modules tool")
 
     def test_interpret_raw_path_lua(self):
         """Test interpret_raw_path_lua method"""
@@ -822,7 +938,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(len(mod.MODULE_AVAIL_CACHE), 1)
 
         # fetch cache entry
-        avail_cache_key = mod.MODULE_AVAIL_CACHE.keys()[0]
+        avail_cache_key = list(mod.MODULE_AVAIL_CACHE.keys())[0]
         cached_res = mod.MODULE_AVAIL_CACHE[avail_cache_key]
         self.assertTrue(cached_res == res)
 
@@ -1057,12 +1173,66 @@ class ModulesTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
     def test_NoModulesTool(self):
+        """Test use of NoModulesTool class."""
         nmt = NoModulesTool(testing=True)
         self.assertEqual(len(nmt.available()), 0)
         self.assertEqual(len(nmt.available(mod_names='foo')), 0)
         self.assertEqual(len(nmt.list()), 0)
         self.assertEqual(nmt.exist(['foo', 'bar']), [False, False])
         self.assertEqual(nmt.exist(['foo', 'bar'], r'^\s*\S*/%s.*:\s*$', skip_avail=False), [False, False])
+
+    def test_modulecmd_strip_source(self):
+        """Test stripping of 'source' command in output of 'modulecmd python load'."""
+
+        init_config(build_options={'allow_modules_tool_mismatch': True})
+
+        # install dummy modulecmd command that always produces a 'source command' in its output
+        modulecmd = os.path.join(self.test_prefix, 'modulecmd')
+        modulecmd_txt = '\n'.join([
+            '#!/bin/bash',
+            # if last argument (${!#})) is --version, print version
+            'if [ x"${!#}" == "x--version" ]; then',
+            '  echo 3.2.10',
+            # otherwise, echo Python commands: set $TEST123 and include a faulty 'source' command
+            'else',
+            '  echo "source /opt/cray/pe/modules/3.2.10.6/init/bash"',
+            "  echo \"os.environ['TEST123'] = 'test123'\"",
+            'fi',
+        ])
+        write_file(modulecmd, modulecmd_txt)
+        adjust_permissions(modulecmd, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
+
+        modtool = EnvironmentModulesC()
+        modtool.run_module('load', 'test123')
+        self.assertEqual(os.getenv('TEST123'), 'test123')
+
+    def test_get_setenv_value_from_modulefile(self):
+        """Test for ModulesTool.get_setenv_value_from_modulefile method."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(eb_path))
+        write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
+
+        toy_eb = EasyBlock(EasyConfig(test_ec))
+        toy_eb.make_module_step()
+
+        expected_root = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        ebroot = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBROOTTOY')
+        self.assertTrue(os.path.samefile(ebroot, expected_root))
+
+        ebversion = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBVERSIONTOY')
+        self.assertEqual(ebversion, '0.0')
+
+        foo = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'FOO')
+        self.assertEqual(foo, "value with spaces")
+
+        res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
+        self.assertEqual(res, None)
 
 
 def suite():

@@ -22,8 +22,8 @@ toolchain = {'name': 'GCC', 'version': '6.4.0-2.28'}
 
 # eg. http://www.sqlite.org/2014/sqlite-autoconf-3080600.tar.gz
 source_urls = ['http://www.sqlite.org/2015/']
-version_str = '%(version_major)s' + ''.join('%02d' % int(x) for x in version.split('.')[1:])
-sources = ['sqlite-autoconf-%s.tar.gz' % version_str]
+local_version_str = '%(version_major)s' + ''.join('%02d' % int(x) for x in version.split('.')[1:])
+sources = ['sqlite-autoconf-%s.tar.gz' % local_version_str]
 
 # commented out for testing to avoid having to add them all - dependencies are tested in other files
 dependencies = [

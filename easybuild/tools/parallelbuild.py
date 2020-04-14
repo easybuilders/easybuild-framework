@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ import math
 import os
 import re
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
@@ -43,7 +44,6 @@ from easybuild.tools.config import build_option, get_repository, get_repositoryp
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
-from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
@@ -68,7 +68,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     :param output_dir: output directory
     :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
-    _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
+    _log.info("going to build these easyconfigs in parallel: %s", [os.path.basename(ec['spec']) for ec in easyconfigs])
 
     active_job_backend = job_backend()
     if active_job_backend is None:
@@ -94,7 +94,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
             prepare_easyconfig(easyconfig)
 
         # the new job will only depend on already submitted jobs
-        _log.info("creating job for ec: %s" % easyconfig['ec'])
+        _log.info("creating job for ec: %s" % os.path.basename(easyconfig['spec']))
         new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
 
         # filter out dependencies marked as external modules

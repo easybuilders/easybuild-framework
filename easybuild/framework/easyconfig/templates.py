@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2019 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,10 +34,11 @@ be used within an Easyconfig file.
 import copy
 import re
 import platform
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
@@ -57,6 +58,7 @@ TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
+    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',
@@ -75,6 +77,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 # software names for which to define <pref>ver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
     # software name, prefix for *ver and *shortver
+    ('CUDA', 'cuda'),
     ('Java', 'java'),
     ('Perl', 'perl'),
     ('Python', 'py'),
@@ -143,7 +146,7 @@ for ext in extensions:
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None):
+def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
@@ -220,12 +223,25 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
         for dep in deps:
             if isinstance(dep, dict):
                 dep_name, dep_version = dep['name'], dep['version']
+
+                # take into account dependencies marked as external modules,
+                # where name/version may have to be harvested from metadata available for that external module
+                if dep.get('external_module', False):
+                    metadata = dep.get('external_module_metadata', {})
+                    if dep_name is None:
+                        # name is a list in metadata, just take first value (if any)
+                        dep_name = metadata.get('name', [None])[0]
+                    if dep_version is None:
+                        # version is a list in metadata, just take first value (if any)
+                        dep_version = metadata.get('version', [None])[0]
+
             elif isinstance(dep, (list, tuple)):
                 dep_name, dep_version = dep[0], dep[1]
             else:
                 raise EasyBuildError("Unexpected type for dependency: %s", dep)
 
-            if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
+            if isinstance(dep_name, string_type) and dep_name.lower() == name.lower() and dep_version:
+                dep_version = pick_dep_version(dep_version)
                 template_values['%sver' % pref] = dep_version
                 dep_version_parts = dep_version.split('.')
                 template_values['%smajver' % pref] = dep_version_parts[0]
@@ -254,15 +270,28 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
         except Exception:
             _log.warning("Failed to get .lower() for name %s value %s (type %s)", name, value, type(value))
 
+    # step 5. add additional conditional templates
+    if toolchain is not None and hasattr(toolchain, 'mpi_cmd_prefix'):
+        try:
+            # get prefix for commands to be run with mpi runtime using default number of ranks
+            mpi_cmd_prefix = toolchain.mpi_cmd_prefix()
+            if mpi_cmd_prefix is not None:
+                template_values['mpi_cmd_prefix'] = mpi_cmd_prefix
+        except EasyBuildError as err:
+            # don't fail just because we couldn't resolve this template
+            _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", err)
+
     return template_values
 
 
-def to_template_str(value, templ_const, templ_val):
+def to_template_str(key, value, templ_const, templ_val):
     """
     Insert template values where possible
-        - value is a string
-        - templ_const is a dictionary of template strings (constants)
-        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
+
+    :param key: name of easyconfig parameter
+    :param value: string representing easyconfig parameter value
+    :param templ_const: dictionary of template strings (constants)
+    :param templ_val: (ordered) dictionary of template strings specific for this easyconfig file
     """
     old_value = None
     while value != old_value:
@@ -275,9 +304,15 @@ def to_template_str(value, templ_const, templ_val):
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
-            # by another non-alphanumeric.
-            if tval in value:
+            # by another non-alphanumeric;
+            # avoid introducing self-referencing easyconfig parameter value
+            # by taking into account given name of easyconfig parameter ('key')
+            if tval in value and tname != key:
                 value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+
+            # special case of %(pyshortver)s, where we should template 'python2.7' to 'python%(pyshortver)s'
+            if tname == 'pyshortver' and ('python' + tval) in value:
+                value = re.sub(r'(^|\W)python' + re.escape(tval) + r'(\W|$)', r'\1python%(' + tname + r')s\2', value)
 
     return value
 

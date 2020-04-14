@@ -6,7 +6,7 @@ version = '2012a'
 homepage = 'http://software.intel.com/en-us/intel-cluster-toolchain-compiler/'
 description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL."""
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = SYSTEM
 
 # fake/empty intel/2012a toolchain, just for testing purposes
 dependencies = [
