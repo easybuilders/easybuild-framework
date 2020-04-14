@@ -277,12 +277,16 @@ class ModulesTest(EnhancedTestCase):
                 'if {"Java/site_default" eq [module-info version Java/site_default]} {',
                 '    module-version Java/1.8.0_181 site_default',
                 '}',
+                'if {"JavaAlias" eq [module-info version JavaAlias]} {',
+                '    module-alias JavaAlias Java/1.8.0_181',
+                '}',
             ])
         else:
             modulerc_tcl_txt = '\n'.join([
                 '#%Module',
                 'module-version Java/1.8.0_181 1.8',
                 'module-version Java/1.8.0_181 site_default',
+                'module-alias JavaAlias Java/1.8.0_181',
             ])
 
         write_file(os.path.join(java_mod_dir, '.modulerc'), modulerc_tcl_txt)
@@ -292,11 +296,14 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
             self.assertTrue('Java/1.8' in avail_mods)
             self.assertTrue('Java/site_default' in avail_mods)
+            self.assertTrue('JavaAlias' in avail_mods)
 
         self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
         # check for an alias with a different version suffix than the base module
         self.assertEqual(self.modtool.exist(['Java/site_default']), [True])
+        # And completely different name
+        self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
         self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
         self.assertEqual(self.modtool.module_wrapper_exists('Java/site_default'), 'Java/1.8.0_181')
@@ -324,6 +331,7 @@ class ModulesTest(EnhancedTestCase):
                        '\n'.join([
                             'module_version("Java/1.8.0_181", "1.8")',
                             'module_version("Java/1.8.0_181", "site_default")',
+                            'module_alias("JavaAlias", "Java/1.8")',
                         ]))
 
             avail_mods = self.modtool.available()
@@ -333,6 +341,8 @@ class ModulesTest(EnhancedTestCase):
 
             # check for an alias with a different version suffix than the base module
             self.assertEqual(self.modtool.exist(['Java/site_default']), [True])
+            # And completely different name
+            self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
             self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
             self.assertEqual(self.modtool.module_wrapper_exists('Java/site_default'), 'Java/1.8.0_181')
