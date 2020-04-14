@@ -37,6 +37,7 @@ import shutil
 import stat
 import sys
 from distutils.version import StrictVersion
+from contextlib import contextmanager
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -56,6 +57,17 @@ from easybuild.tools.run import run_cmd
 # number of modules included for testing purposes
 TEST_MODULES_COUNT = 81
 
+
+@contextmanager
+def temporary_home_dir():
+    tmpdir = tempfile.mkdtemp()
+    orig_home = os.environ['HOME']
+    os.environ['HOME'] = tmpdir
+    try:
+        yield tmpdir
+    finally:
+        os.environ['HOME'] = orig_home
+        shutil.rmtree(tmpdir)
 
 class ModulesTest(EnhancedTestCase):
     """Test cases for modules."""
@@ -357,6 +369,21 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
             self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
             self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/site_default'), 'Core/Java/1.8.0_181')
+
+        # Test alias in home directory .modulerc
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+            # Required or temporary HOME would be in MODULEPATH already
+            self.init_testmods()
+            # Sanity check: Module aliases don't exist yet
+            self.assertEqual(self.modtool.exist(['OpenMPI/99', 'OpenMPIAlias']), [False, False])
+            with temporary_home_dir() as home_dir:
+                reset_module_caches()
+                write_file(os.path.join(home_dir, '.modulerc'), '\n'.join([
+                    '#%Module',
+                    'module-version OpenMPI/2.1.2-GCC-6.4.0-2.28 99',
+                    'module-alias OpenMPIAlias OpenMPI/2.1.2-GCC-6.4.0-2.28',
+                ]))
+                self.assertEqual(self.modtool.exist(['OpenMPI/99', 'OpenMPIAlias']), [True, True])
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
