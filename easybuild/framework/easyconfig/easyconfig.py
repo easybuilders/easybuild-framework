@@ -779,9 +779,13 @@ class EasyConfig(object):
         """
         Determine number of files (sources + patches) required for this easyconfig.
         """
-        cnt = len(self['sources']) + len(self['patches'])
 
-        for ext in self['exts_list']:
+        # No need to resolve templates as we only need a count not the names
+        with self.disable_templating():
+            cnt = len(self['sources']) + len(self['patches'])
+            exts = self['exts_list']
+
+        for ext in exts:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
                 # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
@@ -1814,11 +1818,14 @@ class EasyConfig(object):
     # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() == ec.asdict()
+        # Compare raw values to check that templates used are the same
+        with self.disable_templating():
+            with ec.disable_templating():
+                return self.asdict() == ec.asdict()
 
     def __ne__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() != ec.asdict()
+        return not self == ec
 
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
@@ -1831,8 +1838,9 @@ class EasyConfig(object):
             return val
 
         lst = []
-        for (key, val) in sorted(self.asdict().items()):
-            lst.append((key, make_hashable(val)))
+        with self.disable_templating():
+            for (key, val) in sorted(self.asdict().items()):
+                lst.append((key, make_hashable(val)))
 
         # a list is not hashable, but a tuple is
         return hash(tuple(lst))
