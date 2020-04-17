@@ -154,7 +154,7 @@ class CommaList(StrList):
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # sanitize from end
 
     def append_exists(self, prefix, paths, suffix=None, filename=None, append_all=False):
         """
@@ -378,7 +378,8 @@ class ListOfLists(list):
             to_remove = []
             # work in reversed order; don't check last one (ie real el 0), it has no next element
             for idx in range(1, len(self))[::-1]:
-                if self[idx].BEGIN is None or self[idx].END is None: continue
+                if self[idx].BEGIN is None or self[idx].END is None:
+                    continue
                 self.log.devel("idx %s len %s", idx, len(self))
                 # do check POSITION, sorting already done
                 if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:
@@ -564,4 +565,3 @@ class Variables(dict):
             return _passthrough
         else:
             return super(Variables, self).__getattribute__(attr_name)
-

@@ -87,7 +87,7 @@ class LinAlg(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
-        ## TODO is link order fully preserved with this order ?
+        # TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()
         if getattr(self, 'MPI_MODULE_NAME', None):
@@ -110,7 +110,7 @@ class LinAlg(Toolchain):
         if 'FLIBS' in self.variables:
             self.variables.join('LIBBLAS', 'FLIBS')
 
-        ## multi-threaded
+        # multi-threaded
         if self.BLAS_LIB_MT is None:
             self.variables.join('LIBBLAS_MT', 'LIBBLAS')
         else:
@@ -133,7 +133,7 @@ class LinAlg(Toolchain):
             self.variables.append_exists('BLAS_LIB_DIR', root, self.BLAS_LIB_DIR)
             self.variables.append_exists('BLAS_INC_DIR', root, self.BLAS_INCLUDE_DIR)
 
-        ## add general dependency variables
+        # add general dependency variables
         self._add_dependency_variables(self.BLAS_MODULE_NAME, ld=self.BLAS_LIB_DIR, cpp=self.BLAS_INCLUDE_DIR)
 
     def _set_lapack_variables(self):
@@ -160,14 +160,14 @@ class LinAlg(Toolchain):
                                                      toggle_staticdynamic=self.LAPACK_LIB_STATIC)
 
             if self.LAPACK_LIB_MT is None:
-                ## reuse LAPACK variables
+                # reuse LAPACK variables
                 self.variables.join('LIBLAPACK_MT_ONLY', 'LIBLAPACK_ONLY')
             else:
                 self.variables.nappend('LIBLAPACK_MT_ONLY', self.LAPACK_LIB_MT)
                 if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                     self.variables.nappend('LIBLAPACK_MT_ONLY', self.LIB_MULTITHREAD)
 
-            ## need BLAS for LAPACK ?
+            # need BLAS for LAPACK ?
             if self.LAPACK_REQUIRES is not None:
                 self.variables.join('LIBLAPACK', 'LIBLAPACK_ONLY', *self.LAPACK_REQUIRES)
                 lapack_mt = ["%s_MT" % x for x in self.LAPACK_REQUIRES]
@@ -195,7 +195,7 @@ class LinAlg(Toolchain):
         self.variables.join('BLAS_LAPACK_STATIC_LIBS', 'LAPACK_STATIC_LIBS', 'BLAS_STATIC_LIBS')
         self.variables.join('BLAS_LAPACK_MT_STATIC_LIBS', 'LAPACK_MT_STATIC_LIBS', 'BLAS_MT_STATIC_LIBS')
 
-        ## add general dependency variables
+        # add general dependency variables
         self._add_dependency_variables(self.LAPACK_MODULE_NAME, ld=self.LAPACK_LIB_DIR, cpp=self.LAPACK_INCLUDE_DIR)
 
     def _set_blacs_variables(self):
@@ -207,8 +207,7 @@ class LinAlg(Toolchain):
         if hasattr(self, 'BLACS_LIB_MAP') and self.BLACS_LIB_MAP is not None:
             lib_map.update(self.BLACS_LIB_MAP)
 
-
-        ## BLACS
+        # BLACS
         self.BLACS_LIB = self.variables.nappend('LIBBLACS', [x % lib_map for x in self.BLACS_LIB])
         if self.BLACS_LIB is not None:
             self.variables.add_begin_end_linkerflags(self.BLACS_LIB,
@@ -218,7 +217,8 @@ class LinAlg(Toolchain):
         if self.BLACS_LIB_MT is None:
             self.variables.join('LIBBLACS_MT', 'LIBBLACS')
         else:
-            self.BLACS_LIB_MT = self.variables.nappend('LIBBLACS_MT', [x % self.BLACS_LIB_MAP for x in self.BLACS_LIB_MT])
+            self.BLACS_LIB_MT = self.variables.nappend(
+                'LIBBLACS_MT', [x % self.BLACS_LIB_MAP for x in self.BLACS_LIB_MT])
             if self.BLACS_LIB_MT is not None:
                 self.variables.add_begin_end_linkerflags(self.BLACS_LIB_MT,
                                                          toggle_startstopgroup=self.BLACS_LIB_GROUP,
@@ -234,7 +234,7 @@ class LinAlg(Toolchain):
             self.variables.append_exists('BLACS_LIB_DIR', root, self.BLACS_LIB_DIR)
             self.variables.append_exists('BLACS_INC_DIR', root, self.BLACS_INCLUDE_DIR)
 
-        ## add general dependency variables
+        # add general dependency variables
         self._add_dependency_variables(self.BLACS_MODULE_NAME, ld=self.BLACS_LIB_DIR, cpp=self.BLACS_INCLUDE_DIR)
 
     def _set_scalapack_variables(self):
@@ -259,13 +259,13 @@ class LinAlg(Toolchain):
         if 'FLIBS' in self.variables:
             self.variables.join('LIBSCALAPACK_ONLY', 'FLIBS')
 
-        ## multi-threaded
+        # multi-threaded
         if self.SCALAPACK_LIB_MT is None:
-            ## reuse BLAS variables
+            # reuse BLAS variables
             self.variables.join('LIBSCALAPACK_MT_ONLY', 'LIBSCALAPACK_ONLY')
         else:
             self.SCALAPACK_LIB_MT = self.variables.nappend('LIBSCALAPACK_MT_ONLY',
-                                                            [x % lib_map for x in self.SCALAPACK_LIB_MT])
+                                                           [x % lib_map for x in self.SCALAPACK_LIB_MT])
             self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB_MT,
                                                      toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
                                                      toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)

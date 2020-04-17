@@ -1609,6 +1609,7 @@ def invalidate_module_caches_for(path):
 
 class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
+
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
 

@@ -661,8 +661,8 @@ class Toolchain(object):
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
         if self.is_system_toolchain():
-                self.log.info("Loading dependencies using system toolchain...")
-                self._load_dependencies_modules(silent=silent)
+            self.log.info("Loading dependencies using system toolchain...")
+            self._load_dependencies_modules(silent=silent)
         else:
             # load the toolchain and dependencies modules
             self.log.debug("Loading toolchain module and dependencies...")

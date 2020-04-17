@@ -35,6 +35,7 @@ import re
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
+
 class CategorizedModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the categorized module naming scheme."""
 
@@ -62,4 +63,3 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s" % tup)
 
         return res
-

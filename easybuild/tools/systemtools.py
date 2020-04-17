@@ -67,7 +67,6 @@ except ImportError as err:
     HAVE_ARCHSPEC = False
 
 
-
 # Architecture constants
 AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'

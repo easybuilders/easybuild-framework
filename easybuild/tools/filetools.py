@@ -164,6 +164,7 @@ class ZlibChecksum(object):
     wrapper class for adler32 and crc32 checksums to
     match the interface of the hashlib module
     """
+
     def __init__(self, algorithm):
         self.algorithm = algorithm
         self.checksum = algorithm(b'')  # use the same starting point as the module

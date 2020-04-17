@@ -490,7 +490,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
             txt.append(format_strings['root_templ'] % root)
 
         if format_strings.get('newline') is not None:
-                txt.append(format_strings['newline'])
+            txt.append(format_strings['newline'])
         if 'children' in classes[root]:
             txt.extend(avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
             if format_strings.get('newline') is not None:
