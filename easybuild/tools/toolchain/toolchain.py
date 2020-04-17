@@ -331,8 +331,7 @@ class Toolchain(object):
         if self.vars is None:
             self.generate_vars()
 
-        var_names = self.variables.keys()
-        var_names.sort()
+        var_names = sorted(self.variables.keys())
         res = []
         for v in var_names:
             res.append("%s=%s" % (v, self.variables[v]))
@@ -675,7 +674,7 @@ class Toolchain(object):
             dry_run_msg("\nFull list of loaded modules:", silent=silent)
             if loaded_mods:
                 for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
-                    dry_run_msg("  %d) %s" % (i+1, mod_name), silent=silent)
+                    dry_run_msg("  %d) %s" % (i + 1, mod_name), silent=silent)
             else:
                 dry_run_msg("  (none)", silent=silent)
             dry_run_msg('', silent=silent)

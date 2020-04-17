@@ -56,7 +56,7 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
         <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^[^/]+/%s/\S+$' % re.escape(name))
+        modname_regex = re.compile(r'^[^/]+/%s/\S+$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
         tup = (short_modname, name, modname_regex.pattern, res)

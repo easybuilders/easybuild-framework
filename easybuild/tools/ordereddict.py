@@ -170,7 +170,7 @@ class OrderedDict(dict):
         '''
         if len(args) > 1:
             raise TypeError('update() takes at most 2 positional '
-                            'arguments (%d given)' % (1+len(args),))
+                            'arguments (%d given)' % (1 + len(args),))
         # Make progressively weaker assumptions about "other"
         other = ()
         if len(args) == 1:

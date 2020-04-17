@@ -338,7 +338,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     def escape_special(string):
         return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
 
-    split = '[\s\n]+'
+    split = r'[\s\n]+'
     regSplit = re.compile(r"" + split)
 
     def process_QA(q, a_s):
@@ -569,10 +569,10 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """
     global errors_found_in_log
 
-    if regExp and type(regExp) == bool:
+    if regExp and isinstance(regExp, bool):
         regExp = r"(?<![(,-]|\w)(?:error|segmentation fault|failed)(?![(,-]|\.?\w)"
         _log.debug('Using default regular expression: %s' % regExp)
-    elif type(regExp) == str:
+    elif isinstance(regExp, str):
         pass
     else:
         raise EasyBuildError("parse_log_for_error no valid regExp used: %s", regExp)

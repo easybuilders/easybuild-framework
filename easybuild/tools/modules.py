@@ -444,9 +444,9 @@ class ModulesTool(object):
             idx = 1
             while(curr_mod_paths[-idx:] == self.mod_paths[-idx:]):
                 idx += 1
-            self.log.debug("Not prepending %d last entries of %s", idx-1, self.mod_paths)
+            self.log.debug("Not prepending %d last entries of %s", idx - 1, self.mod_paths)
 
-            for mod_path in self.mod_paths[::-1][idx-1:]:
+            for mod_path in self.mod_paths[::-1][idx - 1:]:
                 self.prepend_module_path(mod_path)
 
             self.log.info("$MODULEPATH set via list of module paths (w/ 'module use'): %s" % os.environ['MODULEPATH'])
@@ -1081,7 +1081,7 @@ class ModulesTool(object):
             if path_matches(full_mod_subdir, full_modpath_exts):
 
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep)-1]
+                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep) - 1]
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
@@ -1622,7 +1622,7 @@ class NoModulesTool(ModulesTool):
 
     def exist(self, mod_names, *args, **kwargs):
         """No modules, so nothing exists"""
-        return [False]*len(mod_names)
+        return [False] * len(mod_names)
 
     def check_loaded_modules(self):
         """Nothing to do since no modules"""

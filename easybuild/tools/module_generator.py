@@ -736,7 +736,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         txt = '\n'.join([
             "proc ModulesHelp { } {",
-            "    puts stderr {%s" % re.sub('([{}\[\]])', r'\\\1', self._generate_help_text()),
+            "    puts stderr {%s" % re.sub(r'([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',

@@ -454,7 +454,7 @@ class PbsJob(object):
             return None
 
         # convert single type into list
-        if type(types) is str:
+        if isinstance(types, str):
             types = [types]
 
         self.log.debug("Return info types %s" % types)

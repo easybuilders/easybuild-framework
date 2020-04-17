@@ -52,7 +52,7 @@ def get_class(name, default_class, map_class=None):
     if name is not None:
         try:
             klass = map_class[name]
-        except:
+        except BaseException:
             for k, v in map_class.items():
                 if type(k) in (type,) and name in v:
                     klass = k
@@ -287,7 +287,7 @@ class ListOfLists(list):
             try:
                 # this might work, but probably not
                 newvalue = klass(value, **kwargs)
-            except:
+            except BaseException:
                 newvalue = klass(**kwargs)
                 if value is not None:
                     newvalue.append(value)
@@ -328,7 +328,7 @@ class ListOfLists(list):
                     try:
                         # this might work, but probably not
                         newvalue = klass(el)
-                    except:
+                    except BaseException:
                         newvalue = klass()
                         if value is not None:
                             newvalue.append(el)

@@ -522,7 +522,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         ecs.append(ec)
         print_msg('\r', prefix=False, newline=False, silent=silent)
-        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False, silent=silent)
+        print_msg("Processed %d/%d easyconfigs..." % (idx + 1, cnt), newline=False, silent=silent)
     print_msg('', prefix=False, silent=silent)
 
     software = {}
@@ -902,7 +902,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         '.. _' + classname + ':',
         '',
         '``' + classname + '``',
-        '=' * (len(classname)+4),
+        '=' * (len(classname) + 4),
         '',
     ]
 
@@ -967,7 +967,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     if os.path.exists(os.path.join(path_to_examples, '%s.eb' % classname)):
         title = 'Example easyconfig for ``' + classname + '`` easyblock'
         doc.extend([title, '-' * len(title), '', '.. code::', ''])
-        for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
+        for line in read_file(os.path.join(path_to_examples, classname + '.eb')).split('\n'):
             doc.append(INDENT_4SPACES + line)
         doc.append('')  # empty line after literal block
 
