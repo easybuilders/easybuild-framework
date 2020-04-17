@@ -1194,7 +1194,8 @@ class EasyBlock(object):
         lines = [self.module_extra_extensions]
 
         # set environment variable that specifies list of extensions
-        exts_list = ','.join(['%s-%s' % (ext[0], ext[1]) for ext in self.cfg['exts_list']])
+        # We need only name and version, so don't resolve templates
+        exts_list = ','.join(['-'.join(ext[:2]) for ext in self.cfg.get_ref('exts_list')])
         env_var_name = convert_name(self.name, upper=True)
         lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
@@ -1207,7 +1208,7 @@ class EasyBlock(object):
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
         # add extra stuff for extensions (if any)
-        if self.cfg['exts_list']:
+        if self.cfg.get_ref('exts_list'):
             footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
@@ -1791,7 +1792,7 @@ class EasyBlock(object):
                 trace_msg(msg)
 
         # fetch extensions
-        if self.cfg['exts_list']:
+        if self.cfg.get_ref('exts_list'):
             self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
 
         # create parent dirs in install and modules path already
@@ -2063,7 +2064,7 @@ class EasyBlock(object):
         - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
         - run extra_extensions
         """
-        if len(self.cfg['exts_list']) == 0:
+        if not self.cfg.get_ref('exts_list'):
             self.log.debug("No extensions in exts_list")
             return
 

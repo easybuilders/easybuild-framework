@@ -524,7 +524,8 @@ class ModuleGenerator(object):
         """
         Generate a string with a comma-separated list of extensions.
         """
-        exts_list = self.app.cfg['exts_list']
+        # We need only name and version, so don't resolve templates
+        exts_list = self.app.cfg.get_ref('exts_list')
         extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
 
         return extensions
