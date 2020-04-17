@@ -2032,7 +2032,9 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
+                depr_msg = ('Ignoring failure to resolve template value %s with dict %s.' % (value, tmpl_dict) +
+                            '\n\tThis is deprecated and will lead to build failure. Check for correct escaping.')
+                _log.deprecated(depr_msg, '5.0')
                 value = orig_value  # Undo "%"-escaping
     else:
         # this block deals with references to objects and returns other references
