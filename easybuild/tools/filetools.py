@@ -1843,7 +1843,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     class Error(EnvironmentError):
         pass
     try:
-        WindowsError  # @UndefinedVariable
+        WindowsError = WindowsError # noqa
     except NameError:
         WindowsError = None
 

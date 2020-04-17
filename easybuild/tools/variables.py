@@ -225,11 +225,11 @@ class ListOfLists(list):
 
         self.protected_classes = self.PROTECTED_CLASSES[:]
         if self.PROTECT_CLASS_SELF:
-            if not self.DEFAULT_CLASS in self.protected_classes:
+            if self.DEFAULT_CLASS not in self.protected_classes:
                 self.protected_classes.append(self.DEFAULT_CLASS)
         self.protected_instances = self.PROTECTED_INSTANCES[:]
         if self.PROTECT_INSTANCE_SELF:
-            if not self.DEFAULT_CLASS in self.protected_instances:
+            if self.DEFAULT_CLASS not in self.protected_instances:
                 self.protected_instances.append(self.DEFAULT_CLASS)
 
     def append_empty(self):
@@ -291,7 +291,7 @@ class ListOfLists(list):
                 newvalue = klass(**kwargs)
                 if value is not None:
                     newvalue.append(value)
-        if not position is None:
+        if position is not None:
             newvalue.POSITION = position
         if self._str_ok(newvalue) or append_empty:
             self.append(newvalue)
