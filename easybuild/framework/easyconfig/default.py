@@ -90,6 +90,8 @@ DEFAULT_CONFIG = {
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
+    'enhance_sanity_check': [False, "Indicate that additional sanity check commands & paths should enhance "
+                             "the existin sanity check, not replace it", BUILD],
     'fix_perl_shebang_for': [None, "List of files for which Perl shebang should be fixed "
                                    "to '#!/usr/bin/env perl' (glob patterns supported)", BUILD],
     'fix_python_shebang_for': [None, "List of files for which Python shebang should be fixed "

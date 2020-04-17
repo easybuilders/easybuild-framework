@@ -2409,20 +2409,36 @@ class EasyBlock(object):
             SANITY_CHECK_PATHS_DIRS: ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
         }
 
-        # prepare sanity check paths
-        paths = self.cfg['sanity_check_paths']
-        if not paths:
+        enhance_sanity_check = self.cfg['enhance_sanity_check']
+        ec_commands = self.cfg['sanity_check_commands']
+        ec_paths = self.cfg['sanity_check_paths']
+
+        # if enhance_sanity_check is not enabled, only sanity_check_paths specified in the easyconfig file are used,
+        # the ones provided by the easyblock (via custom_paths) are ignored
+        if ec_paths and not enhance_sanity_check:
+            paths = ec_paths
+            self.log.info("Using (only) sanity check paths specified by easyconfig file: %s", paths)
+        else:
+            # if no sanity_check_paths are specified in easyconfig,
+            # we fall back to the ones provided by the easyblock via custom_paths
             if custom_paths:
                 paths = custom_paths
-                self.log.info("Using customized sanity check paths: %s" % paths)
+                self.log.info("Using customized sanity check paths: %s", paths)
+            # if custom_paths is empty, we fall back to a generic set of paths:
+            # non-empty bin/ + /lib or /lib64 directories
             else:
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
                 paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
-                self.log.info("Using default sanity check paths: %s" % paths)
-        else:
-            self.log.info("Using specified sanity check paths: %s" % paths)
+                self.log.info("Using default sanity check paths: %s", paths)
+
+            # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
+            # those paths are used to enhance the paths provided by the easyblock
+            if enhance_sanity_check and ec_paths:
+                for key in path_keys_and_check:
+                    paths[key] = paths[key] + ec_paths.get(key, [])
+                self.log.info("Enhanced sanity check paths after taking into account easyconfig file: %s", paths)
 
         ks = sorted(paths.keys())
         valnottypes = [not isinstance(x, list) for x in paths.values()]
@@ -2432,14 +2448,23 @@ class EasyBlock(object):
             raise EasyBuildError("Incorrect format for sanity_check_paths (should (only) have %s keys, "
                                  "values should be lists (at least one non-empty)).", ','.join(req_keys))
 
-        commands = self.cfg['sanity_check_commands']
-        if not commands:
+        # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
+        # the ones provided by the easyblock (via custom_commands) are ignored
+        if ec_commands and not enhance_sanity_check:
+            commands = ec_commands
+            self.log.info("Using (only) sanity check commands specified by easyconfig file: %s", commands)
+        else:
             if custom_commands:
                 commands = custom_commands
-                self.log.info("Using customised sanity check commands: %s" % commands)
+                self.log.info("Using customised sanity check commands: %s", commands)
             else:
                 commands = []
-                self.log.info("Using specified sanity check commands: %s" % commands)
+
+            # if enhance_sanity_check is enabled, the sanity_check_commands specified in the easyconfig file
+            # are combined with those provided by the easyblock via custom_commands
+            if enhance_sanity_check and ec_commands:
+                commands = commands + ec_commands
+                self.log.info("Enhanced sanity check commands after taking into account easyconfig file: %s", commands)
 
         for i, command in enumerate(commands):
             # set command to default. This allows for config files with
