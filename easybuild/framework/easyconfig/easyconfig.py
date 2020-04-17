@@ -2063,8 +2063,13 @@ def resolve_template(value, tmpl_dict):
                             _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
                                             ver)
                 except KeyError:
-                    _log.warning(f"Unable to resolve template value {value} with dict {tmpl_dict}")
-                    value = raw_value  # Undo "%"-escaping
+                    msg = ('Failed to resolve template value %s with dict %s. ' % (value, tmpl_dict) +
+                           'This might cause failures or unexpected behavior, check for correct escaping if this is intended!')
+                    if build_option('allow_unresolved_templates'):
+                        value = raw_value  # Undo "%"-escaping
+                        print_warning(msg)
+                    else:
+                        raise EasyBuildError(msg)
 
                 for key in tmpl_dict:
                     if key in DEPRECATED_EASYCONFIG_TEMPLATES:
