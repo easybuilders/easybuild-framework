@@ -1802,11 +1802,14 @@ class EasyConfig(object):
     # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() == ec.asdict()
+        # Compare raw values to check that templates used are the same
+        with self.disable_templating():
+            with ec.disable_templating():
+                return self.asdict() == ec.asdict()
 
     def __ne__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() != ec.asdict()
+        return not self == ec
 
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
@@ -1819,8 +1822,9 @@ class EasyConfig(object):
             return val
 
         lst = []
-        for (key, val) in sorted(self.asdict().items()):
-            lst.append((key, make_hashable(val)))
+        with self.disable_templating():
+            for (key, val) in sorted(self.asdict().items()):
+                lst.append((key, make_hashable(val)))
 
         # a list is not hashable, but a tuple is
         return hash(tuple(lst))
