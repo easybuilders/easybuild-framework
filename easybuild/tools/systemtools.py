@@ -360,7 +360,7 @@ def get_cpu_arch_name():
     if HAVE_ARCHSPEC:
         res = archspec_cpu_host()
         if res:
-            cpu_arch_name = res.name
+            cpu_arch_name = str(res.name)
 
     if cpu_arch_name is None:
         cpu_arch_name = UNKNOWN
