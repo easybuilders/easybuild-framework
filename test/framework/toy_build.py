@@ -1,4 +1,5 @@
-# #
+# -*- coding: utf-8 -*-
+##
 # Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
@@ -2605,6 +2606,26 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern += r"(Read-only file system|Permission denied)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
                               extra_args=extra_args, raise_error=True, verbose=False)
+
+    def test_toy_build_unicode_description(self):
+        """Test installation of easyconfig file that has non-ASCII characters in description."""
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3284
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        # the tilde character included here is a Unicode tilde character, not a regular ASCII tilde (~)
+        descr = "This description includes a unicode tilde character: ∼, for your entertainment."
+        self.assertFalse('~' in descr)
+
+        regex = re.compile(r'^description\s*=.*', re.M)
+        test_ec_txt = regex.sub(r'description = "%s"' % descr, toy_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
 
 
 def suite():
