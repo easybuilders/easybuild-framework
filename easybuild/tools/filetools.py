@@ -60,7 +60,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
+from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
 
@@ -1474,6 +1474,61 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
     else:
         _log.debug("Not creating existing path %s" % path)
+
+
+def det_lock_path(lock_name):
+    """
+    Determine full path for lock with specifed name.
+    """
+    locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
+    return os.path.join(locks_dir, lock_name + '.lock')
+
+
+def create_lock(lock_name):
+    """Create lock with specified name."""
+
+    lock_path = det_lock_path(lock_name)
+    _log.info("Creating lock at %s...", lock_path)
+    try:
+        # we use a directory as a lock, since that's atomically created
+        mkdir(lock_path, parents=True)
+    except EasyBuildError as err:
+        # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
+        stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
+        raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
+    _log.info("Lock created: %s", lock_path)
+
+
+def check_lock(lock_name):
+    """
+    Check whether a lock with specified name already exists.
+
+    If it exists, either wait until it's released, or raise an error
+    (depending on --wait-on-lock configuration option).
+    """
+    lock_path = det_lock_path(lock_name)
+    if os.path.exists(lock_path):
+        _log.info("Lock %s exists!", lock_path)
+        wait_on_lock = build_option('wait_on_lock')
+        if wait_on_lock:
+            while os.path.exists(lock_path):
+                print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
+                          silent=build_option('silent'))
+                time.sleep(wait_on_lock)
+        else:
+            raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+    else:
+        _log.info("Lock %s does not exist", lock_path)
+
+
+def remove_lock(lock_name):
+    """
+    Remove lock with specified name.
+    """
+    lock_path = det_lock_path(lock_name)
+    _log.info("Removing lock %s...", lock_path)
+    remove_dir(lock_path)
+    _log.info("Lock removed: %s", lock_path)
 
 
 def expand_glob_paths(glob_paths):

@@ -2399,6 +2399,35 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(res['new'], expected_new)
 
+    def test_locks(self):
+        """Tests for lock-related functions."""
+
+        # use a realistic lock name (cfr. EasyBlock.run_all_steps)
+        installdir = os.path.join(self.test_installpath, 'software', 'test', '1.2.3-foss-2019b-Python-3.7.4')
+        lock_name = installdir.replace('/', '_')
+
+        # det_lock_path returns full path to lock with specified name
+        # (used internally by create_lock, check_lock, remove_lock)
+        lock_path = ft.det_lock_path(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+
+        # if lock doesn't exist yet, check_lock just returns
+        ft.check_lock(lock_name)
+
+        # create lock, and check whether it actually was created
+        ft.create_lock(lock_name)
+        self.assertTrue(os.path.exists(lock_path))
+
+        # if lock exists, then check_lock raises an error
+        self.assertErrorRegex(EasyBuildError, "Lock .* already exists", ft.check_lock, lock_name)
+
+        # remove_lock should... remove the lock
+        ft.remove_lock(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+
+        # check_lock just returns again after lock is removed
+        ft.check_lock(lock_name)
+
 
 def suite():
     """ returns all the testcases in this module """
