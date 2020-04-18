@@ -2431,6 +2431,9 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_lock(lock_name)
         self.assertFalse(os.path.exists(lock_path))
 
+        # no harm done if remove_lock is called if lock is already gone
+        ft.remove_lock(lock_name)
+
         # check_lock just returns again after lock is removed
         ft.check_lock(lock_name)
 

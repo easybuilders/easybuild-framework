@@ -1532,7 +1532,8 @@ def remove_lock(lock_name):
     lock_path = det_lock_path(lock_name)
     _log.info("Removing lock %s...", lock_path)
     remove_dir(lock_path)
-    global_lock_names.remove(lock_name)
+    if lock_name in global_lock_names:
+        global_lock_names.remove(lock_name)
     _log.info("Lock removed: %s", lock_path)
 
 
