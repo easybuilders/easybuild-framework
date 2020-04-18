@@ -744,30 +744,58 @@ def list_toolchains_rst(tcs):
     """ Returns overview of all toolchains in rst format """
     title = "List of known toolchains"
 
-    # figure out column names
-    table_titles = ['name', 'compiler', 'MPI']
-    for tc in tcs.values():
-        table_titles.extend(tc.keys())
+    # Specify the column names for the table
+    table_titles = ['name', 'compiler', 'MPI', 'BLAS', 'FFT']
 
+    # Set up column name : display name pairs
     col_names = {
-        'COMPILER_CUDA': 'CUDA compiler',
-        'SCALAPACK': 'ScaLAPACK',
+        'name': 'Name',
+        'compiler': 'Compiler(s)',
+        'BLAS': "BLAS/LAPACK/ScaLAPACK",
     }
 
+    # removes duplicate entries
     table_titles = nub(table_titles)
 
+    # Initialize an empty list of lists for the table data
     table_values = [[] for i in range(len(table_titles))]
-    table_values[0] = ['**%s**' % tcname for tcname in sorted(tcs.keys())]
 
+    # Fill in the first column with the names of the toolchains
+    table_values[0] = ['**%s**' % tcname for tcname in tcs.keys()]
+
+    # Fill in the other table values
     for idx in range(1, len(table_titles)):
         for tc in tcs.values():
-            table_values[idx].append(', '.join(tc.get(table_titles[idx].upper(), [])))
+            table_values[idx].append(', '.join(tc.get(table_titles[idx].upper(), ["(*none*)"])))
 
+    # We want to combine the display for linear algebra, so create a new list
+    # with a list of BLAS, LAPACK, and ScaLAPACK included.
+    blas = []
+    for tc in tcs.values():
+        entry = list(tc.get('BLAS', ['(*none*)']))
+        entry.extend(list(tc.get('LAPACK', [])))
+        entry.extend(list(tc.get('SCALAPACK', [])))
+        blas.append(", ".join(nub(entry)))
+
+    # Put the combined BLAS/LAPACK/ScaLAPACK entry in the proper column
+    # of table_values
+    table_values[3] = blas
+
+    # To sort, we need to first transpose the column major list, sort on
+    # the toolchain name, then transpose back.
+    tmp_values = list(map(list, zip(*table_values)))
+    sorted_values = sorted(tmp_values, key=lambda x: str.lower(x[0]))
+    table_values = list(map(list, zip(*sorted_values)))
+
+    # Set the table titles to the pretty ones
     table_titles = [col_names.get(col, col) for col in table_titles]
+
+    # Pass the data to the rst formatter, wich is returned as a list, each element
+    # is an rst formatted text row.
     doc = rst_title_and_table(title, table_titles, table_values)
 
+    # Make a string with line endings suitable to write to document file
     return '\n'.join(doc)
-
 
 def list_toolchains_txt(tcs):
     """ Returns overview of all toolchains in txt format """
