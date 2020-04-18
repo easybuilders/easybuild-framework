@@ -156,6 +156,9 @@ EXTRACT_CMDS = {
     '.tar.z':   "tar xzf %(filepath)s",
 }
 
+# global set of names of locks that were created in this session
+global_lock_names = set()
+
 
 class ZlibChecksum(object):
     """
@@ -1492,6 +1495,7 @@ def create_lock(lock_name):
     try:
         # we use a directory as a lock, since that's atomically created
         mkdir(lock_path, parents=True)
+        global_lock_names.add(lock_name)
     except EasyBuildError as err:
         # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
         stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
@@ -1528,7 +1532,16 @@ def remove_lock(lock_name):
     lock_path = det_lock_path(lock_name)
     _log.info("Removing lock %s...", lock_path)
     remove_dir(lock_path)
+    global_lock_names.remove(lock_name)
     _log.info("Lock removed: %s", lock_path)
+
+
+def clean_up_locks():
+    """
+    Clean up all still existing locks that were created in this session.
+    """
+    for lock_name in list(global_lock_names):
+        remove_lock(lock_name)
 
 
 def expand_glob_paths(glob_paths):

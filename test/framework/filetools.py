@@ -2402,6 +2402,9 @@ class FileToolsTest(EnhancedTestCase):
     def test_locks(self):
         """Tests for lock-related functions."""
 
+        # make sure that global list of locks is empty when we start off
+        self.assertFalse(ft.global_lock_names)
+
         # use a realistic lock name (cfr. EasyBlock.run_all_steps)
         installdir = os.path.join(self.test_installpath, 'software', 'test', '1.2.3-foss-2019b-Python-3.7.4')
         lock_name = installdir.replace('/', '_')
@@ -2418,6 +2421,9 @@ class FileToolsTest(EnhancedTestCase):
         ft.create_lock(lock_name)
         self.assertTrue(os.path.exists(lock_path))
 
+        locks_dir = os.path.dirname(lock_path)
+        self.assertTrue(os.path.samefile(locks_dir, os.path.join(self.test_installpath, 'software', '.locks')))
+
         # if lock exists, then check_lock raises an error
         self.assertErrorRegex(EasyBuildError, "Lock .* already exists", ft.check_lock, lock_name)
 
@@ -2427,6 +2433,34 @@ class FileToolsTest(EnhancedTestCase):
 
         # check_lock just returns again after lock is removed
         ft.check_lock(lock_name)
+
+        # global list of locks should be empty at this point
+        self.assertFalse(ft.global_lock_names)
+
+        # calling clean_up_locks when there are no locks should not cause trouble
+        ft.clean_up_locks()
+
+        ft.create_lock(lock_name)
+        self.assertEqual(ft.global_lock_names, set([lock_name]))
+
+        ft.clean_up_locks()
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+
+        # no problem with multiple locks
+        lock_names = [lock_name, 'test123', 'foo@bar%baz']
+        lock_paths = [os.path.join(locks_dir, x + '.lock') for x in lock_names]
+        for lock_name in lock_names:
+            ft.create_lock(lock_name)
+        for lock_path in lock_paths:
+            self.assertTrue(os.path.exists(lock_path), "Path %s should exist" % lock_path)
+
+        self.assertEqual(ft.global_lock_names, set(lock_names))
+
+        ft.clean_up_locks()
+        for lock_path in lock_paths:
+            self.assertFalse(os.path.exists(lock_path), "Path %s should exist" % lock_path)
+        self.assertFalse(ft.global_lock_names)
 
 
 def suite():
