@@ -53,7 +53,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import reload, string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -2010,7 +2010,22 @@ class ToyBuildTest(EnhancedTestCase):
         regex = re.compile(r'\n'.join(pattern_lines), re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
+        # kick out any paths for included easyblocks from sys.path,
+        # to avoid infected any other tests
+        for path in sys.path[:]:
+            if '/included-easyblocks' in path:
+                sys.path.remove(path)
+
+        # reload toy easyblock (and generic toy_extension easyblock that imports it) after cleaning up sys.path,
+        # to avoid trouble in other tests due to included toy easyblock that is cached somewhere
+        # (despite the cleanup in sys.modules)
+        import easybuild.easyblocks.toy
+        reload(easybuild.easyblocks.toy)
+        import easybuild.easyblocks.generic.toy_extension
+        reload(easybuild.easyblocks.generic.toy_extension)
+
         del sys.modules['easybuild.easyblocks.toy']
+        del sys.modules['easybuild.easyblocks.generic.toy_extension']
 
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
