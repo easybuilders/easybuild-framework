@@ -39,7 +39,6 @@ import signal
 import stat
 import sys
 import tempfile
-import time
 from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
