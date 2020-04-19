@@ -1562,6 +1562,21 @@ def clean_up_locks_signal_handler(signum, frame):
         sys.exit(signum)
 
 
+def register_lock_cleanup_signal_handlers():
+    """
+    Register signal handler for signals that cancel the current EasyBuild session,
+    so we can clean up the locks that were created first.
+    """
+    signums = [
+        signal.SIGABRT,
+        signal.SIGINT,  # Ctrl-C
+        signal.SIGTERM,  # signal 15, soft kill (like when Slurm job is cancelled or received timeout)
+        signal.SIGQUIT,  # kinda like Ctrl-C
+    ]
+    for signum in signums:
+        signal.signal(signum, clean_up_locks_signal_handler)
+
+
 def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []

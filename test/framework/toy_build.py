@@ -39,6 +39,7 @@ import signal
 import stat
 import sys
 import tempfile
+import time
 from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
@@ -118,7 +119,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, versionsuffix='', testing=True):
+                       raise_error=False, test_report=None, versionsuffix='', testing=True,
+                       raise_systemexit=False):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -145,7 +147,7 @@ class ToyBuildTest(EnhancedTestCase):
         myerr = None
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
-                                  raise_error=raise_error, testing=testing)
+                                  raise_error=raise_error, testing=testing, raise_systemexit=raise_systemexit)
         except Exception as err:
             myerr = err
             if raise_error:
@@ -2606,6 +2608,57 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern += r"(Read-only file system|Permission denied)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
                               extra_args=extra_args, raise_error=True, verbose=False)
+
+    def test_toy_lock_cleanup_signals(self):
+        """Test cleanup of locks after EasyBuild session gets a cancellation signal."""
+
+        locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
+        self.assertFalse(os.path.exists(locks_dir))
+
+        # context manager which stops the function being called with the specified signal
+        class wait_and_signal:
+            def __init__(self, seconds, signum):
+                self.seconds = seconds
+                self.signum = signum
+
+            def send_signal(self, *args):
+                os.kill(os.getpid(), self.signum)
+
+            def __enter__(self):
+                signal.signal(signal.SIGALRM, self.send_signal)
+                signal.alarm(self.seconds)
+
+            def __exit__(self, type, value, traceback):
+                pass
+
+        # add extra sleep command to ensure session takes long enough
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 5"]')
+
+        signums = [
+            (signal.SIGABRT, SystemExit),
+            (signal.SIGINT, KeyboardInterrupt),
+            (signal.SIGTERM, SystemExit),
+            (signal.SIGQUIT, SystemExit),
+        ]
+        for (signum, exc) in signums:
+            with wait_and_signal(1, signum):
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.assertErrorRegex(exc, '.*', self.test_toy_build, ec_file=test_ec, verify=False,
+                                      raise_error=True, testing=False, raise_systemexit=True)
+
+                stderr = self.get_stderr().strip()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+
+                pattern = r"^WARNING: signal received \(%s\), " % int(signum)
+                pattern += r"cleaning up locks \(.*software_toy_0.0\)\.\.\."
+                regex = re.compile(pattern)
+                self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
     def test_toy_build_unicode_description(self):
         """Test installation of easyconfig file that has non-ASCII characters in description."""
