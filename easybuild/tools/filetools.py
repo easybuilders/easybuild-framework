@@ -49,6 +49,7 @@ import inspect
 import os
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
@@ -1543,6 +1544,22 @@ def clean_up_locks():
     """
     for lock_name in list(global_lock_names):
         remove_lock(lock_name)
+
+
+def clean_up_locks_signal_handler(signum, frame):
+    """
+    Signal handler, cleans up locks & exists with received signal number.
+    """
+
+    if not build_option('silent'):
+        print_warning("signal received (%s), cleaning up locks (%s)..." % (signum, ', '.join(global_lock_names)))
+    clean_up_locks()
+
+    # by default, a KeyboardInterrupt is raised with SIGINT, so keep doing so
+    if signum == signal.SIGINT:
+        raise KeyboardInterrupt("keyboard interrupt")
+    else:
+        sys.exit(signum)
 
 
 def expand_glob_paths(glob_paths):

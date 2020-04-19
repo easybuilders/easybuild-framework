@@ -2402,6 +2402,8 @@ class FileToolsTest(EnhancedTestCase):
     def test_locks(self):
         """Tests for lock-related functions."""
 
+        init_config(build_options={'silent': True})
+
         # make sure that global list of locks is empty when we start off
         self.assertFalse(ft.global_lock_names)
 
@@ -2414,6 +2416,9 @@ class FileToolsTest(EnhancedTestCase):
         lock_path = ft.det_lock_path(lock_name)
         self.assertFalse(os.path.exists(lock_path))
 
+        locks_dir = os.path.dirname(lock_path)
+        self.assertFalse(os.path.exists(locks_dir))
+
         # if lock doesn't exist yet, check_lock just returns
         ft.check_lock(lock_name)
 
@@ -2421,8 +2426,10 @@ class FileToolsTest(EnhancedTestCase):
         ft.create_lock(lock_name)
         self.assertTrue(os.path.exists(lock_path))
 
-        locks_dir = os.path.dirname(lock_path)
+        # can't use os.path.samefile until locks_dir actually exists
         self.assertTrue(os.path.samefile(locks_dir, os.path.join(self.test_installpath, 'software', '.locks')))
+
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
 
         # if lock exists, then check_lock raises an error
         self.assertErrorRegex(EasyBuildError, "Lock .* already exists", ft.check_lock, lock_name)
@@ -2430,6 +2437,7 @@ class FileToolsTest(EnhancedTestCase):
         # remove_lock should... remove the lock
         ft.remove_lock(lock_name)
         self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
 
         # no harm done if remove_lock is called if lock is already gone
         ft.remove_lock(lock_name)
@@ -2445,25 +2453,42 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.create_lock(lock_name)
         self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
 
         ft.clean_up_locks()
         self.assertFalse(ft.global_lock_names)
         self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
 
         # no problem with multiple locks
         lock_names = [lock_name, 'test123', 'foo@bar%baz']
         lock_paths = [os.path.join(locks_dir, x + '.lock') for x in lock_names]
-        for lock_name in lock_names:
-            ft.create_lock(lock_name)
-        for lock_path in lock_paths:
-            self.assertTrue(os.path.exists(lock_path), "Path %s should exist" % lock_path)
+        for ln in lock_names:
+            ft.create_lock(ln)
+        for lp in lock_paths:
+            self.assertTrue(os.path.exists(lp), "Path %s should exist" % lp)
 
         self.assertEqual(ft.global_lock_names, set(lock_names))
+        expected_locks = sorted(ln + '.lock' for ln in lock_names)
+        self.assertEqual(sorted(os.listdir(locks_dir)), expected_locks)
 
         ft.clean_up_locks()
-        for lock_path in lock_paths:
-            self.assertFalse(os.path.exists(lock_path), "Path %s should exist" % lock_path)
+        for lp in lock_paths:
+            self.assertFalse(os.path.exists(lp), "Path %s should not exist" % lp)
         self.assertFalse(ft.global_lock_names)
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # also test signal handler that is supposed to clean up locks
+        ft.create_lock(lock_name)
+        self.assertTrue(ft.global_lock_names)
+        self.assertTrue(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # clean_up_locks_signal_handler causes sys.exit with specified exit code
+        self.assertErrorRegex(SystemExit, '15', ft.clean_up_locks_signal_handler, 15, None)
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
 
 
 def suite():
