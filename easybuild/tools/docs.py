@@ -777,7 +777,7 @@ def list_toolchains_rst(tcs):
                     if col_name == 'COMPILER':
                         entry = 'PrgEnv-cray'
                     elif col_name == 'MPI':
-                        entry = 'cray-MPI'
+                        entry = 'cray-mpich'
                     elif col_name == 'linalg':
                         entry = 'cray-libsci'
                 # Combine the linear algebra libraries into a single column
