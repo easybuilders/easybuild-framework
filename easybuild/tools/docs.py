@@ -750,17 +750,15 @@ def list_toolchains_rst(tcs):
     # Set up column name : display name pairs
     col_names = {
         'name': 'Name',
-        'compiler': 'Compiler(s)',
+        'COMPILER': 'Compiler(s)',
         'linalg': "Linear algebra",
     }
 
     # Create sorted list of toolchain names
     sorted_tc_names = sorted(tcs.keys(), key=str.lower)
 
-    # Create text placeholder to use for missing entries.
-    # Not good documentation style to italicize the parentheses enclosing
-    # italic text unless surrouning text is also italic.
-    none_txt = '(*none*)'
+    # Create text placeholder to use for missing entries
+    none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
     table_values = [[] for i in range(len(table_titles))]
@@ -772,10 +770,9 @@ def list_toolchains_rst(tcs):
         else:
             for tc_name in sorted_tc_names:
                 tc = tcs[tc_name]
-                # Cray is a special snowflake
-                if tc_name.find('Cray') >= 0:
+                if 'cray' in tc_name.lower():
                     if col_name == 'COMPILER':
-                        entry = 'PrgEnv-cray'
+                        entry = ', '.join(tc[col_name.upper()])
                     elif col_name == 'MPI':
                         entry = 'cray-mpich'
                     elif col_name == 'linalg':
@@ -784,11 +781,8 @@ def list_toolchains_rst(tcs):
                 elif col_name == 'linalg':
                     linalg = []
                     for col in ['BLAS', 'LAPACK', 'SCALAPACK']:
-                        linalg.extend(tc.get(col, [none_txt]))
-                    # Doing this by iterating over the columns results in multiple 'none'
-                    # entries, so reduce those to one.
-                    linalg = nub(linalg)
-                    entry = ', '.join(linalg)
+                        linalg.extend(tc.get(col, []))
+                    entry = ', '.join(linalg) or none_txt
                 else:
                     # for other columns, we can grab the values via 'tc'
                     # key = col_name
