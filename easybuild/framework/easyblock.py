@@ -2436,17 +2436,26 @@ class EasyBlock(object):
             # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
             # those paths are used to enhance the paths provided by the easyblock
             if enhance_sanity_check and ec_paths:
-                for key in path_keys_and_check:
-                    paths[key] = paths[key] + ec_paths.get(key, [])
+                for key in ec_paths:
+                    val = ec_paths[key]
+                    if isinstance(val, list):
+                        paths[key] = paths.get(key, []) + val
+                    else:
+                        error_pattern = "Incorrect value type in sanity_check_paths, should be a list: "
+                        error_pattern += "%s (type: %s)" % (val, type(val))
+                        raise EasyBuildError(error_pattern)
                 self.log.info("Enhanced sanity check paths after taking into account easyconfig file: %s", paths)
 
-        ks = sorted(paths.keys())
-        valnottypes = [not isinstance(x, list) for x in paths.values()]
-        lenvals = [len(x) for x in paths.values()]
-        req_keys = sorted(path_keys_and_check.keys())
-        if not ks == req_keys or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            raise EasyBuildError("Incorrect format for sanity_check_paths (should (only) have %s keys, "
-                                 "values should be lists (at least one non-empty)).", ','.join(req_keys))
+        sorted_keys = sorted(paths.keys())
+        known_keys = sorted(path_keys_and_check.keys())
+
+        # verify sanity_check_paths value: only known keys, correct value types, at least one non-empty value
+        only_list_values = all(isinstance(x, list) for x in paths.values())
+        only_empty_lists = all(not x for x in paths.values())
+        if sorted_keys != known_keys or not only_list_values or only_empty_lists:
+            error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
+            error_msg += "values should be lists (at least one non-empty)."
+            raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
 
         # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
         # the ones provided by the easyblock (via custom_commands) are ignored
@@ -2502,7 +2511,14 @@ class EasyBlock(object):
 
         for key, (typ, _) in path_keys_and_check.items():
             self.dry_run_msg("Sanity check paths - %s ['%s']", typ, key)
-            if paths[key]:
+            entries = paths[key]
+            if entries:
+                # some entries may be tuple values,
+                # we need to convert them to strings first so we can print them sorted
+                for idx, entry in enumerate(entries):
+                    if isinstance(entry, tuple):
+                        entries[idx] = ' or '.join(entry)
+
                 for path in sorted(paths[key]):
                     self.dry_run_msg("  * %s", str(path))
             else:
