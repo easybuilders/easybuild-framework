@@ -65,10 +65,10 @@ and the methods will return None.
 :author: Jens Timmerman (Ghent University)
 """
 
-import fcntl  # @UnresolvedImport
-import select  # @UnresolvedImport
 import errno
+import fcntl
 import os
+import select
 import subprocess
 import time
 

@@ -171,8 +171,8 @@ class PbsPython(JobBackend):
 
             # return most frequent
             freq_count, freq_np = max([(j, i) for i, j in res.items()])
-            self.log.debug("Found most frequent np %s (%s times) in interesting nodes %s" %
-                           (freq_np, freq_count, interesting_nodes))
+            self.log.debug("Found most frequent np %s (%s times) in interesting nodes %s",
+                           freq_np, freq_count, interesting_nodes)
 
             self._ppn = freq_np
 
