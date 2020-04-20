@@ -2010,6 +2010,47 @@ class ToyBuildTest(EnhancedTestCase):
         regex = re.compile(r'\n'.join(pattern_lines), re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
+        del sys.modules['easybuild.easyblocks.toy']
+
+        # sanity_check_paths with only one key is allowed if enhance_sanity_check is enabled;
+        test_ec_txt = test_ec_txt + "\nsanity_check_paths = {'files': ['README']}"
+        write_file(test_ec, test_ec_txt)
+
+        # we need to do a non-dry run here, to ensure the code we want to test is triggered
+        # (EasyConfig.dump called by 'reproduce_build' function from 'build_and_install_one')
+        eb_args = [
+            '--include-easyblocks=%s' % test_toy_easyblock,
+            '--trace',
+        ]
+
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        pattern_lines = [
+            r"^== sanity checking\.\.\.",
+            r"  >> file 'bin/toy' found: OK",
+        ]
+        regex = re.compile(r'\n'.join(pattern_lines), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # no directories are checked in sanity check now, only files (since dirs is an empty list)
+        regex = re.compile(r"directory .* found:", re.M)
+        self.assertFalse(regex.search(stdout), "Pattern '%s' should be not found in: %s" % (regex.pattern, stdout))
+
+        del sys.modules['easybuild.easyblocks.toy']
+
+        # if enhance_sanity_check is disabled, both files/dirs keys are strictly required in sanity_check_paths
+        test_ec_txt = test_ec_txt + '\nenhance_sanity_check = False'
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = " Missing mandatory key 'dirs' in sanity_check_paths."
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=eb_args, raise_error=True, verbose=False)
+
+        del sys.modules['easybuild.easyblocks.toy']
+
         # kick out any paths for included easyblocks from sys.path,
         # to avoid infected any other tests
         for path in sys.path[:]:
