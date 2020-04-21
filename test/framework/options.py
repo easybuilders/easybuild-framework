@@ -556,9 +556,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # full 'intel' toolchain (imkl appears twice, in linalg + FFT columns)
             r"\*\*intel\*\*\s+icc,\s+ifort\s+impi\s+imkl\s+imkl\s*\n",
             # fosscuda toolchain, also lists CUDA in compilers column
-            r"\*\*fosscuda\*\*\s+GCC,\s+CUDA\s+OpenMPI\s+OpenBLAS,\s+ScaLAPACK\s+FFTW\s*\n"
+            r"\*\*fosscuda\*\*\s+GCC,\s+CUDA\s+OpenMPI\s+OpenBLAS,\s+ScaLAPACK\s+FFTW\s*\n",
             # system toolchain: 'none' in every column
-            r"\*\*system\*\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s*\n"
+            r"\*\*system\*\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s*\n",
             # Cray special case
             r"\n\*\*CrayGNU\*\*\s+PrgEnv-gnu\s+cray-mpich\s+cray-libsci\s+\*\(none\)\*\s*\n",
             # footer
