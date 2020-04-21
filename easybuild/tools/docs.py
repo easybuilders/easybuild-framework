@@ -782,11 +782,11 @@ def list_toolchains_rst(tcs):
                     linalg = []
                     for col in ['BLAS', 'LAPACK', 'SCALAPACK']:
                         linalg.extend(tc.get(col, []))
-                    entry = ', '.join(linalg) or none_txt
+                    entry = ', '.join(nub(linalg)) or none_txt
                 else:
                     # for other columns, we can grab the values via 'tc'
                     # key = col_name
-                    entry = ', '.join(tc.get(col_name, [none_txt]))
+                    entry = ', '.join(tc.get(col_name, [])) or none_txt
                 table_values[col_id].append(entry)
 
     # Set the table titles to the pretty ones
