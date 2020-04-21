@@ -74,7 +74,27 @@ class ToyBuildTest(EnhancedTestCase):
     def tearDown(self):
         """Cleanup."""
 
+        # kick out any paths for included easyblocks from sys.path,
+        # to avoid infected any other tests
+        for path in sys.path[:]:
+            if '/included-easyblocks' in path:
+                sys.path.remove(path)
+
+        # reload toy easyblock (and generic toy_extension easyblock that imports it) after cleaning up sys.path,
+        # to avoid trouble in other tests due to included toy easyblock that is cached somewhere
+        # (despite the cleanup in sys.modules);
+        # important for tests that include a customised copy of the toy easyblock
+        # (like test_toy_build_enhanced_sanity_check)
+        import easybuild.easyblocks.toy
+        reload(easybuild.easyblocks.toy)
+        import easybuild.easyblocks.generic.toy_extension
+        reload(easybuild.easyblocks.generic.toy_extension)
+
+        del sys.modules['easybuild.easyblocks.toy']
+        del sys.modules['easybuild.easyblocks.generic.toy_extension']
+
         super(ToyBuildTest, self).tearDown()
+
         # remove logs
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
@@ -2050,23 +2070,6 @@ class ToyBuildTest(EnhancedTestCase):
                               extra_args=eb_args, raise_error=True, verbose=False)
 
         del sys.modules['easybuild.easyblocks.toy']
-
-        # kick out any paths for included easyblocks from sys.path,
-        # to avoid infected any other tests
-        for path in sys.path[:]:
-            if '/included-easyblocks' in path:
-                sys.path.remove(path)
-
-        # reload toy easyblock (and generic toy_extension easyblock that imports it) after cleaning up sys.path,
-        # to avoid trouble in other tests due to included toy easyblock that is cached somewhere
-        # (despite the cleanup in sys.modules)
-        import easybuild.easyblocks.toy
-        reload(easybuild.easyblocks.toy)
-        import easybuild.easyblocks.generic.toy_extension
-        reload(easybuild.easyblocks.generic.toy_extension)
-
-        del sys.modules['easybuild.easyblocks.toy']
-        del sys.modules['easybuild.easyblocks.generic.toy_extension']
 
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
