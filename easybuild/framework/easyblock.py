@@ -2509,7 +2509,8 @@ class EasyBlock(object):
         """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
-        for key, (typ, _) in path_keys_and_check.items():
+        for key in [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS]:
+            (typ, _) = path_keys_and_check[key]
             self.dry_run_msg("Sanity check paths - %s ['%s']", typ, key)
             entries = paths[key]
             if entries:
