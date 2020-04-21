@@ -87,10 +87,13 @@ class ToyBuildTest(EnhancedTestCase):
         # (like test_toy_build_enhanced_sanity_check)
         import easybuild.easyblocks.toy
         reload(easybuild.easyblocks.toy)
+        import easybuild.easyblocks.toytoy
+        reload(easybuild.easyblocks.toytoy)
         import easybuild.easyblocks.generic.toy_extension
         reload(easybuild.easyblocks.generic.toy_extension)
 
         del sys.modules['easybuild.easyblocks.toy']
+        del sys.modules['easybuild.easyblocks.toytoy']
         del sys.modules['easybuild.easyblocks.generic.toy_extension']
 
         super(ToyBuildTest, self).tearDown()
