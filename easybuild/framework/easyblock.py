@@ -519,7 +519,8 @@ class EasyBlock(object):
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
                         git_config = ext_options.get('git_config', None)
 
-                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download, git_config=git_config)
+                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download,
+                                                  git_config=git_config)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
