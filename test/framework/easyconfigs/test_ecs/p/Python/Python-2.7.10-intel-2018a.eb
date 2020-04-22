@@ -10,8 +10,8 @@ more effectively."""
 toolchain = {'name': 'intel', 'version': '2018a'}
 toolchainopts = {'pic': True, 'opt': True, 'optarch': True}
 
-numpyversion = '1.9.2'
-scipyversion = '0.15.1'
+local_numpyver = '1.9.2'
+local_scipyver = '0.15.1'
 
 source_urls = ['http://www.python.org/ftp/%(namelower)s/%(version)s/']
 sources = [SOURCE_TGZ]
@@ -44,14 +44,14 @@ exts_list = [
     ['nose', '1.3.6', {
         'source_urls': ['https://pypi.python.org/packages/source/n/nose/'],
     }],
-    ['numpy', numpyversion, {
-        'source_urls': [['http://sourceforge.net/projects/numpy/files/NumPy/%s' % numpyversion, 'download']],
+    ['numpy', local_numpyver, {
+        'source_urls': [['http://sourceforge.net/projects/numpy/files/NumPy/%s' % local_numpyver, 'download']],
         'patches': [
-            'numpy-1.8.0-mkl.patch',  # % numpyversion,
+            'numpy-1.8.0-mkl.patch',  # % local_numpyver,
         ],
     }],
-    ['scipy', scipyversion, {
-        'source_urls': [['http://sourceforge.net/projects/scipy/files/scipy/%s' % scipyversion, 'download']],
+    ['scipy', local_scipyver, {
+        'source_urls': [['http://sourceforge.net/projects/scipy/files/scipy/%s' % local_scipyver, 'download']],
     }],
     ['blist', '1.3.6', {
         'source_urls': ['https://pypi.python.org/packages/source/b/blist/'],

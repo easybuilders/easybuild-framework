@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2019 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,12 +31,12 @@ import os
 import re
 import stat
 import sys
-from vsc.utils import fancylogger
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
+from easybuild.base import fancylogger
 from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which, write_file
@@ -92,7 +92,7 @@ class ModulesToolTest(EnhancedTestCase):
             bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
             self.assertTrue(False, 'BrokenMockModulesTool should fail')
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             err_msg = "command is not available"
             self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
 
@@ -176,7 +176,7 @@ class ModulesToolTest(EnhancedTestCase):
             fake_path = os.path.join(self.test_installpath, 'lmod')
             fake_lmod_txt = '\n'.join([
                 '#!/bin/bash',
-                'echo "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION,
+                'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
             ])
             write_file(fake_path, fake_lmod_txt)

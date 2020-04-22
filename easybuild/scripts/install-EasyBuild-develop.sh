@@ -28,20 +28,11 @@ github_clone_branch()
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
     git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
 
-    if [[ "$REPO" == "vsc"* ]]
-    then
-	echo "=== Adding and fetching HPC-UGent GitHub repository @ hpcugent/${REPO} ..."
-	cd "${REPO}"
-	git remote add "github_hpcugent" "git@github.com:hpcugent/${REPO}.git"
-	git fetch github_hpcugent
-	git branch --set-upstream-to "github_hpcugent/${BRANCH}" "${BRANCH}"
-    else
-	echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
-	cd "${REPO}"
-	git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
-	git fetch github_easybuilders
-	git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
-    fi
+    echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
+    cd "${REPO}"
+    git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
+    git fetch github_easybuilders
+    git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
 }
 
 # Print the content of the module
@@ -72,8 +63,6 @@ conflict    EasyBuild
 
 prepend-path    PATH            "\$root/easybuild-framework"
 
-prepend-path    PYTHONPATH      "\$root/vsc-base/lib"
-prepend-path    PYTHONPATH      "\$root/vsc-install/lib"
 prepend-path    PYTHONPATH      "\$root/easybuild-framework"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyblocks"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyconfigs"
@@ -111,10 +100,6 @@ INSTALL_DIR="$2"
 mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
 INSTALL_DIR="${PWD}" # get the full path
-
-# Clone repository for vsc-base dependency with 'master' branch
-github_clone_branch "vsc-base"    "master"
-github_clone_branch "vsc-install" "master"
 
 # Clone code repositories with the 'develop' branch
 github_clone_branch "easybuild-framework"   "develop"

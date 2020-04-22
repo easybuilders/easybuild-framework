@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2019 Ghent University
+# Copyright 2011-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,17 +29,22 @@ Module naming scheme API.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from vsc.utils import fancylogger
-from vsc.utils.patterns import Singleton
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import Singleton
+from easybuild.tools.py2vs3 import create_base_metaclass
 
 
-class ModuleNamingScheme(object):
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
+
+
+# singleton metaclass: only one instance is created
+BaseModuleNamingScheme = create_base_metaclass('BaseModuleNamingScheme', Singleton, object)
+
+
+class ModuleNamingScheme(BaseModuleNamingScheme):
     """Abstract class for a module naming scheme implementation."""
-
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
 
     REQUIRED_KEYS = None
 
@@ -172,4 +177,3 @@ class ModuleNamingScheme(object):
         Software is already installed beforehand with one naming scheme, including development module.
         """
         return True
-

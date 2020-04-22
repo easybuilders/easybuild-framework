@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,11 +42,14 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
+from easybuild.tools.toolchain.toolchain import env_vars_external_module
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -94,23 +97,72 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc, None)
         self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
 
+    def test_system_toolchain(self):
+        """Test for system toolchain."""
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            self.assertTrue(isinstance(tc, SystemToolchain))
+
     def test_foss_toolchain(self):
         """Test for foss toolchain."""
         self.get_toolchain("foss", version="2018a")
 
-    def test_get_variable_dummy_toolchain(self):
-        """Test get_variable on dummy toolchain"""
-        tc = self.get_toolchain('dummy', version='dummy')
-        tc.prepare()
-        self.assertEqual(tc.get_variable('CC'), '')
-        self.assertEqual(tc.get_variable('CXX', typ=str), '')
-        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+    def test_get_variable_system_toolchain(self):
+        """Test get_variable on system/dummy toolchain"""
 
-        tc = self.get_toolchain('dummy', version='')
-        tc.prepare()
-        self.assertEqual(tc.get_variable('CC'), '')
-        self.assertEqual(tc.get_variable('CXX', typ=str), '')
-        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+        # system toolchain version doesn't really matter, but fine...
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            tc.prepare()
+            self.assertEqual(tc.get_variable('CC'), '')
+            self.assertEqual(tc.get_variable('CXX', typ=str), '')
+            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
+        # dummy toolchain is deprecated, so we need to allow for it (and catch the warnings that get printed)
+        self.allow_deprecated_behaviour()
+
+        for ver in ['dummy', '']:
+            self.mock_stderr(True)
+            tc = self.get_toolchain('dummy', version=ver)
+            self.mock_stderr(False)
+            tc.prepare()
+            self.assertEqual(tc.get_variable('CC'), '')
+            self.assertEqual(tc.get_variable('CXX', typ=str), '')
+            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
+    def test_is_system_toolchain(self):
+        """Test is_system_toolchain method."""
+
+        init_config()
+
+        for ver in ['system', '']:
+            tc = self.get_toolchain('system', version=ver)
+            self.assertTrue(tc.is_system_toolchain())
+
+        tc = self.get_toolchain('foss', version='2018a')
+        self.assertFalse(tc.is_system_toolchain())
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2018a')
+        self.assertFalse(tc.is_system_toolchain())
+
+        # using dummy toolchain is deprecated, so to test for that we need to explicitely allow using deprecated stuff
+        error_pattern = "Use of 'dummy' toolchain is deprecated"
+        for ver in ['dummy', '']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.get_toolchain, 'dummy', version=ver)
+
+        dummy_depr_warning = "WARNING: Deprecated functionality, will no longer work in v5.0: Use of 'dummy' toolchain"
+
+        self.allow_deprecated_behaviour()
+
+        for ver in ['dummy', '']:
+            self.mock_stderr(True)
+            tc = self.get_toolchain('dummy', version=ver)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue(tc.is_system_toolchain())
+            self.assertTrue(dummy_depr_warning in stderr, "Found '%s' in: %s" % (dummy_depr_warning, stderr))
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -218,7 +270,7 @@ class ToolchainTest(EnhancedTestCase):
         ldflags = tc.get_variable('LDFLAGS', typ=list)
         self.assertTrue(isinstance(ldflags, list))
         if len(ldflags) > 0:
-            self.assertTrue(isinstance(ldflags[0], basestring))
+            self.assertTrue(isinstance(ldflags[0], string_type))
 
     def test_validate_pass_by_value(self):
         """
@@ -896,6 +948,48 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('intel', version='1970.01')
         self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
 
+    def test_mpi_cmd_prefix(self):
+        """Test mpi_exec_nranks function."""
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('gompi', version='2018a')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks='2'), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpirun -n 1")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2018a')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks='2'), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpirun -n 1")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        tc = self.get_toolchain('intel', version='2012a')
+        tc.prepare()
+
+        mpi_exec_nranks_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4")
+        self.assertTrue(mpi_exec_nranks_re.match(tc.mpi_cmd_prefix(nr_ranks=4)))
+        mpi_exec_nranks_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 1")
+        self.assertTrue(mpi_exec_nranks_re.match(tc.mpi_cmd_prefix()))
+
+        # test specifying custom template for MPI commands
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks="7"), "mpiexec -np 7 --")
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpiexec -np 1 --")
+
+        # check that we return None when command does not appear at the end of the template
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s option", 'silent': True})
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks="7"), None)
+        self.assertEqual(tc.mpi_cmd_prefix(), None)
+
+        # template with extra spaces at the end if fine though
+        init_config(build_options={'mpi_cmd_template': "mpirun -np %(nr_ranks)s %(cmd)s  ", 'silent': True})
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpirun -np 1")
+
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
         self.modtool.prepend_module_path(self.test_prefix)
@@ -921,6 +1015,17 @@ class ToolchainTest(EnhancedTestCase):
         # test specifying custom template for MPI commands
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
+
+        # check whether expected error is raised when a template with missing keys is used;
+        # %(ranks)s should be %(nr_ranks)s
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(ranks)s -- %(cmd)s", 'silent': True})
+        error_pattern = \
+            r"Missing templates in mpi-cmd-template value 'mpiexec -np %\(ranks\)s -- %\(cmd\)s': %\(nr_ranks\)s"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
+
+        init_config(build_options={'mpi_cmd_template': "mpirun %(foo)s -np %(nr_ranks)s %(cmd)s", 'silent': True})
+        error_pattern = "Failed to complete MPI cmd template .* with .*: KeyError 'foo'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
@@ -1073,6 +1178,71 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
         self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
+
+    def test_standalone_iccifort(self):
+        """Test whether standalone installation of iccifort matches the iccifort toolchain definition."""
+
+        tc = self.get_toolchain('iccifort', version='2018.1.163')
+        tc.prepare()
+        self.assertEqual(tc.toolchain_dep_mods, ['icc/2018.1.163', 'ifort/2018.1.163'])
+        self.modtool.purge()
+
+        for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT']:
+            self.assertTrue(os.getenv(key) is None)
+
+        # install fake iccifort module with no dependencies
+        fake_iccifort = os.path.join(self.test_prefix, 'iccifort', '2018.1.163')
+        write_file(fake_iccifort, "#%Module")
+        self.modtool.use(self.test_prefix)
+
+        # toolchain verification fails because icc/ifort are not dependencies of iccifort modules,
+        # and corresponding environment variables are not set
+        error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
+
+        # make iccifort module set $EBROOT* and $EBVERSION* to pass toolchain verification
+        fake_iccifort_txt = '\n'.join([
+            "#%Module",
+            'setenv EBROOTICC "%s"' % self.test_prefix,
+            'setenv EBROOTIFORT "%s"' % self.test_prefix,
+            'setenv EBVERSIONICC "2018.1.163"',
+            'setenv EBVERSIONIFORT "2018.1.163"',
+        ])
+        write_file(fake_iccifort, fake_iccifort_txt)
+        # toolchain preparation (which includes verification) works fine now
+        tc.prepare()
+        # no dependencies found in iccifort module
+        self.assertEqual(tc.toolchain_dep_mods, [])
+
+    def test_standalone_iccifortcuda(self):
+        """Test whether standalone installation of iccifortcuda matches the iccifortcuda toolchain definition."""
+
+        tc = self.get_toolchain('iccifortcuda', version='2018b')
+        tc.prepare()
+        self.assertEqual(tc.toolchain_dep_mods, ['icc/2018.1.163', 'ifort/2018.1.163', 'CUDA/9.1.85'])
+        self.modtool.purge()
+
+        for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT', 'EBROOTCUDA', 'EBVERSIONCUDA']:
+            self.assertTrue(os.getenv(key) is None)
+
+        # install fake iccifortcuda module with no dependencies
+        fake_iccifortcuda = os.path.join(self.test_prefix, 'iccifortcuda', '2018b')
+        write_file(fake_iccifortcuda, "#%Module")
+        self.modtool.use(self.test_prefix)
+
+        # toolchain verification fails because icc/ifort are not dependencies of iccifortcuda modules,
+        # and corresponding environment variables are not set
+        error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
+
+        # Verify that it works loading a module that contains a combined iccifort module
+        tc = self.get_toolchain('iccifortcuda', version='2019a')
+        # toolchain preparation (which includes verification) works fine now
+        tc.prepare()
+        # dependencies found in iccifortcuda module
+        self.assertEqual(tc.toolchain_dep_mods, ['iccifort/2019.5.281', 'CUDA/9.1.85'])
 
     def test_independence(self):
         """Test independency of toolchain instances."""
@@ -1668,13 +1838,14 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['TMPDIR'] = long_tmpdir
         tc, stdout, stderr = prep()
         self.assertEqual(stdout, '')
-        regex = re.compile("^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{6}$")
+        # basename of tmpdir will be 6 chars in Python 2, 8 chars in Python 3
+        regex = re.compile(r"^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{6,8}$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
         # new $TMPDIR should be /tmp/xxxxxx
         tmpdir = os.environ.get('TMPDIR')
         self.assertTrue(tmpdir.startswith('/tmp'))
-        self.assertEqual(len(tmpdir), 11)
+        self.assertTrue(len(tmpdir) in (11, 13))
 
         # also test cleanup method to ensure short $TMPDIR is cleaned up properly
         self.assertTrue(os.path.exists(tmpdir))
@@ -1712,6 +1883,25 @@ class ToolchainTest(EnhancedTestCase):
 
         # we may have created our own short tmpdir above, so make sure to clean things up...
         shutil.rmtree(orig_tmpdir)
+
+    def test_env_vars_external_module(self):
+        """Test env_vars_external_module function."""
+
+        res = env_vars_external_module('test', '1.2.3', {'prefix': '/software/test/1.2.3'})
+        expected = {'EBVERSIONTEST': '1.2.3', 'EBROOTTEST': '/software/test/1.2.3'}
+        self.assertEqual(res, expected)
+
+        res = env_vars_external_module('test-test', '1.2.3', {})
+        expected = {'EBVERSIONTESTMINTEST': '1.2.3'}
+        self.assertEqual(res, expected)
+
+        res = env_vars_external_module('test', None, {'prefix': '/software/test/1.2.3'})
+        expected = {'EBROOTTEST': '/software/test/1.2.3'}
+        self.assertEqual(res, expected)
+
+        res = env_vars_external_module('test', None, {})
+        expected = {}
+        self.assertEqual(res, expected)
 
 
 def suite():

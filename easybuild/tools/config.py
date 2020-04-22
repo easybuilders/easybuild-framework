@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,20 +33,20 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Andy Georges (Ghent University)
 """
 import copy
 import glob
 import os
 import random
-import string
 import tempfile
 import time
-from vsc.utils import fancylogger
-from vsc.utils.missing import FrozenDictKnownKeys
-from vsc.utils.patterns import Singleton
+from abc import ABCMeta
 
+from easybuild.base import fancylogger
+from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
+from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -78,6 +78,8 @@ CONT_TYPE_SINGULARITY = 'singularity'
 CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
+DEFAULT_BRANCH = 'develop'
+DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -111,11 +113,35 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+# package name for generic easyblocks
+GENERIC_EASYBLOCK_PKG = 'generic'
+
+# general module class
+GENERAL_CLASS = 'all'
+
 JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
 JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
 
 DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
+
+LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
+LOCAL_VAR_NAMING_CHECK_LOG = 'log'
+LOCAL_VAR_NAMING_CHECK_WARN = WARN
+LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
+
+
+class Singleton(ABCMeta):
+    """Serves as metaclass for classes that should implement the Singleton pattern.
+
+    See http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 # utility function for obtaining default paths
@@ -138,6 +164,7 @@ BUILD_OPTIONS_CMDLINE = {
         'container_image_name',
         'container_template_recipe',
         'container_tmpdir',
+        'cuda_compute_capabilities',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -162,7 +189,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_output_dir',
         'job_polling_interval',
         'job_target_resource',
-        'lockpath',
+        'locks_dir',
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',
@@ -171,11 +198,14 @@ BUILD_OPTIONS_CMDLINE = {
         'package_tool_options',
         'parallel',
         'pr_branch_name',
+        'pr_commit_msg',
+        'pr_descr',
         'pr_target_account',
-        'pr_target_branch',
         'pr_target_repo',
+        'pr_title',
         'rpath_filter',
         'regtest_output_dir',
+        'silence_deprecation_warnings',
         'skip',
         'stop',
         'subdir_user_modules',
@@ -186,6 +216,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     False: [
         'add_dummy_to_minimal_toolchains',
+        'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'consider_archived_easyconfigs',
         'container_build_image',
@@ -195,18 +226,21 @@ BUILD_OPTIONS_CMDLINE = {
         'enforce_checksums',
         'extended_dry_run',
         'experimental',
-        'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
+        'ignore_index',
+        'ignore_locks',
         'install_latest_eb_release',
         'lib64_fallback_sanity_check',
         'logtostdout',
         'minimal_toolchains',
+        'module_extensions',
         'module_only',
         'package',
         'read_only_installdir',
+        'remove_ghost_install_dirs',
         'rebuild',
         'robot',
         'rpath',
@@ -229,6 +263,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
+        'fixed_installdir_naming_scheme',
         'mpi_tests',
         'map_toolchains',
         'modules_tool_version_check',
@@ -236,11 +271,18 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     WARN: [
         'check_ebroot_env_vars',
+        'local_var_naming_check',
         'detect_loaded_modules',
         'strict',
     ],
     DEFAULT_CONT_TYPE: [
         'container_type',
+    ],
+    DEFAULT_BRANCH: [
+        'pr_target_branch',
+    ],
+    DEFAULT_INDEX_MAX_AGE: [
+        'index_max_age',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
@@ -321,11 +363,12 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
-class ConfigurationVariables(FrozenDictKnownKeys):
-    """This is a dict that supports legacy config names transparently."""
+# singleton metaclass: only one instance is created
+BaseConfigurationVariables = create_base_metaclass('BaseConfigurationVariables', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class ConfigurationVariables(BaseConfigurationVariables):
+    """This is a dict that supports legacy config names transparently."""
 
     # list of known/required keys
     REQUIRED = [
@@ -365,11 +408,12 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         return self.items()
 
 
-class BuildOptions(FrozenDictKnownKeys):
-    """Representation of a set of build options, acts like a dictionary."""
+# singleton metaclass: only one instance is created
+BaseBuildOptions = create_base_metaclass('BaseBuildOptions', Singleton, FrozenDictKnownKeys)
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
+
+class BuildOptions(BaseBuildOptions):
+    """Representation of a set of build options, acts like a dictionary."""
 
     KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
@@ -388,7 +432,7 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, basestring):
+    if isinstance(sourcepath, string_type):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
@@ -414,15 +458,21 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        if cmdline_options.new_pr or cmdline_options.update_pr:
-            _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
+        new_update_opt = cmdline_options.new_branch_github or cmdline_options.new_pr
+        new_update_opt = new_update_opt or cmdline_options.update_branch_github or cmdline_options.update_pr
+
+        if new_update_opt:
+            _log.info("Retaining all dependencies of specified easyconfigs to create/update branch or pull request")
             retain_all_deps = True
 
-        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.containerize,
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.check_contrib,
+                                      cmdline_options.check_style, cmdline_options.containerize,
                                       cmdline_options.dep_graph, cmdline_options.dry_run,
-                                      cmdline_options.dry_run_short, cmdline_options.extended_dry_run,
-                                      cmdline_options.dump_env_script, cmdline_options.missing_modules,
-                                      cmdline_options.new_pr, cmdline_options.preview_pr, cmdline_options.update_pr]
+                                      cmdline_options.dry_run_short, cmdline_options.dump_env_script,
+                                      cmdline_options.extended_dry_run, cmdline_options.fix_deprecated_easyconfigs,
+                                      cmdline_options.missing_modules, cmdline_options.new_branch_github,
+                                      cmdline_options.new_pr, cmdline_options.preview_pr,
+                                      cmdline_options.update_branch_github, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
@@ -664,7 +714,7 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     filename = log_file_format(ec={'name': name, 'version': version}, date=date, timestamp=timestamp)
 
     if add_salt:
-        salt = ''.join(random.choice(string.letters) for i in range(5))
+        salt = ''.join(random.choice(ascii_letters) for i in range(5))
         filename_parts = filename.split('.')
         filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
 

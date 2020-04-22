@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,9 +36,8 @@ Dependency resolution functionality, a.k.a. robot.
 import copy
 import os
 import sys
-from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
@@ -47,7 +46,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.utilities import flatten
+from easybuild.tools.utilities import flatten, nub
 
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
@@ -470,20 +469,36 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False, filename_only=False, terse=False):
-    """Search for easyconfigs, if a query is provided."""
+def search_easyconfigs(query, short=False, filename_only=False, terse=False, consider_extra_paths=True,
+                       print_result=True, case_sensitive=False):
+    """
+    Search for easyconfigs, if a query is provided.
+
+    :param query: regex query string
+    :param short: figure out common prefix of hits, use variable to factor it out
+    :param filename_only: only print filenames, not paths
+    :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
+    :param consider_extra_paths: consider all paths when searching
+    :param print_result: print the list of easyconfigs
+    :param case_sensitive: boolean to decide whether search is case sensitive
+
+    :return: return a list of paths for the query
+    """
     search_path = build_option('robot_path')
     if not search_path:
         search_path = [os.getcwd()]
     extra_search_paths = build_option('search_paths')
-    if extra_search_paths:
-        search_path.extend(extra_search_paths)
+    # If we're returning a list of possible resolutions by the robot, don't include the extra_search_paths
+    if extra_search_paths and consider_extra_paths:
+        # we shouldn't use += or .extend here but compose a new list,
+        # to avoid adding a path to the list returned by build_option('robot_path') !
+        search_path = search_path + extra_search_paths
 
     ignore_dirs = build_option('ignore_dirs')
 
     # note: don't pass down 'filename_only' here, we need the full path to filter out archived easyconfigs
     var_defs, _hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, terse=terse,
-                                  silent=True, filename_only=False)
+                                  silent=True, filename_only=False, case_sensitive=case_sensitive)
 
     # filter out archived easyconfigs, these are handled separately
     hits, archived_hits = [], []
@@ -493,32 +508,42 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
         else:
             hits.append(hit)
 
-    # check whether only filenames should be printed
+    # check whether only filenames should be used
     if filename_only:
         hits = [os.path.basename(hit) for hit in hits]
         archived_hits = [os.path.basename(hit) for hit in archived_hits]
 
-    # prepare output format
-    if terse:
-        lines, tmpl = [], '%s'
+    if print_result:
+        # prepare output format
+        if terse:
+            lines, tmpl = [], '%s'
+        else:
+            lines = ['%s=%s' % var_def for var_def in var_defs]
+            tmpl = ' * %s'
+
+        # non-archived hits are shown first
+        lines.extend(tmpl % hit for hit in hits)
+
+        # also take into account archived hits
+        if archived_hits:
+            if build_option('consider_archived_easyconfigs'):
+                if not terse:
+                    lines.extend(['', "Matching archived easyconfigs:", ''])
+                lines.extend(tmpl % hit for hit in archived_hits)
+            elif not terse:
+                cnt = len(archived_hits)
+                lines.extend([
+                    '',
+                    "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them"
+                    % cnt,
+                ])
+
+        print('\n'.join(lines))
+
+    # if requested return the matches as a list
+    if build_option('consider_archived_easyconfigs'):
+        final_hits = hits + archived_hits
     else:
-        lines = ['%s=%s' % var_def for var_def in var_defs]
-        tmpl = ' * %s'
+        final_hits = hits
 
-    # non-archived hits are shown first
-    lines.extend(tmpl % hit for hit in hits)
-
-    # also take into account archived hits
-    if archived_hits:
-        if build_option('consider_archived_easyconfigs'):
-            if not terse:
-                lines.extend(['', "Matching archived easyconfigs:", ''])
-            lines.extend(tmpl % hit for hit in archived_hits)
-        elif not terse:
-            cnt = len(archived_hits)
-            lines.extend([
-                '',
-                "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
-            ])
-
-    print('\n'.join(lines))
+    return final_hits

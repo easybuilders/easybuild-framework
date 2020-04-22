@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2019 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,10 +41,10 @@ import os
 import socket
 import tempfile
 import time
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import rmtree2
+from easybuild.tools.filetools import remove_dir
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -190,6 +190,6 @@ class SvnRepository(FileRepository):
         Clean up SVN working copy.
         """
         try:
-            rmtree2(self.wc)
+            remove_dir(self.wc)
         except OSError as err:
             raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

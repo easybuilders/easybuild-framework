@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,7 +29,11 @@ Support for Intel MPI as toolchain MPI library.
 :author: Kenneth Hoste (Ghent University)
 """
 
+import os
+
 import easybuild.tools.toolchain as toolchain
+
+from distutils.version import LooseVersion
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS, COMPILER_VARIABLES
 from easybuild.tools.toolchain.variables import CommandFlagList
@@ -66,6 +70,23 @@ class IntelMPI(Mpich2):
             self.variables.nappend('I_MPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
         super(IntelMPI, self)._set_mpi_compiler_variables()
+
+    def _set_mpi_variables(self):
+        """Set the other MPI variables"""
+
+        super(IntelMPI, self)._set_mpi_variables()
+
+        if (LooseVersion(self.version) >= LooseVersion('2019')):
+            lib_dir = [os.path.join('intel64', 'lib', 'release')]
+            incl_dir = [os.path.join('intel64', 'include')]
+
+            for root in self.get_software_root(self.MPI_MODULE_NAME):
+                self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir,
+                                             filename="lib%s.a" % self.MPI_LIBRARY_NAME)
+                self.variables.append_exists('MPI_LIB_SHARED', root, lib_dir,
+                                             filename="lib%s.so" % self.MPI_LIBRARY_NAME)
+                self.variables.append_exists('MPI_LIB_DIR', root, lib_dir)
+                self.variables.append_exists('MPI_INC_DIR', root, incl_dir)
 
     MPI_LINK_INFO_OPTION = '-show'
 

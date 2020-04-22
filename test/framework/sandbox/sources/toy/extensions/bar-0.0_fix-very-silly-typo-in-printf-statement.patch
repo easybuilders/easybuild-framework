@@ -1,0 +1,10 @@
+--- bar.source.orig	2019-09-21 15:06:10.000000000 +0200
++++ bar.source	2019-09-21 15:06:20.000000000 +0200
+@@ -2,6 +2,6 @@
+ 
+ int main(int argc, char* argv[]){
+ 
+-    printf("I'm a bar, and very proud of it.\n");
++    printf("I'm a bar, and very very proud of it.\n");
+     return 0;
+ }
