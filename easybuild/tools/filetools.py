@@ -617,9 +617,9 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def find_glob_pattern(self, glob_pattern, fail_on_no_match=True):
+def find_glob_pattern(glob_pattern, fail_on_no_match=True):
     """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
-    if self.dry_run:
+    if build_option('extended_dry_run'):
         return glob_pattern
     res = glob.glob(glob_pattern)
     if len(res) == 0 and not fail_on_no_match:
