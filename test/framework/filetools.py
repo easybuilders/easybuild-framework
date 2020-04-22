@@ -157,13 +157,13 @@ class FileToolsTest(EnhancedTestCase):
         os.mkdir(os.path.join(tmpdir, 'python3.5m', 'include'))
 
         self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*')),
-                                              os.path.join(tmpdir, 'python2.7'))
+                         os.path.join(tmpdir, 'python2.7'))
         self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*', 'include')),
-                                              os.path.join(tmpdir, 'python2.7', 'include'))
+                         os.path.join(tmpdir, 'python2.7', 'include'))
         self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*')),
-                                              os.path.join(tmpdir, 'python3.5m'))
+                         os.path.join(tmpdir, 'python3.5m'))
         self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*', 'include')),
-                                              os.path.join(tmpdir, 'python3.5m', 'include'))
+                         os.path.join(tmpdir, 'python3.5m', 'include'))
         self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.6*'), False), None)
         self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
                               os.path.join(tmpdir, 'python3.6*'))
