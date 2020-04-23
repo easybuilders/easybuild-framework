@@ -31,6 +31,7 @@ Support for including additional Python modules, for easyblocks, module naming s
 import os
 import re
 import sys
+import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -147,14 +148,17 @@ def is_software_specific_easyblock(module):
 
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
-    easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
+    easyblocks_path = tempfile.mkdtemp(dir=tmpdir, prefix='included-easyblocks-')
 
     set_up_eb_package(easyblocks_path, 'easybuild.easyblocks',
                       subpkgs=['generic'], pkg_init_body=EASYBLOCKS_PKG_INIT_BODY)
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
-    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
+    allpaths = [p for p in expand_glob_paths(paths)
+                if os.path.basename(p).endswith('.py') and
+                os.path.basename(p) != '__init__.py']
+
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 

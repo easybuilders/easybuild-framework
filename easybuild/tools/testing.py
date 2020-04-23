@@ -46,11 +46,11 @@ from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
-from easybuild.tools.github import create_gist, post_comment_in_issue
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import UNKNOWN, get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
@@ -143,7 +143,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     end_time = gmtime()
 
@@ -252,22 +252,30 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
     """Post test report in a gist, and submit comment in easyconfigs PR."""
 
     github_user = build_option('github_user')
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     # create gist with test report
-    descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
-    fn = 'easybuild_test_report_easyconfigs_pr%s_%s.md' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
+    descr = "EasyBuild test report for %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr_nr)
+    timestamp = strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
+    fn = 'easybuild_test_report_%s_%s_pr%s_%s.md' % (pr_nr, pr_target_account, pr_target_repo, timestamp)
     gist_url = upload_test_report_as_gist(test_report, descr=descr, fn=fn)
 
     # post comment to report test result
     system_info = init_session_state['system_info']
-    short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+
+    # also mention CPU architecture name, but only if it's known
+    if system_info['cpu_arch_name'] != UNKNOWN:
+        system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
+
+    os_info = '%(hostname)s - %(os_type)s %(os_name)s %(os_version)s' % system_info
+    short_system_info = "%(os_info)s, %(cpu_arch)s, %(cpu_model)s, Python %(pyver)s" % {
+        'os_info': os_info,
+        'cpu_arch': system_info['cpu_arch'],
         'cpu_model': system_info['cpu_model'],
-        'hostname': system_info['hostname'],
-        'os_name': system_info['os_name'],
-        'os_type': system_info['os_type'],
-        'os_version': system_info['os_version'],
         'pyver': system_info['python_version'].split(' ')[0],
     }
+
     comment_lines = [
         "Test report by @%s" % github_user,
         ('**FAILED**', '**SUCCESS**')[success],
@@ -276,9 +284,6 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
         "See %s for a full test report." % gist_url,
     ]
     comment = '\n'.join(comment_lines)
-
-    pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo')
 
     post_comment_in_issue(pr_nr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 

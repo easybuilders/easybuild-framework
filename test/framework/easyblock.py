@@ -53,6 +53,7 @@ from easybuild.tools.utilities import time2str
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 from easybuild.tools.py2vs3 import string_type
 
+
 class EasyBlockTest(EnhancedTestCase):
     """ Baseclass for easyblock testcases """
 
@@ -822,7 +823,6 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
-        init_config(build_options={'silent': True})
 
         self.contents = cleandoc("""
             easyblock = "ConfigureMake"
@@ -835,6 +835,7 @@ class EasyBlockTest(EnhancedTestCase):
                 "ext1",
                 ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
                 ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
+                "ext4",
             ]
             exts_filter = ("\
                 if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
@@ -849,7 +850,22 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
         eb.skip = True
+
+        self.mock_stdout(True)
         eb.extensions_step(fetch=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        patterns = [
+            r"^== skipping extension EXT-2",
+            r"^== skipping extension ext3",
+            r"^== installing extension ext1  \(1/2\)\.\.\.",
+            r"^== installing extension ext4  \(2/2\)\.\.\.",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
         # 'ext1' should be in eb.ext_instances
         eb_exts = [x.name for x in eb.ext_instances]
         self.assertTrue('ext1' in eb_exts)
@@ -1750,11 +1766,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         # full check also catches checksum issues with extensions
         res = eb.check_checksums()
-        self.assertEqual(len(res), 5)
+        self.assertEqual(len(res), 4)
         run_checks()
 
         idx = 2
-        for ext in ['bar', 'barbar', 'toy']:
+        for ext in ['bar', 'barbar']:
             expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
             self.assertTrue(res[idx].startswith(expected))
             idx += 1
@@ -1912,6 +1928,73 @@ class EasyBlockTest(EnhancedTestCase):
 
         error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
         self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
+
+    def test_sanity_check_paths_verification(self):
+        """Test verification of sanity_check_paths w.r.t. keys & values."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        eb = EasyBlock(EasyConfig(toy_ec))
+        eb.dry_run = True
+
+        error_pattern = r"Incorrect format for sanity_check_paths: "
+        error_pattern += r"should \(only\) have 'dirs', 'files' keys, "
+        error_pattern += r"values should be lists \(at least one non-empty\)."
+
+        def run_sanity_check_step(sanity_check_paths, enhance_sanity_check):
+            """Helper function to run sanity check step, and do trivial check on generated output."""
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            eb.cfg['sanity_check_paths'] = sanity_check_paths
+            eb.cfg['enhance_sanity_check'] = enhance_sanity_check
+            eb.sanity_check_step()
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+            self.assertFalse(stderr)
+            self.assertTrue(stdout.startswith("Sanity check paths"))
+
+        # partial sanity_check_paths, only allowed when using enhance_sanity_check
+        test_cases = [
+            {'dirs': ['foo']},
+            {'files': ['bar']},
+            {'dirs': []},
+            {'files': []},
+            {'files': [], 'dirs': []},
+        ]
+        for test_case in test_cases:
+            # without enhanced sanity check, these are all invalid sanity_check_paths values
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
+
+            # if enhance_sanity_check is enabled, these are acceptable sanity_check_step values
+            run_sanity_check_step(test_case, True)
+
+        # some inputs are always invalid, regardless of enhance_sanity_check, due to wrong keys/values
+        test_cases = [
+            {'foo': ['bar']},
+            {'files': ['foo'], 'dirs': [], 'libs': ['libfoo.a']},
+            {'files': ['foo'], 'libs': ['libfoo.a']},
+            {'dirs': [], 'libs': ['libfoo.a']},
+        ]
+        for test_case in test_cases:
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, True)
+
+        # non-list values yield different errors with/without enhance_sanity_check
+        error_pattern_bis = r"Incorrect value type in sanity_check_paths, should be a list: .*"
+        test_cases = [
+            {'files': 123, 'dirs': []},
+            {'files': [], 'dirs': 123},
+            {'files': 'foo', 'dirs': []},
+            {'files': [], 'dirs': 'foo'},
+        ]
+        for test_case in test_cases:
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
+            self.assertErrorRegex(EasyBuildError, error_pattern_bis, run_sanity_check_step, test_case, True)
+
+        # empty sanity_check_paths is always OK, since then the fallback to default bin + lib/lib64 kicks in
+        run_sanity_check_step({}, False)
+        run_sanity_check_step({}, True)
 
 
 def suite():

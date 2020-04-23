@@ -15,7 +15,11 @@ toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}
 
 source_urls = ['http://www.open-mpi.org/software/hwloc/v%(version_major_minor)s/downloads/']
 sources = [SOURCE_TAR_GZ]
+checksums = ['aa9d9ca75c7d7164f6bf3a52ecd77340eec02c18']
 
 builddependencies = [('binutils', '2.26')]
+
+# introduce fake dependency for testing dep upgrades
+dependencies = [('gzip', '1.4')]
 
 moduleclass = 'system'

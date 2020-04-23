@@ -1,4 +1,5 @@
-# #
+# -*- coding: utf-8 -*-
+##
 # Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
@@ -34,6 +35,7 @@ import grp
 import os
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
@@ -52,7 +54,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import reload, string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -72,7 +74,31 @@ class ToyBuildTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup."""
+
+        # kick out any paths for included easyblocks from sys.path,
+        # to avoid infected any other tests
+        for path in sys.path[:]:
+            if '/included-easyblocks' in path:
+                sys.path.remove(path)
+
+        # reload toy easyblock (and generic toy_extension easyblock that imports it) after cleaning up sys.path,
+        # to avoid trouble in other tests due to included toy easyblock that is cached somewhere
+        # (despite the cleanup in sys.modules);
+        # important for tests that include a customised copy of the toy easyblock
+        # (like test_toy_build_enhanced_sanity_check)
+        import easybuild.easyblocks.toy
+        reload(easybuild.easyblocks.toy)
+        import easybuild.easyblocks.toytoy
+        reload(easybuild.easyblocks.toytoy)
+        import easybuild.easyblocks.generic.toy_extension
+        reload(easybuild.easyblocks.generic.toy_extension)
+
+        del sys.modules['easybuild.easyblocks.toy']
+        del sys.modules['easybuild.easyblocks.toytoy']
+        del sys.modules['easybuild.easyblocks.generic.toy_extension']
+
         super(ToyBuildTest, self).tearDown()
+
         # remove logs
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
@@ -745,7 +771,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--try-toolchain=foss,2018a',
             # This test was created for the regex substitution of toolchains, to trigger this (rather than subtoolchain
             # resolution) we must add an additional build option
-            '--try-amend=parallel=1',
+            '--disable-map-toolchains',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -1415,7 +1441,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # install (only) additional module under a hierarchical MNS
@@ -1430,7 +1456,7 @@ class ToyBuildTest(EnhancedTestCase):
         # existing install is reused
         modtxt2 = read_file(toy_core_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt2))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # make sure load statements for dependencies are included
@@ -1441,7 +1467,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_core_mod)
 
         # test installing (only) additional module in Lua syntax (if Lmod is available)
-        lmod_abspath = which('lmod')
+        lmod_abspath = os.environ.get('LMOD_CMD') or which('lmod')
         if lmod_abspath is not None:
             args = common_args[:-1] + [
                 '--allow-modules-tool-mismatch',
@@ -1455,7 +1481,7 @@ class ToyBuildTest(EnhancedTestCase):
             # existing install is reused
             modtxt3 = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
-            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
             # make sure load statements for dependencies are included
@@ -1886,6 +1912,169 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, ectxt)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+    def test_toy_build_enhanced_sanity_check(self):
+        """Test enhancing of sanity check."""
+
+        # if toy easyblock was imported, get rid of corresponding entry in sys.modules,
+        # to avoid that it messes up the use of --include-easyblocks=toy.py below...
+        if 'easybuild.easyblocks.toy' in sys.modules:
+            del sys.modules['easybuild.easyblocks.toy']
+
+        test_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+        toy_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # get rid of custom sanity check paths in test easyconfig
+        regex = re.compile(r'^sanity_check_paths\s*=\s*{[^}]+}', re.M)
+        test_ec_txt = regex.sub('', toy_ec_txt)
+        write_file(test_ec, test_ec_txt)
+
+        self.assertFalse('sanity_check_' in test_ec_txt)
+
+        # create custom easyblock for toy that has a custom sanity_check_step
+        toy_easyblock = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+
+        toy_easyblock_txt = read_file(toy_easyblock)
+
+        toy_custom_sanity_check_step = '\n'.join([
+            '',
+            "    def sanity_check_step(self):",
+            "        paths = {",
+            "            'files': ['bin/toy'],",
+            "            'dirs': [],",
+            "        }",
+            "        cmds = ['toy']",
+            "        return super(EB_toy, self).sanity_check_step(custom_paths=paths, custom_commands=cmds)",
+        ])
+        test_toy_easyblock = os.path.join(self.test_prefix, 'toy.py')
+        write_file(test_toy_easyblock, toy_easyblock_txt + toy_custom_sanity_check_step)
+
+        eb_args = [
+            '--extended-dry-run',
+            '--include-easyblocks=%s' % test_toy_easyblock,
+        ]
+
+        # by default, sanity check commands & paths specified by easyblock are used
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        pattern_lines = [
+            r"Sanity check paths - file.*",
+            r"\s*\* bin/toy",
+            r"Sanity check paths - \(non-empty\) directory.*",
+            r"\s*\(none\)",
+            r"Sanity check commands",
+            r"\s*\* toy",
+            r'',
+        ]
+        regex = re.compile(r'\n'.join(pattern_lines), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # we need to manually wipe the entry for the included toy easyblock,
+        # to avoid trouble with subsequent EasyBuild sessions in this test
+        del sys.modules['easybuild.easyblocks.toy']
+
+        # easyconfig specifies custom sanity_check_paths & sanity_check_commands,
+        # the ones defined by the easyblock are skipped by default
+        test_ec_txt = test_ec_txt + '\n'.join([
+            '',
+            "sanity_check_paths = {",
+            "    'files': ['README'],",
+            "    'dirs': ['bin/']",
+            "}",
+            "sanity_check_commands = ['ls %(installdir)s']",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        pattern_lines = [
+            r"Sanity check paths - file.*",
+            r"\s*\* README",
+            r"Sanity check paths - \(non-empty\) directory.*",
+            r"\s*\* bin/",
+            r"Sanity check commands",
+            r"\s*\* ls .*/software/toy/0.0",
+            r'',
+        ]
+        regex = re.compile(r'\n'.join(pattern_lines), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        del sys.modules['easybuild.easyblocks.toy']
+
+        # if enhance_sanity_check is enabled, then sanity check paths/commands specified in easyconfigs
+        # are used in addition to those defined in easyblock
+        test_ec_txt = test_ec_txt + '\nenhance_sanity_check = True'
+        write_file(test_ec, test_ec_txt)
+
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        # now 'bin/toy' file and 'toy' command should also be part of sanity check
+        pattern_lines = [
+            r"Sanity check paths - file.*",
+            r"\s*\* README",
+            r"\s*\* bin/toy",
+            r"Sanity check paths - \(non-empty\) directory.*",
+            r"\s*\* bin/",
+            r"Sanity check commands",
+            r"\s*\* ls .*/software/toy/0.0",
+            r"\s*\* toy",
+            r'',
+        ]
+        regex = re.compile(r'\n'.join(pattern_lines), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        del sys.modules['easybuild.easyblocks.toy']
+
+        # sanity_check_paths with only one key is allowed if enhance_sanity_check is enabled;
+        test_ec_txt = test_ec_txt + "\nsanity_check_paths = {'files': ['README']}"
+        write_file(test_ec, test_ec_txt)
+
+        # we need to do a non-dry run here, to ensure the code we want to test is triggered
+        # (EasyConfig.dump called by 'reproduce_build' function from 'build_and_install_one')
+        eb_args = [
+            '--include-easyblocks=%s' % test_toy_easyblock,
+            '--trace',
+        ]
+
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        pattern_lines = [
+            r"^== sanity checking\.\.\.",
+            r"  >> file 'bin/toy' found: OK",
+        ]
+        regex = re.compile(r'\n'.join(pattern_lines), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # no directories are checked in sanity check now, only files (since dirs is an empty list)
+        regex = re.compile(r"directory .* found:", re.M)
+        self.assertFalse(regex.search(stdout), "Pattern '%s' should be not found in: %s" % (regex.pattern, stdout))
+
+        del sys.modules['easybuild.easyblocks.toy']
+
+        # if enhance_sanity_check is disabled, both files/dirs keys are strictly required in sanity_check_paths
+        test_ec_txt = test_ec_txt + '\nenhance_sanity_check = False'
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = " Missing mandatory key 'dirs' in sanity_check_paths."
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=eb_args, raise_error=True, verbose=False)
+
+        del sys.modules['easybuild.easyblocks.toy']
+
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
         filename = 'toy-0.0'
@@ -2057,7 +2246,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
 
         # only subdirectories for software should be created
-        self.assertEqual(os.listdir(software_path), ['toy'])
+        self.assertEqual(sorted(os.listdir(software_path)), sorted(['toy', '.locks']))
         self.assertEqual(sorted(os.listdir(os.path.join(software_path, 'toy'))), ['0.0-one', '0.0-two'])
 
         # only subdirectories for modules with alternative names should be created
@@ -2515,6 +2704,115 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertFalse(os.path.exists(toy_installdir))
+
+    def test_toy_build_lock(self):
+        """Test toy installation when a lock is already in place."""
+
+        locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_lock_fn = toy_installdir.replace(os.path.sep, '_') + '.lock'
+
+        toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
+        mkdir(toy_lock_path, parents=True)
+
+        error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+
+        locks_dir = os.path.join(self.test_prefix, 'locks')
+
+        # no lock in place, so installation proceeds as normal
+        extra_args = ['--locks-dir=%s' % locks_dir]
+        self.test_toy_build(extra_args=extra_args, verify=True, raise_error=True)
+
+        # put lock in place in custom locks dir, try again
+        toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
+        mkdir(toy_lock_path, parents=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
+
+        # also test use of --ignore-locks
+        self.test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
+
+        # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
+        class remove_lock_after:
+            def __init__(self, seconds, lock_fp):
+                self.seconds = seconds
+                self.lock_fp = lock_fp
+
+            def remove_lock(self, *args):
+                remove_dir(self.lock_fp)
+
+            def __enter__(self):
+                signal.signal(signal.SIGALRM, self.remove_lock)
+                signal.alarm(self.seconds)
+
+            def __exit__(self, type, value, traceback):
+                pass
+
+        # wait for lock to be removed, with 1 second interval of checking
+        extra_args.append('--wait-on-lock=1')
+
+        wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
+        ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
+
+        self.assertTrue(os.path.exists(toy_lock_path))
+
+        # use context manager to remove lock after 3 seconds
+        with remove_lock_after(3, toy_lock_path):
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertEqual(stderr, '')
+
+            wait_matches = wait_regex.findall(stdout)
+            # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
+            self.assertTrue(len(wait_matches) in range(2, 5))
+
+            self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+
+        # when there is no lock in place, --wait-on-lock has no impact
+        self.assertFalse(os.path.exists(toy_lock_path))
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+        self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
+
+        # check for clean error on creation of lock
+        extra_args = ['--locks-dir=/']
+        error_pattern = r"Failed to create lock /.*_software_toy_0.0.lock:.* "
+        error_pattern += r"(Read-only file system|Permission denied)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+                              extra_args=extra_args, raise_error=True, verbose=False)
+
+    def test_toy_build_unicode_description(self):
+        """Test installation of easyconfig file that has non-ASCII characters in description."""
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3284
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        # the tilde character included here is a Unicode tilde character, not a regular ASCII tilde (~)
+        descr = "This description includes a unicode tilde character: ∼, for your entertainment."
+        self.assertFalse('~' in descr)
+
+        regex = re.compile(r'^description\s*=.*', re.M)
+        test_ec_txt = regex.sub(r'description = "%s"' % descr, toy_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
 
 
 def suite():
