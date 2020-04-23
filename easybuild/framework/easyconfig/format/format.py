@@ -632,8 +632,8 @@ class EasyConfigFormat(object):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
-        """Dump easyconfig according to this format. This is higly version specific"""
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
+        """Dump easyconfig according to this format. This is highly version specific"""
         raise NotImplementedError
 
     def extract_comments(self, rawtxt):
