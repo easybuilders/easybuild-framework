@@ -1200,16 +1200,22 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
 
-        toy_tgz = 'exts-git.tar.gz'
-        toy_tarball = os.path.join(self.test_sourcepath, 't', 'toy', toy_tgz)
+        # Tar-ball which should be created via 'git_config'
+        ext_tgz = 'exts-git.tar.gz'
+        ext_tarball = os.path.join(self.test_sourcepath, 't', 'toy', ext_tgz)
+
+        # Dummy source code required for extensions build_step to pass
+        ext_src = 'int main() { return 0; }'
+        ext_cfile = 'exts-git.c'
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = '\n'.join([
             toy_ec_txt,
-            'buildopts = " && ls -l %s",' % toy_tarball,
+            'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_src, ext_cfile),
             'exts_list = [',
             '   ("exts-git", "0.0", {',
-            '       "filename": "%s",' % toy_tgz,
+            '       "buildopts": "&& ls -l %s",' % ext_tarball,
+            '       "source_tmpl": "%s",' % ext_tgz,
             '       "git_config": {',
             '           "repo_name": "testrepository",',
             '           "url": "https://github.com/easybuilders",',
