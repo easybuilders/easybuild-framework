@@ -1203,10 +1203,10 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = '\n'.join([
             toy_ec_txt,
+            'buildopts = " && ls -l exts-git.tar.gz",',
             'exts_list = [',
-            '   ("bar", "0.0", {',
-            '       "buildopts": " && ls -l test-git.tar.gz",',
-            '       "filename": "test-git.tar.gz",',
+            '   ("exts-git", "0.0", {',
+            '       "filename": "exts-git.tar.gz",',
             '       "git_config": {',
             '           "repo_name": "testrepository",',
             '           "url": "https://github.com/easybuilders",',
