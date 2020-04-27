@@ -1303,6 +1303,15 @@ class FileToolsTest(EnhancedTestCase):
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
 
+        # check for Python package that has yanked releases,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        res = ft.pypi_source_urls('ipython')
+        self.assertTrue(isinstance(res, list) and res)
+        prefix = 'https://pypi.python.org/packages'
+        for entry in res:
+            self.assertTrue(entry.startswith(prefix), "'%s' should start with '%s'" % (entry, prefix))
+            self.assertTrue('ipython' in entry, "Pattern 'ipython' should be found in '%s'" % entry)
+
     def test_derive_alt_pypi_url(self):
         """Test derive_alt_pypi_url() function."""
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
