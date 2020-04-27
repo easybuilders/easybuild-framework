@@ -758,6 +758,18 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
+def find_glob_pattern(glob_pattern, fail_on_no_match=True):
+    """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
+    if build_option('extended_dry_run'):
+        return glob_pattern
+    res = glob.glob(glob_pattern)
+    if len(res) == 0 and not fail_on_no_match:
+        return None
+    if len(res) != 1:
+        raise EasyBuildError("Was expecting exactly one match for '%s', found %d: %s", glob_pattern, len(res), res)
+    return res[0]
+
+
 def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False,
                 case_sensitive=False):
     """

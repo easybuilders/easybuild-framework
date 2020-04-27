@@ -29,6 +29,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
 import glob
@@ -147,6 +148,29 @@ class FileToolsTest(EnhancedTestCase):
 
         os.chdir(tmpdir)
         self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
+
+    def test_find_glob_pattern(self):
+        """test find_glob_pattern function"""
+        tmpdir = tempfile.mkdtemp()
+        os.mkdir(os.path.join(tmpdir, 'python2.7'))
+        os.mkdir(os.path.join(tmpdir, 'python2.7', 'include'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m', 'include'))
+
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*')),
+                         os.path.join(tmpdir, 'python2.7'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*', 'include')),
+                         os.path.join(tmpdir, 'python2.7', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*')),
+                         os.path.join(tmpdir, 'python3.5m'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*', 'include')),
+                         os.path.join(tmpdir, 'python3.5m', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.6*'), False), None)
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python3.6*'))
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python*'))
+
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
