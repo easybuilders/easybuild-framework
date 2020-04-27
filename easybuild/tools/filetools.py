@@ -497,9 +497,9 @@ def pypi_source_urls(pkg_name):
     else:
         urls_txt = read_file(urls_html)
 
-        # strip out data-yanked attributes before parsing HTML
+        # ignore yanked releases (see https://pypi.org/help/#yanked)
         # see https://github.com/easybuilders/easybuild-framework/issues/3301
-        urls_txt = re.sub(r'\s*data-yanked', '', urls_txt)
+        urls_txt = re.sub('^.*data-yanked.*$', '', urls_txt, flags=re.M)
 
         parsed_html = ElementTree.ElementTree(ElementTree.fromstring(urls_txt))
         if hasattr(parsed_html, 'iter'):
