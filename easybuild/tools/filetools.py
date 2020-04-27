@@ -495,7 +495,13 @@ def pypi_source_urls(pkg_name):
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
-        parsed_html = ElementTree.parse(urls_html)
+        urls_txt = read_file(urls_html)
+
+        # ignore yanked releases (see https://pypi.org/help/#yanked)
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        urls_txt = re.sub(r'<a.*?data-yanked.*?</a>', '', urls_txt)
+
+        parsed_html = ElementTree.ElementTree(ElementTree.fromstring(urls_txt))
         if hasattr(parsed_html, 'iter'):
             res = [a.attrib['href'] for a in parsed_html.iter('a')]
         else:
