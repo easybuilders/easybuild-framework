@@ -495,7 +495,13 @@ def pypi_source_urls(pkg_name):
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
-        parsed_html = ElementTree.parse(urls_html)
+        urls_txt = read_file(urls_html)
+
+        # ignore yanked releases (see https://pypi.org/help/#yanked)
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        urls_txt = re.sub(r'<a.*?data-yanked.*?</a>', '', urls_txt)
+
+        parsed_html = ElementTree.ElementTree(ElementTree.fromstring(urls_txt))
         if hasattr(parsed_html, 'iter'):
             res = [a.attrib['href'] for a in parsed_html.iter('a')]
         else:
@@ -756,6 +762,18 @@ def find_easyconfigs(path, ignore_dirs=None):
         dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return files
+
+
+def find_glob_pattern(glob_pattern, fail_on_no_match=True):
+    """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
+    if build_option('extended_dry_run'):
+        return glob_pattern
+    res = glob.glob(glob_pattern)
+    if len(res) == 0 and not fail_on_no_match:
+        return None
+    if len(res) != 1:
+        raise EasyBuildError("Was expecting exactly one match for '%s', found %d: %s", glob_pattern, len(res), res)
+    return res[0]
 
 
 def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False,

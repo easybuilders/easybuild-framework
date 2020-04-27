@@ -29,6 +29,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
 import glob
@@ -147,6 +148,29 @@ class FileToolsTest(EnhancedTestCase):
 
         os.chdir(tmpdir)
         self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
+
+    def test_find_glob_pattern(self):
+        """test find_glob_pattern function"""
+        tmpdir = tempfile.mkdtemp()
+        os.mkdir(os.path.join(tmpdir, 'python2.7'))
+        os.mkdir(os.path.join(tmpdir, 'python2.7', 'include'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m', 'include'))
+
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*')),
+                         os.path.join(tmpdir, 'python2.7'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*', 'include')),
+                         os.path.join(tmpdir, 'python2.7', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*')),
+                         os.path.join(tmpdir, 'python3.5m'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*', 'include')),
+                         os.path.join(tmpdir, 'python3.5m', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.6*'), False), None)
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python3.6*'))
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python*'))
+
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -1292,8 +1316,8 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
         self.assertTrue(eb340_url, res)
         pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern_md5 = pattern + 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
-        pattern_sha256 = pattern + 'easybuild-[0-9rc.]+.tar.gz#sha256=[a-f0-9]{64}$'
+        pattern_md5 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#md5=[a-f0-9]{32}$'
+        pattern_sha256 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#sha256=[a-f0-9]{64}$'
         regex_md5 = re.compile(pattern_md5)
         regex_sha256 = re.compile(pattern_sha256)
         for url in res:
@@ -1302,6 +1326,15 @@ class FileToolsTest(EnhancedTestCase):
 
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
+
+        # check for Python package that has yanked releases,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        res = ft.pypi_source_urls('ipython')
+        self.assertTrue(isinstance(res, list) and res)
+        prefix = 'https://pypi.python.org/packages'
+        for entry in res:
+            self.assertTrue(entry.startswith(prefix), "'%s' should start with '%s'" % (entry, prefix))
+            self.assertTrue('ipython' in entry, "Pattern 'ipython' should be found in '%s'" % entry)
 
     def test_derive_alt_pypi_url(self):
         """Test derive_alt_pypi_url() function."""
