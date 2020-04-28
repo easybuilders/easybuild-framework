@@ -2889,7 +2889,7 @@ class EasyBlock(object):
             raise StopException(step)
 
     @staticmethod
-    def get_steps(run_test_cases=True, iteration_count=1):
+    def get_steps(run_test_cases=True, iteration_count=1, multi_deps_extensions_only=False):
         """Return a list of all steps to be performed."""
 
         def get_step(tag, descr, substeps, skippable, initial=True):
@@ -2955,17 +2955,25 @@ class EasyBlock(object):
         # part 2: iterated part, from 2nd iteration onwards
         # repeat core procedure again depending on specified iteration count
         # not all parts of all steps need to be rerun (see e.g., ready, prepare)
-        steps_part2 = [
-            ready_step_spec(False),
-            source_step_spec(False),
-            patch_step_spec,
-            prepare_step_spec,
-            configure_step_spec,
-            build_step_spec,
-            test_step_spec,
-            install_step_spec(False),
-            extensions_step_spec,
-        ] * (iteration_count - 1)
+        if multi_deps_extensions_only:
+            steps_part2 = [
+                ready_step_spec(False),
+                source_step_spec(False),
+                prepare_step_spec,
+                extensions_step_spec,
+            ] * (iteration_count - 1)
+        else:
+            steps_part2 = [
+                ready_step_spec(False),
+                source_step_spec(False),
+                patch_step_spec,
+                prepare_step_spec,
+                configure_step_spec,
+                build_step_spec,
+                test_step_spec,
+                install_step_spec(False),
+                extensions_step_spec,
+            ] * (iteration_count - 1)
         # part 3: post-iteration part
         steps_part3 = [
             (POSTITER_STEP, 'restore after iterating', [lambda x: x.post_iter_step], False),
@@ -2996,7 +3004,8 @@ class EasyBlock(object):
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
 
-        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt(),
+                               multi_deps_extensions_only=self.cfg["multi_deps_extensions_only"])
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
