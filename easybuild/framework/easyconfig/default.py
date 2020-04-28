@@ -152,7 +152,7 @@ DEFAULT_CONFIG = {
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
-    'multi_deps_extensions_only': [False, "Use multiple dependencies for extensions only", DEPENDENCIES],
+    'multi_deps_extensions_only': [False, "Use multi_deps dependencies only to install extensions", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
