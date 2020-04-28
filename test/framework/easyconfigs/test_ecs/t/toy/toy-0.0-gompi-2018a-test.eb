@@ -47,6 +47,7 @@ exts_list = [
     (name, version, {
         'sanity_check_paths': {'files': ['lib/libtoy.a'], 'dirs': []},
         'exts_filter': ("ls -l lib/libtoy.a", ''),
+        'checksums': ['44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc']
     }),
 ]
 

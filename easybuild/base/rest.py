@@ -35,6 +35,7 @@ based on https://github.com/jpaugh/agithub/commit/1e2575825b165c1cb7cbd85c22e256
 :author: Jens Timmerman
 """
 import base64
+import copy
 import json
 from functools import partial
 
@@ -162,7 +163,13 @@ class Client(object):
         if self.auth_header is not None:
             headers['Authorization'] = self.auth_header
         headers['User-Agent'] = self.user_agent
-        fancylogger.getLogger().debug('cli request: %s, %s, %s, %s', method, url, body, headers)
+
+        # censor contents of 'Authorization' part of header, to avoid leaking tokens or passwords in logs
+        headers_censored = copy.deepcopy(headers)
+        headers_censored['Authorization'] = '<actual authorization header censored>'
+
+        fancylogger.getLogger().debug('cli request: %s, %s, %s, %s', method, url, body, headers_censored)
+
         # TODO: in recent python: Context manager
         conn = self.get_connection(method, url, body, headers)
         status = conn.code

@@ -948,6 +948,48 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('intel', version='1970.01')
         self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
 
+    def test_mpi_cmd_prefix(self):
+        """Test mpi_exec_nranks function."""
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('gompi', version='2018a')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks='2'), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpirun -n 1")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2018a')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks='2'), "mpirun -n 2")
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpirun -n 1")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        tc = self.get_toolchain('intel', version='2012a')
+        tc.prepare()
+
+        mpi_exec_nranks_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4")
+        self.assertTrue(mpi_exec_nranks_re.match(tc.mpi_cmd_prefix(nr_ranks=4)))
+        mpi_exec_nranks_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 1")
+        self.assertTrue(mpi_exec_nranks_re.match(tc.mpi_cmd_prefix()))
+
+        # test specifying custom template for MPI commands
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks="7"), "mpiexec -np 7 --")
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpiexec -np 1 --")
+
+        # check that we return None when command does not appear at the end of the template
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s option", 'silent': True})
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks="7"), None)
+        self.assertEqual(tc.mpi_cmd_prefix(), None)
+
+        # template with extra spaces at the end if fine though
+        init_config(build_options={'mpi_cmd_template': "mpirun -np %(nr_ranks)s %(cmd)s  ", 'silent': True})
+        self.assertEqual(tc.mpi_cmd_prefix(), "mpirun -np 1")
+
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
         self.modtool.prepend_module_path(self.test_prefix)
@@ -973,6 +1015,17 @@ class ToolchainTest(EnhancedTestCase):
         # test specifying custom template for MPI commands
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
+
+        # check whether expected error is raised when a template with missing keys is used;
+        # %(ranks)s should be %(nr_ranks)s
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(ranks)s -- %(cmd)s", 'silent': True})
+        error_pattern = \
+            r"Missing templates in mpi-cmd-template value 'mpiexec -np %\(ranks\)s -- %\(cmd\)s': %\(nr_ranks\)s"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
+
+        init_config(build_options={'mpi_cmd_template': "mpirun %(foo)s -np %(nr_ranks)s %(cmd)s", 'silent': True})
+        error_pattern = "Failed to complete MPI cmd template .* with .*: KeyError 'foo'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
