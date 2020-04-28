@@ -2904,11 +2904,24 @@ class EasyBlock(object):
             (True, lambda x: x.reset_env),
             (True, lambda x: x.handle_iterate_opts),
         ]
+        # if multi_deps is used only for extensions, don't make the build directory each iteration
+        if multi_deps_extensions_only:
+            ready_substeps_iterates = [
+                (False, lambda x: x.check_readiness_step),
+                (True, lambda x: x.reset_env),
+                (True, lambda x: x.handle_iterate_opts),
+            ]
+        else:
+            ready_substeps_iterates = ready_substeps
 
         def ready_step_spec(initial):
             """Return ready step specified."""
-            return get_step(READY_STEP, "creating build dir, resetting environment", ready_substeps, False,
-                            initial=initial)
+            if initial:
+                return get_step(READY_STEP, "creating build dir, resetting environment", ready_substeps, False,
+                                initial=initial)
+            else:
+                return get_step(READY_STEP, "creating build dir, resetting environment",
+                                ready_substeps_iterates, False, initial=initial)
 
         source_substeps = [
             (False, lambda x: x.checksum_step),
@@ -2958,7 +2971,6 @@ class EasyBlock(object):
         if multi_deps_extensions_only:
             steps_part2 = [
                 ready_step_spec(False),
-                source_step_spec(False),
                 prepare_step_spec,
                 extensions_step_spec,
             ] * (iteration_count - 1)
