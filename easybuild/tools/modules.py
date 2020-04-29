@@ -531,12 +531,12 @@ class ModulesTool(object):
 
         return wrapped_mod
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False, maybe_partial=True):
+    def exist(self, mod_names, mod_exists_regex_template=None, skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
         :param mod_names: list of module names
-        :param mod_exists_regex_template: template regular expression to search 'module show' output with
+        :param mod_exists_regex_template: DEPRECATED and unused
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
         :param maybe_partial: indicates if the module name may be a partial module name
         """
@@ -546,21 +546,25 @@ class ModulesTool(object):
 
             :param mod_name: module name
             """
-            txt = self.show(mod_name)
+            stderr = self.show(mod_name)
             res = False
-            names_to_check = [mod_name]
-            # The module might be an alias where the target can be arbitrary
-            # As a compromise we check for the base name of the module so we find
-            # "Java/whatever-11" when searching for "Java/11" (--> basename="Java")
-            basename = os.path.dirname(mod_name)
-            if basename:
-                names_to_check.append(basename)
-            for name in names_to_check:
-                mod_exists_regex = mod_exists_regex_template % re.escape(name)
-                if re.search(mod_exists_regex, txt, re.M):
-                    res = True
+            # Parse the output:
+            # - Skip whitespace
+            # - Any error -> Module does not exist
+            # - Check first non-whitespace line for something that looks like an absolute path terminated by a colon
+            mod_exists_regex = r'\s*/.+:\s*'
+            for line in stderr.split('\n'):
+                if OUTPUT_MATCHES['whitespace'].search(line):
+                    continue
+                if OUTPUT_MATCHES['error'].search(line):
                     break
+                if re.match(mod_exists_regex, line):
+                    res = True
+                break
             return res
+
+        if mod_exists_regex_template is not None:
+            self.log.deprecated('mod_exists_regex_template is no longer used', '5.0')
 
         if skip_avail:
             avail_mod_names = []
@@ -1417,19 +1421,6 @@ class Lmod(ModulesTool):
             res = super(Lmod, self).module_wrapper_exists(mod_name)
 
         return res
-
-    def exist(self, mod_names, skip_avail=False, maybe_partial=True):
-        """
-        Check if modules with specified names exists.
-
-        :param mod_names: list of module names
-        :param skip_avail: skip checking through 'module avail', only check via 'module show'
-        """
-        # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
-        # the current configuration for matters little, since the module may have been installed with a different cfg;
-        # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
-        return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
-                                       skip_avail=skip_avail, maybe_partial=maybe_partial)
 
     def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """

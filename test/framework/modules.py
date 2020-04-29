@@ -279,6 +279,7 @@ class ModulesTest(EnhancedTestCase):
 
         java_mod_dir = os.path.join(self.test_prefix, 'Java')
         write_file(os.path.join(java_mod_dir, '1.8.0_181'), '#%Module')
+        write_file(os.path.join(self.test_prefix, 'toy', '42.1337'), '#%Module')
 
         if self.modtool.__class__ == EnvironmentModulesC:
             modulerc_tcl_txt = '\n'.join([
@@ -289,16 +290,15 @@ class ModulesTest(EnhancedTestCase):
                 'if {"Java/site_default" eq [module-info version Java/site_default]} {',
                 '    module-version Java/1.8.0_181 site_default',
                 '}',
-                'if {"JavaAlias" eq [module-info version JavaAlias]} {',
-                '    module-alias JavaAlias Java/1.8.0_181',
-                '}',
             ])
         else:
             modulerc_tcl_txt = '\n'.join([
                 '#%Module',
                 'module-version Java/1.8.0_181 1.8',
                 'module-version Java/1.8.0_181 site_default',
-                'module-alias JavaAlias Java/1.8.0_181',
+                'module-alias Java/Alias toy/42.1337',
+                # 'module-alias Java/NonExist non_existant/1',  # (only) LMod has this in module avail, disable for now
+                'module-alias JavaAlias Java/1.8.0_181',  # LMod 7+ only
             ])
 
         write_file(os.path.join(java_mod_dir, '.modulerc'), modulerc_tcl_txt)
@@ -309,13 +309,18 @@ class ModulesTest(EnhancedTestCase):
             self.assertTrue('Java/1.8' in avail_mods)
             self.assertTrue('Java/site_default' in avail_mods)
             self.assertTrue('JavaAlias' in avail_mods)
+            self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
         self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
-        # check for an alias with a different version suffix than the base module
+        # module-version with different version suffix than the base module
         self.assertEqual(self.modtool.exist(['Java/site_default']), [True])
-        # And completely different name
-        self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
+        # Check for aliases:
+        # - completely different nameTrue, True,
+        # - alias to non existant module
+        # Skipped for EnvironmentModulesC as module-alias not working correctly there
+        if self.modtool.__class__ != EnvironmentModulesC:
+            self.assertEqual(self.modtool.exist(['Java/Alias', 'Java/NonExist']), [True, False])
 
         reset_module_caches()
 
