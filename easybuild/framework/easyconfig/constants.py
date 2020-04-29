@@ -53,7 +53,7 @@ EASYCONFIG_CONSTANTS = {
     'SYSTEM': ({'name': 'system', 'version': 'system'}, "System toolchain"),
 
     'OSPACKAGES_IBVERBS': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
-                        "OS packages providing ibverbs support"),
+                           "OS packages providing ibverbs support"),
     'OSPACKAGES_OPENSSL': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
-                        "OS packages providing openSSL support"),
+                           "OS packages providing openSSL support"),
 }
