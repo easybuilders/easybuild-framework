@@ -52,6 +52,8 @@ EASYCONFIG_CONSTANTS = {
     'SYS_PYTHON_VERSION': (platform.python_version(), "System Python version (platform.python_version())"),
     'SYSTEM': ({'name': 'system', 'version': 'system'}, "System toolchain"),
 
-    'OSPKGS_IBVERBS': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'), "OS packages providing ibverbs support"),
-    'OSPKGS_OPENSSL': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'), "OS packages providing openSSL support"),
+    'OSPKGS_IBVERBS': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
+                        "OS packages providing ibverbs support"),
+    'OSPKGS_OPENSSL': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
+                        "OS packages providing openSSL support"),
 }
