@@ -722,24 +722,6 @@ class ModulesTest(EnhancedTestCase):
             res = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
             self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
 
-        # hack into 'module show GCC/6.4.0-2.28' cache and inject alternate output that modulecmd.tcl sometimes produces
-        # make sure we only extract the module file path, nothing else...
-        # cfr. https://github.com/easybuilders/easybuild/issues/368
-        modulepath = os.environ['MODULEPATH'].split(':')
-        mod_show_cache_key = modtool.mk_module_cache_key('GCC/6.4.0-2.28')
-        mod.MODULE_SHOW_CACHE[mod_show_cache_key] = '\n'.join([
-            "import os",
-            "os.environ['MODULEPATH_modshare'] = '%s'" % ':'.join(m + ':1' for m in modulepath),
-            "os.environ['MODULEPATH'] = '%s'" % ':'.join(modulepath),
-            "------------------------------------------------------------------------------",
-            "%s:" % gcc_mod_file,
-            "------------------------------------------------------------------------------",
-            # remainder of output doesn't really matter in this context
-            "setenv		EBROOTGCC /prefix/GCC/6.4.0-2.28"
-        ])
-        res = modtool.modulefile_path('GCC/6.4.0-2.28')
-        self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'GCC', '6.4.0-2.28')))
-
         reset_module_caches()
 
     def test_path_to_top_of_module_tree(self):
