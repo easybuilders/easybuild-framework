@@ -2010,7 +2010,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 shutil.copytree(path, target_path, **kwargs)
 
             _log.info("%s copied to %s", path, target_path)
-        except (IOError, OSError) as err:
+        except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
 
 
