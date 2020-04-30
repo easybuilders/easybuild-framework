@@ -1966,8 +1966,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param force_in_dry_run: force running the command during dry run
     :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
 
-    On Python >= 3.8 shutil.copytree is always used.
-    On Python < 3.8, shutil.copytree is used if the target path does not exist yet;
+    shutil.copytree is used if the target path does not exist yet;
     if the target path already exists, the 'copy' function will be used to copy the contents of
     the source path to the target path
 
@@ -1980,11 +1979,10 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            if sys.version_info >= (3, 8):
-                # on Python >= 3.8, shutil.copytree works fine, thanks to availability of dirs_exist_ok named argument
-                shutil.copytree(path, target_path, dirs_exist_ok=dirs_exist_ok, **kwargs)
-
-            elif dirs_exist_ok and os.path.exists(target_path):
+            # note: in Python >= 3.8 shutil.copytree works just fine thanks to the 'dirs_exist_ok' argument,
+            # but since we need to be more careful in earlier Python versions we use our own implementation
+            # in case the target directory exists and 'dirs_exist_ok' is enabled
+            if dirs_exist_ok and os.path.exists(target_path):
                 # if target directory already exists (and that's allowed via dirs_exist_ok),
                 # we need to be more careful, since shutil.copytree will fail (in Python < 3.8)
                 # if target directory already exists;
