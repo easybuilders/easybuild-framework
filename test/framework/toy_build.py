@@ -2256,9 +2256,16 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build_trace(self):
         """Test use of --trace"""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(toy_ec_file) + '\nsanity_check_commands = ["toy"]')
+
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--trace', '--experimental'], verify=False, testing=False)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--trace', '--experimental'], verify=False, testing=False)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -2283,6 +2290,8 @@ class ToyBuildTest(EnhancedTestCase):
                 r"== sanity checking\.\.\.",
                 r"  >> file 'bin/yot' or 'bin/toy' found: OK",
                 r"  >> \(non-empty\) directory 'bin' found: OK",
+                r"  >> running command 'toy' \.\.\.",
+                r"  >> result for command 'toy': OK",
             ]) + r'$',
             r"^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
         ]
