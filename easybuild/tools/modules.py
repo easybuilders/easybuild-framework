@@ -489,7 +489,8 @@ class ModulesTool(object):
         Only .modulerc file in Tcl syntax is considered here.
         DEPRECATED. Use exists()
         """
-        self.log.deprecated('module_wrapper_exists is unreliable and should no longer be used', '5.0')
+        self.log.deprecated('module_wrapper_exists is unreliable and should no longer be used. ' +
+                            'Use exists instead to check for an existing module or alias.', '5.0')
 
         if mod_wrapper_regex_template is None:
             mod_wrapper_regex_template = "^[ ]*module-version (?P<wrapped_mod>[^ ]*) %s$"
