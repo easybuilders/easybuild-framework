@@ -325,8 +325,12 @@ class ModulesTest(EnhancedTestCase):
 
         self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
         self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
-        self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
-        self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
+        # module-version only works for EnvironmentModules(C) as LMod and EnvironmentModulesTcl would need updating
+        # to full path, see https://github.com/TACC/Lmod/issues/446
+        if isinstance(self.modtool, Lmod) or self.modtool.__class__ == EnvironmentModulesTcl:
+            self.assertEqual(self.modtool.exist(['Core/Java/1.8', 'Core/Java/site_default']), [False, False])
+        else:
+            self.assertEqual(self.modtool.exist(['Core/Java/1.8', 'Core/Java/site_default']), [True, True])
 
         # also check with .modulerc.lua for Lmod 7.8 or newer
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
@@ -357,8 +361,8 @@ class ModulesTest(EnhancedTestCase):
             shutil.move(java_mod_dir, os.path.join(self.test_prefix, 'Core', 'Java'))
             self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
             self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
-            self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
-            self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
+            self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [False])
+            self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [False])
 
         # Test alias in home directory .modulerc
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
