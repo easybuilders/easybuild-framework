@@ -2734,7 +2734,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # including the same easyblock twice should fail
         args = [
-            '--include-easyblocks=%s/cmakemake.py' % self.test_prefix,
+            '--include-easyblocks=%s/*.py' % self.test_prefix,
             '--include-easyblocks-from-pr=1915',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,

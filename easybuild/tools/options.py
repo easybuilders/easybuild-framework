@@ -75,7 +75,8 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
+from easybuild.tools.filetools import move_file, which
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
 from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
@@ -1432,7 +1433,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         if eb_go.options.include_easyblocks:
             # make sure we're not including the same easyblock twice
             included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
-            included_from_file = set([os.path.basename(eb) for eb in eb_go.options.include_easyblocks])
+            included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
+            included_from_file = set([os.path.basename(eb) for eb in included_paths])
             included_twice = included_from_pr & included_from_file
             if included_twice:
                 raise EasyBuildError("Multiple inclusion of %s, check your --include-easyblocks options",
