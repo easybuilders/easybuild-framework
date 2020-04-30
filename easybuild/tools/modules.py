@@ -541,6 +541,9 @@ class ModulesTool(object):
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
         :param maybe_partial: indicates if the module name may be a partial module name
         """
+        if mod_exists_regex_template is not None:
+            self.log.deprecated('mod_exists_regex_template is no longer used', '5.0')
+
         def mod_exists_via_show(mod_name):
             """
             Helper function to check whether specified module name exists through 'module show'.
@@ -563,9 +566,6 @@ class ModulesTool(object):
                     res = True
                 break
             return res
-
-        if mod_exists_regex_template is not None:
-            self.log.deprecated('mod_exists_regex_template is no longer used', '5.0')
 
         if skip_avail:
             avail_mod_names = []
