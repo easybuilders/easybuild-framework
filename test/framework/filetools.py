@@ -1518,6 +1518,36 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(sorted(os.listdir(testdir)), expected)
         self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
 
+        # test copy_dir when broken symlinks are involved
+        srcdir = os.path.join(self.test_prefix, 'topdir_to_copy')
+        ft.mkdir(srcdir)
+        ft.write_file(os.path.join(srcdir, 'test.txt'), '123')
+        subdir = os.path.join(srcdir, 'subdir')
+        # introduce broken file symlink
+        foo_txt = os.path.join(subdir, 'foo.txt')
+        ft.write_file(foo_txt, 'bar')
+        ft.symlink(foo_txt, os.path.join(subdir, 'bar.txt'))
+        ft.remove_file(foo_txt)
+        # introduce broken dir symlink
+        subdir_tmp = os.path.join(srcdir, 'subdir_tmp')
+        ft.mkdir(subdir_tmp)
+        ft.symlink(subdir_tmp, os.path.join(srcdir, 'subdir_link'))
+        ft.remove_dir(subdir_tmp)
+
+        target_dir = os.path.join(self.test_prefix, 'target_to_copy_to')
+
+        # trying this without symlinks=True ends in tears, because bar.txt points to a non-existing file
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory", ft.copy_dir, srcdir, target_dir)
+        ft.remove_dir(target_dir)
+
+        ft.copy_dir(srcdir, target_dir, symlinks=True)
+
+        # copying directory with broken symlinks should also work if target directory already exists
+        ft.remove_dir(target_dir)
+        ft.mkdir(target_dir)
+        ft.mkdir(subdir)
+        ft.copy_dir(srcdir, target_dir, symlinks=True, dirs_exist_ok=True)
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -1535,7 +1565,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertFalse(os.path.exists(target_dir))
-        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/%s" % os.path.basename(target_dir), txt))
 
         # forced copy, even in dry run mode
         self.mock_stdout(True)
