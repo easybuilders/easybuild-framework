@@ -1360,7 +1360,8 @@ class FileToolsTest(EnhancedTestCase):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
-        path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
+        toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        path = ft.extract_file(toy_tar_gz, tmpdir, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
@@ -1653,19 +1654,24 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_extract_file(self):
         """Test extract_file"""
+        cwd = os.getcwd()
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
 
         self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
-        path = ft.extract_file(toy_tarball, self.test_prefix)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
+        # still in same directory as before if change_into_dir is set to False
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         shutil.rmtree(os.path.join(path, 'toy-0.0'))
 
         toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
         shutil.copyfile(toy_tarball, toy_tarball_renamed)
 
-        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s")
+        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         shutil.rmtree(os.path.join(path, 'toy-0.0'))
@@ -1678,17 +1684,56 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.mock_stdout(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0')))
         self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
-        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True)
+        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
+
+        build_options['extended_dry_run'] = False
+        init_config(build_options=build_options)
+
+        ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
+
+        # a deprecation warning is printed (which is an error in this context)
+        # if the 'change_into_dir' named argument was left unspecified
+        error_pattern = "extract_file function was called without specifying value for change_into_dir"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.extract_file, toy_tarball, self.test_prefix)
+        self.allow_deprecated_behaviour()
+
+        # make sure we're not in self.test_prefix now (checks below assumes so)
+        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+
+        # by default, extract_file changes to directory in which source file was unpacked
+        self.mock_stderr(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        regex = re.compile("^WARNING: .*extract_file function was called without specifying value for change_into_dir")
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        ft.change_dir(cwd)
+        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+
+        # no deprecation warning when change_into_dir is set to True
+        self.mock_stderr(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertFalse(stderr)
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -2454,6 +2499,97 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
 
         self.assertEqual(res['new'], expected_new)
+
+    def test_locks(self):
+        """Tests for lock-related functions."""
+
+        init_config(build_options={'silent': True})
+
+        # make sure that global list of locks is empty when we start off
+        self.assertFalse(ft.global_lock_names)
+
+        # use a realistic lock name (cfr. EasyBlock.run_all_steps)
+        installdir = os.path.join(self.test_installpath, 'software', 'test', '1.2.3-foss-2019b-Python-3.7.4')
+        lock_name = installdir.replace('/', '_')
+
+        # det_lock_path returns full path to lock with specified name
+        # (used internally by create_lock, check_lock, remove_lock)
+        lock_path = ft.det_lock_path(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+
+        locks_dir = os.path.dirname(lock_path)
+        self.assertFalse(os.path.exists(locks_dir))
+
+        # if lock doesn't exist yet, check_lock just returns
+        ft.check_lock(lock_name)
+
+        # create lock, and check whether it actually was created
+        ft.create_lock(lock_name)
+        self.assertTrue(os.path.exists(lock_path))
+
+        # can't use os.path.samefile until locks_dir actually exists
+        self.assertTrue(os.path.samefile(locks_dir, os.path.join(self.test_installpath, 'software', '.locks')))
+
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # if lock exists, then check_lock raises an error
+        self.assertErrorRegex(EasyBuildError, "Lock .* already exists", ft.check_lock, lock_name)
+
+        # remove_lock should... remove the lock
+        ft.remove_lock(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # no harm done if remove_lock is called if lock is already gone
+        ft.remove_lock(lock_name)
+
+        # check_lock just returns again after lock is removed
+        ft.check_lock(lock_name)
+
+        # global list of locks should be empty at this point
+        self.assertFalse(ft.global_lock_names)
+
+        # calling clean_up_locks when there are no locks should not cause trouble
+        ft.clean_up_locks()
+
+        ft.create_lock(lock_name)
+        self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        ft.clean_up_locks()
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # no problem with multiple locks
+        lock_names = [lock_name, 'test123', 'foo@bar%baz']
+        lock_paths = [os.path.join(locks_dir, x + '.lock') for x in lock_names]
+        for ln in lock_names:
+            ft.create_lock(ln)
+        for lp in lock_paths:
+            self.assertTrue(os.path.exists(lp), "Path %s should exist" % lp)
+
+        self.assertEqual(ft.global_lock_names, set(lock_names))
+        expected_locks = sorted(ln + '.lock' for ln in lock_names)
+        self.assertEqual(sorted(os.listdir(locks_dir)), expected_locks)
+
+        ft.clean_up_locks()
+        for lp in lock_paths:
+            self.assertFalse(os.path.exists(lp), "Path %s should not exist" % lp)
+        self.assertFalse(ft.global_lock_names)
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # also test signal handler that is supposed to clean up locks
+        ft.create_lock(lock_name)
+        self.assertTrue(ft.global_lock_names)
+        self.assertTrue(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # clean_up_locks_signal_handler causes sys.exit with specified exit code
+        self.assertErrorRegex(SystemExit, '15', ft.clean_up_locks_signal_handler, 15, None)
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
 
 
 def suite():

@@ -57,7 +57,7 @@ from easybuild.tools.config import find_last_log, get_repository, get_repository
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, dump_index, load_index
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
@@ -189,6 +189,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     """
+
+    register_lock_cleanup_signal_handlers()
+
     # if $CDPATH is set, unset it, it'll only cause trouble...
     # see https://github.com/easybuilders/easybuild-framework/issues/2944
     if 'CDPATH' in os.environ:
@@ -518,5 +521,5 @@ if __name__ == "__main__":
         main()
     except EasyBuildError as err:
         print_error(err.msg)
-    except KeyboardInterrupt:
-        print_error("Cancelled by user (keyboard interrupt)")
+    except KeyboardInterrupt as err:
+        print_error("Cancelled by user: %s" % err)

@@ -45,6 +45,7 @@ import functools
 import os
 import re
 from distutils.version import LooseVersion
+from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -383,6 +384,23 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
+@contextmanager
+def disable_templating(ec):
+    """Temporarily disable templating on the given EasyConfig
+
+    Usage:
+        with disable_templating(ec):
+            # Do what you want without templating
+        # Templating set to previous value
+    """
+    old_enable_templating = ec.enable_templating
+    ec.enable_templating = False
+    try:
+        yield old_enable_templating
+    finally:
+        ec.enable_templating = old_enable_templating
+
+
 class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
@@ -592,18 +610,15 @@ class EasyConfig(object):
         """
         # disable templating when setting easyconfig parameters
         # required to avoid problems with values that need more parsing to be done (e.g. dependencies)
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
-
-        for key in sorted(params.keys()):
-            # validations are skipped, just set in the config
-            if key in self._config.keys():
-                self[key] = params[key]
-                self.log.info("setting easyconfig parameter %s: value %s (type: %s)", key, self[key], type(self[key]))
-            else:
-                raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
-
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            for key in sorted(params.keys()):
+                # validations are skipped, just set in the config
+                if key in self._config.keys():
+                    self[key] = params[key]
+                    self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
+                                  key, self[key], type(self[key]))
+                else:
+                    raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
 
     def parse(self):
         """
@@ -647,42 +662,39 @@ class EasyConfig(object):
 
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
+        with disable_templating(self):
+            # if any lists of dependency versions are specified over which we should iterate,
+            # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters
+            self.handle_multi_deps()
 
-        # if any lists of dependency versions are specified over which we should iterate,
-        # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters...
-        self.handle_multi_deps()
+            parse_hook_msg = None
+            if self.path:
+                parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
 
-        parse_hook_msg = None
-        if self.path:
-            parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
+            # trigger parse hook
+            hooks = load_hooks(build_option('hooks'))
+            run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
-        # trigger parse hook
-        hooks = load_hooks(build_option('hooks'))
-        run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
+            # parse dependency specifications
+            # it's important that templating is still disabled at this stage!
+            self.log.info("Parsing dependency specifications...")
+            self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
+            self['hiddendependencies'] = [
+                self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']
+            ]
 
-        # parse dependency specifications
-        # it's important that templating is still disabled at this stage!
-        self.log.info("Parsing dependency specifications...")
-        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
-        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+            # need to take into account that builddependencies may need to be iterated over,
+            # i.e. when the value is a list of lists of tuples
+            builddeps = self['builddependencies']
+            if builddeps and all(isinstance(x, (list, tuple)) for b in builddeps for x in b):
+                self.iterate_options.append('builddependencies')
+                builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
+            else:
+                builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
+            self['builddependencies'] = builddeps
 
-        # need to take into account that builddependencies may need to be iterated over,
-        # i.e. when the value is a list of lists of tuples
-        builddeps = self['builddependencies']
-        if builddeps and all(isinstance(x, (list, tuple)) for b in builddeps for x in b):
-            self.iterate_options.append('builddependencies')
-            builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
-        else:
-            builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
-        self['builddependencies'] = builddeps
-
-        # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
-        self.multi_deps = self.get_parsed_multi_deps()
-
-        # restore templating
-        self.enable_templating = prev_enable_templating
+            # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
+            self.multi_deps = self.get_parsed_multi_deps()
 
         # update templating dictionary
         self.generate_template_values()
@@ -1108,63 +1120,57 @@ class EasyConfig(object):
         :param always_overwrite: overwrite existing file at specified location without use of --force
         :param backup: create backup of existing file before overwriting it
         """
-        orig_enable_templating = self.enable_templating
-
         # templated values should be dumped unresolved
-        self.enable_templating = False
+        with disable_templating(self):
+            # build dict of default values
+            default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
+            default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
-        # build dict of default values
-        default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
-        default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+            self.generate_template_values()
+            templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
-        self.generate_template_values()
-        templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
+            # create reverse map of templates, to inject template values where possible
+            # longer template values are considered first, shorter template keys get preference over longer ones
+            sorted_keys = sorted(self.template_values, key=lambda k: (len(self.template_values[k]), -len(k)),
+                                 reverse=True)
+            templ_val = OrderedDict([])
+            for key in sorted_keys:
+                # shortest template 'key' is retained in case of duplicates
+                # ('namelower' is preferred over 'github_account')
+                # only template values longer than 2 characters are retained
+                if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
+                    templ_val[self.template_values[key]] = key
 
-        # create reverse map of templates, to inject template values where possible
-        # longer template values are considered first, shorter template keys get preference over longer ones
-        sorted_keys = sorted(self.template_values, key=lambda k: (len(self.template_values[k]), -len(k)), reverse=True)
-        templ_val = OrderedDict([])
-        for key in sorted_keys:
-            # shortest template 'key' is retained in case of duplicates ('namelower' is preferred over 'github_account')
-            # only template values longer than 2 characters are retained
-            if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
-                templ_val[self.template_values[key]] = key
+            toolchain_hierarchy = None
+            if not explicit_toolchains:
+                try:
+                    toolchain_hierarchy = get_toolchain_hierarchy(self['toolchain'])
+                except EasyBuildError as err:
+                    # don't fail hard just because we can't get the hierarchy
+                    self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump method, '
+                                     'error:\n%s', self['toolchain'], str(err))
 
-        toolchain_hierarchy = None
-        if not explicit_toolchains:
             try:
-                toolchain_hierarchy = get_toolchain_hierarchy(self['toolchain'])
-            except EasyBuildError as err:
-                # don't fail hard just because we can't get the hierarchy
-                self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump method, '
-                                 'error:\n%s', self['toolchain'], str(err))
+                ectxt = self.parser.dump(self, default_values, templ_const, templ_val,
+                                         toolchain_hierarchy=toolchain_hierarchy)
+            except NotImplementedError as err:
+                raise NotImplementedError(err)
 
-        try:
-            ectxt = self.parser.dump(self, default_values, templ_const, templ_val,
-                                     toolchain_hierarchy=toolchain_hierarchy)
-        except NotImplementedError as err:
-            # need to restore enable_templating value in case this method is caught in a try/except block and ignored
-            # (the ability to dump is not a hard requirement for build success)
-            self.enable_templating = orig_enable_templating
-            raise NotImplementedError(err)
+            self.log.debug("Dumped easyconfig: %s", ectxt)
 
-        self.log.debug("Dumped easyconfig: %s", ectxt)
+            if build_option('dump_autopep8'):
+                autopep8_opts = {
+                    'aggressive': 1,  # enable non-whitespace changes, but don't be too aggressive
+                    'max_line_length': 120,
+                }
+                self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
+                ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
+                self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
-        if build_option('dump_autopep8'):
-            autopep8_opts = {
-                'aggressive': 1,  # enable non-whitespace changes, but don't be too aggressive
-                'max_line_length': 120,
-            }
-            self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
-            ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
-            self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
+            if not ectxt.endswith('\n'):
+                ectxt += '\n'
 
-        if not ectxt.endswith('\n'):
-            ectxt += '\n'
-
-        write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
-
-        self.enable_templating = orig_enable_templating
+            write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
     def _validate(self, attr, values):  # private method
         """
@@ -1478,7 +1484,7 @@ class EasyConfig(object):
 
         # (true) boolean value simply indicates that a system toolchain is used
         elif isinstance(tc_spec, bool) and tc_spec:
-                tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
+            tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
 
         # two-element list/tuple value indicates custom toolchain specification
         elif isinstance(tc_spec, (list, tuple,)):
@@ -1598,17 +1604,12 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
-        prev_enable_templating = self.enable_templating
-
-        self.enable_templating = False
-
-        if self.template_values is None:
-            # if no template values are set yet, initiate with a minimal set of template values;
-            # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
-            # which is a pretty weird use case, but fine...
-            self.template_values = template_constant_dict(self, ignore=ignore)
-
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            if self.template_values is None:
+                # if no template values are set yet, initiate with a minimal set of template values;
+                # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
+                # which is a pretty weird use case, but fine...
+                self.template_values = template_constant_dict(self, ignore=ignore)
 
         # grab toolchain instance with templating support enabled,
         # which is important in case the Toolchain instance was not created yet
@@ -1616,9 +1617,8 @@ class EasyConfig(object):
 
         # get updated set of template values, now with toolchain instance
         # (which is used to define the %(mpi_cmd_prefix)s template)
-        self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
 
         # update the template_values dict
         self.template_values.update(template_values)
@@ -1661,13 +1661,8 @@ class EasyConfig(object):
         # see also comments in resolve_template
 
         # temporarily disable templating
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
-
-        ref = self[key]
-
-        # restore previous value for 'enable_templating'
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            ref = self[key]
 
         return ref
 

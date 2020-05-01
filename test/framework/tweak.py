@@ -471,8 +471,7 @@ class TweakTest(EnhancedTestCase):
                                                              update_build_specs={'version': new_version},
                                                              update_dep_versions=False)
         tweaked_ec = process_easyconfig(tweaked_spec)[0]
-        tweaked_dict = tweaked_ec['ec'].asdict()
-        extensions = tweaked_dict['exts_list']
+        extensions = tweaked_ec['ec']['exts_list']
         # check one extension with the same name exists and that the version has been updated
         hit_extension = 0
         for extension in extensions:
