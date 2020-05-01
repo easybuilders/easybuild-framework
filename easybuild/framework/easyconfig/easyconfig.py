@@ -1463,10 +1463,14 @@ class EasyConfig(object):
             if dependency['full_mod_name'].split('/')[-1].startswith('.'):
                 dependency['hidden'] = True
 
+            name_version = dependency['short_mod_name'].split('/')
             if 'name' not in dependency['external_module_metadata']:
-                dependency['name'] = dependency['short_mod_name']
+                dependency['name'] = name_version[0]
             if 'version' not in dependency['external_module_metadata']:
-                dependency['version'] = ''
+                if len(name_version) > 1:
+                    dependency['version'] = dependency['short_mod_name'].split('/')[1]
+                else:
+                    dependency['version'] = ''
 
             self.log.debug("Returning parsed external dependency: %s", dependency)
             return dependency
