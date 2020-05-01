@@ -2027,19 +2027,35 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
+
+        # make sure $EB_SCRIPT_PATH is not set already (used as fallback mechanism in find_eb_script)
+        if 'EB_SCRIPT_PATH' in os.environ:
+            del os.environ['EB_SCRIPT_PATH']
+
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
         self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
         # put test script in place relative to location of 'eb'
-        ft.write_file(os.path.join(self.test_prefix, 'bin', 'eb'), '#!/bin/bash\necho "fake eb"')
-        ft.adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH', ''))
+        fake_eb = os.path.join(self.test_prefix, 'bin', 'eb')
+        ft.write_file(fake_eb, '#!/bin/bash\necho "fake eb"')
+        ft.adjust_permissions(fake_eb, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.dirname(fake_eb), os.getenv('PATH', ''))
 
-        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'justatest.sh')
+        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'thisisjustatestscript.sh')
         ft.write_file(justatest, '#!/bin/bash')
 
-        self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
+        self.assertTrue(os.path.samefile(ft.find_eb_script('thisisjustatestscript.sh'), justatest))
+
+        # $EB_SCRIPT_PATH can also be used (overrules 'eb' found via $PATH)
+        ft.remove_file(fake_eb)
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(self.test_prefix, 'easybuild', 'scripts')
+        self.assertTrue(os.path.samefile(ft.find_eb_script('thisisjustatestscript.sh'), justatest))
+
+        # if script can't be found via either $EB_SCRIPT_PATH or location of 'eb', we get a clean error
+        del os.environ['EB_SCRIPT_PATH']
+        error_pattern = "Script 'thisisjustatestscript.sh' not found at expected location"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.find_eb_script, 'thisisjustatestscript.sh')
 
     def test_move_file(self):
         """Test move_file function"""
