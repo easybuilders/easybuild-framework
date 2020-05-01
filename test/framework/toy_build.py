@@ -51,7 +51,8 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.py2vs3 import reload, string_type
@@ -2851,6 +2852,8 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_lock_cleanup_signals(self):
         """Test cleanup of locks after EasyBuild session gets a cancellation signal."""
 
+        orig_wd = os.getcwd()
+
         locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
         self.assertFalse(os.path.exists(locks_dir))
 
@@ -2890,6 +2893,9 @@ class ToyBuildTest(EnhancedTestCase):
             stderr = ''
 
             with wait_and_signal(1, signum):
+
+                # change back to original working directory before each test
+                change_dir(orig_wd)
 
                 self.mock_stderr(True)
                 self.mock_stdout(True)
