@@ -1560,7 +1560,7 @@ def check_lock(lock_name):
                 time.sleep(wait_interval)
                 wait_time += wait_interval
 
-            if wait_limit != -1 and wait_time >= wait_limit:
+            if os.path.exists(lock_path) and wait_limit != -1 and wait_time >= wait_limit:
                 error_msg = "Maximum wait time for lock %s to be released reached: %s sec >= %s sec"
                 raise EasyBuildError(error_msg, lock_path, wait_time, wait_limit)
             else:
