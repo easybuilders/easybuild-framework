@@ -48,6 +48,7 @@ import inspect
 import os
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
@@ -59,7 +60,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
 
@@ -154,6 +155,9 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z':   "tar xzf %(filepath)s",
 }
+
+# global set of names of locks that were created in this session
+global_lock_names = set()
 
 
 class ZlibChecksum(object):
@@ -1511,6 +1515,131 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
     else:
         _log.debug("Not creating existing path %s" % path)
+
+
+def det_lock_path(lock_name):
+    """
+    Determine full path for lock with specifed name.
+    """
+    locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
+    return os.path.join(locks_dir, lock_name + '.lock')
+
+
+def create_lock(lock_name):
+    """Create lock with specified name."""
+
+    lock_path = det_lock_path(lock_name)
+    _log.info("Creating lock at %s...", lock_path)
+    try:
+        # we use a directory as a lock, since that's atomically created
+        mkdir(lock_path, parents=True)
+        global_lock_names.add(lock_name)
+    except EasyBuildError as err:
+        # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
+        stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
+        raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
+    _log.info("Lock created: %s", lock_path)
+
+
+def check_lock(lock_name):
+    """
+    Check whether a lock with specified name already exists.
+
+    If it exists, either wait until it's released, or raise an error
+    (depending on --wait-on-lock configuration option).
+    """
+    lock_path = det_lock_path(lock_name)
+    if os.path.exists(lock_path):
+        _log.info("Lock %s exists!", lock_path)
+
+        wait_interval = build_option('wait_on_lock_interval')
+        wait_limit = build_option('wait_on_lock_limit')
+
+        # --wait-on-lock is deprecated, should use --wait-on-lock-limit and --wait-on-lock-interval instead
+        wait_on_lock = build_option('wait_on_lock')
+        if wait_on_lock is not None:
+            depr_msg = "Use of --wait-on-lock is deprecated, use --wait-on-lock-limit and --wait-on-lock-interval"
+            _log.deprecated(depr_msg, '5.0')
+
+            # if --wait-on-lock-interval has default value and --wait-on-lock is specified too, the latter wins
+            # (required for backwards compatibility)
+            if wait_interval == DEFAULT_WAIT_ON_LOCK_INTERVAL and wait_on_lock > 0:
+                wait_interval = wait_on_lock
+
+            # if --wait-on-lock-limit is not specified we need to wait indefinitely if --wait-on-lock is specified,
+            # since the original semantics of --wait-on-lock was that it specified the waiting time interval (no limit)
+            if not wait_limit:
+                wait_limit = -1
+
+        # wait limit could be zero (no waiting), -1 (no waiting limit) or non-zero value (waiting limit in seconds)
+        if wait_limit != 0:
+            wait_time = 0
+            while os.path.exists(lock_path) and (wait_limit == -1 or wait_time < wait_limit):
+                print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_interval),
+                          silent=build_option('silent'))
+                time.sleep(wait_interval)
+                wait_time += wait_interval
+
+            if os.path.exists(lock_path) and wait_limit != -1 and wait_time >= wait_limit:
+                error_msg = "Maximum wait time for lock %s to be released reached: %s sec >= %s sec"
+                raise EasyBuildError(error_msg, lock_path, wait_time, wait_limit)
+            else:
+                _log.info("Lock %s was released!", lock_path)
+        else:
+            raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+    else:
+        _log.info("Lock %s does not exist", lock_path)
+
+
+def remove_lock(lock_name):
+    """
+    Remove lock with specified name.
+    """
+    lock_path = det_lock_path(lock_name)
+    _log.info("Removing lock %s...", lock_path)
+    remove_dir(lock_path)
+    if lock_name in global_lock_names:
+        global_lock_names.remove(lock_name)
+    _log.info("Lock removed: %s", lock_path)
+
+
+def clean_up_locks():
+    """
+    Clean up all still existing locks that were created in this session.
+    """
+    for lock_name in list(global_lock_names):
+        remove_lock(lock_name)
+
+
+def clean_up_locks_signal_handler(signum, frame):
+    """
+    Signal handler, cleans up locks & exits with received signal number.
+    """
+
+    if not build_option('silent'):
+        print_warning("signal received (%s), cleaning up locks (%s)..." % (signum, ', '.join(global_lock_names)))
+    clean_up_locks()
+
+    # by default, a KeyboardInterrupt is raised with SIGINT, so keep doing so
+    if signum == signal.SIGINT:
+        raise KeyboardInterrupt("keyboard interrupt")
+    else:
+        sys.exit(signum)
+
+
+def register_lock_cleanup_signal_handlers():
+    """
+    Register signal handler for signals that cancel the current EasyBuild session,
+    so we can clean up the locks that were created first.
+    """
+    signums = [
+        signal.SIGABRT,
+        signal.SIGINT,  # Ctrl-C
+        signal.SIGTERM,  # signal 15, soft kill (like when Slurm job is cancelled or received timeout)
+        signal.SIGQUIT,  # kinda like Ctrl-C
+    ]
+    for signum in signums:
+        signal.signal(signum, clean_up_locks_signal_handler)
 
 
 def expand_glob_paths(glob_paths):

@@ -142,7 +142,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, versionsuffix='', testing=True):
+                       raise_error=False, test_report=None, versionsuffix='', testing=True,
+                       raise_systemexit=False):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -169,7 +170,7 @@ class ToyBuildTest(EnhancedTestCase):
         myerr = None
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
-                                  raise_error=raise_error, testing=testing)
+                                  raise_error=raise_error, testing=testing, raise_systemexit=raise_systemexit)
         except Exception as err:
             myerr = err
             if raise_error:
@@ -2758,43 +2759,86 @@ class ToyBuildTest(EnhancedTestCase):
             def __exit__(self, type, value, traceback):
                 pass
 
-        # wait for lock to be removed, with 1 second interval of checking
-        extra_args.append('--wait-on-lock=1')
+        # wait for lock to be removed, with 1 second interval of checking;
+        # check with both --wait-on-lock-interval and deprecated --wait-on-lock options
 
         wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
         ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
 
-        self.assertTrue(os.path.exists(toy_lock_path))
+        test_cases = [
+            ['--wait-on-lock=1'],
+            ['--wait-on-lock=1', '--wait-on-lock-interval=60'],
+            ['--wait-on-lock=100', '--wait-on-lock-interval=1'],
+            ['--wait-on-lock-limit=100', '--wait-on-lock=1'],
+            ['--wait-on-lock-limit=100', '--wait-on-lock-interval=1'],
+            ['--wait-on-lock-limit=-1', '--wait-on-lock=1'],
+            ['--wait-on-lock-limit=-1', '--wait-on-lock-interval=1'],
+        ]
 
-        # use context manager to remove lock after 3 seconds
-        with remove_lock_after(3, toy_lock_path):
+        for opts in test_cases:
+
+            if any('--wait-on-lock=' in x for x in opts):
+                self.allow_deprecated_behaviour()
+            else:
+                self.disallow_deprecated_behaviour()
+
+            if not os.path.exists(toy_lock_path):
+                mkdir(toy_lock_path)
+
+            self.assertTrue(os.path.exists(toy_lock_path))
+
+            all_args = extra_args + opts
+
+            # use context manager to remove lock after 3 seconds
+            with remove_lock_after(3, toy_lock_path):
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+
+                if any('--wait-on-lock=' in x for x in all_args):
+                    self.assertTrue("Use of --wait-on-lock is deprecated" in stderr)
+                else:
+                    self.assertEqual(stderr, '')
+
+                wait_matches = wait_regex.findall(stdout)
+                # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
+                self.assertTrue(len(wait_matches) in range(2, 5))
+
+                self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+
+        # check use of --wait-on-lock-limit: if lock is never removed, we should give up when limit is reached
+        mkdir(toy_lock_path)
+        all_args = extra_args + ['--wait-on-lock-limit=3', '--wait-on-lock-interval=1']
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        error_pattern = r"Maximum wait time for lock /.*toy_0.0.lock to be released reached: [0-9]+ sec >= 3 sec"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=all_args,
+                              verify=False, raise_error=True, testing=False)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        wait_matches = wait_regex.findall(stdout)
+        self.assertTrue(len(wait_matches) in range(2, 5))
+
+        # when there is no lock in place, --wait-on-lock* has no impact
+        remove_dir(toy_lock_path)
+        for opt in ['--wait-on-lock=1', '--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
+            all_args = extra_args + [opt]
+            self.assertFalse(os.path.exists(toy_lock_path))
             self.mock_stderr(True)
             self.mock_stdout(True)
-            self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+            self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
             stderr, stdout = self.get_stderr(), self.get_stdout()
             self.mock_stderr(False)
             self.mock_stdout(False)
 
             self.assertEqual(stderr, '')
-
-            wait_matches = wait_regex.findall(stdout)
-            # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
-            self.assertTrue(len(wait_matches) in range(2, 5))
-
             self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
-
-        # when there is no lock in place, --wait-on-lock has no impact
-        self.assertFalse(os.path.exists(toy_lock_path))
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
-
-        self.assertEqual(stderr, '')
-        self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
-        self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
+            self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
 
         # check for clean error on creation of lock
         extra_args = ['--locks-dir=/']
@@ -2802,6 +2846,57 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern += r"(Read-only file system|Permission denied)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
                               extra_args=extra_args, raise_error=True, verbose=False)
+
+    def test_toy_lock_cleanup_signals(self):
+        """Test cleanup of locks after EasyBuild session gets a cancellation signal."""
+
+        locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
+        self.assertFalse(os.path.exists(locks_dir))
+
+        # context manager which stops the function being called with the specified signal
+        class wait_and_signal:
+            def __init__(self, seconds, signum):
+                self.seconds = seconds
+                self.signum = signum
+
+            def send_signal(self, *args):
+                os.kill(os.getpid(), self.signum)
+
+            def __enter__(self):
+                signal.signal(signal.SIGALRM, self.send_signal)
+                signal.alarm(self.seconds)
+
+            def __exit__(self, type, value, traceback):
+                pass
+
+        # add extra sleep command to ensure session takes long enough
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 5"]')
+
+        signums = [
+            (signal.SIGABRT, SystemExit),
+            (signal.SIGINT, KeyboardInterrupt),
+            (signal.SIGTERM, SystemExit),
+            (signal.SIGQUIT, SystemExit),
+        ]
+        for (signum, exc) in signums:
+            with wait_and_signal(1, signum):
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.assertErrorRegex(exc, '.*', self.test_toy_build, ec_file=test_ec, verify=False,
+                                      raise_error=True, testing=False, raise_systemexit=True)
+
+                stderr = self.get_stderr().strip()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+
+                pattern = r"^WARNING: signal received \(%s\), " % int(signum)
+                pattern += r"cleaning up locks \(.*software_toy_0.0\)\.\.\."
+                regex = re.compile(pattern)
+                self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
     def test_toy_build_unicode_description(self):
         """Test installation of easyconfig file that has non-ASCII characters in description."""

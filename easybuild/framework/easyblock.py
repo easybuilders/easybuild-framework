@@ -71,12 +71,12 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file
-from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
-from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
+from easybuild.tools.filetools import compute_checksum, copy_file, check_lock, create_lock, derive_alt_pypi_url
+from easybuild.tools.filetools import diff_files, dir_contains_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, verify_checksum, weld_paths, write_file, dir_contains_files
+from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -3096,30 +3096,14 @@ class EasyBlock(object):
         if ignore_locks:
             self.log.info("Ignoring locks...")
         else:
-            locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
-            lock_path = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+            lock_name = self.installdir.replace('/', '_')
 
-            # if lock already exists, either abort or wait until it disappears
-            if os.path.exists(lock_path):
-                wait_on_lock = build_option('wait_on_lock')
-                if wait_on_lock:
-                    while os.path.exists(lock_path):
-                        print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
-                                  silent=self.silent)
-                        time.sleep(wait_on_lock)
-                else:
-                    raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+            # check if lock already exists;
+            # either aborts with an error or waits until it disappears (depends on --wait-on-lock)
+            check_lock(lock_name)
 
-            # create lock to avoid that another installation running in parallel messes things up;
-            # we use a directory as a lock, since that's atomically created
-            try:
-                mkdir(lock_path, parents=True)
-            except EasyBuildError as err:
-                # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
-                stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
-                raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
-
-            self.log.info("Lock created: %s", lock_path)
+            # create lock to avoid that another installation running in parallel messes things up
+            create_lock(lock_name)
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
@@ -3137,8 +3121,7 @@ class EasyBlock(object):
             pass
         finally:
             if not ignore_locks:
-                remove_dir(lock_path)
-                self.log.info("Lock removed: %s", lock_path)
+                remove_lock(lock_name)
 
         # return True for successfull build (or stopped build)
         return True
