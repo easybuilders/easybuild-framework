@@ -1548,7 +1548,7 @@ def clean_up_locks():
 
 def clean_up_locks_signal_handler(signum, frame):
     """
-    Signal handler, cleans up locks & exists with received signal number.
+    Signal handler, cleans up locks & exits with received signal number.
     """
 
     if not build_option('silent'):
