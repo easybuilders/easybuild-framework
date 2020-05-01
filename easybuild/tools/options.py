@@ -64,10 +64,10 @@ from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAU
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
-from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
-from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
-from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, WARN
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
+from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_LIMIT, EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES
+from easybuild.tools.config import GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN
+from easybuild.tools.config import LOADED_MODULES_ACTIONS, LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -76,9 +76,8 @@ from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, 
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
-from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
-from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
+from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
+from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
@@ -442,8 +441,15 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
-            'wait-on-lock': ("Wait interval (in seconds) to use when waiting for existing lock to be removed "
-                             "(0: implies no waiting, but exiting with an error)", int, 'store', 0),
+            'wait-on-lock': ("Wait for lock to be released; 0 implies no waiting (exit with an error if the lock "
+                             "already exists), non-zero value specified waiting interval [DEPRECATED: "
+                             "use --wait-on-lock-interval and --wait-on-lock-limit instead]",
+                             int, 'store_or_None', None),
+            'wait-on-lock-interval': ("Wait interval (in seconds) to use when waiting for existing lock to be removed",
+                                      int, 'store', DEFAULT_WAIT_ON_LOCK_INTERVAL),
+            'wait-on-lock-limit': ("Maximum amount of time (in seconds) to wait until lock is released (0 means no "
+                                   "waiting at all, exit with error; -1 means no waiting limit, keep waiting)",
+                                   int, 'store', DEFAULT_WAIT_ON_LOCK_LIMIT),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
 

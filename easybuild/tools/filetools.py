@@ -60,7 +60,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option, install_path
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
 
@@ -1531,12 +1531,40 @@ def check_lock(lock_name):
     lock_path = det_lock_path(lock_name)
     if os.path.exists(lock_path):
         _log.info("Lock %s exists!", lock_path)
+
+        wait_interval = build_option('wait_on_lock_interval')
+        wait_limit = build_option('wait_on_lock_limit')
+
+        # --wait-on-lock is deprecated, should use --wait-on-lock-limit and --wait-on-lock-interval instead
         wait_on_lock = build_option('wait_on_lock')
-        if wait_on_lock:
-            while os.path.exists(lock_path):
-                print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
+        if wait_on_lock is not None:
+            depr_msg = "Use of --wait-on-lock is deprecated, use --wait-on-lock-limit and --wait-on-lock-interval"
+            _log.deprecated(depr_msg, '5.0')
+
+            # if --wait-on-lock-interval has default value and --wait-on-lock is specified too, the latter wins
+            # (required for backwards compatibility)
+            if wait_interval == DEFAULT_WAIT_ON_LOCK_INTERVAL and wait_on_lock > 0:
+                wait_interval = wait_on_lock
+
+            # if --wait-on-lock-limit is not specified we need to wait indefinitely if --wait-on-lock is specified,
+            # since the original semantics of --wait-on-lock was that it specified the waiting time interval (no limit)
+            if not wait_limit:
+                wait_limit = -1
+
+        # wait limit could be zero (no waiting), -1 (no waiting limit) or non-zero value (waiting limit in seconds)
+        if wait_limit != 0:
+            wait_time = 0
+            while os.path.exists(lock_path) and (wait_limit == -1 or wait_time < wait_limit):
+                print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_interval),
                           silent=build_option('silent'))
-                time.sleep(wait_on_lock)
+                time.sleep(wait_interval)
+                wait_time += wait_interval
+
+            if wait_limit != -1 and wait_time >= wait_limit:
+                error_msg = "Maximum wait time for lock %s to be released reached: %s sec >= %s sec"
+                raise EasyBuildError(error_msg, lock_path, wait_time, wait_limit)
+            else:
+                _log.info("Lock %s was released!", lock_path)
         else:
             raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
     else:

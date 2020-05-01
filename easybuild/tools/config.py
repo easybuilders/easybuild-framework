@@ -102,6 +102,8 @@ DEFAULT_PKG_TYPE = PKG_TYPE_RPM
 DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
+DEFAULT_WAIT_ON_LOCK_LIMIT = 0
 
 EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
 LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
@@ -211,6 +213,7 @@ BUILD_OPTIONS_CMDLINE = {
         'subdir_user_modules',
         'test_report_env_filter',
         'testoutput',
+        'wait_on_lock',
         'umask',
         'zip_logs',
     ],
@@ -256,7 +259,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_f90cache',
         'use_existing_modules',
         'set_default_module',
-        'wait_on_lock',
+        'wait_on_lock_limit',
     ],
     True: [
         'cleanup_builddir',
@@ -304,6 +307,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_ALLOW_LOADED_MODULES: [
         'allow_loaded_modules',
+    ],
+    DEFAULT_WAIT_ON_LOCK_INTERVAL: [
+        'wait_on_lock_interval',
     ],
 }
 # build option that do not have a perfectly matching command line option
