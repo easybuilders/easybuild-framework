@@ -2744,7 +2744,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
 
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
-        class remove_lock_after:
+        class remove_lock_after(object):
             def __init__(self, seconds, lock_fp):
                 self.seconds = seconds
                 self.lock_fp = lock_fp
@@ -2757,7 +2757,8 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(self.seconds)
 
             def __exit__(self, type, value, traceback):
-                pass
+                # cancel scheduled alarm (just for cleanup sake)
+                signal.alarm(0)
 
         # wait for lock to be removed, with 1 second interval of checking;
         # check with both --wait-on-lock-interval and deprecated --wait-on-lock options
@@ -2854,7 +2855,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(locks_dir))
 
         # context manager which stops the function being called with the specified signal
-        class wait_and_signal:
+        class wait_and_signal(object):
             def __init__(self, seconds, signum):
                 self.seconds = seconds
                 self.signum = signum
