@@ -3308,6 +3308,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--new-pr-from-branch=%s' % test_branch,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # used to get GitHub token
             '--github-org=boegel',  # used to determine account to grab branch from
+            '--pr-descr="an easyconfig for toy"',
             '-D',
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
@@ -3326,6 +3327,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"\* target: easybuilders/easybuild-easyconfigs:develop$",
             r"^\* from: boegel/easybuild-easyconfigs:test_new_pr_from_branch_DO_NOT_REMOVE$",
             r'^\* title: "\{tools\}\[system/system\] toy v0\.0"$',
+            r'^"an easyconfig for toy"$',
             r"^ 1 file changed, 32 insertions\(\+\)$",
             r"^\* overview of changes:\n  easybuild/easyconfigs/t/toy/toy-0\.0\.eb | 32",
         ]
