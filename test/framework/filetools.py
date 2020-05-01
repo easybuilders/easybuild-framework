@@ -29,6 +29,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
 import glob
@@ -147,6 +148,29 @@ class FileToolsTest(EnhancedTestCase):
 
         os.chdir(tmpdir)
         self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
+
+    def test_find_glob_pattern(self):
+        """test find_glob_pattern function"""
+        tmpdir = tempfile.mkdtemp()
+        os.mkdir(os.path.join(tmpdir, 'python2.7'))
+        os.mkdir(os.path.join(tmpdir, 'python2.7', 'include'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m', 'include'))
+
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*')),
+                         os.path.join(tmpdir, 'python2.7'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*', 'include')),
+                         os.path.join(tmpdir, 'python2.7', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*')),
+                         os.path.join(tmpdir, 'python3.5m'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*', 'include')),
+                         os.path.join(tmpdir, 'python3.5m', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.6*'), False), None)
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python3.6*'))
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python*'))
+
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -1303,6 +1327,15 @@ class FileToolsTest(EnhancedTestCase):
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
 
+        # check for Python package that has yanked releases,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        res = ft.pypi_source_urls('ipython')
+        self.assertTrue(isinstance(res, list) and res)
+        prefix = 'https://pypi.python.org/packages'
+        for entry in res:
+            self.assertTrue(entry.startswith(prefix), "'%s' should start with '%s'" % (entry, prefix))
+            self.assertTrue('ipython' in entry, "Pattern 'ipython' should be found in '%s'" % entry)
+
     def test_derive_alt_pypi_url(self):
         """Test derive_alt_pypi_url() function."""
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
@@ -1476,22 +1509,45 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy_dir(to_copy, testdir, dirs_exist_ok=True)
         self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(testdir)))
 
-        # if the directory already exists and 'dirs_exist_ok' is True and there is another named argument (ignore)
-        # we expect clean error on Python < 3.8 and pass the test on Python >= 3.8
-        # NOTE: reused ignore from previous test
+        # check whether use of 'ignore' works if target path already exists and 'dirs_exist_ok' is enabled
         def ignore_func(_, names):
             return [x for x in names if '6.4.0-2.28' in x]
 
         shutil.rmtree(testdir)
         ft.mkdir(testdir)
-        if sys.version_info >= (3, 8):
-            ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
-            self.assertEqual(sorted(os.listdir(testdir)), expected)
-            self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
-        else:
-            error_pattern = "Unknown named arguments passed to copy_dir with dirs_exist_ok=True: ignore"
-            self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_dir, to_copy, testdir,
-                                  dirs_exist_ok=True, ignore=ignore_func)
+        ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
+        self.assertEqual(sorted(os.listdir(testdir)), expected)
+        self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
+
+        # test copy_dir when broken symlinks are involved
+        srcdir = os.path.join(self.test_prefix, 'topdir_to_copy')
+        ft.mkdir(srcdir)
+        ft.write_file(os.path.join(srcdir, 'test.txt'), '123')
+        subdir = os.path.join(srcdir, 'subdir')
+        # introduce broken file symlink
+        foo_txt = os.path.join(subdir, 'foo.txt')
+        ft.write_file(foo_txt, 'bar')
+        ft.symlink(foo_txt, os.path.join(subdir, 'bar.txt'))
+        ft.remove_file(foo_txt)
+        # introduce broken dir symlink
+        subdir_tmp = os.path.join(srcdir, 'subdir_tmp')
+        ft.mkdir(subdir_tmp)
+        ft.symlink(subdir_tmp, os.path.join(srcdir, 'subdir_link'))
+        ft.remove_dir(subdir_tmp)
+
+        target_dir = os.path.join(self.test_prefix, 'target_to_copy_to')
+
+        # trying this without symlinks=True ends in tears, because bar.txt points to a non-existing file
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory", ft.copy_dir, srcdir, target_dir)
+        ft.remove_dir(target_dir)
+
+        ft.copy_dir(srcdir, target_dir, symlinks=True)
+
+        # copying directory with broken symlinks should also work if target directory already exists
+        ft.remove_dir(target_dir)
+        ft.mkdir(target_dir)
+        ft.mkdir(subdir)
+        ft.copy_dir(srcdir, target_dir, symlinks=True, dirs_exist_ok=True)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1510,7 +1566,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertFalse(os.path.exists(target_dir))
-        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/%s" % os.path.basename(target_dir), txt))
 
         # forced copy, even in dry run mode
         self.mock_stdout(True)

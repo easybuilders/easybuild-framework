@@ -2750,7 +2750,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         args = [
-            '--from-pr=9979',  # PR for CMake easyconfig
+            '--from-pr=10487',  # PR for CMake easyconfig
             '--include-easyblocks-from-pr=1936',  # PR for EB_CMake easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -2760,8 +2760,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         # easyconfig from pr is found
-        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr9979', 'c', 'CMake',
-                                  'CMake-3.16.4-GCCcore-9.2.0.eb')
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',
+                                  'CMake-3.16.4-GCCcore-9.3.0.eb')
         ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
         self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
 
