@@ -2650,6 +2650,9 @@ class EasyBlock(object):
 
         # run sanity check commands
         for command in commands:
+
+            trace_msg("running command '%s' ..." % command)
+
             out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
@@ -2658,7 +2661,7 @@ class EasyBlock(object):
             else:
                 self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
-            trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
+            trace_msg("result for command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
