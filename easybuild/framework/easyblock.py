@@ -2409,37 +2409,71 @@ class EasyBlock(object):
             SANITY_CHECK_PATHS_DIRS: ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
         }
 
-        # prepare sanity check paths
-        paths = self.cfg['sanity_check_paths']
-        if not paths:
+        enhance_sanity_check = self.cfg['enhance_sanity_check']
+        ec_commands = self.cfg['sanity_check_commands']
+        ec_paths = self.cfg['sanity_check_paths']
+
+        # if enhance_sanity_check is not enabled, only sanity_check_paths specified in the easyconfig file are used,
+        # the ones provided by the easyblock (via custom_paths) are ignored
+        if ec_paths and not enhance_sanity_check:
+            paths = ec_paths
+            self.log.info("Using (only) sanity check paths specified by easyconfig file: %s", paths)
+        else:
+            # if no sanity_check_paths are specified in easyconfig,
+            # we fall back to the ones provided by the easyblock via custom_paths
             if custom_paths:
                 paths = custom_paths
-                self.log.info("Using customized sanity check paths: %s" % paths)
+                self.log.info("Using customized sanity check paths: %s", paths)
+            # if custom_paths is empty, we fall back to a generic set of paths:
+            # non-empty bin/ + /lib or /lib64 directories
             else:
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
                 paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
-                self.log.info("Using default sanity check paths: %s" % paths)
+                self.log.info("Using default sanity check paths: %s", paths)
+
+            # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
+            # those paths are used to enhance the paths provided by the easyblock
+            if enhance_sanity_check and ec_paths:
+                for key in ec_paths:
+                    val = ec_paths[key]
+                    if isinstance(val, list):
+                        paths[key] = paths.get(key, []) + val
+                    else:
+                        error_pattern = "Incorrect value type in sanity_check_paths, should be a list: "
+                        error_pattern += "%s (type: %s)" % (val, type(val))
+                        raise EasyBuildError(error_pattern)
+                self.log.info("Enhanced sanity check paths after taking into account easyconfig file: %s", paths)
+
+        sorted_keys = sorted(paths.keys())
+        known_keys = sorted(path_keys_and_check.keys())
+
+        # verify sanity_check_paths value: only known keys, correct value types, at least one non-empty value
+        only_list_values = all(isinstance(x, list) for x in paths.values())
+        only_empty_lists = all(not x for x in paths.values())
+        if sorted_keys != known_keys or not only_list_values or only_empty_lists:
+            error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
+            error_msg += "values should be lists (at least one non-empty)."
+            raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
+
+        # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
+        # the ones provided by the easyblock (via custom_commands) are ignored
+        if ec_commands and not enhance_sanity_check:
+            commands = ec_commands
+            self.log.info("Using (only) sanity check commands specified by easyconfig file: %s", commands)
         else:
-            self.log.info("Using specified sanity check paths: %s" % paths)
-
-        ks = sorted(paths.keys())
-        valnottypes = [not isinstance(x, list) for x in paths.values()]
-        lenvals = [len(x) for x in paths.values()]
-        req_keys = sorted(path_keys_and_check.keys())
-        if not ks == req_keys or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            raise EasyBuildError("Incorrect format for sanity_check_paths (should (only) have %s keys, "
-                                 "values should be lists (at least one non-empty)).", ','.join(req_keys))
-
-        commands = self.cfg['sanity_check_commands']
-        if not commands:
             if custom_commands:
                 commands = custom_commands
-                self.log.info("Using customised sanity check commands: %s" % commands)
+                self.log.info("Using customised sanity check commands: %s", commands)
             else:
                 commands = []
-                self.log.info("Using specified sanity check commands: %s" % commands)
+
+            # if enhance_sanity_check is enabled, the sanity_check_commands specified in the easyconfig file
+            # are combined with those provided by the easyblock via custom_commands
+            if enhance_sanity_check and ec_commands:
+                commands = commands + ec_commands
+                self.log.info("Enhanced sanity check commands after taking into account easyconfig file: %s", commands)
 
         for i, command in enumerate(commands):
             # set command to default. This allows for config files with
@@ -2475,9 +2509,17 @@ class EasyBlock(object):
         """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
-        for key, (typ, _) in path_keys_and_check.items():
+        for key in [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS]:
+            (typ, _) = path_keys_and_check[key]
             self.dry_run_msg("Sanity check paths - %s ['%s']", typ, key)
-            if paths[key]:
+            entries = paths[key]
+            if entries:
+                # some entries may be tuple values,
+                # we need to convert them to strings first so we can print them sorted
+                for idx, entry in enumerate(entries):
+                    if isinstance(entry, tuple):
+                        entries[idx] = ' or '.join(entry)
+
                 for path in sorted(paths[key]):
                     self.dry_run_msg("  * %s", str(path))
             else:
@@ -2608,6 +2650,9 @@ class EasyBlock(object):
 
         # run sanity check commands
         for command in commands:
+
+            trace_msg("running command '%s' ..." % command)
+
             out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
@@ -2616,7 +2661,7 @@ class EasyBlock(object):
             else:
                 self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
-            trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
+            trace_msg("result for command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:

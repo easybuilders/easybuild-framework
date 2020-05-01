@@ -40,7 +40,6 @@ Set of file tools.
 """
 import datetime
 import difflib
-import distutils.dir_util
 import fileinput
 import glob
 import hashlib
@@ -499,7 +498,13 @@ def pypi_source_urls(pkg_name):
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
-        parsed_html = ElementTree.parse(urls_html)
+        urls_txt = read_file(urls_html)
+
+        # ignore yanked releases (see https://pypi.org/help/#yanked)
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        urls_txt = re.sub(r'<a.*?data-yanked.*?</a>', '', urls_txt)
+
+        parsed_html = ElementTree.ElementTree(ElementTree.fromstring(urls_txt))
         if hasattr(parsed_html, 'iter'):
             res = [a.attrib['href'] for a in parsed_html.iter('a')]
         else:
@@ -760,6 +765,18 @@ def find_easyconfigs(path, ignore_dirs=None):
         dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return files
+
+
+def find_glob_pattern(glob_pattern, fail_on_no_match=True):
+    """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
+    if build_option('extended_dry_run'):
+        return glob_pattern
+    res = glob.glob(glob_pattern)
+    if len(res) == 0 and not fail_on_no_match:
+        return None
+    if len(res) != 1:
+        raise EasyBuildError("Was expecting exactly one match for '%s', found %d: %s", glob_pattern, len(res), res)
+    return res[0]
 
 
 def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False,
@@ -2008,7 +2025,12 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
-                shutil.copy2(path, target_path)
+                if os.path.exists(path):
+                    shutil.copy2(path, target_path)
+                elif os.path.islink(path):
+                    # special care for copying broken symlinks
+                    link_target = os.readlink(path)
+                    symlink(link_target, target_path)
                 _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
@@ -2043,16 +2065,13 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
-    :param dirs_exist_ok: wrapper around shutil.copytree option, which was added in Python 3.8
+    :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
 
-    On Python >= 3.8 shutil.copytree is always used
-    On Python < 3.8 if 'dirs_exist_ok' is False - shutil.copytree is used
-    On Python < 3.8 if 'dirs_exist_ok' is True - distutils.dir_util.copy_tree is used
+    shutil.copytree is used if the target path does not exist yet;
+    if the target path already exists, the 'copy' function will be used to copy the contents of
+    the source path to the target path
 
-    Additional specified named arguments are passed down to shutil.copytree if used.
-
-    Because distutils.dir_util.copy_tree supports only 'symlinks' named argument,
-    using any other will raise EasyBuildError.
+    Additional specified named arguments are passed down to shutil.copytree/copy if used.
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
@@ -2061,38 +2080,49 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            if sys.version_info >= (3, 8):
-                # on Python >= 3.8, shutil.copytree works fine, thanks to availability of dirs_exist_ok named argument
-                shutil.copytree(path, target_path, dirs_exist_ok=dirs_exist_ok, **kwargs)
+            # note: in Python >= 3.8 shutil.copytree works just fine thanks to the 'dirs_exist_ok' argument,
+            # but since we need to be more careful in earlier Python versions we use our own implementation
+            # in case the target directory exists and 'dirs_exist_ok' is enabled
+            if dirs_exist_ok and os.path.exists(target_path):
+                # if target directory already exists (and that's allowed via dirs_exist_ok),
+                # we need to be more careful, since shutil.copytree will fail (in Python < 3.8)
+                # if target directory already exists;
+                # so, recurse via 'copy' function to copy files/dirs in source path to target path
+                # (NOTE: don't use distutils.dir_util.copy_tree here, see
+                # https://github.com/easybuilders/easybuild-framework/issues/3306)
 
-            elif dirs_exist_ok:
-                # use distutils.dir_util.copy_tree with Python < 3.8 if dirs_exist_ok is enabled
+                entries = os.listdir(path)
 
-                # first get value for symlinks named argument (if any)
-                preserve_symlinks = kwargs.pop('symlinks', False)
+                # take into account 'ignore' function that is supported by shutil.copytree
+                # (but not by 'copy_file' function used by 'copy')
+                ignore = kwargs.get('ignore')
+                if ignore:
+                    ignored_entries = ignore(path, entries)
+                    entries = [x for x in entries if x not in ignored_entries]
 
-                # check if there are other named arguments (there shouldn't be, only 'symlinks' is supported)
-                if kwargs:
-                    raise EasyBuildError("Unknown named arguments passed to copy_dir with dirs_exist_ok=True: %s",
-                                         ', '.join(sorted(kwargs.keys())))
-                distutils.dir_util.copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
+                # determine list of paths to copy
+                paths_to_copy = [os.path.join(path, x) for x in entries]
+
+                copy(paths_to_copy, target_path,
+                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok, **kwargs)
 
             else:
-                # if dirs_exist_ok is not enabled, just use shutil.copytree
+                # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
                 shutil.copytree(path, target_path, **kwargs)
 
             _log.info("%s copied to %s", path, target_path)
-        except (IOError, OSError) as err:
+        except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
 
 
-def copy(paths, target_path, force_in_dry_run=False):
+def copy(paths, target_path, force_in_dry_run=False, **kwargs):
     """
     Copy single file/directory or list of files and directories to specified location
 
     :param paths: path(s) to copy
     :param target_path: target location
     :param force_in_dry_run: force running the command during dry run
+    :param kwargs: additional named arguments to pass down to copy_dir
     """
     if isinstance(paths, string_type):
         paths = [paths]
@@ -2103,10 +2133,11 @@ def copy(paths, target_path, force_in_dry_run=False):
         full_target_path = os.path.join(target_path, os.path.basename(path))
         mkdir(os.path.dirname(full_target_path), parents=True)
 
-        if os.path.isfile(path):
+        # copy broken symlinks only if 'symlinks=True' is used
+        if os.path.isfile(path) or (os.path.islink(path) and kwargs.get('symlinks')):
             copy_file(path, full_target_path, force_in_dry_run=force_in_dry_run)
         elif os.path.isdir(path):
-            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
+            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run, **kwargs)
         else:
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
