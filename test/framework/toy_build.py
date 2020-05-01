@@ -2758,7 +2758,8 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(self.seconds)
 
             def __exit__(self, type, value, traceback):
-                # cancel scheduled alarm (just for cleanup sake)
+                # clean up SIGALRM signal handler, and cancel scheduled alarm
+                signal.signal(signal.SIGALRM, signal.SIG_DFL)
                 signal.alarm(0)
 
         # wait for lock to be removed, with 1 second interval of checking;
@@ -2871,7 +2872,8 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(self.seconds)
 
             def __exit__(self, type, value, traceback):
-                # cancel scheduled alarm (just for cleanup sake)
+                # clean up SIGALRM signal handler, and cancel scheduled alarm
+                signal.signal(signal.SIGALRM, signal.SIG_DFL)
                 signal.alarm(0)
 
         # add extra sleep command to ensure session takes long enough
