@@ -2867,7 +2867,8 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(self.seconds)
 
             def __exit__(self, type, value, traceback):
-                pass
+                # cancel scheduled alarm (just for cleanup sake)
+                signal.alarm(0)
 
         # add extra sleep command to ensure session takes long enough
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -2883,7 +2884,12 @@ class ToyBuildTest(EnhancedTestCase):
             (signal.SIGQUIT, SystemExit),
         ]
         for (signum, exc) in signums:
+
+            # avoid recycling stderr of previous test
+            stderr = ''
+
             with wait_and_signal(1, signum):
+
                 self.mock_stderr(True)
                 self.mock_stdout(True)
                 self.assertErrorRegex(exc, '.*', self.test_toy_build, ec_file=test_ec, verify=False,
