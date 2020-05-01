@@ -242,6 +242,9 @@ class Mpi(Toolchain):
         if not self.options.get('32bit', None):
             suffix = '64'
 
+        if self.MPI_MODULE_NAME is None:
+            return
+
         for root in self.get_software_root(self.MPI_MODULE_NAME):
             self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME,
                                          suffix=suffix)
