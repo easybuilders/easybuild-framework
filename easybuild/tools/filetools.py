@@ -371,7 +371,7 @@ def change_dir(path):
     return cwd
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=None):
     """
     Extract file at given path to specified directory
     :param fn: path to file to extract
@@ -380,8 +380,16 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     :param extra_options: extra options to pass to extract command
     :param overwrite: overwrite existing unpacked file
     :param forced: force extraction in (extended) dry run mode
+    :param change_into_dir: change into resulting directory;
+                          None (current default) implies True, but this is deprecated,
+                          this named argument should be set to False or True explicitely
+                          (in a future major release, default will be changed to False)
     :return: path to directory (in case of success)
     """
+    if change_into_dir is None:
+        _log.deprecated("extract_file function was called without specifying value for change_into_dir", '5.0')
+        change_into_dir = True
+
     if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
 
@@ -391,8 +399,8 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     abs_dest = os.path.abspath(dest)
 
     # change working directory
-    _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
-    change_dir(abs_dest)
+    _log.debug("Unpacking %s in directory %s", fn, abs_dest)
+    cwd = change_dir(abs_dest)
 
     if not cmd:
         cmd = extract_cmd(fn, overwrite=overwrite)
@@ -407,7 +415,18 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
 
     run.run_cmd(cmd, simple=True, force_in_dry_run=forced)
 
-    return find_base_dir()
+    # note: find_base_dir also changes into the base dir!
+    base_dir = find_base_dir()
+
+    # if changing into obtained directory is not desired,
+    # change back to where we came from (unless that was a non-existing directory)
+    if not change_into_dir:
+        if cwd is None:
+            raise EasyBuildError("Can't change back to non-existing directory after extracting %s in %s", fn, dest)
+        else:
+            change_dir(cwd)
+
+    return base_dir
 
 
 def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
@@ -1203,7 +1222,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
             workdir = tempfile.mkdtemp(prefix='eb-patch-')
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
-            apatch_dir = extract_file(apatch, workdir)
+            apatch_dir = extract_file(apatch, workdir, change_into_dir=False)
+            change_dir(apatch_dir)
             apatch = os.path.join(apatch_dir, apatch_name)
 
     if level is None and build_option('extended_dry_run'):
