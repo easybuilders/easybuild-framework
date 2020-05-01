@@ -1468,7 +1468,7 @@ class EasyConfig(object):
                 dependency['name'] = name_version[0]
             if 'version' not in dependency['external_module_metadata']:
                 if len(name_version) > 1:
-                    dependency['version'] = dependency['short_mod_name'].split('/')[1]
+                    dependency['version'] = name_version[1]
                 else:
                     dependency['version'] = ''
 
