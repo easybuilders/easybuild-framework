@@ -28,10 +28,12 @@ Toolchain mpi module. Contains all MPI related classes
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import copy
 import os
 import tempfile
 from distutils.version import LooseVersion
 
+from easybuild.base import fancylogger
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.tools.build_log import EasyBuildError
@@ -39,6 +41,95 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
+
+
+_log = fancylogger.getLogger('tools.toolchain.mpi', fname=False)
+
+
+def get_mpi_cmd_template(mpi_family, params, mpi_version=None):
+    """
+    Return template for MPI command, for specified MPI family.
+
+    :param mpi_family: MPI family to use to determine MPI command template
+    """
+
+    params = copy.deepcopy(params)
+
+    mpi_cmd_template = build_option('mpi_cmd_template')
+    if mpi_cmd_template:
+        _log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
+    else:
+        # different known mpirun commands
+        mpirun_n_cmd = "mpirun -n %(nr_ranks)s %(cmd)s"
+        mpi_cmds = {
+            toolchain.OPENMPI: mpirun_n_cmd,
+            toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)s %(cmd)s",
+            toolchain.INTELMPI: mpirun_n_cmd,
+            toolchain.MVAPICH2: mpirun_n_cmd,
+            toolchain.MPICH: mpirun_n_cmd,
+            toolchain.MPICH2: mpirun_n_cmd,
+        }
+
+    # Intel MPI mpirun needs more work
+    if mpi_cmd_template is None:
+
+        if mpi_family == toolchain.INTELMPI:
+
+            if mpi_version is None:
+                raise EasyBuildError("Intel MPI version unknown, can't determine MPI command template!")
+
+            # for old versions of Intel MPI, we need to use MPD
+            if LooseVersion(mpi_version) <= LooseVersion('4.1'):
+
+                mpi_cmds[toolchain.INTELMPI] = "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)s %(cmd)s"
+
+                # set temporary dir for MPD
+                # note: this needs to be kept *short*,
+                # to avoid mpirun failing with "socket.error: AF_UNIX path too long"
+                # exact limit is unknown, but ~20 characters seems to be OK
+                env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
+                mpd_tmpdir = os.environ['I_MPI_MPD_TMPDIR']
+                if len(mpd_tmpdir) > 20:
+                    _log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s", mpd_tmpdir)
+
+                # temporary location for mpdboot and nodes files
+                tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
+
+                # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
+                env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
+
+                # make sure we're always using mpd as process manager
+                # only required for/picked up by Intel MPI v4.1 or higher, no harm done for others
+                env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
+
+                # create mpdboot file
+                mpdboot = os.path.join(tmpdir, 'mpdboot')
+                write_file(mpdboot, "localhost ifhn=localhost")
+
+                params.update({'mpdbf': "--file=%s" % mpdboot})
+
+                # create nodes file
+                nodes = os.path.join(tmpdir, 'nodes')
+                write_file(nodes, "localhost\n" * int(params['nr_ranks']))
+
+                params.update({'nodesfile': "-machinefile %s" % nodes})
+
+        if mpi_family in mpi_cmds:
+            mpi_cmd_template = mpi_cmds[mpi_family]
+            _log.info("Using template MPI command '%s' for MPI family '%s'", mpi_cmd_template, mpi_family)
+        else:
+            raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
+
+    missing = []
+    for key in sorted(params.keys()):
+        tmpl = '%(' + key + ')s'
+        if tmpl not in mpi_cmd_template:
+            missing.append(tmpl)
+    if missing:
+        raise EasyBuildError("Missing templates in mpi-cmd-template value '%s': %s",
+                             mpi_cmd_template, ', '.join(missing))
+
+    return mpi_cmd_template, params
 
 
 class Mpi(Toolchain):
@@ -191,79 +282,15 @@ class Mpi(Toolchain):
             'cmd': cmd,
         }
 
-        mpi_cmd_template = build_option('mpi_cmd_template')
-        if mpi_cmd_template:
-            self.log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
-        else:
-            # different known mpirun commands
-            mpirun_n_cmd = "mpirun -n %(nr_ranks)s %(cmd)s"
-            mpi_cmds = {
-                toolchain.OPENMPI: mpirun_n_cmd,
-                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)s %(cmd)s",
-                toolchain.INTELMPI: mpirun_n_cmd,
-                toolchain.MVAPICH2: mpirun_n_cmd,
-                toolchain.MPICH: mpirun_n_cmd,
-                toolchain.MPICH2: mpirun_n_cmd,
-            }
-
         mpi_family = self.mpi_family()
 
-        # Intel MPI mpirun needs more work
-        if mpi_cmd_template is None:
+        if mpi_family == toolchain.INTELMPI:
+            mpi_version = self.get_software_version(self.MPI_MODULE_NAME)[0]
+        else:
+            mpi_version = None
 
-            if mpi_family == toolchain.INTELMPI:
-
-                # for old versions of Intel MPI, we need to use MPD
-                impi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
-                if LooseVersion(impi_ver) <= LooseVersion('4.1'):
-
-                    mpi_cmds[toolchain.INTELMPI] = "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)s %(cmd)s"
-
-                    # set temporary dir for MPD
-                    # note: this needs to be kept *short*,
-                    # to avoid mpirun failing with "socket.error: AF_UNIX path too long"
-                    # exact limit is unknown, but ~20 characters seems to be OK
-                    env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
-                    mpd_tmpdir = os.environ['I_MPI_MPD_TMPDIR']
-                    if len(mpd_tmpdir) > 20:
-                        self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s", mpd_tmpdir)
-
-                    # temporary location for mpdboot and nodes files
-                    tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
-
-                    # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
-                    env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
-
-                    # make sure we're always using mpd as process manager
-                    # only required for/picked up by Intel MPI v4.1 or higher, no harm done for others
-                    env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
-
-                    # create mpdboot file
-                    mpdboot = os.path.join(tmpdir, 'mpdboot')
-                    write_file(mpdboot, "localhost ifhn=localhost")
-
-                    params.update({'mpdbf': "--file=%s" % mpdboot})
-
-                    # create nodes file
-                    nodes = os.path.join(tmpdir, 'nodes')
-                    write_file(nodes, "localhost\n" * int(nr_ranks))
-
-                    params.update({'nodesfile': "-machinefile %s" % nodes})
-
-            if mpi_family in mpi_cmds.keys():
-                mpi_cmd_template = mpi_cmds[mpi_family]
-                self.log.info("Using template MPI command '%s' for MPI family '%s'", mpi_cmd_template, mpi_family)
-            else:
-                raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
-
-        missing = []
-        for key in sorted(params.keys()):
-            tmpl = '%(' + key + ')s'
-            if tmpl not in mpi_cmd_template:
-                missing.append(tmpl)
-        if missing:
-            raise EasyBuildError("Missing templates in mpi-cmd-template value '%s': %s",
-                                 mpi_cmd_template, ', '.join(missing))
+        mpi_cmd_template, params = get_mpi_cmd_template(mpi_family, params, mpi_version=mpi_version)
+        self.log.info("Using MPI command template '%s' (params: %s)", mpi_cmd_template, params)
 
         try:
             res = mpi_cmd_template % params
