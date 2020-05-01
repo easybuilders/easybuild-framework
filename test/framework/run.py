@@ -206,6 +206,8 @@ class RunTest(EnhancedTestCase):
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
 
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
         try:
             # set the signal handler and a 3-second alarm
             signal.signal(signal.SIGALRM, handler)
@@ -223,7 +225,7 @@ class RunTest(EnhancedTestCase):
 
         finally:
             # cleanup: disable the alarm + reset signal handler for SIGALRM
-            signal.signal(signal.SIGALRM, signal.SIG_DFL)
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
             signal.alarm(0)
 
     def test_run_cmd_bis(self):

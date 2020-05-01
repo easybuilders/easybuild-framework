@@ -2744,6 +2744,8 @@ class ToyBuildTest(EnhancedTestCase):
         # also test use of --ignore-locks
         self.test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
 
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
         class remove_lock_after(object):
             def __init__(self, seconds, lock_fp):
@@ -2759,7 +2761,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             def __exit__(self, type, value, traceback):
                 # clean up SIGALRM signal handler, and cancel scheduled alarm
-                signal.signal(signal.SIGALRM, signal.SIG_DFL)
+                signal.signal(signal.SIGALRM, orig_sigalrm_handler)
                 signal.alarm(0)
 
         # wait for lock to be removed, with 1 second interval of checking;
@@ -2858,6 +2860,8 @@ class ToyBuildTest(EnhancedTestCase):
         locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
         self.assertFalse(os.path.exists(locks_dir))
 
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
         # context manager which stops the function being called with the specified signal
         class wait_and_signal(object):
             def __init__(self, seconds, signum):
@@ -2873,7 +2877,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             def __exit__(self, type, value, traceback):
                 # clean up SIGALRM signal handler, and cancel scheduled alarm
-                signal.signal(signal.SIGALRM, signal.SIG_DFL)
+                signal.signal(signal.SIGALRM, orig_sigalrm_handler)
                 signal.alarm(0)
 
         # add extra sleep command to ensure session takes long enough
