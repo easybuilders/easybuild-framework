@@ -46,7 +46,7 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import reset_module_caches
 from easybuild.tools.utilities import time2str
@@ -1567,8 +1567,13 @@ class EasyBlockTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
 
+        cwd = os.getcwd()
+        self.assertTrue(os.path.exists(cwd))
+
         def check_start_dir(expected_start_dir):
             """Check start dir."""
+            # make sure we're in an existing directory at the start
+            change_dir(cwd)
             eb = EasyBlock(ec['ec'])
             eb.silent = True
             eb.cfg['stop'] = 'patch'
