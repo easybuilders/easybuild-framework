@@ -423,7 +423,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     # change back to where we came from (unless that was a non-existing directory)
     if not change_into_dir:
         if cwd is None:
-            _log.warning("Can't change back to non-existing directory after extracting %s in %s", fn, dest)
+            raise EasyBuildError("Can't change back to non-existing directory after extracting %s in %s", fn, dest)
         else:
             change_dir(cwd)
 
