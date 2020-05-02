@@ -1202,9 +1202,10 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
 
-        # Tar-ball which should be created via 'git_config'
+        # Tar-ball which should be created via 'git_config', and one file
         ext_tgz = 'exts-git.tar.gz'
         ext_tarball = os.path.join(self.test_sourcepath, 't', 'toy', ext_tgz)
+        ext_tarfile = 'a_directory/a_file.txt'
 
         # Dummy source code required for extensions build_step to pass
         ext_src = 'int main() { return 0; }'
@@ -1216,7 +1217,7 @@ class ToyBuildTest(EnhancedTestCase):
             'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_src, ext_cfile),
             'exts_list = [',
             '   ("exts-git", "0.0", {',
-            '       "buildopts": "&& ls -l %s",' % ext_tarball,
+            '       "buildopts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),
             '       "source_tmpl": "%s",' % ext_tgz,
             '       "git_config": {',
             '           "repo_name": "testrepository",',
