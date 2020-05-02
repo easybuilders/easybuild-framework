@@ -234,8 +234,8 @@ class HierarchicalMNS(ModuleNamingScheme):
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
 
         # special case for Cray toolchains
-        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None:
-            paths.append(os.path.join(TOOLCHAIN, ec.toolchain.name, ec.toolchain.version))
+        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None and ec.name.startswith('Cray'):
+            paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
 
         return paths
 
