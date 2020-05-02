@@ -41,9 +41,11 @@ from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compile
 CORE = 'Core'
 COMPILER = 'Compiler'
 MPI = 'MPI'
+TOOLCHAIN = 'Toolchain'
 
 MODULECLASS_COMPILER = 'compiler'
 MODULECLASS_MPI = 'mpi'
+MODULECLASS_TOOLCHAIN = 'toolchain'
 
 GCCCORE = GCCcore.NAME
 
@@ -107,7 +109,11 @@ class HierarchicalMNS(ModuleNamingScheme):
             # no compiler in toolchain, system toolchain
             res = None
         elif len(tc_comps) == 1:
-            res = (tc_comps[0]['name'], self.det_full_version(tc_comps[0]))
+            tc_comp = tc_comps[0]
+            if tc_comp is None:
+                res = None
+            else:
+                res = (tc_comp['name'], self.det_full_version(tc_comp))
         else:
             comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
             comp_names = comp_versions.keys()
@@ -135,6 +141,10 @@ class HierarchicalMNS(ModuleNamingScheme):
         if tc_comps is None:
             # no compiler in toolchain, system toolchain => Core module
             subdir = CORE
+        elif tc_comps == [None]:
+            # no info on toolchain compiler (cfr. Cray toolchains),
+            # then use toolchain name/version
+            subdir = os.path.join(TOOLCHAIN, ec.toolchain.name, ec.toolchain.version)
         else:
             tc_comp_name, tc_comp_ver = self.det_toolchain_compilers_name_version(tc_comps)
             tc_mpi = det_toolchain_mpi(ec)
@@ -222,6 +232,10 @@ class HierarchicalMNS(ModuleNamingScheme):
                 tc_comp_name, tc_comp_ver = tc_comp_info
                 fullver = self.det_full_version(ec)
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
+
+        # special case for Cray toolchains
+        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None:
+            paths.append(os.path.join(TOOLCHAIN, ec.toolchain.name, ec.toolchain.version))
 
         return paths
 
