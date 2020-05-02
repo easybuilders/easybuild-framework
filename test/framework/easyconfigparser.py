@@ -180,11 +180,12 @@ class EasyConfigParserTest(EnhancedTestCase):
         system_constant = constants.pop('SYSTEM')
         self.assertEqual(system_constant, {'name': 'system', 'version': 'system'})
 
-        # make sure both keys and values are only strings
+        # make sure both keys and values are of appropriate types
         for constant_name in constants:
             self.assertTrue(isinstance(constant_name, string_type), "Constant name %s is a string" % constant_name)
             val = constants[constant_name]
-            self.assertTrue(isinstance(val, (string_type, dict, tuple)), "Constant value %s is string, dict or tuple" % val)
+            self.assertTrue(isinstance(val, (string_type, dict, tuple)),
+                            "The constant %s has an acceptable type" % constant_name)
 
         # check a couple of randomly picked constant values
         self.assertEqual(constants['SOURCE_TAR_GZ'], '%(name)s-%(version)s.tar.gz')
