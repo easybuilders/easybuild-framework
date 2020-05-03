@@ -4265,54 +4265,128 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_list_software(self):
         """Test --list-software and --list-installed-software."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'v1.0')
-        args = [
-            '--list-software',
-            '--robot-paths=%s' % test_ecs,
-        ]
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
-        expected = '\n'.join([
-            "== Processed 5/5 easyconfigs...",
-            "== Found 2 different software packages",
-            '',
-            "* GCC",
-            "* gzip",
-            '',
+
+        # copy selected test easyconfigs for testing --list-*software options with;
+        # full test is a nuisance, because all dependencies must be available and toolchains like intel must have
+        # all expected components when testing with HierarchicalMNS (which the test easyconfigs don't always have)
+        topdir = os.path.dirname(os.path.abspath(__file__))
+
+        cray_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'c', 'CrayCCE', 'CrayCCE-5.1.29.eb')
+        gcc_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'GCC', 'GCC-4.6.3.eb')
+        gzip_ec = os.path.join(topdir, 'easyconfigs', 'v1.0', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        gzip_system_ec = os.path.join(topdir, 'easyconfigs', 'v1.0', 'g', 'gzip', 'gzip-1.4.eb')
+
+        test_ecs = os.path.join(self.test_prefix, 'test_ecs')
+        for ec in [cray_ec, gcc_ec, gzip_ec, gzip_system_ec]:
+            subdirs = os.path.dirname(ec).split(os.path.sep)[-2:]
+            target_dir = os.path.join(test_ecs, *subdirs)
+            mkdir(target_dir, parents=True)
+            copy_file(ec, target_dir)
+
+        # add (fake) HPL easyconfig using CrayCCE toolchain
+        # (required to trigger bug reported in https://github.com/easybuilders/easybuild-framework/issues/3265)
+        hpl_cray_ec_txt = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "HPL"',
+            'version = "2.3"',
+            "homepage = 'http://www.netlib.org/benchmark/hpl/'",
+            'description = "HPL"',
+            'toolchain = {"name": "CrayCCE", "version": "5.1.29"}',
         ])
-        self.assertTrue(txt.endswith(expected))
+        hpl_cray_ec = os.path.join(self.test_prefix, 'test_ecs', 'h', 'HPL', 'HPL-2.3-CrayCCE-5.1.29.eb')
+        write_file(hpl_cray_ec, hpl_cray_ec_txt)
 
-        args = [
-            '--list-software=detailed',
-            '--output-format=rst',
-            '--robot-paths=%s' % test_ecs,
-        ]
-        txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search(r'^\*GCC\*', txt, re.M))
-        self.assertTrue(re.search(r'^``4.6.3``\s+``system``', txt, re.M))
-        self.assertTrue(re.search(r'^\*gzip\*', txt, re.M))
-        self.assertTrue(re.search(r'^``1.5``\s+``foss/2018a``,\s+``intel/2018a``', txt, re.M))
+        # put dummy Core/GCC/4.6.3 in place
+        modpath = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(modpath, 'Core', 'GCC', '4.6.3'), '#%Module')
+        self.modtool.use(modpath)
 
-        args = [
-            '--list-installed-software',
-            '--output-format=rst',
-            '--robot-paths=%s' % test_ecs,
-        ]
-        txt, _ = self._run_mock_eb(args, testing=False, raise_error=True)
-        self.assertTrue(re.search(r'== Processed 5/5 easyconfigs...', txt, re.M))
-        self.assertTrue(re.search(r'== Found 2 different software packages', txt, re.M))
-        self.assertTrue(re.search(r'== Retained 1 installed software packages', txt, re.M))
-        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
-        self.assertFalse(re.search(r'gzip', txt, re.M))
+        # test with different module naming scheme active
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3265)
+        for mns in ['EasyBuildMNS', 'HierarchicalMNS']:
 
-        args = [
-            '--list-installed-software=detailed',
-            '--robot-paths=%s' % test_ecs,
-        ]
-        txt, _ = self._run_mock_eb(args, testing=False)
-        self.assertTrue(re.search(r'^== Retained 1 installed software packages', txt, re.M))
-        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
-        self.assertTrue(re.search(r'^\s+\* GCC v4.6.3: system', txt, re.M))
-        self.assertFalse(re.search(r'gzip', txt, re.M))
+            args = [
+                '--list-software',
+                '--robot-paths=%s' % test_ecs,
+                '--module-naming-scheme=%s' % mns,
+            ]
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, verbose=True)
+
+            patterns = [
+                r"^.*\s*== Processed 5/5 easyconfigs...",
+                r"^== Found 4 different software packages",
+                r"^\* CrayCCE",
+                r"^\* GCC",
+                r"^\* gzip",
+                r"^\* HPL",
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+            args = [
+                '--list-software=detailed',
+                '--output-format=rst',
+                '--robot-paths=%s' % test_ecs,
+                '--module-naming-scheme=%s' % mns,
+            ]
+            txt, _ = self._run_mock_eb(args, testing=False, raise_error=True, verbose=True)
+
+            patterns = [
+                r"^.*\s*== Processed 5/5 easyconfigs...",
+                r"^== Found 4 different software packages",
+                r'^\*CrayCCE\*',
+                r'^``5.1.29``\s+``system``',
+                r'^\*GCC\*',
+                r'^``4.6.3``\s+``system``',
+                r'^\*gzip\*',
+                r'^``1.4``    ``GCC/4.6.3``, ``system``',
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+            args = [
+                '--list-installed-software',
+                '--output-format=rst',
+                '--robot-paths=%s' % test_ecs,
+                '--module-naming-scheme=%s' % mns,
+            ]
+            txt, _ = self._run_mock_eb(args, testing=False, raise_error=True, verbose=True)
+
+            patterns = [
+                r"^.*\s*== Processed 5/5 easyconfigs...",
+                r"^== Found 4 different software packages",
+                r"^== Retained 1 installed software packages",
+                r'^\* GCC',
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+            self.assertFalse(re.search(r'gzip', txt, re.M))
+            self.assertFalse(re.search(r'CrayCCE', txt, re.M))
+
+            args = [
+                '--list-installed-software=detailed',
+                '--robot-paths=%s' % test_ecs,
+                '--module-naming-scheme=%s' % mns,
+            ]
+            txt, _ = self._run_mock_eb(args, testing=False, raise_error=True, verbose=True)
+
+            patterns = [
+                r"^.*\s*== Processed 5/5 easyconfigs...",
+                r"^== Found 4 different software packages",
+                r"^== Retained 1 installed software packages",
+                r'^\* GCC',
+                r'^\s+\* GCC v4.6.3: system',
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+            self.assertFalse(re.search(r'gzip', txt, re.M))
+            self.assertFalse(re.search(r'CrayCCE', txt, re.M))
 
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
