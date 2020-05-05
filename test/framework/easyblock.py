@@ -542,9 +542,9 @@ class EasyBlockTest(EnhancedTestCase):
 
         if get_module_syntax() == 'Tcl':
             use_load = '\n'.join([
-                "if { [ file isdirectory /path/to/mods ] } {",
-                "    module use /path/to/mods",
-                "}",
+                'if { [ file isdirectory "/path/to/mods" ] } {',
+                '    module use "/path/to/mods"',
+                '}',
             ])
         elif get_module_syntax() == 'Lua':
             use_load = '\n'.join([
