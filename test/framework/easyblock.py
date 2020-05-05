@@ -543,7 +543,7 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             use_load = '\n'.join([
                 "if { [ file isdirectory /path/to/mods ] } {",
-		"    module use /path/to/mods",
+                "    module use /path/to/mods",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
@@ -557,7 +557,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         expected = use_load
         self.assertEqual(eb.make_module_deppaths().strip(), expected)
-            
+
     def test_make_module_dep(self):
         """Test for make_module_dep"""
         init_config(build_options={'silent': True})

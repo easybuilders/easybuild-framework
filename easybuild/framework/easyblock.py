@@ -1030,7 +1030,7 @@ class EasyBlock(object):
             txt = self.module_generator.use([deppaths], guarded=True)
         else:
             txt = self.module_generator.use(deppaths, guarded=True)
-            
+
         return txt
 
     def make_module_dep(self, unload_info=None):
