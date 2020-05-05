@@ -1139,9 +1139,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                     cand_paths_filtered = []
                     for path in cand_paths:
                         tc_candidate = fetch_parameters_from_easyconfig(read_file(path), ['toolchain'])[0]
-                        if isinstance(tc_candidate, dict) and toolchain_candidate['name'] == SYSTEM_TOOLCHAIN_NAME:
+                        if isinstance(tc_candidate, dict) and tc_candidate['name'] == SYSTEM_TOOLCHAIN_NAME:
                             cand_paths_filtered += [path]
-                        if isinstance(tc_candidate, string_type) and toolchain_candidate == "SYSTEM":
+                        if isinstance(tc_candidate, string_type) and tc_candidate == "SYSTEM":
                             cand_paths_filtered += [path]
 
                     cand_paths = cand_paths_filtered
