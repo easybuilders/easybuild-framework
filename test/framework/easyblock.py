@@ -516,6 +516,48 @@ class EasyBlockTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
+    def test_make_module_deppaths(self):
+        """Test for make_module_deppaths"""
+        init_config(build_options={'silent': True})
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
+            'moddependpaths = "/path/to/mods"',
+            'dependencies = [',
+            "   ('FFTW', '3.3.7'),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
+
+        if get_module_syntax() == 'Tcl':
+            use_load = '\n'.join([
+                "if { [ file isdirectory /path/to/mods ] } {",
+		"    module use /path/to/mods",
+                "}",
+            ])
+        elif get_module_syntax() == 'Lua':
+            use_load = '\n'.join([
+                'if isDir("/path/to/mods") then',
+                '    prepend_path("MODULEPATH", "/path/to/mods")',
+                'end',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        expected = use_load
+        self.assertEqual(eb.make_module_deppaths().strip(), expected)
+            
     def test_make_module_dep(self):
         """Test for make_module_dep"""
         init_config(build_options={'silent': True})

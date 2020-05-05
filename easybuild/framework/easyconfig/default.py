@@ -154,6 +154,7 @@ DEFAULT_CONFIG = {
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
+    'moddependpaths': [None, "Absolute path or paths that should be searched for dependencies", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
     'group': [None, "Name of the user group for which the software should be available; "

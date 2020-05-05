@@ -1014,6 +1014,25 @@ class EasyBlock(object):
         # cleanup: unload fake module, remove fake module dir
         self.clean_up_fake_module(fake_mod_data)
 
+    def make_module_deppaths(self):
+        """
+        Add specific 'module use' actions to module file, in order to find
+        dependencies outside the end user's MODULEPATH.
+        """
+        deppaths = self.cfg['moddependpaths']
+        if not deppaths:
+            return ''
+        elif not isinstance(deppaths, (str, tuple, list)):
+            raise EasyBuildError("moddependpaths value %s (type: %s) is not a string or collection",
+                                 deppaths, type(deppaths))
+
+        if isinstance(deppaths, str):
+            txt = self.module_generator.use([deppaths], guarded=True)
+        else:
+            txt = self.module_generator.use(deppaths, guarded=True)
+            
+        return txt
+
     def make_module_dep(self, unload_info=None):
         """
         Make the dependencies for the module file.
@@ -2771,6 +2790,7 @@ class EasyBlock(object):
 
         txt += self.make_module_description()
         txt += self.make_module_group_check()
+        txt += self.make_module_deppaths()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
