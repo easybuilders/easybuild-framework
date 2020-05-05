@@ -1089,6 +1089,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
 
     # Figure out the main versionsuffix (altered depending on toolchain in the loop below)
     versionsuffix = dep.get('versionsuffix', '')
+    # If versionsuffix is equal to None, it should be put to empty string
+    if not versionsuffix:
+        versionsuffix = ''
     # If versionsuffix is in our mapping then we expect it to be updated
     if versionsuffix in versionsuffix_mapping:
         versionsuffix = versionsuffix_mapping[versionsuffix]
