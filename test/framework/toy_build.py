@@ -51,7 +51,8 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.py2vs3 import reload, string_type
@@ -142,7 +143,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, versionsuffix='', testing=True):
+                       raise_error=False, test_report=None, versionsuffix='', testing=True,
+                       raise_systemexit=False):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -169,7 +171,7 @@ class ToyBuildTest(EnhancedTestCase):
         myerr = None
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
-                                  raise_error=raise_error, testing=testing)
+                                  raise_error=raise_error, testing=testing, raise_systemexit=raise_systemexit)
         except Exception as err:
             myerr = err
             if raise_error:
@@ -1362,7 +1364,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'module load nosuchbuilddep/0.0.0\\' failed"
+            err_msg = r"Module command \\'.*load nosuchbuilddep/0.0.0\\' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
@@ -1374,7 +1376,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'module load nosuchmodule/1.2.3\\' failed"
+            err_msg = r"Module command \\'.*load nosuchmodule/1.2.3\\' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 
@@ -2256,9 +2258,16 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build_trace(self):
         """Test use of --trace"""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(toy_ec_file) + '\nsanity_check_commands = ["toy"]')
+
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--trace', '--experimental'], verify=False, testing=False)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--trace', '--experimental'], verify=False, testing=False)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -2283,6 +2292,8 @@ class ToyBuildTest(EnhancedTestCase):
                 r"== sanity checking\.\.\.",
                 r"  >> file 'bin/yot' or 'bin/toy' found: OK",
                 r"  >> \(non-empty\) directory 'bin' found: OK",
+                r"  >> running command 'toy' \.\.\.",
+                r"  >> result for command 'toy': OK",
             ]) + r'$',
             r"^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
         ]
@@ -2747,8 +2758,10 @@ class ToyBuildTest(EnhancedTestCase):
         # also test use of --ignore-locks
         self.test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
 
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
-        class remove_lock_after:
+        class remove_lock_after(object):
             def __init__(self, seconds, lock_fp):
                 self.seconds = seconds
                 self.lock_fp = lock_fp
@@ -2761,45 +2774,90 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(self.seconds)
 
             def __exit__(self, type, value, traceback):
-                pass
+                # clean up SIGALRM signal handler, and cancel scheduled alarm
+                signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+                signal.alarm(0)
 
-        # wait for lock to be removed, with 1 second interval of checking
-        extra_args.append('--wait-on-lock=1')
+        # wait for lock to be removed, with 1 second interval of checking;
+        # check with both --wait-on-lock-interval and deprecated --wait-on-lock options
 
         wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
         ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
 
-        self.assertTrue(os.path.exists(toy_lock_path))
+        test_cases = [
+            ['--wait-on-lock=1'],
+            ['--wait-on-lock=1', '--wait-on-lock-interval=60'],
+            ['--wait-on-lock=100', '--wait-on-lock-interval=1'],
+            ['--wait-on-lock-limit=100', '--wait-on-lock=1'],
+            ['--wait-on-lock-limit=100', '--wait-on-lock-interval=1'],
+            ['--wait-on-lock-limit=-1', '--wait-on-lock=1'],
+            ['--wait-on-lock-limit=-1', '--wait-on-lock-interval=1'],
+        ]
 
-        # use context manager to remove lock after 3 seconds
-        with remove_lock_after(3, toy_lock_path):
+        for opts in test_cases:
+
+            if any('--wait-on-lock=' in x for x in opts):
+                self.allow_deprecated_behaviour()
+            else:
+                self.disallow_deprecated_behaviour()
+
+            if not os.path.exists(toy_lock_path):
+                mkdir(toy_lock_path)
+
+            self.assertTrue(os.path.exists(toy_lock_path))
+
+            all_args = extra_args + opts
+
+            # use context manager to remove lock after 3 seconds
+            with remove_lock_after(3, toy_lock_path):
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+
+                if any('--wait-on-lock=' in x for x in all_args):
+                    self.assertTrue("Use of --wait-on-lock is deprecated" in stderr)
+                else:
+                    self.assertEqual(stderr, '')
+
+                wait_matches = wait_regex.findall(stdout)
+                # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
+                self.assertTrue(len(wait_matches) in range(2, 5))
+
+                self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
+
+        # check use of --wait-on-lock-limit: if lock is never removed, we should give up when limit is reached
+        mkdir(toy_lock_path)
+        all_args = extra_args + ['--wait-on-lock-limit=3', '--wait-on-lock-interval=1']
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        error_pattern = r"Maximum wait time for lock /.*toy_0.0.lock to be released reached: [0-9]+ sec >= 3 sec"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=all_args,
+                              verify=False, raise_error=True, testing=False)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        wait_matches = wait_regex.findall(stdout)
+        self.assertTrue(len(wait_matches) in range(2, 5))
+
+        # when there is no lock in place, --wait-on-lock* has no impact
+        remove_dir(toy_lock_path)
+        for opt in ['--wait-on-lock=1', '--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
+            all_args = extra_args + [opt]
+            self.assertFalse(os.path.exists(toy_lock_path))
             self.mock_stderr(True)
             self.mock_stdout(True)
-            self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
+            self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
             stderr, stdout = self.get_stderr(), self.get_stdout()
             self.mock_stderr(False)
             self.mock_stdout(False)
 
             self.assertEqual(stderr, '')
-
-            wait_matches = wait_regex.findall(stdout)
-            # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
-            self.assertTrue(len(wait_matches) in range(2, 5))
-
             self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
-
-        # when there is no lock in place, --wait-on-lock has no impact
-        self.assertFalse(os.path.exists(toy_lock_path))
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        self.test_toy_build(extra_args=extra_args, verify=False, raise_error=True, testing=False)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
-
-        self.assertEqual(stderr, '')
-        self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
-        self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
+            self.assertFalse(wait_regex.search(stdout), "Pattern '%s' not found in: %s" % (wait_regex.pattern, stdout))
 
         # check for clean error on creation of lock
         extra_args = ['--locks-dir=/']
@@ -2807,6 +2865,71 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern += r"(Read-only file system|Permission denied)"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
                               extra_args=extra_args, raise_error=True, verbose=False)
+
+    def test_toy_lock_cleanup_signals(self):
+        """Test cleanup of locks after EasyBuild session gets a cancellation signal."""
+
+        orig_wd = os.getcwd()
+
+        locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
+        self.assertFalse(os.path.exists(locks_dir))
+
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
+        # context manager which stops the function being called with the specified signal
+        class wait_and_signal(object):
+            def __init__(self, seconds, signum):
+                self.seconds = seconds
+                self.signum = signum
+
+            def send_signal(self, *args):
+                os.kill(os.getpid(), self.signum)
+
+            def __enter__(self):
+                signal.signal(signal.SIGALRM, self.send_signal)
+                signal.alarm(self.seconds)
+
+            def __exit__(self, type, value, traceback):
+                # clean up SIGALRM signal handler, and cancel scheduled alarm
+                signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+                signal.alarm(0)
+
+        # add extra sleep command to ensure session takes long enough
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 5"]')
+
+        signums = [
+            (signal.SIGABRT, SystemExit),
+            (signal.SIGINT, KeyboardInterrupt),
+            (signal.SIGTERM, SystemExit),
+            (signal.SIGQUIT, SystemExit),
+        ]
+        for (signum, exc) in signums:
+
+            # avoid recycling stderr of previous test
+            stderr = ''
+
+            with wait_and_signal(1, signum):
+
+                # change back to original working directory before each test
+                change_dir(orig_wd)
+
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+                self.assertErrorRegex(exc, '.*', self.test_toy_build, ec_file=test_ec, verify=False,
+                                      raise_error=True, testing=False, raise_systemexit=True)
+
+                stderr = self.get_stderr().strip()
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+
+                pattern = r"^WARNING: signal received \(%s\), " % int(signum)
+                pattern += r"cleaning up locks \(.*software_toy_0.0\)\.\.\."
+                regex = re.compile(pattern)
+                self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
     def test_toy_build_unicode_description(self):
         """Test installation of easyconfig file that has non-ASCII characters in description."""
