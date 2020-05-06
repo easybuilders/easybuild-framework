@@ -52,11 +52,13 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths
+from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig, search_easyconfigs
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
@@ -1089,6 +1091,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
 
     # Figure out the main versionsuffix (altered depending on toolchain in the loop below)
     versionsuffix = dep.get('versionsuffix', '')
+    # If versionsuffix is equal to None, it should be put to empty string
+    if versionsuffix is None:
+        versionsuffix = ''
     # If versionsuffix is in our mapping then we expect it to be updated
     if versionsuffix in versionsuffix_mapping:
         versionsuffix = versionsuffix_mapping[versionsuffix]
@@ -1105,14 +1110,12 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
     if len(version_components) > 1:  # Have at least major.minor
         candidate_ver_list.append(r'%s\..*' % major_version)
     candidate_ver_list.append(r'.*')  # Include a major version search
-
     potential_version_mappings, highest_version = [], None
 
     for candidate_ver in candidate_ver_list:
 
         # if any potential version mappings were found already at this point, we don't add more
         if not potential_version_mappings:
-
             for toolchain in toolchain_hierarchy:
 
                 # determine search pattern based on toolchain, version prefix/suffix & version regex
@@ -1128,6 +1131,21 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                 # filter out easyconfigs that have been tweaked in this instance, they are not relevant here
                 tweaked_ecs_paths, _ = alt_easyconfig_paths(tempfile.gettempdir(), tweaked_ecs=True)
                 cand_paths = [path for path in cand_paths if not path.startswith(tweaked_ecs_paths)]
+
+                # if SYSTEM_TOOLCHAIN_NAME is used, it produces regex of the form
+                # <name>-<version_regex>.eb, which can map to incompatible toolchains.
+                # For example Boost-1.68\..*.eb would match Boost-1.68.0-intel-2019a.eb
+                # This filters out such matches unless the toolchain in the easyconfig matches a system toolchain
+                if toolchain['name'] == SYSTEM_TOOLCHAIN_NAME:
+                    cand_paths_filtered = []
+                    for path in cand_paths:
+                        tc_candidate = fetch_parameters_from_easyconfig(read_file(path), ['toolchain'])[0]
+                        if isinstance(tc_candidate, dict) and tc_candidate['name'] == SYSTEM_TOOLCHAIN_NAME:
+                            cand_paths_filtered += [path]
+                        if isinstance(tc_candidate, string_type) and tc_candidate == TC_CONSTANT_SYSTEM:
+                            cand_paths_filtered += [path]
+
+                    cand_paths = cand_paths_filtered
 
                 # add what is left to the possibilities
                 for path in cand_paths:
