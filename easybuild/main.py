@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,50 +40,38 @@ import copy
 import os
 import stat
 import sys
-import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, init_logging, print_error, print_msg, print_warning, stop_logging
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
 
-import easybuild.tools.config as config
-import easybuild.tools.options as eboptions
-from easybuild.framework.easyblock import EasyBlock, build_and_install_one, inject_checksums
+from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
-from easybuild.tools.github import new_pr, merge_pr, update_pr
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, dump_index, load_index
+from easybuild.tools.filetools import read_file, register_lock_cleanup_signal_handlers, write_file
+from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
+from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
+from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
-from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.version import this_is_easybuild
 
 _log = None
-
-
-def log_start(eb_command_line, eb_tmpdir):
-    """Log startup info."""
-    _log.info(this_is_easybuild())
-
-    # log used command line
-    _log.info("Command line: %s" % (' '.join(eb_command_line)))
-
-    _log.info("Using %s as temporary directory" % eb_tmpdir)
 
 
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
@@ -96,7 +84,7 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
             # (try to) cleanup
             try:
                 os.remove(ec_file)
-            except OSError, err:
+            except OSError as err:
                 _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
@@ -128,7 +116,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
-        except Exception, err:
+        except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err
@@ -148,7 +136,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
-            if os.stat(parent_dir).st_mode & 0200:
+            if os.stat(parent_dir).st_mode & 0o200:
                 write_file(test_report_fp, test_report_txt)
             else:
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
@@ -188,23 +176,6 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
-def check_root_usage(allow_use_as_root=False):
-    """
-    Check whether we are running as root, and act accordingly
-
-    :param allow_use_as_root: allow use of EasyBuild as root (but do print a warning when doing so)
-    """
-    if os.getuid() == 0:
-        if allow_use_as_root:
-            msg = "Using EasyBuild as root is NOT recommended, please proceed with care!\n"
-            msg += "(this is only allowed because EasyBuild was configured with "
-            msg += "--allow-use-as-root-and-accept-consequences)"
-            print_warning(msg)
-        else:
-            raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
-                                 "so let's end this here.")
-
-
 def clean_exit(logfile, tmpdir, testing, silent=False):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
@@ -219,66 +190,22 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     """
+
+    register_lock_cleanup_signal_handlers()
+
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
-    # initialise options
-    eb_go = eboptions.parse_options(args=args)
-    options = eb_go.options
-    orig_paths = eb_go.args
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    options, orig_paths = eb_go.options, eb_go.args
 
-    # set umask (as early as possible)
-    if options.umask is not None:
-        new_umask = int(options.umask, 8)
-        old_umask = os.umask(new_umask)
-
-    # set by option parsers via set_tmpdir
-    eb_tmpdir = tempfile.gettempdir()
-
-    search_query = options.search or options.search_filename or options.search_short
-
-    # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
-                                 silent=(testing or options.terse or search_query), colorize=options.color)
-
-    # disallow running EasyBuild as root (by default)
-    check_root_usage(allow_use_as_root=options.allow_use_as_root_and_accept_consequences)
-
-    # log startup info
-    eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
-    log_start(eb_cmd_line, eb_tmpdir)
-
-    if options.umask is not None:
-        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
-
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, build_specs) = process_software_build_specs(options)
-
-    # determine robot path
-    # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
-    tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
-    auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
-    _log.debug("Full robot path: %s" % robot_path)
-
-    # configure & initialize build options
-    config_options_dict = eb_go.get_options_by_section('config')
-    build_options = {
-        'build_specs': build_specs,
-        'command_line': eb_cmd_line,
-        'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
-        'pr_path': pr_path,
-        'robot_path': robot_path,
-        'silent': testing,
-        'try_to_generate': try_to_generate,
-        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
-    }
-    # initialise the EasyBuild configuration & build options
-    config.init(options, config_options_dict)
-    config.init_build_options(build_options=build_options, cmdline_options=options)
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
@@ -314,25 +241,40 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.install_github_token:
         install_github_token(options.github_user, silent=build_option('silent'))
 
+    elif options.close_pr:
+        close_pr(options.close_pr, motivation_msg=options.close_pr_msg)
+
+    elif options.list_prs:
+        print(list_prs(options.list_prs))
+
     elif options.merge_pr:
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print review_pr(pr=options.review_pr, colored=use_color(options.color))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
 
     elif options.list_installed_software:
         detailed = options.list_installed_software == 'detailed'
-        print list_software(output_format=options.output_format, detailed=detailed, only_installed=True)
+        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
 
     elif options.list_software:
-        print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
+        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
+
+    elif options.create_index:
+        print_msg("Creating index for %s..." % options.create_index, prefix=False)
+        index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
+        index = load_index(options.create_index)
+        print_msg("Index created at %s (%d files)" % (index_fp, len(index)), prefix=False)
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.check_github,
+        options.create_index,
         options.install_github_token,
         options.list_installed_software,
         options.list_software,
+        options.close_pr,
+        options.list_prs,
         options.merge_pr,
         options.review_pr,
         options.terse,
@@ -361,28 +303,59 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
+    if len(orig_paths) == 1:
+        # if only one easyconfig file is specified, use current directory as target directory
+        target_path = os.getcwd()
+    elif orig_paths:
+        # last path is target when --copy-ec is used, so remove that from the list
+        target_path = orig_paths.pop() if options.copy_ec else None
+
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    new_update_preview_pr = options.new_pr or options.update_pr or options.preview_pr
-    no_ec_opts = [options.aggregate_regtest, options.regtest, search_query, new_update_preview_pr]
+    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
+    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
+    pr_options = pr_options or options.update_branch_github or options.update_pr
+    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+
+    if options.copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
+
+        if options.copy_ec:
+            if len(determined_paths) == 1:
+                copy_file(determined_paths[0], target_path)
+                print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=False)
+            elif len(determined_paths) > 1:
+                copy_files(determined_paths, target_path)
+                print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=False)
+            else:
+                raise EasyBuildError("One of more files to copy should be specified!")
+
+        elif options.fix_deprecated_easyconfigs:
+            fix_deprecated_easyconfigs(determined_paths)
+
+        elif options.show_ec:
+            for path in determined_paths:
+                print_msg("Contents of %s:" % path)
+                print_msg(read_file(path), prefix=False)
+
+        clean_exit(logfile, eb_tmpdir, testing)
+
     if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in determined_paths]
+    elif 'name' in build_specs:
+        # try to obtain or generate an easyconfig file via build specifications if a software name is provided
+        paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
+    elif any(no_ec_opts):
+        paths = determined_paths
     else:
-        if 'name' in build_specs:
-            # try to obtain or generate an easyconfig file via build specifications if a software name is provided
-            paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif any(no_ec_opts):
-            paths = determined_paths
-        else:
-            print_error(("Please provide one or multiple easyconfig files, or use software build "
-                         "options to make EasyBuild search for easyconfigs"),
-                        log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
-    _log.debug("Paths: %s" % paths)
+        print_error("Please provide one or multiple easyconfig files, or use software build " +
+                    "options to make EasyBuild search for easyconfigs",
+                    log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+    _log.debug("Paths: %s", paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
@@ -420,44 +393,63 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         clean_exit(logfile, eb_tmpdir, testing)
 
     forced = options.force or options.rebuild
-    dry_run_mode = options.dry_run or options.dry_run_short
+    dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
-    if not (forced or dry_run_mode or options.extended_dry_run or new_update_preview_pr or options.inject_checksums):
+    if not (forced or dry_run_mode or options.extended_dry_run or pr_options or options.inject_checksums):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
                 print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
         easyconfigs = retained_ecs
 
+    # keep track for which easyconfigs we should set the corresponding module as default
+    if options.set_default_module:
+        for easyconfig in easyconfigs:
+            easyconfig['ec'].set_default_module = True
+
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         # resolve dependencies if robot is enabled, except in dry run mode
         # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
-        if options.robot and (not dry_run_mode or new_update_preview_pr):
+        if options.robot and (not dry_run_mode or pr_options):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif new_update_preview_pr:
+    elif pr_options:
         ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
 
     # creating/updating PRs
-    if new_update_preview_pr:
+    if pr_options:
         if options.new_pr:
-            new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
-                   commit_msg=options.pr_commit_msg)
+            new_pr(categorized_paths, ordered_ecs)
+        elif options.new_branch_github:
+            new_branch_github(categorized_paths, ordered_ecs)
+        elif options.new_pr_from_branch:
+            new_pr_from_branch(options.new_pr_from_branch)
         elif options.preview_pr:
-            print review_pr(paths=determined_paths, colored=use_color(options.color))
+            print(review_pr(paths=determined_paths, colored=use_color(options.color)))
+        elif options.sync_branch_with_develop:
+            sync_branch_with_develop(options.sync_branch_with_develop)
+        elif options.sync_pr_with_develop:
+            sync_pr_with_develop(options.sync_pr_with_develop)
+        elif options.update_branch_github:
+            update_branch(options.update_branch_github, categorized_paths, ordered_ecs)
+        elif options.update_pr:
+            update_pr(options.update_pr, categorized_paths, ordered_ecs)
         else:
-            update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
+            raise EasyBuildError("Unknown PR option!")
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     elif dry_run_mode:
-        txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
+        if options.missing_modules:
+            txt = missing_deps(easyconfigs, modtool)
+        else:
+            txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     elif options.check_conflicts:
@@ -531,5 +523,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 if __name__ == "__main__":
     try:
         main()
-    except EasyBuildError, e:
-        print_error(e.msg)
+    except EasyBuildError as err:
+        print_error(err.msg)
+    except KeyboardInterrupt as err:
+        print_error("Cancelled by user: %s" % err)

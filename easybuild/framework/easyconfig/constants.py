@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,9 +32,9 @@ be used within an Easyconfig file.
 """
 import os
 import platform
-from vsc.utils import fancylogger
 
-from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
+from easybuild.base import fancylogger
+from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version
 
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
@@ -50,4 +50,14 @@ EASYCONFIG_CONSTANTS = {
     'OS_NAME': (get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
     'OS_VERSION': (get_os_version(), "System version"),
     'SYS_PYTHON_VERSION': (platform.python_version(), "System Python version (platform.python_version())"),
+    'SYSTEM': ({'name': 'system', 'version': 'system'}, "System toolchain"),
+
+    'OS_PKG_IBVERBS_DEV': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
+                           "OS packages providing ibverbs/infiniband development support"),
+    'OS_PKG_OPENSSL_BIN': (('openssl'),
+                           "OS packages providing the openSSL binary"),
+    'OS_PKG_OPENSSL_LIB': (('libssl', 'libopenssl'),
+                           "OS packages providing openSSL libraries"),
+    'OS_PKG_OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
+                           "OS packages providing openSSL developement support"),
 }

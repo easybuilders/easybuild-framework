@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,3 +43,7 @@ class Ictce(Iimpi, IntelMKL, IntelFFTW):
     """
     NAME = 'ictce'
     SUBTOOLCHAIN = [Iimpi.NAME, Iimkl.NAME]
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        return True

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2018 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,19 +39,19 @@ import sys
 from datetime import datetime
 from time import gmtime, strftime
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
-from easybuild.tools.github import create_gist, post_comment_in_issue
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import UNKNOWN, get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
-from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('testing', fname=False)
@@ -103,7 +103,7 @@ def regtest(easyconfig_paths, modtool, build_specs=None):
     for ecfile in ecfiles:
         try:
             easyconfigs.extend(process_easyconfig(ecfile, build_specs=build_specs))
-        except EasyBuildError, err:
+        except EasyBuildError as err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
     # skip easyconfigs for which a module is already available, unless forced
@@ -140,7 +140,10 @@ def session_state():
 
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False):
     """Create test report for easyconfigs PR, in Markdown format."""
-    user = build_option('github_user')
+
+    github_user = build_option('github_user')
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     end_time = gmtime()
 
@@ -148,7 +151,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     test_report = []
     if pr_nr is not None:
         test_report.extend([
-            "Test report for https://github.com/easybuilders/easybuild-easyconfigs/pull/%s" % pr_nr,
+            "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, pr_target_repo, pr_nr),
             "",
         ])
     test_report.extend([
@@ -182,7 +185,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 if pr_nr is not None:
                     descr += " (PR #%s)" % pr_nr
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
-                gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=user)
+                gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
                 test_log = "(partial log available at %s)" % gist_url
 
         build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
@@ -239,40 +242,50 @@ def upload_test_report_as_gist(test_report, descr=None, fn=None):
     if fn is None:
         fn = 'easybuild_test_report_%s.md' % strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
 
-    user = build_option('github_user')
+    github_user = build_option('github_user')
+    gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=github_user)
 
-    gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user)
     return gist_url
 
 
 def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs PR."""
-    user = build_option('github_user')
+
+    github_user = build_option('github_user')
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
     # create gist with test report
-    descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
-    fn = 'easybuild_test_report_easyconfigs_pr%s_%s.md' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
+    descr = "EasyBuild test report for %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr_nr)
+    timestamp = strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
+    fn = 'easybuild_test_report_%s_%s_pr%s_%s.md' % (pr_nr, pr_target_account, pr_target_repo, timestamp)
     gist_url = upload_test_report_as_gist(test_report, descr=descr, fn=fn)
 
     # post comment to report test result
     system_info = init_session_state['system_info']
-    short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+
+    # also mention CPU architecture name, but only if it's known
+    if system_info['cpu_arch_name'] != UNKNOWN:
+        system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
+
+    os_info = '%(hostname)s - %(os_type)s %(os_name)s %(os_version)s' % system_info
+    short_system_info = "%(os_info)s, %(cpu_arch)s, %(cpu_model)s, Python %(pyver)s" % {
+        'os_info': os_info,
+        'cpu_arch': system_info['cpu_arch'],
         'cpu_model': system_info['cpu_model'],
-        'hostname': system_info['hostname'],
-        'os_name': system_info['os_name'],
-        'os_type': system_info['os_type'],
-        'os_version': system_info['os_version'],
         'pyver': system_info['python_version'].split(' ')[0],
     }
+
     comment_lines = [
-        "Test report by @%s" % user,
+        "Test report by @%s" % github_user,
         ('**FAILED**', '**SUCCESS**')[success],
         msg,
         short_system_info,
         "See %s for a full test report." % gist_url,
     ]
     comment = '\n'.join(comment_lines)
-    post_comment_in_issue(pr_nr, comment, github_user=user)
+
+    post_comment_in_issue(pr_nr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
     msg = "Test report uploaded to %s and mentioned in a comment in easyconfigs PR#%s" % (gist_url, pr_nr)
     return msg

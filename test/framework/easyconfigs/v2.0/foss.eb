@@ -1,0 +1,30 @@
+# EASYCONFIGFORMAT 2.0
+"""
+Example easyconfig with 'complex' dependencies
+@author: Kenneth Hoste (UGent)
+"""
+name = 'foss'
+
+homepage = '(none)'
+description = 'GCC based compiler toolchain, including OpenMPI, OpenBLAS, FFTW and ScaLAPACK.'
+
+software_license = GPLv2
+software_license_urls = ['https://github.com/easybuilders/easybuild-framework/blob/master/easybuild/toolchains/foss.py'] 
+docurls = ["https://github.com/easybuilders/easybuild/wiki/Compiler-toolchains"]
+
+[DEFAULT]
+easyblock = Toolchain
+
+
+moduleclass = toolchain
+
+[SUPPORTED]
+versions = 2018a
+toolchains = system == system
+
+[DEPENDENCIES]
+GCC = 6.4.0-2.28
+OpenMPI = 2.1.2; GCC == 6.4.0-2.28
+OpenBLAS = 0.2.20; GCC == 6.4.0-2.28
+FFTW = 3.3.7; gompi == 2018a
+ScaLAPACK = 2.0.2 suffix:-OpenBLAS-0.2.20; gompi == 2018a

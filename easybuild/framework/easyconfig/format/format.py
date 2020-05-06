@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2018 Ghent University
+# Copyright 2013-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,17 +31,16 @@ The main easyconfig format class
 """
 import copy
 import re
-from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
+from easybuild.tools.utilities import get_subclasses
+from easybuild.tools.py2vs3 import string_type
 
-
-INDENT_4SPACES = ' ' * 4
 
 # format is mandatory major.minor
 FORMAT_VERSION_KEYWORD = "EASYCONFIGFORMAT"
@@ -53,8 +52,8 @@ FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'homepage', 'name', 'toolchain', 'version'] \
-                                  + DEPENDENCY_PARAMETERS
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_default_options', 'exts_list',
+                                   'homepage', 'multi_deps', 'name', 'toolchain', 'version'] + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
 GROUPED_PARAMS = [
@@ -62,17 +61,21 @@ GROUPED_PARAMS = [
     ['name', 'version', 'versionprefix', 'versionsuffix'],
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
-    ['sources', 'source_urls'],
-    ['patches'],
-    DEPENDENCY_PARAMETERS,
+    ['source_urls', 'sources', 'patches', 'checksums'],
+    DEPENDENCY_PARAMETERS + ['multi_deps'],
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],
     ['preinstallopts', 'installopts'],
     ['parallel', 'maxparallel'],
 ]
-LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
+LAST_PARAMS = ['exts_default_options', 'exts_list',
+               'sanity_check_paths', 'sanity_check_commands',
+               'modextrapaths', 'modextravars',
+               'moduleclass']
 
+SANITY_CHECK_PATHS_DIRS = 'dirs'
+SANITY_CHECK_PATHS_FILES = 'files'
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
 
@@ -85,7 +88,7 @@ def get_format_version(txt):
         try:
             maj_min = res.groupdict()
             format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
-        except (KeyError, TypeError), err:
+        except (KeyError, TypeError) as err:
             raise EasyBuildError("Failed to get version from match %s: %s", res.groups(), err)
     return format_version
 
@@ -240,7 +243,7 @@ class EBConfigObj(object):
         Returns a dict of (nested) Sections
 
         :param toparse: a Section (or ConfigObj) instance, basically a dict of (unparsed) sections
-        :param current: the current NestedDict 
+        :param current: the current NestedDict
         """
         # note: configobj already converts comma-separated strings in lists
         #
@@ -300,13 +303,13 @@ class EBConfigObj(object):
                     # parse value as a section, recursively
                     new_value = self.parse_sections(value, current.get_nested_dict())
 
-                    self.log.debug('Converted section key %s value %s in new key %s new value %s' %
-                                   (key, value, new_key, new_value))
+                    self.log.debug("Converted section key %s value %s in new key %s new value %s",
+                                   key, value, new_key, new_value)
                     current[new_key] = new_value
 
             else:
                 # simply pass down any non-special key-value items
-                if not key in special_keys:
+                if key not in special_keys:
                     self.log.debug('Passing down key %s with value %s' % (key, value))
                     new_value = value
 
@@ -315,7 +318,7 @@ class EBConfigObj(object):
                     value_type = self.VERSION_OPERATOR_VALUE_TYPES[key]
                     # list of supported toolchains/versions
                     # first one is default
-                    if isinstance(value, basestring):
+                    if isinstance(value, string_type):
                         # so the split should be unnecessary
                         # (if it's not a list already, it's just one value)
                         # TODO this is annoying. check if we can force this in configobj
@@ -335,8 +338,8 @@ class EBConfigObj(object):
 
     def parse(self, configobj):
         """
-        Parse configobj using using recursive parse_sections. 
-        Then split off the default and supported sections. 
+        Parse configobj using using recursive parse_sections.
+        Then split off the default and supported sections.
 
         :param configobj: ConfigObj instance
         """
@@ -360,7 +363,7 @@ class EBConfigObj(object):
         # supported should only have 'versions' and 'toolchains' keys
         self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED)
         for key, value in self.supported.items():
-            if not key in self.VERSION_OPERATOR_VALUE_TYPES:
+            if key not in self.VERSION_OPERATOR_VALUE_TYPES:
                 raise EasyBuildError('Unsupported key %s in %s section', key, self.SECTION_MARKER_SUPPORTED)
             self.sections['%s' % key] = value
 
@@ -410,10 +413,10 @@ class EBConfigObj(object):
         """
         Project the multidimensional easyconfig (or subsection thereof) to single easyconfig
         Returns Squashed instance for the processed block.
-        :param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and 
+        :param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and
                             tcversion (toolchain version to keep)
         :param processed: easyconfig (Top)NestedDict
-        :param sanity: dictionary to keep track of section markers and detect conflicts 
+        :param sanity: dictionary to keep track of section markers and detect conflicts
         """
         version, tcname, tcversion = vt_tuple
         res_sections = {}
@@ -431,7 +434,7 @@ class EBConfigObj(object):
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.debug("Found VERSION_OPERATOR_VALUE_TYPES entry (%s)" % key)
                 tmp = self._squash_versop(key, value, squashed, sanity, vt_tuple)
-                if not tmp is None:
+                if tmp is not None:
                     return tmp
             else:
                 self.log.debug('Adding key %s value %s' % (key, value))
@@ -448,8 +451,8 @@ class EBConfigObj(object):
 
     def _squash_netsed_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
         """
-        Squash NestedDict instance, returns dict with already squashed data 
-            from possible higher sections 
+        Squash NestedDict instance, returns dict with already squashed data
+            from possible higher sections
         :param key: section key
         :param nested_dict: the nested_dict instance
         :param squashed: Squashed instance
@@ -488,8 +491,8 @@ class EBConfigObj(object):
 
     def _squash_versop(self, key, value, squashed, sanity, vt_tuple):
         """
-        Squash VERSION_OPERATOR_VALUE_TYPES value 
-            return None or new Squashed instance 
+        Squash VERSION_OPERATOR_VALUE_TYPES value
+            return None or new Squashed instance
         :param key: section key
         :param nested_dict: the nested_dict instance
         :param squashed: Squashed instance
@@ -629,8 +632,8 @@ class EasyConfigFormat(object):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
-        """Dump easyconfig according to this format. This is higly version specific"""
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
+        """Dump easyconfig according to this format. This is highly version specific"""
         raise NotImplementedError
 
     def extract_comments(self, rawtxt):

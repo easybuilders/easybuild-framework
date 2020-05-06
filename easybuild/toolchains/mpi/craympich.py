@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2018 Ghent University
+# Copyright 2014-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ class CrayMPICH(Mpi):
     """Generic support for using Cray compiler wrappers"""
     # MPI support
     # no separate module, Cray compiler drivers always provide MPI support
-    MPI_MODULE_NAME = []
+    MPI_MODULE_NAME = None
     MPI_FAMILY = TC_CONSTANT_MPICH
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
 

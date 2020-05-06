@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,22 +43,22 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from vsc.utils import fancylogger
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, resolve_path, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.py2vs3 import OrderedDict
+from easybuild.tools.toolchain.toolchain import is_system_toolchain
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -90,7 +90,7 @@ _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 def skip_available(easyconfigs, modtool):
     """Skip building easyconfigs for existing modules."""
     module_names = [ec['full_mod_name'] for ec in easyconfigs]
-    modules_exist = modtool.exist(module_names)
+    modules_exist = modtool.exist(module_names, maybe_partial=False)
     retained_easyconfigs = []
     for ec, mod_name, mod_exists in zip(easyconfigs, module_names, modules_exist):
         if mod_exists:
@@ -125,10 +125,10 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
         for dep in easyconfig['dependencies']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
-            # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+            # always treat external modules as resolved,
             # since no corresponding easyconfig can be found for them
-            if retain_all_deps and dep.get('external_module', False):
-                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep_mod_name)
+            if dep.get('external_module', False):
+                _log.debug("Treating dependency marked as external module as resolved: %s", dep_mod_name)
 
             elif retain_all_deps and dep_mod_name not in avail_modules:
                 # if all dependencies should be retained, include dep unless it has been already
@@ -197,22 +197,24 @@ def dep_graph(filename, specs):
         all_nodes.update(spec['ec'].all_dependencies)
 
         # Get the build dependencies for each spec so we can distinguish them later
-        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
+        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec'].builddependencies()]
         all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     dgr = digraph()
     dgr.add_nodes(all_nodes)
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
+                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
     _dep_graph_dump(dgr, filename)
 
     if not build_option('silent'):
-        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+        print("Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename))
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
@@ -253,15 +255,39 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     path_list.extend(sys.path)
 
     # figure out installation prefix, e.g. distutils install path for easyconfigs
-    eb_path = which('eb')
+
+    # prefer using path specified in $EB_SCRIPT_PATH (if defined), which is set by 'eb' wrapper script
+    eb_path = os.getenv('EB_SCRIPT_PATH')
     if eb_path is None:
-        _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+        # try to determine location of 'eb' script via $PATH, as fallback mechanism
+        eb_path = which('eb')
+        _log.info("Location to 'eb' script (found via $PATH): %s", eb_path)
     else:
-        # real location to 'eb' should be <install_prefix>/bin/eb
-        eb_path = resolve_path(eb_path)
+        _log.info("Found location to 'eb' script via $EB_SCRIPT_PATH: %s", eb_path)
+
+    if eb_path is None:
+        warning_msg = "'eb' not found in $PATH, failed to determine installation prefix!"
+        _log.warning(warning_msg)
+        print_warning(warning_msg)
+    else:
+        # eb_path is location to 'eb' wrapper script, e.g. <install_prefix>/bin/eb
+        # so installation prefix is usually two levels up
         install_prefix = os.path.dirname(os.path.dirname(eb_path))
-        path_list.append(install_prefix)
-        _log.debug("Also considering installation prefix %s..." % install_prefix)
+
+        # only consider resolved path to 'eb' script if desired subdir is not found relative to 'eb' script location
+        if os.path.exists(os.path.join(install_prefix, 'easybuild', subdir)):
+            path_list.append(install_prefix)
+            _log.info("Also considering installation prefix %s (determined via path to 'eb' script)...", install_prefix)
+        else:
+            _log.info("Not considering %s (no easybuild/%s subdir found)", install_prefix, subdir)
+
+            # also consider fully resolved location to 'eb' wrapper
+            # see https://github.com/easybuilders/easybuild-framework/pull/2248
+            resolved_eb_path = resolve_path(eb_path)
+            if eb_path != resolved_eb_path:
+                install_prefix = os.path.dirname(os.path.dirname(resolved_eb_path))
+                path_list.append(install_prefix)
+                _log.info("Also considering installation prefix %s (via resolved path to 'eb')...", install_prefix)
 
     # look for desired subdirs
     for path in path_list:
@@ -271,7 +297,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
                 _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
-        except OSError, err:
+        except OSError as err:
             raise EasyBuildError(str(err))
 
     return paths
@@ -386,7 +412,7 @@ def parse_easyconfigs(paths, validate=True):
 
                 easyconfigs.extend(process_easyconfig(ec_file, **kwargs))
 
-        except IOError, err:
+        except IOError as err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
     return easyconfigs, generated_ecs
@@ -439,7 +465,7 @@ def find_related_easyconfigs(path, ec):
     toolchain_name = ec['toolchain']['name']
     toolchain_name_pattern = r'-%s-\S+' % toolchain_name
     toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
-    if toolchain_name == DUMMY_TOOLCHAIN_NAME:
+    if is_system_toolchain(toolchain_name):
         toolchain_name_pattern = ''
         toolchain_pattern = ''
 
@@ -578,17 +604,21 @@ def dump_env_script(easyconfigs):
 
 def categorize_files_by_type(paths):
     """
-    Splits list of filepaths into a 3 separate lists: easyconfigs, files to delete and patch files
+    Splits list of filepaths into a 4 separate lists: easyconfigs, files to delete, patch files and
+    files with extension .py
     """
     res = {
         'easyconfigs': [],
         'files_to_delete': [],
         'patch_files': [],
+        'py_files': [],
     }
 
     for path in paths:
         if path.startswith(':'):
             res['files_to_delete'].append(path[1:])
+        elif path.endswith('.py'):
+            res['py_files'].append(path)
         # file must exist in order to check whether it's a patch file
         elif os.path.isfile(path) and is_patch_file(path):
             res['patch_files'].append(path)
@@ -653,3 +683,48 @@ def run_contrib_checks(ecs):
     print_result(sha256_checksums_ok, "SHA256 checksums")
 
     return style_check_ok and sha256_checksums_ok
+
+
+def avail_easyblocks():
+    """Return a list of all available easyblocks."""
+
+    module_regexp = re.compile(r"^([^_].*)\.py$")
+    class_regex = re.compile(r"^class ([^(]*)\(", re.M)
+
+    # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
+    search_toolchain('')
+
+    easyblocks = {}
+    for pkg in ['easybuild.easyblocks', 'easybuild.easyblocks.generic']:
+        __import__(pkg)
+
+        # determine paths for this package
+        paths = sys.modules[pkg].__path__
+
+        # import all modules in these paths
+        for path in paths:
+            if os.path.exists(path):
+                for fn in os.listdir(path):
+                    res = module_regexp.match(fn)
+                    if res:
+                        easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
+
+                        if easyblock_mod_name not in easyblocks:
+                            __import__(easyblock_mod_name)
+                            easyblock_loc = os.path.join(path, fn)
+
+                            class_names = class_regex.findall(read_file(easyblock_loc))
+                            if len(class_names) == 1:
+                                easyblock_class = class_names[0]
+                            elif class_names:
+                                raise EasyBuildError("Found multiple class names for easyblock %s: %s",
+                                                     easyblock_loc, class_names)
+                            else:
+                                raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
+
+                            easyblocks[easyblock_mod_name] = {'class': easyblock_class, 'loc': easyblock_loc}
+                        else:
+                            _log.debug("%s already imported from %s, ignoring %s",
+                                       easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+
+    return easyblocks

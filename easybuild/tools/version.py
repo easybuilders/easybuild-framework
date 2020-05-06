@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,7 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('3.7.0')
+VERSION = LooseVersion('4.2.1.dev0')
 UNKNOWN = 'UNKNOWN'
 
 
@@ -55,15 +55,18 @@ def get_git_revision():
     relies on GitPython (see http://gitorious.org/git-python)
     """
     try:
-        import git
+        from git import Git, GitCommandError
     except ImportError:
         return UNKNOWN
     try:
         path = os.path.dirname(__file__)
-        gitrepo = git.Git(path)
-        # 'encode' is required to make sure a regular string is returned rather than a unicode string
-        res = gitrepo.rev_list('HEAD').splitlines()[0].encode('ascii')
-    except git.GitCommandError:
+        gitrepo = Git(path)
+        res = gitrepo.rev_list('HEAD').splitlines()[0]
+        # 'encode' may be required to make sure a regular string is returned rather than a unicode string
+        # (only needed in Python 2; in Python 3, regular strings are already unicode)
+        if not isinstance(res, str):
+            res = res.encode('ascii')
+    except GitCommandError:
         res = UNKNOWN
 
     return res
@@ -91,5 +94,10 @@ def this_is_easybuild():
     # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
     msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
-    # 'encode' is required to make sure a regular string is returned rather than a unicode string
-    return msg.encode('ascii')
+
+    # 'encode' may be required to make sure a regular string is returned rather than a unicode string
+    # (only needed in Python 2; in Python 3, regular strings are already unicode)
+    if not isinstance(msg, str):
+        msg = msg.encode('ascii')
+
+    return msg

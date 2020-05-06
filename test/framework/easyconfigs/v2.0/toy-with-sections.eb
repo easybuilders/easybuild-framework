@@ -29,7 +29,7 @@ moduleclass = 'tools'
 
 [SUPPORTED]
 versions = 1.0, 0.0, 1.1, 1.5, 1.6, 2.0, 3.0
-toolchains = goolf == 1.4.10, dummy == dummy
+toolchains = foss == 2018a, system == system
 
 [> 1.0]
 # all 1.x versions and more recent are 'stable'

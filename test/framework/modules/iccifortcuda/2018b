@@ -1,0 +1,29 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel C/C++ and Fortran compilers with CUDA
+    }
+}
+
+module-whatis {Intel C/C++ and Fortran compilers with CUDA}
+
+set root    /tmp/iccifortcuda/2018b
+
+conflict    iccifortcuda
+
+if { ![is-loaded icc/2018.1.163] } {
+    module load icc/2018.1.163
+}
+
+if { ![is-loaded ifort/2018.1.163] } {
+    module load ifort/2018.1.163
+}
+
+if { ![is-loaded CUDA/9.1.85] } {
+    module load CUDA/9.1.85
+}
+
+
+setenv	EBROOTICCIFORTCUDA		"$root"
+setenv	EBVERSIONICCIFORTCUDA		"2018b"
+setenv	EBDEVELICCIFORTCUDA		"$root/easybuild/iccifortcuda-2018b-easybuild-devel"
