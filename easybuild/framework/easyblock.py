@@ -1022,8 +1022,8 @@ class EasyBlock(object):
         deppaths = self.cfg['moddependpaths']
         if not deppaths:
             return ''
-        elif not isinstance(deppaths, (str, tuple, list)):
-            raise EasyBuildError("moddependpaths value %s (type: %s) is not a string or collection",
+        elif not isinstance(deppaths, (str, list, tuple)):
+            raise EasyBuildError("moddependpaths value %s (type: %s) is not a string, list or tuple",
                                  deppaths, type(deppaths))
 
         if isinstance(deppaths, str):
