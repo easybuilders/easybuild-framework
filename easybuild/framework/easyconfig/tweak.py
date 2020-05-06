@@ -52,6 +52,7 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths
+from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
@@ -1091,7 +1092,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
     # Figure out the main versionsuffix (altered depending on toolchain in the loop below)
     versionsuffix = dep.get('versionsuffix', '')
     # If versionsuffix is equal to None, it should be put to empty string
-    if not versionsuffix:
+    if versionsuffix is None:
         versionsuffix = ''
     # If versionsuffix is in our mapping then we expect it to be updated
     if versionsuffix in versionsuffix_mapping:
@@ -1141,7 +1142,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                         tc_candidate = fetch_parameters_from_easyconfig(read_file(path), ['toolchain'])[0]
                         if isinstance(tc_candidate, dict) and tc_candidate['name'] == SYSTEM_TOOLCHAIN_NAME:
                             cand_paths_filtered += [path]
-                        if isinstance(tc_candidate, string_type) and tc_candidate == "SYSTEM":
+                        if isinstance(tc_candidate, string_type) and tc_candidate == TC_CONSTANT_SYSTEM:
                             cand_paths_filtered += [path]
 
                     cand_paths = cand_paths_filtered
