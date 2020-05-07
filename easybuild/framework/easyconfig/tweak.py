@@ -1073,9 +1073,6 @@ def list_deps_versionsuffixes(ec_spec):
 
     versionsuffix_list = []
     for key in DEPENDENCY_PARAMETERS:
-        # loop over a *copy* of dependency dicts (with resolved templates);
-
-        # to update the original dep dict, we need to get a reference with templating disabled...
         val = parsed_ec[key]
 
         if key in parsed_ec.iterate_options:
