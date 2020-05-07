@@ -54,14 +54,13 @@ import sys
 import tempfile
 import time
 import zlib
-from xml.etree import ElementTree
 
 from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
-from easybuild.tools.py2vs3 import std_urllib, string_type
+from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
 
 try:
@@ -519,15 +518,21 @@ def pypi_source_urls(pkg_name):
     else:
         urls_txt = read_file(urls_html)
 
-        # ignore yanked releases (see https://pypi.org/help/#yanked)
-        # see https://github.com/easybuilders/easybuild-framework/issues/3301
-        urls_txt = re.sub(r'<a.*?data-yanked.*?</a>', '', urls_txt)
+        res = []
 
-        parsed_html = ElementTree.ElementTree(ElementTree.fromstring(urls_txt))
-        if hasattr(parsed_html, 'iter'):
-            res = [a.attrib['href'] for a in parsed_html.iter('a')]
-        else:
-            res = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+        # note: don't use xml.etree.ElementTree to parse HTML page served by PyPI's simple API
+        # cfr. https://github.com/pypa/warehouse/issues/7886
+        class HrefHTMLParser(HTMLParser):
+            """HTML parser to extract 'href' attribute values from anchor tags (<a href='...'>)."""
+
+            def handle_starttag(self, tag, attrs):
+                if tag == 'a':
+                    attrs = dict(attrs)
+                    if 'href' in attrs:
+                        res.append(attrs['href'])
+
+        parser = HrefHTMLParser()
+        parser.feed(urls_txt)
 
     # links are relative, transform them into full URLs; for example:
     # from: ../../packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
