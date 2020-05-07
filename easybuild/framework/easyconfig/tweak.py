@@ -907,8 +907,9 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                     if original_suffix in versionsuffix_mappings:
                         if mapped_suffix != versionsuffix_mappings[original_suffix]:
                             raise EasyBuildError("No unique versionsuffix mapping for %s in %s toolchain "
-                                                 "hierarchy to %s toolchain hierarchy", original_suffix,
-                                                 original_toolchain, toolchain_mapping[original_toolchain['name']])
+                                                 "hierarchy to %s toolchain hierarchy (versionsuffix mappings were %s)",
+                                                 original_suffix, original_toolchain,
+                                                 toolchain_mapping[original_toolchain['name']], versionsuffix_mappings)
                     else:
                         versionsuffix_mappings[original_suffix] = mapped_suffix
 
