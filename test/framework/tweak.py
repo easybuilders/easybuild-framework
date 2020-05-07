@@ -40,6 +40,7 @@ from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain, map_
 from easybuild.framework.easyconfig.tweak import get_matching_easyconfig_candidates, map_toolchain_hierarchies
 from easybuild.framework.easyconfig.tweak import find_potential_version_mappings
 from easybuild.framework.easyconfig.tweak import map_easyconfig_to_target_tc_hierarchy
+from easybuild.framework.easyconfig.tweak import list_deps_versionsuffixes
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import change_dir, write_file
@@ -481,6 +482,24 @@ class TweakTest(EnhancedTestCase):
                 self.assertFalse('checksums' in extension[2])
                 hit_extension += 1
         self.assertEqual(hit_extension, 1, "Should only have updated one extension")
+
+    def test_list_deps_versionsuffixes(self):
+        """Test listing of dependencies' version suffixes"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        get_toolchain_hierarchy.clear()
+
+        ec_spec = os.path.join(test_easyconfigs, 'g', 'golf', 'golf-2018a.eb')
+        self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-serial'])
+        ec_spec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        self.assertEqual(list_deps_versionsuffixes(ec_spec), [])
+        ec_spec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
 
 def suite():
     """ return all the tests in this file """

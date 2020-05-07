@@ -909,8 +909,11 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                     if original_suffix in versionsuffix_mappings:
                         if mapped_suffix != versionsuffix_mappings[original_suffix]:
                             raise EasyBuildError("No unique versionsuffix mapping for %s in %s toolchain "
-                                                 "hierarchy to %s toolchain hierarchy", original_suffix,
-                                                 original_toolchain, toolchain_mapping[original_toolchain['name']])
+                                                 "hierarchy to %s toolchain hierarchy (mapped suffix was %s but "
+                                                 "versionsuffix mappings were %s)",
+                                                 original_suffix, original_toolchain,
+                                                 toolchain_mapping[original_toolchain['name']], mapped_suffix,
+                                                 versionsuffix_mappings)
                     else:
                         versionsuffix_mappings[original_suffix] = mapped_suffix
 
@@ -953,8 +956,9 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     parsed_ec = process_easyconfig(ec_spec, validate=False)[0]['ec']
 
     versonsuffix_mapping = {}
-
-    if update_dep_versions:
+    # We only need to map versionsuffixes if we are updating dependency versions and if there are
+    # versionsuffixes being used in dependencies
+    if update_dep_versions and list_deps_versionsuffixes(ec_spec):
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
 
@@ -1059,6 +1063,31 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     _log.debug("Dumped easyconfig tweaked via --try-* to %s", tweaked_spec)
 
     return tweaked_spec
+
+
+def list_deps_versionsuffixes(ec_spec):
+    """
+    Take an easyconfig spec, parse it, extracts the list of version suffixes used in its dependencies
+
+    :param ec_spec: location of original easyconfig file
+
+    :return: The list of versionsuffixes used by the dependencies of this recipe
+    """
+    # Fully parse the original easyconfig
+    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]['ec']
+
+    versionsuffix_list = []
+    for key in DEPENDENCY_PARAMETERS:
+        val = parsed_ec[key]
+
+        if key in parsed_ec.iterate_options:
+            val = flatten(val)
+
+        for dep in val:
+            if dep['versionsuffix']:
+                versionsuffix_list += [dep['versionsuffix']]
+
+    return list(set(versionsuffix_list))
 
 
 def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mapping=None, highest_versions_only=True):
