@@ -745,13 +745,13 @@ def list_toolchains_rst(tcs):
     title = "List of known toolchains"
 
     # Specify the column names for the table
-    table_titles = ['name', 'COMPILER', 'MPI', 'linalg', 'FFT']
+    table_titles = ['NAME', 'COMPILER', 'MPI', 'LINALG', 'FFT']
 
     # Set up column name : display name pairs
     col_names = {
-        'name': 'Name',
+        'NAME': 'Name',
         'COMPILER': 'Compiler(s)',
-        'linalg': "Linear algebra",
+        'LINALG': "Linear algebra",
     }
 
     # Create sorted list of toolchain names
@@ -764,7 +764,7 @@ def list_toolchains_rst(tcs):
     table_values = [[] for i in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
-        if col_name == 'name':
+        if col_name == 'NAME':
             # toolchain names column gets bold face entry
             table_values[col_id] = ['**%s**' % tcname for tcname in sorted_tc_names]
         else:
@@ -775,10 +775,10 @@ def list_toolchains_rst(tcs):
                         entry = ', '.join(tc[col_name.upper()])
                     elif col_name == 'MPI':
                         entry = 'cray-mpich'
-                    elif col_name == 'linalg':
+                    elif col_name == 'LINALG':
                         entry = 'cray-libsci'
                 # Combine the linear algebra libraries into a single column
-                elif col_name == 'linalg':
+                elif col_name == 'LINALG':
                     linalg = []
                     for col in ['BLAS', 'LAPACK', 'SCALAPACK']:
                         linalg.extend(tc.get(col, []))
