@@ -40,7 +40,6 @@ Set of file tools.
 """
 import datetime
 import difflib
-import distutils.dir_util
 import fileinput
 import glob
 import hashlib
@@ -49,6 +48,7 @@ import inspect
 import os
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
@@ -60,7 +60,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, build_option
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import std_urllib, string_type
 from easybuild.tools.utilities import nub, remove_unwanted_chars
 
@@ -155,6 +155,9 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z':   "tar xzf %(filepath)s",
 }
+
+# global set of names of locks that were created in this session
+global_lock_names = set()
 
 
 class ZlibChecksum(object):
@@ -372,7 +375,7 @@ def change_dir(path):
     return cwd
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=None):
     """
     Extract file at given path to specified directory
     :param fn: path to file to extract
@@ -381,8 +384,16 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     :param extra_options: extra options to pass to extract command
     :param overwrite: overwrite existing unpacked file
     :param forced: force extraction in (extended) dry run mode
+    :param change_into_dir: change into resulting directory;
+                          None (current default) implies True, but this is deprecated,
+                          this named argument should be set to False or True explicitely
+                          (in a future major release, default will be changed to False)
     :return: path to directory (in case of success)
     """
+    if change_into_dir is None:
+        _log.deprecated("extract_file function was called without specifying value for change_into_dir", '5.0')
+        change_into_dir = True
+
     if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
 
@@ -392,8 +403,8 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     abs_dest = os.path.abspath(dest)
 
     # change working directory
-    _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
-    change_dir(abs_dest)
+    _log.debug("Unpacking %s in directory %s", fn, abs_dest)
+    cwd = change_dir(abs_dest)
 
     if not cmd:
         cmd = extract_cmd(fn, overwrite=overwrite)
@@ -408,7 +419,18 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
 
     run.run_cmd(cmd, simple=True, force_in_dry_run=forced)
 
-    return find_base_dir()
+    # note: find_base_dir also changes into the base dir!
+    base_dir = find_base_dir()
+
+    # if changing into obtained directory is not desired,
+    # change back to where we came from (unless that was a non-existing directory)
+    if not change_into_dir:
+        if cwd is None:
+            raise EasyBuildError("Can't change back to non-existing directory after extracting %s in %s", fn, dest)
+        else:
+            change_dir(cwd)
+
+    return base_dir
 
 
 def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
@@ -495,7 +517,13 @@ def pypi_source_urls(pkg_name):
         _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
         res = []
     else:
-        parsed_html = ElementTree.parse(urls_html)
+        urls_txt = read_file(urls_html)
+
+        # ignore yanked releases (see https://pypi.org/help/#yanked)
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        urls_txt = re.sub(r'<a.*?data-yanked.*?</a>', '', urls_txt)
+
+        parsed_html = ElementTree.ElementTree(ElementTree.fromstring(urls_txt))
         if hasattr(parsed_html, 'iter'):
             res = [a.attrib['href'] for a in parsed_html.iter('a')]
         else:
@@ -756,6 +784,18 @@ def find_easyconfigs(path, ignore_dirs=None):
         dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return files
+
+
+def find_glob_pattern(glob_pattern, fail_on_no_match=True):
+    """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
+    if build_option('extended_dry_run'):
+        return glob_pattern
+    res = glob.glob(glob_pattern)
+    if len(res) == 0 and not fail_on_no_match:
+        return None
+    if len(res) != 1:
+        raise EasyBuildError("Was expecting exactly one match for '%s', found %d: %s", glob_pattern, len(res), res)
+    return res[0]
 
 
 def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False,
@@ -1186,7 +1226,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
             workdir = tempfile.mkdtemp(prefix='eb-patch-')
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
-            apatch_dir = extract_file(apatch, workdir)
+            apatch_dir = extract_file(apatch, workdir, change_into_dir=False)
+            change_dir(apatch_dir)
             apatch = os.path.join(apatch_dir, apatch_name)
 
     if level is None and build_option('extended_dry_run'):
@@ -1474,6 +1515,131 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
     else:
         _log.debug("Not creating existing path %s" % path)
+
+
+def det_lock_path(lock_name):
+    """
+    Determine full path for lock with specifed name.
+    """
+    locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
+    return os.path.join(locks_dir, lock_name + '.lock')
+
+
+def create_lock(lock_name):
+    """Create lock with specified name."""
+
+    lock_path = det_lock_path(lock_name)
+    _log.info("Creating lock at %s...", lock_path)
+    try:
+        # we use a directory as a lock, since that's atomically created
+        mkdir(lock_path, parents=True)
+        global_lock_names.add(lock_name)
+    except EasyBuildError as err:
+        # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
+        stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
+        raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
+    _log.info("Lock created: %s", lock_path)
+
+
+def check_lock(lock_name):
+    """
+    Check whether a lock with specified name already exists.
+
+    If it exists, either wait until it's released, or raise an error
+    (depending on --wait-on-lock configuration option).
+    """
+    lock_path = det_lock_path(lock_name)
+    if os.path.exists(lock_path):
+        _log.info("Lock %s exists!", lock_path)
+
+        wait_interval = build_option('wait_on_lock_interval')
+        wait_limit = build_option('wait_on_lock_limit')
+
+        # --wait-on-lock is deprecated, should use --wait-on-lock-limit and --wait-on-lock-interval instead
+        wait_on_lock = build_option('wait_on_lock')
+        if wait_on_lock is not None:
+            depr_msg = "Use of --wait-on-lock is deprecated, use --wait-on-lock-limit and --wait-on-lock-interval"
+            _log.deprecated(depr_msg, '5.0')
+
+            # if --wait-on-lock-interval has default value and --wait-on-lock is specified too, the latter wins
+            # (required for backwards compatibility)
+            if wait_interval == DEFAULT_WAIT_ON_LOCK_INTERVAL and wait_on_lock > 0:
+                wait_interval = wait_on_lock
+
+            # if --wait-on-lock-limit is not specified we need to wait indefinitely if --wait-on-lock is specified,
+            # since the original semantics of --wait-on-lock was that it specified the waiting time interval (no limit)
+            if not wait_limit:
+                wait_limit = -1
+
+        # wait limit could be zero (no waiting), -1 (no waiting limit) or non-zero value (waiting limit in seconds)
+        if wait_limit != 0:
+            wait_time = 0
+            while os.path.exists(lock_path) and (wait_limit == -1 or wait_time < wait_limit):
+                print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_interval),
+                          silent=build_option('silent'))
+                time.sleep(wait_interval)
+                wait_time += wait_interval
+
+            if os.path.exists(lock_path) and wait_limit != -1 and wait_time >= wait_limit:
+                error_msg = "Maximum wait time for lock %s to be released reached: %s sec >= %s sec"
+                raise EasyBuildError(error_msg, lock_path, wait_time, wait_limit)
+            else:
+                _log.info("Lock %s was released!", lock_path)
+        else:
+            raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+    else:
+        _log.info("Lock %s does not exist", lock_path)
+
+
+def remove_lock(lock_name):
+    """
+    Remove lock with specified name.
+    """
+    lock_path = det_lock_path(lock_name)
+    _log.info("Removing lock %s...", lock_path)
+    remove_dir(lock_path)
+    if lock_name in global_lock_names:
+        global_lock_names.remove(lock_name)
+    _log.info("Lock removed: %s", lock_path)
+
+
+def clean_up_locks():
+    """
+    Clean up all still existing locks that were created in this session.
+    """
+    for lock_name in list(global_lock_names):
+        remove_lock(lock_name)
+
+
+def clean_up_locks_signal_handler(signum, frame):
+    """
+    Signal handler, cleans up locks & exits with received signal number.
+    """
+
+    if not build_option('silent'):
+        print_warning("signal received (%s), cleaning up locks (%s)..." % (signum, ', '.join(global_lock_names)))
+    clean_up_locks()
+
+    # by default, a KeyboardInterrupt is raised with SIGINT, so keep doing so
+    if signum == signal.SIGINT:
+        raise KeyboardInterrupt("keyboard interrupt")
+    else:
+        sys.exit(signum)
+
+
+def register_lock_cleanup_signal_handlers():
+    """
+    Register signal handler for signals that cancel the current EasyBuild session,
+    so we can clean up the locks that were created first.
+    """
+    signums = [
+        signal.SIGABRT,
+        signal.SIGINT,  # Ctrl-C
+        signal.SIGTERM,  # signal 15, soft kill (like when Slurm job is cancelled or received timeout)
+        signal.SIGQUIT,  # kinda like Ctrl-C
+    ]
+    for signum in signums:
+        signal.signal(signum, clean_up_locks_signal_handler)
 
 
 def expand_glob_paths(glob_paths):
@@ -1907,7 +2073,12 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
-                shutil.copy2(path, target_path)
+                if os.path.exists(path):
+                    shutil.copy2(path, target_path)
+                elif os.path.islink(path):
+                    # special care for copying broken symlinks
+                    link_target = os.readlink(path)
+                    symlink(link_target, target_path)
                 _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
@@ -1942,16 +2113,13 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
-    :param dirs_exist_ok: wrapper around shutil.copytree option, which was added in Python 3.8
+    :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
 
-    On Python >= 3.8 shutil.copytree is always used
-    On Python < 3.8 if 'dirs_exist_ok' is False - shutil.copytree is used
-    On Python < 3.8 if 'dirs_exist_ok' is True - distutils.dir_util.copy_tree is used
+    shutil.copytree is used if the target path does not exist yet;
+    if the target path already exists, the 'copy' function will be used to copy the contents of
+    the source path to the target path
 
-    Additional specified named arguments are passed down to shutil.copytree if used.
-
-    Because distutils.dir_util.copy_tree supports only 'symlinks' named argument,
-    using any other will raise EasyBuildError.
+    Additional specified named arguments are passed down to shutil.copytree/copy if used.
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
@@ -1960,38 +2128,49 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            if sys.version_info >= (3, 8):
-                # on Python >= 3.8, shutil.copytree works fine, thanks to availability of dirs_exist_ok named argument
-                shutil.copytree(path, target_path, dirs_exist_ok=dirs_exist_ok, **kwargs)
+            # note: in Python >= 3.8 shutil.copytree works just fine thanks to the 'dirs_exist_ok' argument,
+            # but since we need to be more careful in earlier Python versions we use our own implementation
+            # in case the target directory exists and 'dirs_exist_ok' is enabled
+            if dirs_exist_ok and os.path.exists(target_path):
+                # if target directory already exists (and that's allowed via dirs_exist_ok),
+                # we need to be more careful, since shutil.copytree will fail (in Python < 3.8)
+                # if target directory already exists;
+                # so, recurse via 'copy' function to copy files/dirs in source path to target path
+                # (NOTE: don't use distutils.dir_util.copy_tree here, see
+                # https://github.com/easybuilders/easybuild-framework/issues/3306)
 
-            elif dirs_exist_ok:
-                # use distutils.dir_util.copy_tree with Python < 3.8 if dirs_exist_ok is enabled
+                entries = os.listdir(path)
 
-                # first get value for symlinks named argument (if any)
-                preserve_symlinks = kwargs.pop('symlinks', False)
+                # take into account 'ignore' function that is supported by shutil.copytree
+                # (but not by 'copy_file' function used by 'copy')
+                ignore = kwargs.get('ignore')
+                if ignore:
+                    ignored_entries = ignore(path, entries)
+                    entries = [x for x in entries if x not in ignored_entries]
 
-                # check if there are other named arguments (there shouldn't be, only 'symlinks' is supported)
-                if kwargs:
-                    raise EasyBuildError("Unknown named arguments passed to copy_dir with dirs_exist_ok=True: %s",
-                                         ', '.join(sorted(kwargs.keys())))
-                distutils.dir_util.copy_tree(path, target_path, preserve_symlinks=preserve_symlinks)
+                # determine list of paths to copy
+                paths_to_copy = [os.path.join(path, x) for x in entries]
+
+                copy(paths_to_copy, target_path,
+                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok, **kwargs)
 
             else:
-                # if dirs_exist_ok is not enabled, just use shutil.copytree
+                # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
                 shutil.copytree(path, target_path, **kwargs)
 
             _log.info("%s copied to %s", path, target_path)
-        except (IOError, OSError) as err:
+        except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
 
 
-def copy(paths, target_path, force_in_dry_run=False):
+def copy(paths, target_path, force_in_dry_run=False, **kwargs):
     """
     Copy single file/directory or list of files and directories to specified location
 
     :param paths: path(s) to copy
     :param target_path: target location
     :param force_in_dry_run: force running the command during dry run
+    :param kwargs: additional named arguments to pass down to copy_dir
     """
     if isinstance(paths, string_type):
         paths = [paths]
@@ -2002,10 +2181,11 @@ def copy(paths, target_path, force_in_dry_run=False):
         full_target_path = os.path.join(target_path, os.path.basename(path))
         mkdir(os.path.dirname(full_target_path), parents=True)
 
-        if os.path.isfile(path):
+        # copy broken symlinks only if 'symlinks=True' is used
+        if os.path.isfile(path) or (os.path.islink(path) and kwargs.get('symlinks')):
             copy_file(path, full_target_path, force_in_dry_run=force_in_dry_run)
         elif os.path.isdir(path):
-            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
+            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run, **kwargs)
         else:
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 

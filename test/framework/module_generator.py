@@ -1273,6 +1273,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                                           ['MPI/intel-CUDA/%s-5.5.22/impi/5.1.2.150' % iccver],
                                                           ['MPI/intel-CUDA/%s-5.5.22/impi/5.1.2.150' % iccver],
                                                           ['Core']),
+            'CrayCCE-5.1.29.eb': ('CrayCCE/5.1.29', 'Core',
+                                  ['Toolchain/CrayCCE/5.1.29'],
+                                  ['Toolchain/CrayCCE/5.1.29'],
+                                  ['Core']),
+            'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'Toolchain/CrayCCE/5.1.29', [], [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)

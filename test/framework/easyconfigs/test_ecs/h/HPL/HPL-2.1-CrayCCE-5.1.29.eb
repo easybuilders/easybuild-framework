@@ -1,0 +1,14 @@
+easyblock = 'ConfigureMake'
+
+name = 'HPL'
+version = '2.1'
+
+homepage = 'http://www.netlib.org/benchmark/hpl/'
+description = "HPL, you know, LINPACK"
+
+toolchain = {'name': 'CrayCCE', 'version': '5.1.29'}
+
+source_urls = ['http://www.netlib.org/benchmark/%(namelower)s']
+sources = [SOURCELOWER_TAR_GZ]
+
+moduleclass = 'tools'
