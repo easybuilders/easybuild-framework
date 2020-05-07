@@ -487,7 +487,11 @@ class ModulesTool(object):
         """
         Determine whether a module wrapper with specified name exists.
         Only .modulerc file in Tcl syntax is considered here.
+        DEPRECATED. Use exists()
         """
+        self.log.deprecated('module_wrapper_exists is unreliable and should no longer be used. ' +
+                            'Use exists instead to check for an existing module or alias.', '5.0')
+
         if mod_wrapper_regex_template is None:
             mod_wrapper_regex_template = "^[ ]*module-version (?P<wrapped_mod>[^ ]*) %s$"
 
@@ -528,24 +532,40 @@ class ModulesTool(object):
 
         return wrapped_mod
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False, maybe_partial=True):
+    def exist(self, mod_names, mod_exists_regex_template=None, skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
         :param mod_names: list of module names
-        :param mod_exists_regex_template: template regular expression to search 'module show' output with
+        :param mod_exists_regex_template: DEPRECATED and unused
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
         :param maybe_partial: indicates if the module name may be a partial module name
         """
+        if mod_exists_regex_template is not None:
+            self.log.deprecated('mod_exists_regex_template is no longer used', '5.0')
+
         def mod_exists_via_show(mod_name):
             """
             Helper function to check whether specified module name exists through 'module show'.
 
             :param mod_name: module name
             """
-            mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
-            txt = self.show(mod_name)
-            return bool(re.search(mod_exists_regex, txt, re.M))
+            stderr = self.show(mod_name)
+            res = False
+            # Parse the output:
+            # - Skip whitespace
+            # - Any error -> Module does not exist
+            # - Check first non-whitespace line for something that looks like an absolute path terminated by a colon
+            mod_exists_regex = r'\s*/.+:\s*'
+            for line in stderr.split('\n'):
+                if OUTPUT_MATCHES['whitespace'].search(line):
+                    continue
+                if OUTPUT_MATCHES['error'].search(line):
+                    break
+                if re.match(mod_exists_regex, line):
+                    res = True
+                break
+            return res
 
         if skip_avail:
             avail_mod_names = []
@@ -569,15 +589,6 @@ class ModulesTool(object):
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
                 mod_exists = mod_exists_via_show(mod_name)
-
-            # if no module file was found, check whether specified module name can be a 'wrapper' module...
-            if not mod_exists:
-                self.log.debug("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
-                wrapped_mod = self.module_wrapper_exists(mod_name)
-                if wrapped_mod is not None:
-                    # module wrapper only really exists if the wrapped module file is also available
-                    mod_exists = wrapped_mod in avail_mod_names or mod_exists_via_show(wrapped_mod)
-                    self.log.debug("Result for existence check of wrapped module %s: %s", wrapped_mod, mod_exists)
 
             self.log.debug("Result for existence check of %s module: %s", mod_name, mod_exists)
 
@@ -643,7 +654,7 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -759,13 +770,15 @@ class ModulesTool(object):
         # also catch and check exit code
         exit_code = proc.returncode
         if kwargs.get('check_exit_code', True) and exit_code != 0:
-            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
-                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
+            raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list), exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
 
-        if kwargs.get('return_output', False):
+        if kwargs.get('return_stderr', False):
+            return stderr
+        elif kwargs.get('return_output', False):
             return stdout + stderr
         else:
             # the module command was run with an outdated selected environment variables (see LD_ENV_VAR_KEYS list)
@@ -1394,7 +1407,7 @@ class Lmod(ModulesTool):
     def module_wrapper_exists(self, mod_name):
         """
         Determine whether a module wrapper with specified name exists.
-        First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
+        DEPRECATED. Use exists()
         """
         res = None
 
@@ -1409,19 +1422,6 @@ class Lmod(ModulesTool):
             res = super(Lmod, self).module_wrapper_exists(mod_name)
 
         return res
-
-    def exist(self, mod_names, skip_avail=False, maybe_partial=True):
-        """
-        Check if modules with specified names exists.
-
-        :param mod_names: list of module names
-        :param skip_avail: skip checking through 'module avail', only check via 'module show'
-        """
-        # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
-        # the current configuration for matters little, since the module may have been installed with a different cfg;
-        # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
-        return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
-                                       skip_avail=skip_avail, maybe_partial=maybe_partial)
 
     def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
