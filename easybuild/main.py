@@ -421,11 +421,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         ordered_ecs = []
 
     if options.copy_ec and tweaked_ecs_paths:
-        tweaked_ecs_in_ordered_ecs = [ec.path for ec in ordered_ecs if
-                                      any(tweaked_ecs_path in ec.path for tweaked_ecs_path in tweaked_ecs_paths)]
-        if tweaked_ecs_in_ordered_ecs:
-            copy_files(determined_paths, target_path)
-            print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=False)
+        all_specs = [spec['spec'] for spec in
+                     resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)]
+        tweaked_ecs_in_all_ecs = [path for path in all_specs if
+                                      any(tweaked_ecs_path in path for tweaked_ecs_path in tweaked_ecs_paths)]
+        if tweaked_ecs_in_all_ecs:
+            copy_files(tweaked_ecs_in_all_ecs, target_path)
+            print_msg("%d file(s) copied to %s" % (len(tweaked_ecs_in_all_ecs), target_path), prefix=False)
 
     # creating/updating PRs
     if pr_options:
