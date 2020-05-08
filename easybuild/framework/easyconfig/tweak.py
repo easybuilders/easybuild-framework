@@ -958,7 +958,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     versonsuffix_mapping = {}
     # We only need to map versionsuffixes if we are updating dependency versions and if there are
     # versionsuffixes being used in dependencies
-    if update_dep_versions and list_deps_versionsuffixes(ec_spec):
+    if update_dep_versions and (list_deps_versionsuffixes(ec_spec) or parsed_ec['versionsuffix']):
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
 
