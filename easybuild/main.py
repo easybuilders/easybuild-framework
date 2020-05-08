@@ -424,7 +424,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         all_specs = [spec['spec'] for spec in
                      resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)]
         tweaked_ecs_in_all_ecs = [path for path in all_specs if
-                                      any(tweaked_ecs_path in path for tweaked_ecs_path in tweaked_ecs_paths)]
+                                  any(tweaked_ecs_path in path for tweaked_ecs_path in tweaked_ecs_paths)]
         if tweaked_ecs_in_all_ecs:
             copy_files(tweaked_ecs_in_all_ecs, target_path)
             print_msg("%d file(s) copied to %s" % (len(tweaked_ecs_in_all_ecs), target_path), prefix=False)
