@@ -189,13 +189,13 @@ def sanitize_env():
     """
     Sanitize environment.
 
-    This function
+    This function:
 
-    * Filter out empty entries from environment variables like $PATH, $LD_LIBRARY_PATH, etc.
+    * Filters out empty entries from environment variables like $PATH, $LD_LIBRARY_PATH, etc.
       Empty entries make no sense, and can cause problems,
       see for example https://github.com/easybuilders/easybuild-easyconfigs/issues/9843 .
 
-    * Undefine all $PYTHON* environment variables,
+    * Undefines all $PYTHON* environment variables,
       since they may affect the build/install procedure of Python packages.
 
       cfr. https://docs.python.org/2/using/cmdline.html#environment-variables
