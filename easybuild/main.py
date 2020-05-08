@@ -320,7 +320,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if options.copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
+    if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
             if len(determined_paths) == 1:
@@ -419,6 +419,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
+
+    if options.copy_ec and tweaked_ecs_paths:
+        tweaked_ecs_in_ordered_ecs = [ec.path for ec in ordered_ecs if
+                                      any(tweaked_ecs_path in ec.path for tweaked_ecs_path in tweaked_ecs_paths)]
+        if tweaked_ecs_in_ordered_ecs:
+            copy_files(determined_paths, target_path)
+            print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=False)
 
     # creating/updating PRs
     if pr_options:
