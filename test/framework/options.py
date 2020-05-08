@@ -517,6 +517,58 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    def test_list_toolchains_rst(self):
+        """Test --list-toolchains --output-format=rst."""
+
+        args = [
+            '--list-toolchains',
+            '--output-format=rst',
+        ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+
+        title = "List of known toolchains"
+
+        # separator line: starts/ends with sequence of '=', 4 spaces in between columns
+        sep_line = r'=(=+\s{4})+[=]+='
+
+        col_names = ['Name', r'Compiler\(s\)', 'MPI', 'Linear algebra', 'FFT']
+        col_names_line = r'\s+'.join(col_names) + r'\s*'
+
+        patterns = [
+            # title
+            '^' + title + '\n' + '-' * len(title) + '\n',
+            # header
+            '\n' + '\n'.join([sep_line, col_names_line, sep_line]) + '\n',
+            # compiler-only GCC toolchain
+            r"\n\*\*GCC\*\*\s+GCC\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s*\n",
+            # gompi compiler + MPI toolchain
+            r"\n\*\*gompi\*\*\s+GCC\s+OpenMPI\s+\*\(none\)\*\s+\*\(none\)\*\s*\n",
+            # full 'foss' toolchain
+            r"\*\*foss\*\*\s+GCC\s+OpenMPI\s+OpenBLAS,\s+ScaLAPACK\s+FFTW\s*\n",
+            # compiler-only iccifort toolchain
+            r"\*\*iccifort\*\*\s+icc,\s+ifort\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s*\n",
+            # full 'intel' toolchain (imkl appears twice, in linalg + FFT columns)
+            r"\*\*intel\*\*\s+icc,\s+ifort\s+impi\s+imkl\s+imkl\s*\n",
+            # fosscuda toolchain, also lists CUDA in compilers column
+            r"\*\*fosscuda\*\*\s+GCC,\s+CUDA\s+OpenMPI\s+OpenBLAS,\s+ScaLAPACK\s+FFTW\s*\n",
+            # system toolchain: 'none' in every column
+            r"\*\*system\*\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s*\n",
+            # Cray special case
+            r"\n\*\*CrayGNU\*\*\s+PrgEnv-gnu\s+cray-mpich\s+cray-libsci\s+\*\(none\)\*\s*\n",
+            # footer
+            '\n' + sep_line + '$',
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_avail_lists(self):
         """Test listing available values of certain types."""
 
