@@ -323,9 +323,13 @@ class EasyBlock(object):
         Obtain checksum for given filename.
 
         :param checksums: a list or tuple of checksums (or None)
-        :param filename: name of the file to obtain checksum for
+        :param filename: name of the file to obtain checksum for (Deprecated)
         :param index: index of file in list
         """
+        # Filename has never been used; flag it as deprecated
+        if filename:
+            self.log.deprecated("Filename argument to get_checksum_for() is deprecated", '5.0')
+            
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, (list, tuple)):
             if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
@@ -336,6 +340,56 @@ class EasyBlock(object):
             return None
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
+
+    def fetch_source(self, source=None, checksum=None, extension=False)
+        """
+        Get a specific source (tarball, iso, url)
+        Will be tested for existence or can be located
+
+        :param source: source to be found (single dictionary in 'sources' list, or filename)
+        :param checksum: checksum corresponding to source
+        """
+        if source is None:
+            raise EasyBuildError("Fetch_source called without 'source' argument")
+        elif ininstance(source, string_type):
+            filename = source
+        elif isinstance(source, dict):
+            # Making a copy to avoid modifying the object with pops
+            source = source.copy()
+            filename = source.pop('filename', None)
+            extract_cmd = source.pop('extract_cmd', None)
+            download_filename = source.pop('download_filename', None)
+            source_urls = source.pop('source_urls', None)
+            git_config = source.pop('git_config', None)
+            if source:
+                raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
+                
+        elif isinstance(source, (list, tuple)) and len(source) == 2:
+            self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
+                                "use a dictionary with 'filename', 'extract_cmd' keys instead", '4.0')
+            filename, extract_cmd = source
+        else:
+            raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
+            
+        # check if the sources can be located
+        force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
+        path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
+                                force_download=force_download, urls=source_urls, git_config=git_config)
+        if path is None:
+            raise EasyBuildError('No file found for source %s', filename)
+            
+        self.log.debug('File %s found for source %s' % (path, filename))
+
+        src = {
+            'name': filename,
+            'path': path,
+            'cmd': extract_cmd,
+            'checksum': checksum,
+            # always set a finalpath
+            'finalpath': self.builddir,
+        }
+
+        return src
 
     def fetch_sources(self, sources=None, checksums=None):
         """
@@ -350,46 +404,22 @@ class EasyBlock(object):
         if checksums is None:
             checksums = self.cfg['checksums']
 
+        # Single source should be re-wrapped as a list, and checksums with it
+        if isinstance(sources, dict):
+            sources = [sources]
+        if isinstance(checksums, string_type):
+            checksums = [checksums]
+
+        # Loop over the list of sources; list of checksums must match >= in size
         for index, source in enumerate(sources):
-            extract_cmd, download_filename, source_urls, git_config = None, None, None, None
-
-            if isinstance(source, string_type):
-                filename = source
-
-            elif isinstance(source, dict):
-                # Making a copy to avoid modifying the object with pops
-                source = source.copy()
-                filename = source.pop('filename', None)
-                extract_cmd = source.pop('extract_cmd', None)
-                download_filename = source.pop('download_filename', None)
-                source_urls = source.pop('source_urls', None)
-                git_config = source.pop('git_config', None)
-                if source:
-                    raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
-
-            elif isinstance(source, (list, tuple)) and len(source) == 2:
-                self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
-                                    "use a dictionary with 'filename', 'extract_cmd' keys instead", '4.0')
-                filename, extract_cmd = source
+            if source:
+                got_src = self.fetch_source(source, self.get_checksum_for(checksums=checksums, index=index))
+                if got_src:
+                    self.src.append(got_src)
+                else:
+                    raise EasyBlockError("Unable to retrieve source %s", source)
             else:
-                raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
-
-            # check if the sources can be located
-            force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-            path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download,
-                                    urls=source_urls, git_config=git_config)
-            if path:
-                self.log.debug('File %s found for source %s' % (path, filename))
-                self.src.append({
-                    'name': filename,
-                    'path': path,
-                    'cmd': extract_cmd,
-                    'checksum': self.get_checksum_for(checksums, filename=filename, index=index),
-                    # always set a finalpath
-                    'finalpath': self.builddir,
-                })
-            else:
-                raise EasyBuildError('No file found for source %s', filename)
+                raise EasyBuildError("Empty source in list at index %d", index)
 
         self.log.info("Added sources: %s", self.src)
 
@@ -436,7 +466,7 @@ class EasyBlock(object):
                 patchspec = {
                     'name': patch_file,
                     'path': path,
-                    'checksum': self.get_checksum_for(checksums, filename=patch_file, index=index),
+                    'checksum': self.get_checksum_for(checksums, index=index),
                 }
                 if suff:
                     if copy_file:
@@ -514,6 +544,11 @@ class EasyBlock(object):
 
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
+                    elif ext_options.get('sources', None):
+                        sources = ext_options['sources']
+                        src = self.fetch_sources(sources, checksums=checksums, extension=True)
+                        exts_sources.append(src)
+                        ### THIS ISN'T SUFFICIENT.  WHAT ELSE?
                     else:
                         source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
@@ -523,7 +558,7 @@ class EasyBlock(object):
                                                   git_config=git_config)
 
                         if src_fn:
-                            ext_src.update({'src': src_fn})
+                            ext_src.update({'path': src_fn})
 
                             if not skip_checksums:
                                 # report both MD5 and SHA256 checksums, since both are valid default checksum types
@@ -533,7 +568,7 @@ class EasyBlock(object):
 
                                 # verify checksum (if provided)
                                 self.log.debug('Verifying checksums for extension source...')
-                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                                fn_checksum = self.get_checksum_for(checksums, index=0)
                                 if verify_checksum(src_fn, fn_checksum):
                                     self.log.info('Checksum for extension source %s verified', fn)
                                 elif build_option('ignore_checksums'):
@@ -559,7 +594,7 @@ class EasyBlock(object):
                                     self.log.debug('Verifying checksums for extension patches...')
                                     for idx, patch in enumerate(ext_patches):
                                         patch = patch['path']
-                                        checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
+                                        checksum = self.get_checksum_for(checksums[1:], index=idx)
                                         if verify_checksum(patch, checksum):
                                             self.log.info('Checksum for extension patch %s verified', patch)
                                         elif build_option('ignore_checksums'):
