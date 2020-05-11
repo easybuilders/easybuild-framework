@@ -341,17 +341,20 @@ class EasyBlock(object):
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
 
-    def fetch_source(self, source=None, checksum=None, extension=False)
+    def fetch_source(self, source=None, checksum=None, extension=False):
         """
         Get a specific source (tarball, iso, url)
         Will be tested for existence or can be located
 
         :param source: source to be found (single dictionary in 'sources' list, or filename)
         :param checksum: checksum corresponding to source
+        :param extension: flag if being called from fetch_extension_sources()
         """
+        filename, download_filename, extract_cmd, source_urls, git_config = None, None, None, None, None
+
         if source is None:
             raise EasyBuildError("Fetch_source called without 'source' argument")
-        elif ininstance(source, string_type):
+        elif isinstance(source, string_type):
             filename = source
         elif isinstance(source, dict):
             # Making a copy to avoid modifying the object with pops
@@ -363,21 +366,21 @@ class EasyBlock(object):
             git_config = source.pop('git_config', None)
             if source:
                 raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
-                
+
         elif isinstance(source, (list, tuple)) and len(source) == 2:
             self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
                                 "use a dictionary with 'filename', 'extract_cmd' keys instead", '4.0')
             filename, extract_cmd = source
         else:
             raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
-            
+
         # check if the sources can be located
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
                                 force_download=force_download, urls=source_urls, git_config=git_config)
         if path is None:
             raise EasyBuildError('No file found for source %s', filename)
-            
+
         self.log.debug('File %s found for source %s' % (path, filename))
 
         src = {
@@ -546,9 +549,9 @@ class EasyBlock(object):
                         exts_sources.append(ext_src)
                     elif ext_options.get('sources', None):
                         sources = ext_options['sources']
-                        src = self.fetch_sources(sources, checksums=checksums, extension=True)
+                        src = self.fetch_source(sources, checksums, extension=True)
                         exts_sources.append(src)
-                        ### THIS ISN'T SUFFICIENT.  WHAT ELSE?
+                        # TODO MHK:  This has 'path' entry, not 'src'
                     else:
                         source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
@@ -558,8 +561,8 @@ class EasyBlock(object):
                                                   git_config=git_config)
 
                         if src_fn:
-                            ext_src.update({'path': src_fn})
-
+                            ext_src.update({'src': src_fn})
+                            # TODO MHK: Should this be 'path' to match fetch_source?
                             if not skip_checksums:
                                 # report both MD5 and SHA256 checksums, since both are valid default checksum types
                                 for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
@@ -3656,6 +3659,12 @@ def inject_checksums(ecs, checksum_type):
                         checksum = compute_checksum(ext['src'], checksum_type)
                         print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
                         ext_checksums.append((src_fn, checksum))
+                    elif 'path' in ext:
+                        src_fn = os.path.basename(ext['path'])
+                        checksum = compute_checksum(ext['path'], checksum_type)
+                        print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
+                        ext_checksums.append((src_fn, checksum))
+                    # TODO MHK: Is testing for both correct?
                     for ext_patch in ext.get('patches', []):
                         patch_fn = os.path.basename(ext_patch['path'])
                         checksum = compute_checksum(ext_patch['path'], checksum_type)
