@@ -329,7 +329,7 @@ class EasyBlock(object):
         # Filename has never been used; flag it as deprecated
         if filename:
             self.log.deprecated("Filename argument to get_checksum_for() is deprecated", '5.0')
-            
+
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, (list, tuple)):
             if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
@@ -420,7 +420,7 @@ class EasyBlock(object):
                 if got_src:
                     self.src.append(got_src)
                 else:
-                    raise EasyBlockError("Unable to retrieve source %s", source)
+                    raise EasyBuildError("Unable to retrieve source %s", source)
             else:
                 raise EasyBuildError("Empty source in list at index %d", index)
 
