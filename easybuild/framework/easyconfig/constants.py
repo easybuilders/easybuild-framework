@@ -60,4 +60,6 @@ EASYCONFIG_CONSTANTS = {
                            "OS packages providing openSSL libraries"),
     'OS_PKG_OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
                            "OS packages providing openSSL developement support"),
+    'OS_PKG_PAM_DEV': (('pam-devel', 'libpam0g-dev'),
+                       "OS packages providing Pluggable Authentication Module (PAM) developement support"),
 }
