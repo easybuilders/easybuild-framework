@@ -1970,7 +1970,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tweaked_ecs_dir = os.path.join(self.test_buildpath, 'my_tweaked_ecs')
         self.eb_main(args + ['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a', tweaked_ecs_dir],
-                              verbose=True, raise_error=True)
+                     verbose=True, raise_error=True)
         self.assertTrue(
             os.path.exists(os.path.join(self.test_buildpath, tweaked_ecs_dir, 'foo-1.2.3-GCC-6.4.0-2.28.eb'))
         )
