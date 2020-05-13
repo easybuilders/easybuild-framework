@@ -38,7 +38,6 @@ import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from distutils.version import LooseVersion
 from functools import cmp_to_key
-from html.parser import HTMLParser  # noqa
 from itertools import zip_longest
 from io import StringIO  # noqa
 from string import ascii_letters, ascii_lowercase  # noqa
