@@ -550,8 +550,9 @@ class EasyBlock(object):
                     elif ext_options.get('sources', None):
                         sources = ext_options['sources']
                         src = self.fetch_source(sources, checksums, extension=True)
+                        # Copy 'path' entry to 'src' for use with extensions
+                        src.update({'src': src['path']})
                         exts_sources.append(src)
-                        # TODO MHK:  This has 'path' entry, not 'src'
                     else:
                         source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
@@ -562,7 +563,7 @@ class EasyBlock(object):
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
-                            # TODO MHK: Should this be 'path' to match fetch_source?
+
                             if not skip_checksums:
                                 # report both MD5 and SHA256 checksums, since both are valid default checksum types
                                 for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
@@ -3659,12 +3660,6 @@ def inject_checksums(ecs, checksum_type):
                         checksum = compute_checksum(ext['src'], checksum_type)
                         print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
                         ext_checksums.append((src_fn, checksum))
-                    elif 'path' in ext:
-                        src_fn = os.path.basename(ext['path'])
-                        checksum = compute_checksum(ext['path'], checksum_type)
-                        print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
-                        ext_checksums.append((src_fn, checksum))
-                    # TODO MHK: Is testing for both correct?
                     for ext_patch in ext.get('patches', []):
                         patch_fn = os.path.basename(ext_patch['path'])
                         checksum = compute_checksum(ext_patch['path'], checksum_type)
