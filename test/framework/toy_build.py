@@ -1243,13 +1243,13 @@ class ToyBuildTest(EnhancedTestCase):
         ext_tarfile = 'a_directory/a_file.txt'
 
         # Dummy source code required for extensions build_step to pass
-        ext_src = 'int main() { return 0; }'
+        ext_code = 'int main() { return 0; }'
         ext_cfile = 'exts-git.c'
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = '\n'.join([
             toy_ec_txt,
-            'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_src, ext_cfile),
+            'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_code, ext_cfile),
             'exts_list = [',
             '   ("exts-git", "0.0", {',
             '       "buildopts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),

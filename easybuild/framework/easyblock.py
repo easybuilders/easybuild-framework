@@ -551,8 +551,8 @@ class EasyBlock(object):
                         sources = ext_options['sources']
                         src = self.fetch_source(sources, checksums, extension=True)
                         # Copy 'path' entry to 'src' for use with extensions
-                        src.update({'src': src['path']})
-                        exts_sources.append(src)
+                        ext_src.update({'src': src['path']})
+                        exts_sources.append(ext_src)
                     else:
                         source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
