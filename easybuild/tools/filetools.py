@@ -2228,8 +2228,8 @@ def diff_files(path1, path2):
     """
     Return unified diff between two files
     """
-    file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
-    file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
+    file1_lines = ['%s\n' % line for line in read_file(path1).split('\n')]
+    file2_lines = ['%s\n' % line for line in read_file(path2).split('\n')]
     return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
 
 

@@ -580,10 +580,10 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     reg = re.compile(regExp, re.I)
 
     res = []
-    for l in txt.split('\n'):
-        r = reg.search(l)
+    for line in txt.split('\n'):
+        r = reg.search(line)
         if r:
-            res.append([l, r.groups()])
+            res.append([line, r.groups()])
             errors_found_in_log += 1
 
     if stdout and res:

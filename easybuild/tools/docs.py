@@ -602,7 +602,7 @@ def list_software_rst(software, detailed=False):
 
     def key_to_ref(name):
         """Create a reference label for the specified software name."""
-        return 'list_software_%s_%d' % (name, sum(ord(l) for l in name))
+        return 'list_software_%s_%d' % (name, sum(ord(letter) for letter in name))
 
     letter = None
     sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
