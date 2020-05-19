@@ -47,6 +47,7 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, st
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
@@ -320,7 +321,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if options.copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
+    if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
             if len(determined_paths) == 1:
@@ -419,6 +420,17 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
+
+    if options.copy_ec and tweaked_ecs_paths:
+        all_specs = [spec['spec'] for spec in
+                     resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)]
+        tweaked_ecs_in_all_ecs = [path for path in all_specs if
+                                  any(tweaked_ecs_path in path for tweaked_ecs_path in tweaked_ecs_paths)]
+        if tweaked_ecs_in_all_ecs:
+            # Clean them, then copy them
+            clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
+            copy_files(tweaked_ecs_in_all_ecs, target_path)
+            print_msg("%d file(s) copied to %s" % (len(tweaked_ecs_in_all_ecs), target_path), prefix=False)
 
     # creating/updating PRs
     if pr_options:

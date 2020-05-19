@@ -1946,6 +1946,51 @@ class CommandLineOptionsTest(EnhancedTestCase):
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
+    def test_try_with_copy(self):
+        """Test whether --try options are taken into account."""
+        ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
+        copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
+        f = open(tweaked_toy_ec, 'a')
+        f.write("easyblock = 'ConfigureMake'")
+        f.close()
+
+        args = [
+            tweaked_toy_ec,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--dry-run',
+            '--robot=%s' % ecs_path,
+            '--copy-ec',
+        ]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        copied_ec = os.path.join(self.test_buildpath, 'my_eb.eb')
+        self.eb_main(args + [copied_ec], verbose=True, raise_error=True)
+        outtxt = self.get_stdout()
+        errtxt = self.get_stderr()
+        self.assertTrue(r'toy-0.0-tweaked.eb copied to ' + copied_ec in outtxt)
+        self.assertFalse(errtxt)
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue(os.path.exists(copied_ec))
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        tweaked_ecs_dir = os.path.join(self.test_buildpath, 'my_tweaked_ecs')
+        self.eb_main(args + ['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a', tweaked_ecs_dir],
+                     verbose=True, raise_error=True)
+        outtxt = self.get_stdout()
+        errtxt = self.get_stderr()
+        self.assertTrue(r'1 file(s) copied to ' + tweaked_ecs_dir in outtxt)
+        self.assertFalse(errtxt)
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue(
+            os.path.exists(os.path.join(self.test_buildpath, tweaked_ecs_dir, 'foo-1.2.3-GCC-6.4.0-2.28.eb'))
+        )
+
     def test_software_version_ordering(self):
         """Test whether software versions are correctly ordered when using --software."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
