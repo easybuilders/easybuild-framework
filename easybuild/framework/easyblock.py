@@ -71,12 +71,12 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file
-from easybuild.tools.filetools import change_dir, convert_name, compute_checksum, copy_file, derive_alt_pypi_url
-from easybuild.tools.filetools import diff_files, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
+from easybuild.tools.filetools import compute_checksum, copy_file, check_lock, create_lock, derive_alt_pypi_url
+from easybuild.tools.filetools import diff_files, dir_contains_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, verify_checksum, weld_paths, write_file, dir_contains_files
+from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -1014,6 +1014,25 @@ class EasyBlock(object):
         # cleanup: unload fake module, remove fake module dir
         self.clean_up_fake_module(fake_mod_data)
 
+    def make_module_deppaths(self):
+        """
+        Add specific 'module use' actions to module file, in order to find
+        dependencies outside the end user's MODULEPATH.
+        """
+        deppaths = self.cfg['moddependpaths']
+        if not deppaths:
+            return ''
+        elif not isinstance(deppaths, (str, list, tuple)):
+            raise EasyBuildError("moddependpaths value %s (type: %s) is not a string, list or tuple",
+                                 deppaths, type(deppaths))
+
+        if isinstance(deppaths, str):
+            txt = self.module_generator.use([deppaths], guarded=True)
+        else:
+            txt = self.module_generator.use(deppaths, guarded=True)
+
+        return txt
+
     def make_module_dep(self, unload_info=None):
         """
         Make the dependencies for the module file.
@@ -1194,7 +1213,8 @@ class EasyBlock(object):
         lines = [self.module_extra_extensions]
 
         # set environment variable that specifies list of extensions
-        exts_list = ','.join(['%s-%s' % (ext[0], ext[1]) for ext in self.cfg['exts_list']])
+        # We need only name and version, so don't resolve templates
+        exts_list = ','.join(['-'.join(ext[:2]) for ext in self.cfg.get_ref('exts_list')])
         env_var_name = convert_name(self.name, upper=True)
         lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
@@ -1207,7 +1227,7 @@ class EasyBlock(object):
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
         # add extra stuff for extensions (if any)
-        if self.cfg['exts_list']:
+        if self.cfg.get_ref('exts_list'):
             footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
@@ -1791,7 +1811,7 @@ class EasyBlock(object):
                 trace_msg(msg)
 
         # fetch extensions
-        if self.cfg['exts_list']:
+        if self.cfg.get_ref('exts_list'):
             self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
 
         # create parent dirs in install and modules path already
@@ -1911,7 +1931,9 @@ class EasyBlock(object):
         """
         for src in self.src:
             self.log.info("Unpacking source %s" % src['name'])
-            srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'], extra_options=self.cfg['unpack_options'])
+            srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'],
+                                  extra_options=self.cfg['unpack_options'], change_into_dir=False)
+            change_dir(srcdir)
             if srcdir:
                 self.src[self.src.index(src)]['finalpath'] = srcdir
             else:
@@ -2063,7 +2085,7 @@ class EasyBlock(object):
         - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
         - run extra_extensions
         """
-        if len(self.cfg['exts_list']) == 0:
+        if not self.cfg.get_ref('exts_list'):
             self.log.debug("No extensions in exts_list")
             return
 
@@ -2409,37 +2431,71 @@ class EasyBlock(object):
             SANITY_CHECK_PATHS_DIRS: ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
         }
 
-        # prepare sanity check paths
-        paths = self.cfg['sanity_check_paths']
-        if not paths:
+        enhance_sanity_check = self.cfg['enhance_sanity_check']
+        ec_commands = self.cfg['sanity_check_commands']
+        ec_paths = self.cfg['sanity_check_paths']
+
+        # if enhance_sanity_check is not enabled, only sanity_check_paths specified in the easyconfig file are used,
+        # the ones provided by the easyblock (via custom_paths) are ignored
+        if ec_paths and not enhance_sanity_check:
+            paths = ec_paths
+            self.log.info("Using (only) sanity check paths specified by easyconfig file: %s", paths)
+        else:
+            # if no sanity_check_paths are specified in easyconfig,
+            # we fall back to the ones provided by the easyblock via custom_paths
             if custom_paths:
                 paths = custom_paths
-                self.log.info("Using customized sanity check paths: %s" % paths)
+                self.log.info("Using customized sanity check paths: %s", paths)
+            # if custom_paths is empty, we fall back to a generic set of paths:
+            # non-empty bin/ + /lib or /lib64 directories
             else:
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
                 paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
-                self.log.info("Using default sanity check paths: %s" % paths)
+                self.log.info("Using default sanity check paths: %s", paths)
+
+            # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
+            # those paths are used to enhance the paths provided by the easyblock
+            if enhance_sanity_check and ec_paths:
+                for key in ec_paths:
+                    val = ec_paths[key]
+                    if isinstance(val, list):
+                        paths[key] = paths.get(key, []) + val
+                    else:
+                        error_pattern = "Incorrect value type in sanity_check_paths, should be a list: "
+                        error_pattern += "%s (type: %s)" % (val, type(val))
+                        raise EasyBuildError(error_pattern)
+                self.log.info("Enhanced sanity check paths after taking into account easyconfig file: %s", paths)
+
+        sorted_keys = sorted(paths.keys())
+        known_keys = sorted(path_keys_and_check.keys())
+
+        # verify sanity_check_paths value: only known keys, correct value types, at least one non-empty value
+        only_list_values = all(isinstance(x, list) for x in paths.values())
+        only_empty_lists = all(not x for x in paths.values())
+        if sorted_keys != known_keys or not only_list_values or only_empty_lists:
+            error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
+            error_msg += "values should be lists (at least one non-empty)."
+            raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
+
+        # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
+        # the ones provided by the easyblock (via custom_commands) are ignored
+        if ec_commands and not enhance_sanity_check:
+            commands = ec_commands
+            self.log.info("Using (only) sanity check commands specified by easyconfig file: %s", commands)
         else:
-            self.log.info("Using specified sanity check paths: %s" % paths)
-
-        ks = sorted(paths.keys())
-        valnottypes = [not isinstance(x, list) for x in paths.values()]
-        lenvals = [len(x) for x in paths.values()]
-        req_keys = sorted(path_keys_and_check.keys())
-        if not ks == req_keys or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            raise EasyBuildError("Incorrect format for sanity_check_paths (should (only) have %s keys, "
-                                 "values should be lists (at least one non-empty)).", ','.join(req_keys))
-
-        commands = self.cfg['sanity_check_commands']
-        if not commands:
             if custom_commands:
                 commands = custom_commands
-                self.log.info("Using customised sanity check commands: %s" % commands)
+                self.log.info("Using customised sanity check commands: %s", commands)
             else:
                 commands = []
-                self.log.info("Using specified sanity check commands: %s" % commands)
+
+            # if enhance_sanity_check is enabled, the sanity_check_commands specified in the easyconfig file
+            # are combined with those provided by the easyblock via custom_commands
+            if enhance_sanity_check and ec_commands:
+                commands = commands + ec_commands
+                self.log.info("Enhanced sanity check commands after taking into account easyconfig file: %s", commands)
 
         for i, command in enumerate(commands):
             # set command to default. This allows for config files with
@@ -2475,9 +2531,17 @@ class EasyBlock(object):
         """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
-        for key, (typ, _) in path_keys_and_check.items():
+        for key in [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS]:
+            (typ, _) = path_keys_and_check[key]
             self.dry_run_msg("Sanity check paths - %s ['%s']", typ, key)
-            if paths[key]:
+            entries = paths[key]
+            if entries:
+                # some entries may be tuple values,
+                # we need to convert them to strings first so we can print them sorted
+                for idx, entry in enumerate(entries):
+                    if isinstance(entry, tuple):
+                        entries[idx] = ' or '.join(entry)
+
                 for path in sorted(paths[key]):
                     self.dry_run_msg("  * %s", str(path))
             else:
@@ -2608,6 +2672,9 @@ class EasyBlock(object):
 
         # run sanity check commands
         for command in commands:
+
+            trace_msg("running command '%s' ..." % command)
+
             out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
@@ -2616,7 +2683,7 @@ class EasyBlock(object):
             else:
                 self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
-            trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
+            trace_msg("result for command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
@@ -2723,6 +2790,7 @@ class EasyBlock(object):
 
         txt += self.make_module_description()
         txt += self.make_module_group_check()
+        txt += self.make_module_deppaths()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
@@ -3049,30 +3117,14 @@ class EasyBlock(object):
         if ignore_locks:
             self.log.info("Ignoring locks...")
         else:
-            locks_dir = build_option('locks_dir') or os.path.join(install_path('software'), '.locks')
-            lock_path = os.path.join(locks_dir, '%s.lock' % self.installdir.replace('/', '_'))
+            lock_name = self.installdir.replace('/', '_')
 
-            # if lock already exists, either abort or wait until it disappears
-            if os.path.exists(lock_path):
-                wait_on_lock = build_option('wait_on_lock')
-                if wait_on_lock:
-                    while os.path.exists(lock_path):
-                        print_msg("lock %s exists, waiting %d seconds..." % (lock_path, wait_on_lock),
-                                  silent=self.silent)
-                        time.sleep(wait_on_lock)
-                else:
-                    raise EasyBuildError("Lock %s already exists, aborting!", lock_path)
+            # check if lock already exists;
+            # either aborts with an error or waits until it disappears (depends on --wait-on-lock)
+            check_lock(lock_name)
 
-            # create lock to avoid that another installation running in parallel messes things up;
-            # we use a directory as a lock, since that's atomically created
-            try:
-                mkdir(lock_path, parents=True)
-            except EasyBuildError as err:
-                # clean up the error message a bit, get rid of the "Failed to create directory" part + quotes
-                stripped_err = str(err).split(':', 1)[1].strip().replace("'", '').replace('"', '')
-                raise EasyBuildError("Failed to create lock %s: %s", lock_path, stripped_err)
-
-            self.log.info("Lock created: %s", lock_path)
+            # create lock to avoid that another installation running in parallel messes things up
+            create_lock(lock_name)
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
@@ -3090,8 +3142,7 @@ class EasyBlock(object):
             pass
         finally:
             if not ignore_locks:
-                remove_dir(lock_path)
-                self.log.info("Lock removed: %s", lock_path)
+                remove_lock(lock_name)
 
         # return True for successfull build (or stopped build)
         return True
@@ -3330,7 +3381,7 @@ def reproduce_build(app, reprod_dir_root):
     reprod_dir = find_backup_name_candidate(os.path.join(reprod_dir_root, REPROD))
     reprod_spec = os.path.join(reprod_dir, ec_filename)
     try:
-        app.cfg.dump(reprod_spec)
+        app.cfg.dump(reprod_spec, explicit_toolchains=True)
         _log.info("Dumped easyconfig instance to %s", reprod_spec)
     except NotImplementedError as err:
         _log.warning("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)

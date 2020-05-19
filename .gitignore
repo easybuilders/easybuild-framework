@@ -9,6 +9,7 @@ build/
 dist/
 *egg-info/
 *.swp
+.mypy_cache/
 
 Dockerfile.*
 Singularity.*

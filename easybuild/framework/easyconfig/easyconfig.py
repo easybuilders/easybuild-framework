@@ -36,6 +36,7 @@ Easyconfig module that contains the EasyConfig class.
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+:author: Victor Holanda (CSCS, ETH Zurich)
 """
 
 import copy
@@ -44,6 +45,7 @@ import functools
 import os
 import re
 from distutils.version import LooseVersion
+from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -62,7 +64,7 @@ from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
-from easybuild.tools.filetools import copy_file, create_index, decode_class_name, encode_class_name
+from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.hooks import PARSE, load_hooks, run_hook
@@ -382,6 +384,23 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
+@contextmanager
+def disable_templating(ec):
+    """Temporarily disable templating on the given EasyConfig
+
+    Usage:
+        with disable_templating(ec):
+            # Do what you want without templating
+        # Templating set to previous value
+    """
+    old_enable_templating = ec.enable_templating
+    ec.enable_templating = False
+    try:
+        yield old_enable_templating
+    finally:
+        ec.enable_templating = old_enable_templating
+
+
 class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
@@ -591,18 +610,15 @@ class EasyConfig(object):
         """
         # disable templating when setting easyconfig parameters
         # required to avoid problems with values that need more parsing to be done (e.g. dependencies)
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
-
-        for key in sorted(params.keys()):
-            # validations are skipped, just set in the config
-            if key in self._config.keys():
-                self[key] = params[key]
-                self.log.info("setting easyconfig parameter %s: value %s (type: %s)", key, self[key], type(self[key]))
-            else:
-                raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
-
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            for key in sorted(params.keys()):
+                # validations are skipped, just set in the config
+                if key in self._config.keys():
+                    self[key] = params[key]
+                    self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
+                                  key, self[key], type(self[key]))
+                else:
+                    raise EasyBuildError("Unknown easyconfig parameter: %s (value '%s')", key, params[key])
 
     def parse(self):
         """
@@ -646,42 +662,39 @@ class EasyConfig(object):
 
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
+        with disable_templating(self):
+            # if any lists of dependency versions are specified over which we should iterate,
+            # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters
+            self.handle_multi_deps()
 
-        # if any lists of dependency versions are specified over which we should iterate,
-        # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters...
-        self.handle_multi_deps()
+            parse_hook_msg = None
+            if self.path:
+                parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
 
-        parse_hook_msg = None
-        if self.path:
-            parse_hook_msg = "Running %s hook for %s..." % (PARSE, os.path.basename(self.path))
+            # trigger parse hook
+            hooks = load_hooks(build_option('hooks'))
+            run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
 
-        # trigger parse hook
-        hooks = load_hooks(build_option('hooks'))
-        run_hook(PARSE, hooks, args=[self], msg=parse_hook_msg)
+            # parse dependency specifications
+            # it's important that templating is still disabled at this stage!
+            self.log.info("Parsing dependency specifications...")
+            self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
+            self['hiddendependencies'] = [
+                self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']
+            ]
 
-        # parse dependency specifications
-        # it's important that templating is still disabled at this stage!
-        self.log.info("Parsing dependency specifications...")
-        self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
-        self['hiddendependencies'] = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+            # need to take into account that builddependencies may need to be iterated over,
+            # i.e. when the value is a list of lists of tuples
+            builddeps = self['builddependencies']
+            if builddeps and all(isinstance(x, (list, tuple)) for b in builddeps for x in b):
+                self.iterate_options.append('builddependencies')
+                builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
+            else:
+                builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
+            self['builddependencies'] = builddeps
 
-        # need to take into account that builddependencies may need to be iterated over,
-        # i.e. when the value is a list of lists of tuples
-        builddeps = self['builddependencies']
-        if builddeps and all(isinstance(x, (list, tuple)) for b in builddeps for x in b):
-            self.iterate_options.append('builddependencies')
-            builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
-        else:
-            builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
-        self['builddependencies'] = builddeps
-
-        # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
-        self.multi_deps = self.get_parsed_multi_deps()
-
-        # restore templating
-        self.enable_templating = prev_enable_templating
+            # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
+            self.multi_deps = self.get_parsed_multi_deps()
 
         # update templating dictionary
         self.generate_template_values()
@@ -1100,60 +1113,64 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
-    def dump(self, fp, always_overwrite=True, backup=False):
+    def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
         """
         Dump this easyconfig to file, with the given filename.
 
         :param always_overwrite: overwrite existing file at specified location without use of --force
         :param backup: create backup of existing file before overwriting it
         """
-        orig_enable_templating = self.enable_templating
-
         # templated values should be dumped unresolved
-        self.enable_templating = False
+        with disable_templating(self):
+            # build dict of default values
+            default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
+            default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
-        # build dict of default values
-        default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
-        default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+            self.generate_template_values()
+            templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
-        self.generate_template_values()
-        templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
+            # create reverse map of templates, to inject template values where possible
+            # longer template values are considered first, shorter template keys get preference over longer ones
+            sorted_keys = sorted(self.template_values, key=lambda k: (len(self.template_values[k]), -len(k)),
+                                 reverse=True)
+            templ_val = OrderedDict([])
+            for key in sorted_keys:
+                # shortest template 'key' is retained in case of duplicates
+                # ('namelower' is preferred over 'github_account')
+                # only template values longer than 2 characters are retained
+                if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
+                    templ_val[self.template_values[key]] = key
 
-        # create reverse map of templates, to inject template values where possible
-        # longer template values are considered first, shorter template keys get preference over longer ones
-        sorted_keys = sorted(self.template_values, key=lambda k: (len(self.template_values[k]), -len(k)), reverse=True)
-        templ_val = OrderedDict([])
-        for key in sorted_keys:
-            # shortest template 'key' is retained in case of duplicates ('namelower' is preferred over 'github_account')
-            # only template values longer than 2 characters are retained
-            if self.template_values[key] not in templ_val and len(self.template_values[key]) > 2:
-                templ_val[self.template_values[key]] = key
+            toolchain_hierarchy = None
+            if not explicit_toolchains:
+                try:
+                    toolchain_hierarchy = get_toolchain_hierarchy(self['toolchain'])
+                except EasyBuildError as err:
+                    # don't fail hard just because we can't get the hierarchy
+                    self.log.warning('Could not generate toolchain hierarchy for %s to use in easyconfig dump method, '
+                                     'error:\n%s', self['toolchain'], str(err))
 
-        try:
-            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
-        except NotImplementedError as err:
-            # need to restore enable_templating value in case this method is caught in a try/except block and ignored
-            # (the ability to dump is not a hard requirement for build success)
-            self.enable_templating = orig_enable_templating
-            raise NotImplementedError(err)
+            try:
+                ectxt = self.parser.dump(self, default_values, templ_const, templ_val,
+                                         toolchain_hierarchy=toolchain_hierarchy)
+            except NotImplementedError as err:
+                raise NotImplementedError(err)
 
-        self.log.debug("Dumped easyconfig: %s", ectxt)
+            self.log.debug("Dumped easyconfig: %s", ectxt)
 
-        if build_option('dump_autopep8'):
-            autopep8_opts = {
-                'aggressive': 1,  # enable non-whitespace changes, but don't be too aggressive
-                'max_line_length': 120,
-            }
-            self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
-            ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
-            self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
+            if build_option('dump_autopep8'):
+                autopep8_opts = {
+                    'aggressive': 1,  # enable non-whitespace changes, but don't be too aggressive
+                    'max_line_length': 120,
+                }
+                self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
+                ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
+                self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
-        if not ectxt.endswith('\n'):
-            ectxt += '\n'
+            if not ectxt.endswith('\n'):
+                ectxt += '\n'
 
-        write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
-
-        self.enable_templating = orig_enable_templating
+            write_file(fp, ectxt, always_overwrite=always_overwrite, backup=backup, verbose=backup)
 
     def _validate(self, attr, values):  # private method
         """
@@ -1165,20 +1182,133 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
-    def handle_external_module_metadata(self, dep_name):
+    def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
-        helper function for _parse_dependency
-        handles metadata for external module dependencies
-        """
-        dependency = {}
-        if dep_name in self.external_modules_metadata:
-            dependency['external_module_metadata'] = self.external_modules_metadata[dep_name]
-            self.log.info("Updated dependency info with available metadata for external module %s: %s",
-                          dep_name, dependency['external_module_metadata'])
-        else:
-            self.log.info("No metadata available for external module %s", dep_name)
+        Helper function for handle_external_module_metadata.
 
-        return dependency
+        Tries to determine metadata for external module when there is not entry in the metadata file,
+        by looking at the variables defined by the module file.
+
+        This is mainly intended for modules provided in the Cray Programming Environment,
+        but it could also be useful in other contexts.
+
+        The following pairs of variables are considered (in order, first hit wins),
+        where 'XXX' is the software name in capitals:
+          1. $CRAY_XXX_PREFIX and $CRAY_XXX_VERSION
+          1. $CRAY_XXX_PREFIX_DIR and $CRAY_XXX_VERSION
+          2. $CRAY_XXX_DIR and $CRAY_XXX_VERSION
+          2. $CRAY_XXX_ROOT and $CRAY_XXX_VERSION
+          5. $XXX_PREFIX and $XXX_VERSION
+          4. $XXX_DIR and $XXX_VERSION
+          5. $XXX_ROOT and $XXX_VERSION
+          3. $XXX_HOME and $XXX_VERSION
+
+        If none of the pairs is found, then an empty dictionary is returned.
+
+        :param mod_name: name of the external module
+        :param metadata: already available metadata for this external module (if any)
+        """
+        res = {}
+
+        if existing_metadata is None:
+            existing_metadata = {}
+
+        soft_name = existing_metadata.get('name')
+        if soft_name:
+            # software name is a list of names in metadata, just grab first one
+            soft_name = soft_name[0]
+        else:
+            # if the software name is not known yet, use the first part of the module name as software name,
+            # but strip off the leading 'cray-' part first (examples: cray-netcdf/4.6.1.3,  cray-fftw/3.3.8.2)
+            soft_name = mod_name.split('/')[0]
+
+            cray_prefix = 'cray-'
+            if soft_name.startswith(cray_prefix):
+                soft_name = soft_name[len(cray_prefix):]
+
+        # determine software name to use in names of environment variables (upper case, '-' becomes '_')
+        soft_name_in_mod_name = convert_name(soft_name.replace('-', '_'), upper=True)
+
+        var_name_pairs = [
+            ('CRAY_%s_PREFIX', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_PREFIX_DIR', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_DIR', 'CRAY_%s_VERSION'),
+            ('CRAY_%s_ROOT', 'CRAY_%s_VERSION'),
+            ('%s_PREFIX', '%s_VERSION'),
+            ('%s_DIR', '%s_VERSION'),
+            ('%s_ROOT', '%s_VERSION'),
+            ('%s_HOME', '%s_VERSION'),
+        ]
+
+        for prefix_var_name, version_var_name in var_name_pairs:
+            prefix_var_name = prefix_var_name % soft_name_in_mod_name
+            version_var_name = version_var_name % soft_name_in_mod_name
+
+            prefix = self.modules_tool.get_setenv_value_from_modulefile(mod_name, prefix_var_name)
+            version = self.modules_tool.get_setenv_value_from_modulefile(mod_name, version_var_name)
+
+            # we only have a hit when values for *both* variables are found
+            if prefix and version:
+
+                if 'name' not in existing_metadata:
+                    res['name'] = [soft_name]
+
+                # if a version is already set in the available metadata, we retain it
+                if 'version' not in existing_metadata:
+                    res['version'] = [version]
+                    self.log.info('setting external module %s version to be %s', mod_name, version)
+
+                # if a prefix is already set in the available metadata, we retain it
+                if 'prefix' not in existing_metadata:
+                    res['prefix'] = prefix
+                    self.log.info('setting external module %s prefix to be %s', mod_name, prefix_var_name)
+                break
+
+        return res
+
+    def handle_external_module_metadata(self, mod_name):
+        """
+        Helper function for _parse_dependency; collects metadata for external module dependencies.
+
+        :param mod_name: name of external module to collect metadata for
+        """
+        partial_mod_name = mod_name.split('/')[0]
+
+        # check whether existing metadata for external modules already has metadata for this module;
+        # first using full module name (as it is provided), for example 'cray-netcdf/4.6.1.3',
+        # then with partial module name, for example 'cray-netcdf'
+        metadata = self.external_modules_metadata.get(mod_name, {})
+        self.log.info("Available metadata for external module %s: %s", mod_name, metadata)
+
+        partial_mod_name_metadata = self.external_modules_metadata.get(partial_mod_name, {})
+        self.log.info("Available metadata for external module using partial module name %s: %s",
+                      partial_mod_name, partial_mod_name_metadata)
+
+        for key in partial_mod_name_metadata:
+            if key not in metadata:
+                metadata[key] = partial_mod_name_metadata[key]
+
+        self.log.info("Combined available metadata for external module %s: %s", mod_name, metadata)
+
+        # if not all metadata is available (name/version/prefix), probe external module to collect more metadata;
+        # first with full module name, and then with partial module name if first probe didn't return anything;
+        # note: result of probe_external_module_metadata only contains metadata for keys that were not set yet
+        if not all(key in metadata for key in ['name', 'prefix', 'version']):
+            self.log.info("Not all metadata found yet for external module %s, probing module...", mod_name)
+            probed_metadata = self.probe_external_module_metadata(mod_name, existing_metadata=metadata)
+            if probed_metadata:
+                self.log.info("Extra metadata found by probing external module %s: %s", mod_name, probed_metadata)
+                metadata.update(probed_metadata)
+            else:
+                self.log.info("No extra metadata found by probing %s, trying with partial module name...", mod_name)
+                probed_metadata = self.probe_external_module_metadata(partial_mod_name, existing_metadata=metadata)
+                self.log.info("Extra metadata for external module %s found by probing partial module name %s: %s",
+                              mod_name, partial_mod_name, probed_metadata)
+                metadata.update(probed_metadata)
+
+            self.log.info("Obtained metadata after module probing: %s", metadata)
+
+        return {'external_module_metadata': metadata}
 
     def handle_multi_deps(self):
         """
@@ -1349,7 +1479,7 @@ class EasyConfig(object):
 
         # (true) boolean value simply indicates that a system toolchain is used
         elif isinstance(tc_spec, bool) and tc_spec:
-                tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
+            tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
 
         # two-element list/tuple value indicates custom toolchain specification
         elif isinstance(tc_spec, (list, tuple,)):
@@ -1469,17 +1599,12 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
-        prev_enable_templating = self.enable_templating
-
-        self.enable_templating = False
-
-        if self.template_values is None:
-            # if no template values are set yet, initiate with a minimal set of template values;
-            # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
-            # which is a pretty weird use case, but fine...
-            self.template_values = template_constant_dict(self, ignore=ignore)
-
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            if self.template_values is None:
+                # if no template values are set yet, initiate with a minimal set of template values;
+                # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
+                # which is a pretty weird use case, but fine...
+                self.template_values = template_constant_dict(self, ignore=ignore)
 
         # grab toolchain instance with templating support enabled,
         # which is important in case the Toolchain instance was not created yet
@@ -1487,9 +1612,8 @@ class EasyConfig(object):
 
         # get updated set of template values, now with toolchain instance
         # (which is used to define the %(mpi_cmd_prefix)s template)
-        self.enable_templating = False
-        template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
 
         # update the template_values dict
         self.template_values.update(template_values)
@@ -1532,13 +1656,8 @@ class EasyConfig(object):
         # see also comments in resolve_template
 
         # temporarily disable templating
-        prev_enable_templating = self.enable_templating
-        self.enable_templating = False
-
-        ref = self[key]
-
-        # restore previous value for 'enable_templating'
-        self.enable_templating = prev_enable_templating
+        with disable_templating(self):
+            ref = self[key]
 
         return ref
 

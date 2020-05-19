@@ -488,6 +488,7 @@ class ModulesTool(object):
         Determine whether a module wrapper with specified name exists.
         Only .modulerc file in Tcl syntax is considered here.
         """
+
         if mod_wrapper_regex_template is None:
             mod_wrapper_regex_template = "^[ ]*module-version (?P<wrapped_mod>[^ ]*) %s$"
 
@@ -528,24 +529,40 @@ class ModulesTool(object):
 
         return wrapped_mod
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False, maybe_partial=True):
+    def exist(self, mod_names, mod_exists_regex_template=None, skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
         :param mod_names: list of module names
-        :param mod_exists_regex_template: template regular expression to search 'module show' output with
+        :param mod_exists_regex_template: DEPRECATED and unused
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
         :param maybe_partial: indicates if the module name may be a partial module name
         """
+        if mod_exists_regex_template is not None:
+            self.log.deprecated('mod_exists_regex_template is no longer used', '5.0')
+
         def mod_exists_via_show(mod_name):
             """
             Helper function to check whether specified module name exists through 'module show'.
 
             :param mod_name: module name
             """
-            mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
-            txt = self.show(mod_name)
-            return bool(re.search(mod_exists_regex, txt, re.M))
+            stderr = self.show(mod_name)
+            res = False
+            # Parse the output:
+            # - Skip whitespace
+            # - Any error -> Module does not exist
+            # - Check first non-whitespace line for something that looks like an absolute path terminated by a colon
+            mod_exists_regex = r'\s*/.+:\s*'
+            for line in stderr.split('\n'):
+                if OUTPUT_MATCHES['whitespace'].search(line):
+                    continue
+                if OUTPUT_MATCHES['error'].search(line):
+                    break
+                if re.match(mod_exists_regex, line):
+                    res = True
+                break
+            return res
 
         if skip_avail:
             avail_mod_names = []
@@ -571,6 +588,10 @@ class ModulesTool(object):
                 mod_exists = mod_exists_via_show(mod_name)
 
             # if no module file was found, check whether specified module name can be a 'wrapper' module...
+            # this fallback mechanism is important when using a hierarchical module naming scheme,
+            # where "full" module names (like Core/Java/11) are used to check whether modules exist already;
+            # Lmod will report module wrappers as non-existent when full module name is used,
+            # see https://github.com/TACC/Lmod/issues/446
             if not mod_exists:
                 self.log.debug("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
                 wrapped_mod = self.module_wrapper_exists(mod_name)
@@ -643,29 +664,33 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
         return ans
 
-    def get_value_from_modulefile(self, mod_name, regex):
+    def get_value_from_modulefile(self, mod_name, regex, strict=True):
         """
         Get info from the module file for the specified module.
 
         :param mod_name: module name
         :param regex: (compiled) regular expression, with one group
         """
+        value = None
+
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
             res = regex.search(modinfo)
             if res:
-                return res.group(1)
-            else:
+                value = res.group(1)
+            elif strict:
                 raise EasyBuildError("Failed to determine value from 'show' (pattern: '%s') in %s",
                                      regex.pattern, modinfo)
-        else:
+        elif strict:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
+
+        return value
 
     def modulefile_path(self, mod_name, strip_ext=False):
         """
@@ -755,13 +780,15 @@ class ModulesTool(object):
         # also catch and check exit code
         exit_code = proc.returncode
         if kwargs.get('check_exit_code', True) and exit_code != 0:
-            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
-                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
+            raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list), exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
 
-        if kwargs.get('return_output', False):
+        if kwargs.get('return_stderr', False):
+            return stderr
+        elif kwargs.get('return_output', False):
             return stdout + stderr
         else:
             # the module command was run with an outdated selected environment variables (see LD_ENV_VAR_KEYS list)
@@ -1086,6 +1113,15 @@ class ModulesTool(object):
         self.log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
         return path
 
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """
+        Get value for specific 'setenv' statement from module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable being set for which value should be returned
+        """
+        raise NotImplementedError
+
     def update(self):
         """Update after new modules were added."""
         raise NotImplementedError
@@ -1125,6 +1161,26 @@ class EnvironmentModulesC(ModulesTool):
     def update(self):
         """Update after new modules were added."""
         pass
+
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """
+        Get value for specific 'setenv' statement from module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable being set for which value should be returned
+        """
+        # Tcl-based module tools produce "module show" output with setenv statements like:
+        # "setenv		 GCC_PATH /opt/gcc/8.3.0"
+        # - line starts with 'setenv'
+        # - whitespace (spaces & tabs) around variable name
+        # - no quotes or parentheses around value (which can contain spaces!)
+        regex = re.compile(r'^setenv\s+%s\s+(?P<value>.+)' % var_name, re.M)
+        value = self.get_value_from_modulefile(mod_name, regex, strict=False)
+
+        if value:
+            value = value.strip()
+
+        return value
 
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
@@ -1377,18 +1433,26 @@ class Lmod(ModulesTool):
 
         return res
 
-    def exist(self, mod_names, skip_avail=False, maybe_partial=True):
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
-        Check if modules with specified names exists.
+        Get value for specific 'setenv' statement from module file for the specified module.
 
-        :param mod_names: list of module names
-        :param skip_avail: skip checking through 'module avail', only check via 'module show'
+        :param mod_name: module name
+        :param var_name: name of the variable being set for which value should be returned
         """
-        # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
-        # the current configuration for matters little, since the module may have been installed with a different cfg;
-        # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
-        return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
-                                       skip_avail=skip_avail, maybe_partial=maybe_partial)
+        # Lmod produces "module show" output with setenv statements like:
+        # setenv("EBROOTBZIP2","/tmp/software/bzip2/1.0.6")
+        # - line starts with setenv(
+        # - both variable name and value are enclosed in double quotes, separated by comma
+        # - value can contain spaces!
+        # - line ends with )
+        regex = re.compile(r'^setenv\("%s"\s*,\s*"(?P<value>.+)"\)' % var_name, re.M)
+        value = self.get_value_from_modulefile(mod_name, regex, strict=False)
+
+        if value:
+            value = value.strip()
+
+        return value
 
 
 def get_software_root_env_var_name(name):

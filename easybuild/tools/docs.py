@@ -744,28 +744,59 @@ def list_toolchains_rst(tcs):
     """ Returns overview of all toolchains in rst format """
     title = "List of known toolchains"
 
-    # figure out column names
-    table_titles = ['name', 'compiler', 'MPI']
-    for tc in tcs.values():
-        table_titles.extend(tc.keys())
+    # Specify the column names for the table
+    table_titles = ['NAME', 'COMPILER', 'MPI', 'LINALG', 'FFT']
 
+    # Set up column name : display name pairs
     col_names = {
-        'COMPILER_CUDA': 'CUDA compiler',
-        'SCALAPACK': 'ScaLAPACK',
+        'NAME': 'Name',
+        'COMPILER': 'Compiler(s)',
+        'LINALG': "Linear algebra",
     }
 
-    table_titles = nub(table_titles)
+    # Create sorted list of toolchain names
+    sorted_tc_names = sorted(tcs.keys(), key=str.lower)
 
+    # Create text placeholder to use for missing entries
+    none_txt = '*(none)*'
+
+    # Initialize an empty list of lists for the table data
     table_values = [[] for i in range(len(table_titles))]
-    table_values[0] = ['**%s**' % tcname for tcname in tcs.keys()]
 
-    for idx in range(1, len(table_titles)):
-        for tc in tcs.values():
-            table_values[idx].append(', '.join(tc.get(table_titles[idx].upper(), [])))
+    for col_id, col_name in enumerate(table_titles):
+        if col_name == 'NAME':
+            # toolchain names column gets bold face entry
+            table_values[col_id] = ['**%s**' % tcname for tcname in sorted_tc_names]
+        else:
+            for tc_name in sorted_tc_names:
+                tc = tcs[tc_name]
+                if 'cray' in tc_name.lower():
+                    if col_name == 'COMPILER':
+                        entry = ', '.join(tc[col_name.upper()])
+                    elif col_name == 'MPI':
+                        entry = 'cray-mpich'
+                    elif col_name == 'LINALG':
+                        entry = 'cray-libsci'
+                # Combine the linear algebra libraries into a single column
+                elif col_name == 'LINALG':
+                    linalg = []
+                    for col in ['BLAS', 'LAPACK', 'SCALAPACK']:
+                        linalg.extend(tc.get(col, []))
+                    entry = ', '.join(nub(linalg)) or none_txt
+                else:
+                    # for other columns, we can grab the values via 'tc'
+                    # key = col_name
+                    entry = ', '.join(tc.get(col_name, [])) or none_txt
+                table_values[col_id].append(entry)
 
+    # Set the table titles to the pretty ones
     table_titles = [col_names.get(col, col) for col in table_titles]
+
+    # Pass the data to the rst formatter, wich is returned as a list, each element
+    # is an rst formatted text row.
     doc = rst_title_and_table(title, table_titles, table_values)
 
+    # Make a string with line endings suitable to write to document file
     return '\n'.join(doc)
 
 

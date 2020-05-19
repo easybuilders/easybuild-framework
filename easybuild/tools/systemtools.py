@@ -360,7 +360,7 @@ def get_cpu_arch_name():
     if HAVE_ARCHSPEC:
         res = archspec_cpu_host()
         if res:
-            cpu_arch_name = res.name
+            cpu_arch_name = str(res.name)
 
     if cpu_arch_name is None:
         cpu_arch_name = UNKNOWN
@@ -770,6 +770,7 @@ def get_system_info():
     return {
         'core_count': get_avail_core_count(),
         'total_memory': get_total_memory(),
+        'cpu_arch': get_cpu_architecture(),
         'cpu_arch_name': get_cpu_arch_name(),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
