@@ -1,4 +1,4 @@
-##  http://code.activestate.com/recipes/576693/ (r9)
+# http://code.activestate.com/recipes/576693/ (r9)
 # Backport of OrderedDict() class that runs on Python 2.4, 2.5, 2.6, 2.7 and pypy.
 # Passes Python2.7's test suite and incorporates all the latest updates.
 
@@ -170,7 +170,7 @@ class OrderedDict(dict):
         '''
         if len(args) > 1:
             raise TypeError('update() takes at most 2 positional '
-                            'arguments (%d given)' % (1+len(args),))
+                            'arguments (%d given)' % (1 + len(args),))
         # Make progressively weaker assumptions about "other"
         other = ()
         if len(args) == 1:
@@ -255,7 +255,7 @@ class OrderedDict(dict):
 
         '''
         if isinstance(other, OrderedDict):
-            return len(self)==len(other) and self.items() == other.items()
+            return len(self) == len(other) and self.items() == other.items()
         return dict.__eq__(self, other)
 
     def __ne__(self, other):
@@ -274,4 +274,3 @@ class OrderedDict(dict):
     def viewitems(self):
         "od.viewitems() -> a set-like object providing a view on od's items"
         return ItemsView(self)
-

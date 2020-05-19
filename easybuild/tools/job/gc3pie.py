@@ -69,7 +69,7 @@ try:
         """
         pass
 
-except ImportError as err:
+except ImportError:
     _log.debug("Failed to import gc3libs from GC3Pie."
                " Silently ignoring, this is a real issue only when GC3Pie is used as backend for --job")
 

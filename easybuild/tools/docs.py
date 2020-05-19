@@ -490,7 +490,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
             txt.append(format_strings['root_templ'] % root)
 
         if format_strings.get('newline') is not None:
-                txt.append(format_strings['newline'])
+            txt.append(format_strings['newline'])
         if 'children' in classes[root]:
             txt.extend(avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
             if format_strings.get('newline') is not None:
@@ -522,7 +522,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         ecs.append(ec)
         print_msg('\r', prefix=False, newline=False, silent=silent)
-        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False, silent=silent)
+        print_msg("Processed %d/%d easyconfigs..." % (idx + 1, cnt), newline=False, silent=silent)
     print_msg('', prefix=False, silent=silent)
 
     software = {}
@@ -602,7 +602,7 @@ def list_software_rst(software, detailed=False):
 
     def key_to_ref(name):
         """Create a reference label for the specified software name."""
-        return 'list_software_%s_%d' % (name, sum(ord(l) for l in name))
+        return 'list_software_%s_%d' % (name, sum(ord(letter) for letter in name))
 
     letter = None
     sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
@@ -902,7 +902,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         '.. _' + classname + ':',
         '',
         '``' + classname + '``',
-        '=' * (len(classname)+4),
+        '=' * (len(classname) + 4),
         '',
     ]
 
@@ -967,7 +967,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     if os.path.exists(os.path.join(path_to_examples, '%s.eb' % classname)):
         title = 'Example easyconfig for ``' + classname + '`` easyblock'
         doc.extend([title, '-' * len(title), '', '.. code::', ''])
-        for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
+        for line in read_file(os.path.join(path_to_examples, classname + '.eb')).split('\n'):
             doc.append(INDENT_4SPACES + line)
         doc.append('')  # empty line after literal block
 
