@@ -206,22 +206,27 @@ class RunTest(EnhancedTestCase):
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
 
-        # set the signal handler and a 3-second alarm
-        signal.signal(signal.SIGALRM, handler)
-        signal.alarm(3)
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
-        (_, ec) = run_cmd("kill -9 $$", log_ok=False)
-        self.assertEqual(ec, -9)
+        try:
+            # set the signal handler and a 3-second alarm
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(3)
 
-        # reset the alarm
-        signal.alarm(0)
-        signal.alarm(3)
+            (_, ec) = run_cmd("kill -9 $$", log_ok=False)
+            self.assertEqual(ec, -9)
 
-        (_, ec) = run_cmd_qa("kill -9 $$", {}, log_ok=False)
-        self.assertEqual(ec, -9)
+            # reset the alarm
+            signal.alarm(0)
+            signal.alarm(3)
 
-        # disable the alarm
-        signal.alarm(0)
+            (_, ec) = run_cmd_qa("kill -9 $$", {}, log_ok=False)
+            self.assertEqual(ec, -9)
+
+        finally:
+            # cleanup: disable the alarm + reset signal handler for SIGALRM
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+            signal.alarm(0)
 
     def test_run_cmd_bis(self):
         """More 'complex' test for run_cmd function."""

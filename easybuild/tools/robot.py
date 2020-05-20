@@ -219,7 +219,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         for runtime_deps in lists_of_runtime_deps:
             # also check whether module itself clashes with any of its dependencies
             for i, dep1 in enumerate(build_deps + runtime_deps + [key]):
-                for dep2 in (build_deps + runtime_deps)[i+1:]:
+                for dep2 in (build_deps + runtime_deps)[i + 1:]:
                     # don't worry about conflicts between module itself and any of its build deps
                     if dep1 != key or dep2 not in build_deps:
                         res |= check_conflict(key, dep1, dep2)

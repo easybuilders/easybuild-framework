@@ -52,7 +52,7 @@ def get_class(name, default_class, map_class=None):
     if name is not None:
         try:
             klass = map_class[name]
-        except:
+        except BaseException:
             for k, v in map_class.items():
                 if type(k) in (type,) and name in v:
                     klass = k
@@ -154,7 +154,7 @@ class CommaList(StrList):
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # sanitize from end
 
     def append_exists(self, prefix, paths, suffix=None, filename=None, append_all=False):
         """
@@ -225,11 +225,11 @@ class ListOfLists(list):
 
         self.protected_classes = self.PROTECTED_CLASSES[:]
         if self.PROTECT_CLASS_SELF:
-            if not self.DEFAULT_CLASS in self.protected_classes:
+            if self.DEFAULT_CLASS not in self.protected_classes:
                 self.protected_classes.append(self.DEFAULT_CLASS)
         self.protected_instances = self.PROTECTED_INSTANCES[:]
         if self.PROTECT_INSTANCE_SELF:
-            if not self.DEFAULT_CLASS in self.protected_instances:
+            if self.DEFAULT_CLASS not in self.protected_instances:
                 self.protected_instances.append(self.DEFAULT_CLASS)
 
     def append_empty(self):
@@ -287,11 +287,11 @@ class ListOfLists(list):
             try:
                 # this might work, but probably not
                 newvalue = klass(value, **kwargs)
-            except:
+            except BaseException:
                 newvalue = klass(**kwargs)
                 if value is not None:
                     newvalue.append(value)
-        if not position is None:
+        if position is not None:
             newvalue.POSITION = position
         if self._str_ok(newvalue) or append_empty:
             self.append(newvalue)
@@ -328,7 +328,7 @@ class ListOfLists(list):
                     try:
                         # this might work, but probably not
                         newvalue = klass(el)
-                    except:
+                    except BaseException:
                         newvalue = klass()
                         if value is not None:
                             newvalue.append(el)
@@ -378,7 +378,8 @@ class ListOfLists(list):
             to_remove = []
             # work in reversed order; don't check last one (ie real el 0), it has no next element
             for idx in range(1, len(self))[::-1]:
-                if self[idx].BEGIN is None or self[idx].END is None: continue
+                if self[idx].BEGIN is None or self[idx].END is None:
+                    continue
                 self.log.devel("idx %s len %s", idx, len(self))
                 # do check POSITION, sorting already done
                 if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:
@@ -564,4 +565,3 @@ class Variables(dict):
             return _passthrough
         else:
             return super(Variables, self).__getattribute__(attr_name)
-

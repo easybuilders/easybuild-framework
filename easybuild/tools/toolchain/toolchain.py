@@ -331,8 +331,7 @@ class Toolchain(object):
         if self.vars is None:
             self.generate_vars()
 
-        var_names = self.variables.keys()
-        var_names.sort()
+        var_names = sorted(self.variables.keys())
         res = []
         for v in var_names:
             res.append("%s=%s" % (v, self.variables[v]))
@@ -661,8 +660,8 @@ class Toolchain(object):
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
         if self.is_system_toolchain():
-                self.log.info("Loading dependencies using system toolchain...")
-                self._load_dependencies_modules(silent=silent)
+            self.log.info("Loading dependencies using system toolchain...")
+            self._load_dependencies_modules(silent=silent)
         else:
             # load the toolchain and dependencies modules
             self.log.debug("Loading toolchain module and dependencies...")
@@ -675,7 +674,7 @@ class Toolchain(object):
             dry_run_msg("\nFull list of loaded modules:", silent=silent)
             if loaded_mods:
                 for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
-                    dry_run_msg("  %d) %s" % (i+1, mod_name), silent=silent)
+                    dry_run_msg("  %d) %s" % (i + 1, mod_name), silent=silent)
             else:
                 dry_run_msg("  (none)", silent=silent)
             dry_run_msg('', silent=silent)

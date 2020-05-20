@@ -524,7 +524,8 @@ class ModuleGenerator(object):
         """
         Generate a string with a comma-separated list of extensions.
         """
-        exts_list = self.app.cfg['exts_list']
+        # We need only name and version, so don't resolve templates
+        exts_list = self.app.cfg.get_ref('exts_list')
         extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
 
         return extensions
@@ -735,7 +736,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         txt = '\n'.join([
             "proc ModulesHelp { } {",
-            "    puts stderr {%s" % re.sub('([{}\[\]])', r'\\\1', self._generate_help_text()),
+            "    puts stderr {%s" % re.sub(r'([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',
@@ -762,7 +763,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
+        whatis_lines = [
+            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
+            for line in self._generate_whatis_lines()
+        ]
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,

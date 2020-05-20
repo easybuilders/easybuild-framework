@@ -54,7 +54,7 @@ try:
     from PBSQuery import PBSQuery
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 
-except ImportError as err:
+except ImportError:
     _log.debug("Failed to import pbs/PBSQuery from pbs_python."
                " Silently ignoring, this is a real issue only when pbs_python is used as backend for --job")
 
@@ -171,7 +171,8 @@ class PbsPython(JobBackend):
 
             # return most frequent
             freq_count, freq_np = max([(j, i) for i, j in res.items()])
-            self.log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+            self.log.debug("Found most frequent np %s (%s times) in interesting nodes %s",
+                           freq_np, freq_count, interesting_nodes)
 
             self._ppn = freq_np
 
@@ -346,7 +347,8 @@ class PbsJob(object):
 
         self.log.debug("Going to submit to queue %s" % self.queue)
 
-        # job submission sometimes fails without producing an error, e.g. when one of the dependency jobs has already finished
+        # job submission sometimes fails without producing an error,
+        # e.g. when one of the dependency jobs has already finished
         # when that occurs, None will be returned by pbs_submit as job id
         jobid = pbs.pbs_submit(self.pbsconn, pbs_attributes, scriptfn, self.queue, NULL)
         is_error, errormsg = pbs.error()
@@ -453,7 +455,7 @@ class PbsJob(object):
             return None
 
         # convert single type into list
-        if type(types) is str:
+        if isinstance(types, str):
             types = [types]
 
         self.log.debug("Return info types %s" % types)

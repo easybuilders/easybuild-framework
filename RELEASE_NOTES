@@ -3,6 +3,41 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.2.1 (May 20th 2020)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - also mention CPU architecture (x86_64, POWER) in comment for test reports (#3281)
+  - add support for enhancing existing sanity check in easyconfigs, as opposed to overwriting paths/commands (#3288)
+  - clean up locks when EasyBuild session is cancelled with a signal like SIGTERM (#3291, #3321)
+  - add 'find_glob_pattern' function to filetools module (#3297)
+  - add constants for common OS dependencies (OS_PKG_IBVERBS_DEV, OS_PKG_OPENSSL_DEV, ...) (#3309, #3334)
+  - flesh out get_mpi_cmd_template function from Mpi.mpi_cmd_for method (#3312)
+  - add variable 'moddependpaths' to specify extra $MODULEPATH entry to consider for loading dependency modules (#3324)
+  - allow copying of tweaked easyconfigs when using --try-* with --copy-ec (#3332)
+- various bug fixes, including:
+  - make ModulesTool.exist more robust w.r.t. module wrappers, aliases, defaults, etc. (#3216, #3337)
+  - clean up rst output of --list-toolchains (#3246)
+  - cast CPU arch name provided by archspec to a regular string (#3286)
+  - get pr_title and pr_descr built_options in new_pr_from_branch instead of new_pr (and commit_msg in both) (#3298)
+  - make pypi_source_urls more robust by using HTMLParser rather than xml.etree.ElementTree (#3303, #3329)
+  - fix broken test for --include-easyblocks-from-pr (#3304)
+  - don't use distutils.dir_util in copy_dir (#3310)
+  - print trace message for sanity check command before running it (#3316)
+  - fix problems with processing of easyconfigs using a Cray* toolchain when there are no actual external modules (#3319)
+  - make test_find_eb_script more robust in case $EB_SCRIPT_PATH is already set (#3320)
+  - fix several small problems wit --try-update-deps (experimental feature) (#3325, #3326, #3330)
+  - add --disable-job in 'eb' command used in jobs, to prevent infinite job cycle (#3328)
+  - avoid empty entries in $LD_LIBRARY_PATH and other path-like environment variables (#3333)
+- other changes:
+  - fix code style issues in easybuild.tools + add flake8 linting test (#3282)
+  - introduce contextmanager for disabling templating and reduce resolving errors (#3287)
+  - add 'change_into_dir' named argument to 'extract_file' + print deprecation warning if it's not specified (#3292)
+  - improve install_eb_dep.sh script to install EasyBuild dependencies in CI environment (#3314)
+
+
 v4.2.0 (April 14th 2020)
 ------------------------
 

@@ -38,6 +38,7 @@ import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from distutils.version import LooseVersion
 from functools import cmp_to_key
+from html.parser import HTMLParser  # noqa
 from itertools import zip_longest
 from io import StringIO  # noqa
 from string import ascii_letters, ascii_lowercase  # noqa
@@ -94,7 +95,7 @@ def mk_wrapper_baseclass(metaclass):
 def safe_cmp_looseversions(v1, v2):
     """Safe comparison function for two (values containing) LooseVersion instances."""
 
-    if type(v1) != type(v2):
+    if not isinstance(v1, type(v2)):
         raise TypeError("Can't compare values of different types: %s (%s) vs %s (%s)" % (v1, type(v1), v2, type(v2)))
 
     # if we receive two iterative values, we need to recurse
@@ -123,7 +124,7 @@ def safe_cmp_looseversions(v1, v2):
         # implementation based on '14894.patch' patch file provided in https://bugs.python.org/issue14894
         for ver1_part, ver2_part in zip_longest(v1.version, v2.version, fillvalue=''):
             # use string comparison if version parts have different type
-            if type(ver1_part) != type(ver2_part):
+            if not isinstance(ver1_part, type(ver2_part)):
                 ver1_part = str(ver1_part)
                 ver2_part = str(ver2_part)
 
