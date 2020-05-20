@@ -143,7 +143,7 @@ def avail_easyconfig_constants(output_format=FORMAT_TXT):
 def avail_easyconfig_constants_txt():
     """Generate easyconfig constant documentation in txt format"""
     doc = ["Constants that can be used in easyconfigs"]
-    for cst, (val, descr) in EASYCONFIG_CONSTANTS.items():
+    for cst, (val, descr) in sorted(EASYCONFIG_CONSTANTS.items()):
         doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, cst, val, descr))
 
     return '\n'.join(doc)
@@ -159,10 +159,12 @@ def avail_easyconfig_constants_rst():
         "Description",
     ]
 
+    sorted_keys = sorted(EASYCONFIG_CONSTANTS.keys())
+
     table_values = [
-        ["``%s``" % cst for cst in EASYCONFIG_CONSTANTS.keys()],
-        ["``%s``" % cst[0] for cst in EASYCONFIG_CONSTANTS.values()],
-        [cst[1] for cst in EASYCONFIG_CONSTANTS.values()],
+        ["``%s``" % key for key in sorted_keys],
+        ["``%s``" % str(EASYCONFIG_CONSTANTS[key][0]) for key in sorted_keys],
+        [EASYCONFIG_CONSTANTS[key][1] for key in sorted_keys],
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
