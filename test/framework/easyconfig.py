@@ -1672,7 +1672,7 @@ class EasyConfigTest(EnhancedTestCase):
             'perlshortver': '5.30',
             'perlver': '5.30.0',
             'pymajver': '3',
-            'pyminver': '6'
+            'pyminver': '6',
             'pyshortver': '3.6',
             'pyver': '3.6.5',
         }
@@ -2834,7 +2834,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_version': 'system',
             'nameletterlower': 't',
             'pymajver': '3',
-            'pyminver': '7'
+            'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
             'version': '0.01',
