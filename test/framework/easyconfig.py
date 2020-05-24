@@ -1041,6 +1041,8 @@ class EasyConfigTest(EnhancedTestCase):
                 ['Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s']
             )
         ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
         self.assertEqual(eb['modloadmsg'], "Java: 11, 11, None, 11")
 
     def test_templating_doc(self):
