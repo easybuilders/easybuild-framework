@@ -1030,7 +1030,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_java_wrapper_templating(self):
         """test templating when the Java wrapper is a dep"""
         self.contents = '\n'.join([
-            'easyblock = "Bundle"',
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "https://example.com"',
