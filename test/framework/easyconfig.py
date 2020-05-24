@@ -1036,7 +1036,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "https://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencis = [("Java", "11", "", True)]',
+            'dependencies = [("Java", "11", "", True)]',
             'modloadmsg = "%s"' % '; '.join(
                 ['Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s']
             )
