@@ -94,8 +94,8 @@ scDescriptT = {
 }
 EOF
 
-# change to 'easybuild' user
-su - easybuild
+# switch to 'easybuild' user for following commands
+su - easybuild << 'EOF'
 
 # verbose commands, exit on first error
 set -ve
@@ -122,8 +122,8 @@ eb %(easyconfigs)s --robot %(eb_args)s
 mkdir -p /app/lmodcache
 $LMOD_DIR/update_lmod_system_cache_files -d /app/lmodcache -t /app/lmodcache/timestamp /app/modules/all
 
-# exit from 'easybuild' user
-exit
+# end of set of commands to run as 'easybuild' user
+EOF
 
 # cleanup, everything in /scratch is assumed to be temporary
 rm -rf /scratch/*
