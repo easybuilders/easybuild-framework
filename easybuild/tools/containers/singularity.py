@@ -95,6 +95,7 @@ scDescriptT = {
 EOF
 
 # switch to 'easybuild' user for following commands
+# quotes around EOF delimiter are important to ensure environment variables are not expanded prematurely!
 su - easybuild << 'EOF'
 
 # verbose commands, exit on first error
