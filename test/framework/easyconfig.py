@@ -1041,6 +1041,13 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
+
+        # no %(javaminver)s because there is no minor version for Java
+        self.assertEqual(eb.template_values['javaver'], '11')
+        self.assertEqual(eb.template_values['javamajver'], '11')
+        self.assertEqual(eb.template_values['javashortver'], '11')
+        self.assertFalse('javaminver' in eb.template_values)
+
         self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
 
     def test_templating_doc(self):
