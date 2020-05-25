@@ -215,10 +215,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
         # copy to avoid changing original list below
         deps = copy.copy(config.get('dependencies', []))
-
-        # only consider build dependencies for defining *ver and *shortver templates if we're in iterative mode
-        if hasattr(config, 'iterating') and config.iterating:
-            deps += config.get('builddependencies', [])
+        deps += config.get('builddependencies', [])
 
         for dep in deps:
             if isinstance(dep, dict):
