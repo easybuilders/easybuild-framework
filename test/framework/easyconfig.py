@@ -1037,13 +1037,11 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
             'dependencies = [("Java", "11", "", True)]',
-            'modloadmsg = "%s"' % '; '.join(
-                ['Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s']
-            )
+            'modloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
-        self.assertEqual(eb['modloadmsg'], "Java: 11, 11, None, 11")
+        self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
 
     def test_templating_doc(self):
         """test templating documentation"""
