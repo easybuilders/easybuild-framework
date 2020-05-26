@@ -961,6 +961,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     if update_dep_versions and (list_deps_versionsuffixes(ec_spec) or parsed_ec['versionsuffix']):
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
+        versonsuffix_mapping.update(map_common_versionsuffixes('Perl', parsed_ec['toolchain'], toolchain_mapping))
 
     if update_build_specs is not None:
         if 'version' in update_build_specs:
