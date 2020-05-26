@@ -64,9 +64,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
 from easybuild.tools.utilities import flatten, nub, quote_str
 
-
 _log = fancylogger.getLogger('easyconfig.tweak', fname=False)
-
 
 EASYCONFIG_TEMPLATE = "TEMPLATE"
 
@@ -277,6 +275,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
         class TcDict(dict):
             """A special dict class that represents trivial toolchains properly."""
+
             def __repr__(self):
                 return "{'name': '%(name)s', 'version': '%(version)s'}" % self
 
@@ -1142,8 +1141,8 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         candidate_ver_list.append(r'%s\..*' % major_version)
     candidate_ver_list.append(r'.*')  # Include a major version search
     potential_version_mappings = []
-    highest_version = 0
-    highest_version_ignoring_versionsuffix = 0
+    highest_version = None
+    highest_version_ignoring_versionsuffix = None
 
     for candidate_ver in candidate_ver_list:
 
@@ -1189,10 +1188,10 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                         newversionsuffix = ''
                     if version:
                         if versionsuffix == newversionsuffix:
-                            if highest_version == 0 or LooseVersion(version) > LooseVersion(highest_version):
+                            if highest_version is None or LooseVersion(version) > LooseVersion(highest_version):
                                 highest_version = version
                         else:
-                            if highest_version_ignoring_versionsuffix == 0 or \
+                            if highest_version_ignoring_versionsuffix is None or \
                                     LooseVersion(version) > LooseVersion(highest_version_ignoring_versionsuffix):
                                 highest_version_ignoring_versionsuffix = version
                     else:
@@ -1201,19 +1200,28 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                     potential_version_mappings.append({'path': path, 'toolchain': toolchain, 'version': version,
                                                        'versionsuffix': newversionsuffix})
 
-    if ignore_versionsuffix:
-        if LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version):
+    ignored_versionsuffix_greater = \
+        highest_version_ignoring_versionsuffix is not None and highest_version is not None and \
+        LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version)
+
+    exclude_alternate_versionsuffixes = False
+    if ignored_versionsuffix_greater:
+        if ignore_versionsuffix:
             highest_version = highest_version_ignoring_versionsuffix
-    else:
-        if LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version):
+        else:
             print_warning(
                 "There may be newer version(s) of dep '%s' available with a different versionsuffix to '%s': %s",
                 dep['name'], versionsuffix, [d['path'] for d in potential_version_mappings if
                                              d['version'] == highest_version_ignoring_versionsuffix])
-        # exclude candidates with a different versionsuffix
+            # exclude candidates with a different versionsuffix
+            exclude_alternate_versionsuffixes = True
+    else:
+        # If the other version suffixes are not greater, then just ignore them
+        exclude_alternate_versionsuffixes = True
+    if exclude_alternate_versionsuffixes:
         potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
-    if highest_versions_only and highest_version != 0:
+    if highest_versions_only and highest_version is not None:
         potential_version_mappings = [d for d in potential_version_mappings if d['version'] == highest_version]
 
     _log.debug("Found potential version mappings for %s: %s", dep, potential_version_mappings)
