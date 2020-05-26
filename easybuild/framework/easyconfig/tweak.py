@@ -1201,8 +1201,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                                                        'versionsuffix': newversionsuffix})
 
     ignored_versionsuffix_greater = \
-        highest_version_ignoring_versionsuffix is not None and highest_version is not None and \
-        LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version)
+        highest_version_ignoring_versionsuffix is not None and highest_version is None or \
+        (highest_version_ignoring_versionsuffix is not None and highest_version is not None and
+         LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version))
 
     exclude_alternate_versionsuffixes = False
     if ignored_versionsuffix_greater:
