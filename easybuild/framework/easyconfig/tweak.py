@@ -1206,7 +1206,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         if highest_version_ignoring_versionsuffix > highest_version:
             print_warning("There may be newer dep version(s) available with a different versionsuffix: %s",
                           [d['path'] for d in potential_version_mappings if
-                           d['version' == highest_version_ignoring_versionsuffix]])
+                           d['version'] == highest_version_ignoring_versionsuffix])
         # exclude candidates with a different versionsuffix
         potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
