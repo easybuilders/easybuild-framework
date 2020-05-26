@@ -378,6 +378,7 @@ class TweakTest(EnhancedTestCase):
             'path': os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
             'toolchain': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
             'version': '1.6',
+            'versionsuffix': '',
         }
         self.assertEqual(potential_versions[0], expected)
 
