@@ -1090,7 +1090,8 @@ def list_deps_versionsuffixes(ec_spec):
     return list(set(versionsuffix_list))
 
 
-def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mapping=None, highest_versions_only=True):
+def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mapping=None, highest_versions_only=True,
+                                    ignore_versionsuffix=False):
     """
     Find potential version mapping for a dependency in a new hierarchy
 
@@ -1139,7 +1140,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
     if len(version_components) > 1:  # Have at least major.minor
         candidate_ver_list.append(r'%s\..*' % major_version)
     candidate_ver_list.append(r'.*')  # Include a major version search
-    potential_version_mappings, highest_version = [], None
+    potential_version_mappings = []
+    highest_version = None
+    highest_version_ignoring_versionsuffix = None
 
     for candidate_ver in candidate_ver_list:
 
@@ -1152,7 +1155,8 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                     toolchain_suffix = ''
                 else:
                     toolchain_suffix = '-%s-%s' % (toolchain['name'], toolchain['version'])
-                full_versionsuffix = toolchain_suffix + versionsuffix + EB_FORMAT_EXTENSION
+                # Search for any version suffix but only use what we are allowed to
+                full_versionsuffix = toolchain_suffix + r'.*' + EB_FORMAT_EXTENSION
                 depver = '^' + prefix_to_version + candidate_ver + full_versionsuffix
                 cand_paths = search_easyconfigs(depver, consider_extra_paths=False, print_result=False,
                                                 case_sensitive=True)
@@ -1178,14 +1182,33 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
 
                 # add what is left to the possibilities
                 for path in cand_paths:
-                    version = fetch_parameters_from_easyconfig(read_file(path), ['version'])[0]
+                    version, newversionsuffix = fetch_parameters_from_easyconfig(read_file(path), ['version',
+                                                                                                   'versionsuffix'])
+                    if not newversionsuffix:
+                        newversionsuffix = ''
                     if version:
-                        if highest_version is None or LooseVersion(version) > LooseVersion(highest_version):
-                            highest_version = version
+                        if versionsuffix == newversionsuffix:
+                            if highest_version is None or LooseVersion(version) > LooseVersion(highest_version):
+                                highest_version = version
+                        else:
+                            if highest_version_ignoring_versionsuffix is None or \
+                                    LooseVersion(version) > LooseVersion(highest_version):
+                                highest_version_ignoring_versionsuffix = version
                     else:
                         raise EasyBuildError("Failed to determine version from contents of %s", path)
 
-                    potential_version_mappings.append({'path': path, 'toolchain': toolchain, 'version': version})
+                    potential_version_mappings.append({'path': path, 'toolchain': toolchain, 'version': version, 'versionsuffix': newversionsuffix})
+
+    if ignore_versionsuffix:
+        if highest_version_ignoring_versionsuffix > highest_version:
+            highest_version = highest_version_ignoring_versionsuffix
+    else:
+        if highest_version_ignoring_versionsuffix > highest_version:
+            print_warning("There may be newer dep version(s) available with a different versionsuffix: %s",
+                          [d['path'] for d in potential_version_mappings if
+                           d['version' == highest_version_ignoring_versionsuffix]])
+        # exclude candidates with a different versionsuffix
+        potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
     if highest_versions_only and highest_version is not None:
         potential_version_mappings = [d for d in potential_version_mappings if d['version'] == highest_version]
