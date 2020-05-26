@@ -1142,8 +1142,8 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         candidate_ver_list.append(r'%s\..*' % major_version)
     candidate_ver_list.append(r'.*')  # Include a major version search
     potential_version_mappings = []
-    highest_version = None
-    highest_version_ignoring_versionsuffix = None
+    highest_version = 0
+    highest_version_ignoring_versionsuffix = 0
 
     for candidate_ver in candidate_ver_list:
 
@@ -1189,10 +1189,10 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                         newversionsuffix = ''
                     if version:
                         if versionsuffix == newversionsuffix:
-                            if highest_version is None or LooseVersion(version) > LooseVersion(highest_version):
+                            if highest_version == 0 or LooseVersion(version) > LooseVersion(highest_version):
                                 highest_version = version
                         else:
-                            if highest_version_ignoring_versionsuffix is None or \
+                            if highest_version_ignoring_versionsuffix == 0 or \
                                     LooseVersion(version) > LooseVersion(highest_version_ignoring_versionsuffix):
                                 highest_version_ignoring_versionsuffix = version
                     else:
@@ -1202,17 +1202,18 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                                                        'versionsuffix': newversionsuffix})
 
     if ignore_versionsuffix:
-        if highest_version_ignoring_versionsuffix > highest_version:
+        if LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version):
             highest_version = highest_version_ignoring_versionsuffix
     else:
-        if highest_version_ignoring_versionsuffix > highest_version:
-            print_warning("There may be newer dep version(s) available with a different versionsuffix to '%s': %s",
-                          versionsuffix, [d['path'] for d in potential_version_mappings if
-                                          d['version'] == highest_version_ignoring_versionsuffix])
+        if LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version):
+            print_warning(
+                "There may be newer version(s) of dep '%s' available with a different versionsuffix to '%s': %s",
+                dep['name'], versionsuffix, [d['path'] for d in potential_version_mappings if
+                                             d['version'] == highest_version_ignoring_versionsuffix])
         # exclude candidates with a different versionsuffix
         potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
-    if highest_versions_only and highest_version is not None:
+    if highest_versions_only and highest_version != 0:
         potential_version_mappings = [d for d in potential_version_mappings if d['version'] == highest_version]
 
     _log.debug("Found potential version mappings for %s: %s", dep, potential_version_mappings)
