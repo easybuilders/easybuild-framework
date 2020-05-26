@@ -1040,15 +1040,15 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 # compare that version to the original version and replace if appropriate (upgrades only).
                 if potential_version_mappings:
                     highest_version_match = potential_version_mappings[0]['version']
+                    highest_versionsuffix_match = potential_version_mappings[0]['versionsuffix']
                     if LooseVersion(highest_version_match) > LooseVersion(dep['version']):
                         _log.info("Updating version of %s dependency from %s to %s", dep['name'], dep['version'],
                                   highest_version_match)
                         _log.info("Depending on your configuration, this will be resolved with one of the following "
                                   "easyconfigs: \n%s", '\n'.join(cand['path'] for cand in potential_version_mappings))
                         orig_dep['version'] = highest_version_match
-                        if orig_dep['versionsuffix'] in versonsuffix_mapping:
-                            dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
-                            orig_dep['versionsuffix'] = versonsuffix_mapping[orig_dep['versionsuffix']]
+                        dep['versionsuffix'] = highest_versionsuffix_match
+                        orig_dep['versionsuffix'] = highest_versionsuffix_match
                         dep_changed = True
 
             if dep_changed:
@@ -1193,7 +1193,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                                 highest_version = version
                         else:
                             if highest_version_ignoring_versionsuffix is None or \
-                                    LooseVersion(version) > LooseVersion(highest_version):
+                                    LooseVersion(version) > LooseVersion(highest_version_ignoring_versionsuffix):
                                 highest_version_ignoring_versionsuffix = version
                     else:
                         raise EasyBuildError("Failed to determine version from contents of %s", path)
@@ -1205,9 +1205,9 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
             highest_version = highest_version_ignoring_versionsuffix
     else:
         if highest_version_ignoring_versionsuffix > highest_version:
-            print_warning("There may be newer dep version(s) available with a different versionsuffix: %s",
-                          [d['path'] for d in potential_version_mappings if
-                           d['version'] == highest_version_ignoring_versionsuffix])
+            print_warning("There may be newer dep version(s) available with a different versionsuffix to '%s': %s",
+                          versionsuffix,[d['path'] for d in potential_version_mappings if
+                                         d['version'] == highest_version_ignoring_versionsuffix])
         # exclude candidates with a different versionsuffix
         potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
