@@ -173,8 +173,10 @@ class ParallelBuildTest(EnhancedTestCase):
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
-        regex = re.compile('toy-0.0-deps.eb\s* --hidden')
-        self.assertTrue(regex.search(jobs[3].deps[0].script))
+        regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
+        script_txt = jobs[3].deps[0].script
+        fail_msg = "Pattern '%s' should be found in: %s" % (regex.pattern, script_txt)
+        self.assertTrue(regex.search(script_txt), fail_msg)
         self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
 
         # also test use of --pre-create-installdir
@@ -290,6 +292,7 @@ class ParallelBuildTest(EnhancedTestCase):
             '--try-toolchain=intel,2016a',  # should be excluded in job script
             '--robot', self.test_prefix,  # should be excluded in job script
             '--job',  # should be excluded in job script
+            '--job-cores=3',
         ]
         eb_go = parse_options(args=args)
         cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
@@ -306,6 +309,7 @@ class ParallelBuildTest(EnhancedTestCase):
             ' eb %\(spec\)s ',
             ' %\(add_opts\)s ',
             ' --testoutput=%\(output_dir\)s',
+            ' --disable-job ',
         ]
         for regex in regexs:
             regex = re.compile(regex)
@@ -313,9 +317,9 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # these patterns should NOT be found, these options get filtered out
         # (self.test_prefix was argument to --robot)
-        for regex in ['--job', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
+        for regex in ['--job', '--job-cores', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
             regex = re.compile(regex)
-            self.assertFalse(regex.search(cmd), "Pattern '%s' *not* found in: %s" % (regex.pattern, cmd))
+            self.assertFalse(regex.search(cmd), "Pattern '%s' should *not* be found in: %s" % (regex.pattern, cmd))
 
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""

@@ -151,10 +151,10 @@ class Mpi(Toolchain):
     MPI_UNIQUE_OPTION_MAP = None
     MPI_SHARED_OPTION_MAP = {
         '_opt_MPICC': 'cc=%(CC_base)s',
-        '_opt_MPICXX':'cxx=%(CXX_base)s',
-        '_opt_MPIF77':'fc=%(F77_base)s',
-        '_opt_MPIF90':'f90=%(F90_base)s',
-        '_opt_MPIFC':'fc=%(FC_base)s',
+        '_opt_MPICXX': 'cxx=%(CXX_base)s',
+        '_opt_MPIF77': 'fc=%(F77_base)s',
+        '_opt_MPIF90': 'f90=%(F90_base)s',
+        '_opt_MPIFC': 'fc=%(FC_base)s',
     }
 
     MPI_COMPILER_MPICC = 'mpicc'
@@ -173,14 +173,12 @@ class Mpi(Toolchain):
 
         super(Mpi, self).__init__(*args, **kwargs)
 
-
     def _set_mpi_options(self):
         self.options.add_options(self.MPI_SHARED_OPTS, self.MPI_SHARED_OPTION_MAP)
 
         self.options.add_options(self.MPI_UNIQUE_OPTS, self.MPI_UNIQUE_OPTION_MAP)
 
         self.log.devel('_set_mpi_options: all current options %s', self.options)
-
 
     def set_variables(self):
         """Set the variables"""
@@ -198,7 +196,7 @@ class Mpi(Toolchain):
 
         for var_tuple in COMPILER_VARIABLES:
             c_var = var_tuple[0]  # [1] is the description
-            var = MPI_COMPILER_TEMPLATE % {'c_var':c_var}
+            var = MPI_COMPILER_TEMPLATE % {'c_var': c_var}
 
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:
@@ -207,7 +205,7 @@ class Mpi(Toolchain):
 
             # complete compiler variable template to produce e.g. 'mpicc -cc=icc -X -Y' from 'mpicc -cc=%(CC_base)'
             templatedict = {
-                c_var:str(self.variables[c_var]),
+                c_var: str(self.variables[c_var]),
                 '%s_base' % c_var: str(self.variables[c_var].get_first()),
             }
 
@@ -223,7 +221,6 @@ class Mpi(Toolchain):
                 self.log.debug("usempi set: switching %s value %s for %s value %s",
                                c_var, self.variables[c_var], var, self.variables[var])
                 self.variables[c_var] = self.variables[var]
-
 
         if self.options.get('cciscxx', None):
             self.log.debug("_set_mpi_compiler_variables: cciscxx set: switching MPICXX %s for MPICC value %s",
@@ -242,7 +239,8 @@ class Mpi(Toolchain):
         if not self.options.get('32bit', None):
             suffix = '64'
 
-        for root in self.get_software_root(self.MPI_MODULE_NAME):
+        # take into account that MPI_MODULE_NAME could be None (see Cray toolchains)
+        for root in self.get_software_root(self.MPI_MODULE_NAME or []):
             self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME,
                                          suffix=suffix)
             self.variables.append_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME,

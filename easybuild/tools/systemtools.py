@@ -67,7 +67,6 @@ except ImportError as err:
     HAVE_ARCHSPEC = False
 
 
-
 # Architecture constants
 AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
@@ -341,7 +340,7 @@ def get_cpu_family():
 
             # Distinguish POWER running in little-endian mode
             system, node, release, version, machine, processor = platform.uname()
-            powerle_regex = re.compile("^ppc(\d*)le")
+            powerle_regex = re.compile(r"^ppc(\d*)le")
             if powerle_regex.search(machine):
                 family = POWER_LE
 
@@ -481,11 +480,11 @@ def get_cpu_features():
                 _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
             elif get_cpu_architecture() == POWER:
                 # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
-                cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
+                cpu_altivec_regex = re.compile(r"^cpu\s*:.*altivec supported", re.M)
                 if cpu_altivec_regex.search(proc_cpuinfo):
                     cpu_feat.append('altivec')
                 # VSX is supported since POWER7
-                cpu_power7_regex = re.compile("^cpu\s*:.*POWER(7|8|9)", re.M)
+                cpu_power7_regex = re.compile(r"^cpu\s*:.*POWER(7|8|9)", re.M)
                 if cpu_power7_regex.search(proc_cpuinfo):
                     cpu_feat.append('vsx')
             else:
@@ -724,7 +723,7 @@ def get_gcc_version():
 
     # Fedora: gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)
     # Debian: gcc (Debian 4.9.2-10) 4.9.2
-    find_version = re.search("^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
+    find_version = re.search(r"^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
     if find_version:
         res = find_version.group('version')
         _log.debug("Found GCC version: %s from %s", res, out)

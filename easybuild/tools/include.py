@@ -68,7 +68,7 @@ EASYBLOCKS_PKG_INIT_BODY = """
 import pkgutil
 
 # extend path so Python finds our easyblocks in the subdirectories where they are located
-subdirs = [chr(l) for l in range(ord('a'), ord('z') + 1)] + ['0']
+subdirs = [chr(char) for char in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
     __path__ = pkgutil.extend_path(__path__, '%s.%s' % (__name__, subdir))
 
@@ -143,7 +143,7 @@ def verify_imports(pymods, pypkg, from_path):
 
 def is_software_specific_easyblock(module):
     """Determine whether Python module at specified location is a software-specific easyblock."""
-    return bool(re.search('^class EB_.*\(.*\):\s*$', read_file(module), re.M))
+    return bool(re.search(r'^class EB_.*\(.*\):\s*$', read_file(module), re.M))
 
 
 def include_easyblocks(tmpdir, paths):

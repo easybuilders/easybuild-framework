@@ -444,9 +444,9 @@ class ModulesTool(object):
             idx = 1
             while(curr_mod_paths[-idx:] == self.mod_paths[-idx:]):
                 idx += 1
-            self.log.debug("Not prepending %d last entries of %s", idx-1, self.mod_paths)
+            self.log.debug("Not prepending %d last entries of %s", idx - 1, self.mod_paths)
 
-            for mod_path in self.mod_paths[::-1][idx-1:]:
+            for mod_path in self.mod_paths[::-1][idx - 1:]:
                 self.prepend_module_path(mod_path)
 
             self.log.info("$MODULEPATH set via list of module paths (w/ 'module use'): %s" % os.environ['MODULEPATH'])
@@ -487,10 +487,7 @@ class ModulesTool(object):
         """
         Determine whether a module wrapper with specified name exists.
         Only .modulerc file in Tcl syntax is considered here.
-        DEPRECATED. Use exists()
         """
-        self.log.deprecated('module_wrapper_exists is unreliable and should no longer be used. ' +
-                            'Use exists instead to check for an existing module or alias.', '5.0')
 
         if mod_wrapper_regex_template is None:
             mod_wrapper_regex_template = "^[ ]*module-version (?P<wrapped_mod>[^ ]*) %s$"
@@ -589,6 +586,19 @@ class ModulesTool(object):
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
                 mod_exists = mod_exists_via_show(mod_name)
+
+            # if no module file was found, check whether specified module name can be a 'wrapper' module...
+            # this fallback mechanism is important when using a hierarchical module naming scheme,
+            # where "full" module names (like Core/Java/11) are used to check whether modules exist already;
+            # Lmod will report module wrappers as non-existent when full module name is used,
+            # see https://github.com/TACC/Lmod/issues/446
+            if not mod_exists:
+                self.log.debug("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
+                wrapped_mod = self.module_wrapper_exists(mod_name)
+                if wrapped_mod is not None:
+                    # module wrapper only really exists if the wrapped module file is also available
+                    mod_exists = wrapped_mod in avail_mod_names or mod_exists_via_show(wrapped_mod)
+                    self.log.debug("Result for existence check of wrapped module %s: %s", wrapped_mod, mod_exists)
 
             self.log.debug("Result for existence check of %s module: %s", mod_name, mod_exists)
 
@@ -1071,7 +1081,7 @@ class ModulesTool(object):
             if path_matches(full_mod_subdir, full_modpath_exts):
 
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep)-1]
+                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep) - 1]
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
@@ -1407,7 +1417,7 @@ class Lmod(ModulesTool):
     def module_wrapper_exists(self, mod_name):
         """
         Determine whether a module wrapper with specified name exists.
-        DEPRECATED. Use exists()
+        First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
         res = None
 
@@ -1599,6 +1609,7 @@ def invalidate_module_caches_for(path):
 
 class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
+
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
 
@@ -1611,7 +1622,7 @@ class NoModulesTool(ModulesTool):
 
     def exist(self, mod_names, *args, **kwargs):
         """No modules, so nothing exists"""
-        return [False]*len(mod_names)
+        return [False] * len(mod_names)
 
     def check_loaded_modules(self):
         """Nothing to do since no modules"""

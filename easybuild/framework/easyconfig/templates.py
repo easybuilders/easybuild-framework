@@ -245,6 +245,8 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                 template_values['%sver' % pref] = dep_version
                 dep_version_parts = dep_version.split('.')
                 template_values['%smajver' % pref] = dep_version_parts[0]
+                if len(dep_version_parts) > 1:
+                    template_values['%sminver' % pref] = dep_version_parts[1]
                 template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
                 break
 
