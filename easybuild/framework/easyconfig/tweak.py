@@ -904,7 +904,7 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                 'versionsuffix': versionsuffix or '',
             }
             # See what this dep would be mapped to
-            version_matches = find_potential_version_mappings(software_as_dep, toolchain_mapping)
+            version_matches = find_potential_version_mappings(software_as_dep, toolchain_mapping, quiet=True)
             if version_matches:
                 target_version = version_matches[0]['version']
                 if LooseVersion(target_version) > LooseVersion(version):
@@ -1101,7 +1101,7 @@ def list_deps_versionsuffixes(ec_spec):
 
 
 def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mapping=None, highest_versions_only=True,
-                                    ignore_versionsuffixes=False):
+                                    ignore_versionsuffixes=False, quiet=False):
     """
     Find potential version mapping for a dependency in a new hierarchy
 
@@ -1220,10 +1220,11 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         if ignore_versionsuffixes:
             highest_version = highest_version_ignoring_versionsuffix
         else:
-            print_warning(
-                "There may be newer version(s) of dep '%s' available with a different versionsuffix to '%s': %s",
-                dep['name'], versionsuffix, [d['path'] for d in potential_version_mappings if
-                                             d['version'] == highest_version_ignoring_versionsuffix])
+            if not quiet:
+                print_warning(
+                    "There may be newer version(s) of dep '%s' available with a different versionsuffix to '%s': %s",
+                    dep['name'], versionsuffix, [d['path'] for d in potential_version_mappings if
+                                                 d['version'] == highest_version_ignoring_versionsuffix])
             # exclude candidates with a different versionsuffix
             exclude_alternate_versionsuffixes = True
     else:
