@@ -405,7 +405,7 @@ class TweakTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertTrue(errtxt.startswith(warning_stub))
         self.assertEqual(len(potential_versions), 0)
-        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffix=True)
+        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffixes=True)
         self.assertEqual(len(potential_versions), 1)
         expected = {
             'path': os.path.join(test_easyconfigs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),

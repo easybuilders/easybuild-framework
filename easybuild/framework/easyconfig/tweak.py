@@ -124,6 +124,10 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             pruned_build_specs = copy.copy(build_specs)
 
             update_dependencies = pruned_build_specs.pop('update_deps', None)
+            ignore_versionsuffixes = pruned_build_specs.pop('ignore_versionsuffixes', None)
+            if ignore_versionsuffixes and not update_dependencies:
+                print_warning("--try-ignore-versionsuffixes is ignored if --try-update-deps is not True")
+                ignore_versionsuffixes = False
             if 'toolchain' in pruned_build_specs:
                 target_toolchain = pruned_build_specs.pop('toolchain')
                 pruned_build_specs.pop('toolchain_name', '')
@@ -195,7 +199,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         targetdir=tweaked_ecs_path,
                                                                         update_build_specs=pruned_build_specs,
-                                                                        update_dep_versions=update_dependencies)
+                                                                        update_dep_versions=update_dependencies,
+                                                                        ignore_versionsuffixes=ignore_versionsuffixes)
                     # Need to update the toolchain in the build_specs to match the toolchain mapping
                     keys = verification_build_specs.keys()
                     if 'toolchain_name' in keys:
@@ -217,7 +222,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                     # Note pruned_build_specs are not passed down for dependencies
                     map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                           targetdir=tweaked_ecs_deps_path,
-                                                          update_dep_versions=update_dependencies)
+                                                          update_dep_versions=update_dependencies,
+                                                          ignore_versionsuffixes=ignore_versionsuffixes)
             else:
                 tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
@@ -939,7 +945,7 @@ def get_matching_easyconfig_candidates(prefix_stub, toolchain):
 
 
 def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=None, update_build_specs=None,
-                                          update_dep_versions=False):
+                                          update_dep_versions=False, ignore_versionsuffixes=False):
     """
     Take an easyconfig spec, parse it, map it to a target toolchain and dump it out
 
@@ -1033,8 +1039,12 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             elif update_dep_versions:
                 # search for available updates for this dependency:
                 # first get highest version candidate paths for this (include search through subtoolchains)
-                potential_version_mappings = find_potential_version_mappings(dep, toolchain_mapping,
-                                                                             versionsuffix_mapping=versonsuffix_mapping)
+                potential_version_mappings = find_potential_version_mappings(
+                    dep,
+                    toolchain_mapping,
+                    versionsuffix_mapping=versonsuffix_mapping,
+                    ignore_versionsuffixes=ignore_versionsuffixes
+                )
                 # only highest version match is retained by default in potential_version_mappings,
                 # compare that version to the original version and replace if appropriate (upgrades only).
                 if potential_version_mappings:
@@ -1091,7 +1101,7 @@ def list_deps_versionsuffixes(ec_spec):
 
 
 def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mapping=None, highest_versions_only=True,
-                                    ignore_versionsuffix=False):
+                                    ignore_versionsuffixes=False):
     """
     Find potential version mapping for a dependency in a new hierarchy
 
@@ -1207,7 +1217,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
 
     exclude_alternate_versionsuffixes = False
     if ignored_versionsuffix_greater:
-        if ignore_versionsuffix:
+        if ignore_versionsuffixes:
             highest_version = highest_version_ignoring_versionsuffix
         else:
             print_warning(
