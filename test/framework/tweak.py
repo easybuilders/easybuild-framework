@@ -382,6 +382,39 @@ class TweakTest(EnhancedTestCase):
         }
         self.assertEqual(potential_versions[0], expected)
 
+        # Test that we can override respecting the versionsuffix
+
+        # Create toolchain mapping for OpenBLAS
+        gcc_4_tc = {'name': 'GCC', 'version': '4.8.2'}
+        gcc_6_tc = {'name': 'GCC', 'version': '6.4.0-2.28'}
+        tc_mapping = map_toolchain_hierarchies(gcc_4_tc, gcc_6_tc, self.modtool)
+        # Create a dep with the necessary params (including versionsuffix)
+        openblas_dep = {
+            'toolchain': {'version': '4.8.2', 'name': 'GCC'},
+            'name': 'OpenBLAS',
+            'system': False,
+            'versionsuffix': '-LAPACK-3.4.2',
+            'version': '0.2.8'
+        }
+
+        self.mock_stderr(True)
+        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping)
+        errtxt = self.get_stderr()
+        warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
+                       "versionsuffix to '-LAPACK-3.4.2'"
+        self.mock_stderr(False)
+        self.assertTrue(errtxt.startswith(warning_stub))
+        self.assertEqual(len(potential_versions), 0)
+        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffix=True)
+        self.assertEqual(len(potential_versions), 1)
+        expected = {
+            'path': os.path.join(test_easyconfigs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
+            'toolchain': {'version': '6.4.0-2.28', 'name': 'GCC'},
+            'version': '0.2.20',
+            'versionsuffix': '',
+        }
+        self.assertEqual(potential_versions[0], expected)
+
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
