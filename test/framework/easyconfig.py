@@ -1746,7 +1746,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for dictionary values: extend
         ec.update('sanity_check_paths', {'key1': 'value1'})
-        self.assertTrue(ec['sanity_check_paths'].endswith("'key1': 'value1'}"))
+        self.assertTrue(ec['sanity_check_paths'].strip().endswith("'key1': 'value1'}"))
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
