@@ -575,14 +575,15 @@ class EasyConfig(object):
     def update(self, key, value, allow_duplicate=True):
         """
         Update a string configuration value with a value (i.e. append to it).
+        NOTE: For dictionaries, 'allow_duplicate' will be ignored.
         """
         if isinstance(value, string_type):
             lval = [value]
-        elif isinstance(value, list):
+        elif isinstance(value, (list, dict, tuple)):
             lval = value
         else:
-            msg = "Can't update configuration value for %s, because the "
-            msg += "attempted update value, '%s', is not a string or list."
+            msg = "Can't update configuration value for %s, because the attempted"
+            msg += " update value, '%s', is not a string, list or dictionary."
             raise EasyBuildError(msg, key, value)
 
         param_value = self[key]
@@ -595,8 +596,17 @@ class EasyConfig(object):
             for item in lval:
                 if allow_duplicate or item not in param_value:
                     param_value = param_value + [item]
+        elif isinstance(param_value, tuple):
+            param_value = list(param_value)
+            for item in lval:
+                if allow_duplicate or item not in param_value:
+                    param_value.append(item)
+            param_value = tuple(param_value)
+        elif isinstance(param_value, dict):
+            param_value.update(lval)
         else:
-            raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
+            msg = "Can't update configuration value for %s, because it's not a string, list or dictionary."
+            raise EasyBuildError(msg, key)
 
         self[key] = param_value
 

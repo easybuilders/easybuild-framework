@@ -1744,6 +1744,10 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
         self.assertEqual(ec['patches'], patches_tmp)
 
+        # for dictionary values: extend
+        ec.update('sanity_check_paths', {'key1': 'value1'})
+        self.assertTrue(ec['sanity_check_paths'].endswith("'key1': 'value1'}"))
+
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
