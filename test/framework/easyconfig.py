@@ -1744,9 +1744,9 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
         self.assertEqual(ec['patches'], patches_tmp)
 
-        # for dictionary values: extend
+        # for dictionary values: extend, test for existence (not ordering)
         ec.update('sanity_check_paths', {'key1': 'value1'})
-        self.assertTrue(str(ec['sanity_check_paths']).endswith("'key1': 'value1'}"))
+        self.assertTrue(ec['sanity_check_paths']['key1']=='value1')
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
