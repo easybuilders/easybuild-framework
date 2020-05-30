@@ -587,7 +587,7 @@ class EasyConfig(object):
             raise EasyBuildError(msg, key, value)
 
         # For dictionaries, input value cannot be a string; must be iterable
-        if isinstance(self[key], dict) and not isinstance(value, string_type):
+        if isinstance(self[key], dict) and isinstance(value, string_type):
             msg = "Can't update configuration value for %s, because the attempted"
             msg += "update value, '%s', is not iterable (list, tuple, dict)."
             raise EasyBuildError(msg, key, value)
