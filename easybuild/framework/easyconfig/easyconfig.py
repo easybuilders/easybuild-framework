@@ -604,7 +604,7 @@ class EasyConfig(object):
             for item in inval:
                 if allow_duplicate or item not in param_value:
                     param_value.append(item)
-            if isinstance(self[key], tuple):	# Cast back to original type
+            if isinstance(self[key], tuple):     # Cast back to original type
                 param_value = tuple(param_value)
         elif isinstance(param_value, dict):
             param_value.update(inval)
