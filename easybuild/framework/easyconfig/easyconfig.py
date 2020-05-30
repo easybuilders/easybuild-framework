@@ -578,36 +578,41 @@ class EasyConfig(object):
         NOTE: For dictionaries, 'allow_duplicate' will be ignored.
         """
         if isinstance(value, string_type):
-            lval = [value]
+            inval = [value]
         elif isinstance(value, (list, dict, tuple)):
-            lval = value
+            inval = value
         else:
             msg = "Can't update configuration value for %s, because the attempted"
             msg += " update value, '%s', is not a string, list or dictionary."
             raise EasyBuildError(msg, key, value)
 
+        # For dictionaries, input value cannot be a string; must be iterable
+        if isinstance(self[key], dict) and not isinstance(value, string_type):
+            msg = "Can't update configuration value for %s, because the attempted"
+            msg += "update value, '%s', is not iterable (list, tuple, dict)."
+            raise EasyBuildError(msg, key, value)
+
+        # Make copy of current configuration value so we can modify it
         param_value = self[key]
         if isinstance(param_value, string_type):
-            for item in lval:
+            for item in inval:
                 # re.search: only add value to string if it's not there yet (surrounded by whitespace)
                 if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
                     param_value = param_value + ' %s ' % item
-        elif isinstance(param_value, list):
-            for item in lval:
-                if allow_duplicate or item not in param_value:
-                    param_value = param_value + [item]
-        elif isinstance(param_value, tuple):
+        elif isinstance(param_value, (list, tuple)):
             param_value = list(param_value)
-            for item in lval:
+            for item in inval:
                 if allow_duplicate or item not in param_value:
                     param_value.append(item)
-            param_value = tuple(param_value)
+            if isinstance(self[key], tuple):	# Cast back to original type
+                param_value = tuple(param_value)
         elif isinstance(param_value, dict):
-            param_value.update(lval)
+            param_value.update(inval)
         else:
             msg = "Can't update configuration value for %s, because it's not a string, list or dictionary."
             raise EasyBuildError(msg, key)
 
+        # Replace modified value back into configuration, preserving type
         self[key] = param_value
 
     def set_keys(self, params):
