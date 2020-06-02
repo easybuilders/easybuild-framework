@@ -35,6 +35,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Toon Willems (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Ward Poelmans (Ghent University)
+:author: Johannes Hoerman (University of Freiburg)
 """
 import copy
 import glob
@@ -70,6 +71,10 @@ try:
     # PyGraph (used for generating dependency graphs)
     # https://pypi.python.org/pypi/python-graph-core
     from pygraph.classes.digraph import digraph
+    from pygraph.algorithms.critical import critical_path
+    from pygraph.algorithms.minmax import shortest_path_bellman_ford
+    from pygraph.algorithms.searching import depth_first_search
+    from pygraph.algorithms.sorting import topological_sorting
     # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
     # graphviz (used for creating dependency graph images)
@@ -164,6 +169,148 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
             new_easyconfigs.append(easyconfig)
 
     return ordered_ecs, new_easyconfigs, avail_modules
+
+
+# isnpired by https://github.com/networkx/networkx/blob/9aedc31d291ac11eb0bb374c1ce8ad5cbcce02d3/networkx/algorithms/dag.py#L581
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph_transitive_redutcion(dgr, filename=None):
+    """Generate transitive reduction and dump to file if desired."""
+    tr = digraph()
+    tr.add_nodes(dgr.nodes())
+    descendants = {}
+
+    check_count = { v: len(dgr.incidents(v)) for v in dgr.nodes() }
+    _log.debug("Incident degrees: %s" % check_count)
+    for u in dgr.nodes():
+        u_nbrs = set(dgr.neighbors(u))
+        _log.debug("neighbors of %s: %s" % (u, u_nbrs))
+        for v in dgr.neighbors(u):
+            if v in u_nbrs:
+                if v not in descendants:
+                    # v is not descendant of itself
+                    descendants[v] = set(depth_first_search(dgr, v)[2]) - set([v])
+                    _log.debug("sub-graph in %s: %s" % (v, descendants[v]))
+                u_nbrs -= descendants[v]
+            check_count[v] -= 1
+            if check_count[v] == 0:
+                _log.debug("Remove %s: %s from descendants" % (v, descendants[v]))
+                del descendants[v]
+
+        _log.debug("Descendants: %s" % descendants)
+        _log.debug("u_nbrs: %s" % u_nbrs)
+        for v in u_nbrs:
+            tr.add_edge((u ,v))
+
+    if filename is not None:
+        _dep_graph_dump(tr, filename)
+
+    return tr
+
+
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph_roots(dgr):
+    """Return list of nodes with no incoming edges."""
+    nodes = dgr.nodes()
+    roots = set(nodes)
+    for node in nodes:
+        roots = roots - set(dgr.neighbors(node))
+    roots = list(roots)
+    _log.info("Found %d roots: %s" % (len(roots), roots))
+    return roots
+
+
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph_layers(specs, full_graph_filename=None, transitive_reduction_filename=None):
+    """Return list of dependency tree(s) layers."""
+    # Let's call targets without further dependencies (usually the eb files
+    # specified on command line) "roots" and targets that do not have any other
+    # dependencies themselves "leaves" of the dependency DAG.
+    # The aim of this alogrithm is to provide all targets within the dep. DAG
+    # binned in layers, with as many targets as possible close to root(s).
+    # The motivation is to build linearly 'stacked' container images with as
+    # many reusable layers twoards the leaves as possible.
+
+    dgr = dep_graph_obj(specs, full_graph_filename)
+    # the transitive reduction drops all obsolete edges while preserving all
+    # dependencies
+    tr = dep_graph_transitive_redutcion(dgr, transitive_reduction_filename)
+    # for logging only: the critical path is the longest path from a root to
+    # a leaf, thus its length will determine the total number of layers
+    cp = critical_path(tr)
+    n = len(cp)
+    _log.info("Critical %s path has length %d." % (cp, n))
+
+    # for logging only: roots and leaves
+    roots = dep_graph_roots(tr)
+    if len(roots) == 0:
+        raise EasyBuildError("Graph has no root!")
+    else:
+        _log.info("Dependency DAG has %d roots %s." % (len(roots), roots))
+
+    # the reverse just turns around the directions of all edges in the DAG
+    rev_tr = tr.reverse()
+
+    leaves = dep_graph_roots(rev_tr)
+    if len(leaves) == 0:
+        raise EasyBuildError("Graph has no leaves!")
+    else:
+        _log.info("Dependency DAG has %d leaves %s." % (len(leaves), leaves))
+
+    # set weights negative, get longest paths from each node in reverse graph
+    for e in rev_tr.edges():
+        rev_tr.set_edge_weight(e, -1)
+
+    layers = [[] for _ in range(n)]
+    for v in rev_tr.nodes():
+        path, dist = shortest_path_bellman_ford(rev_tr, v)
+        _log.debug("%s v is reached by paths %s with distances %s." % (v, path, dist))
+        layer = -min(dist.values())
+        _log.info("%s v is assigned to layer %d." % (v, layer))
+        dgr.add_node_attribute(v, ('layer', layer))
+        layers[layer].append(v)
+
+    _log.info("Filled %d layers with %s." % (n, layers))
+    return layers
+
+
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph_obj(specs, filename=None):
+    """
+    Return a dependency graph pygraph object for the given easyconfigs.
+    Nodes are named by ec file names. Dump graph file if desired.
+    """
+    def mk_node_name(spec):
+        _log.debug(spec)
+        node_name = ActiveMNS().det_full_module_name(spec)
+        return node_name
+
+    # enhance list of specs
+    all_nodes = set()
+    for spec in specs:
+        spec['module'] = mk_node_name(spec['ec'])
+        all_nodes.add(spec['module'])
+        spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
+        all_nodes.update(spec['ec'].all_dependencies)
+
+        # Get the build dependencies for each spec so we can distinguish them later
+        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec'].builddependencies()]
+        all_nodes.update(spec['ec'].build_dependencies)
+
+    # build directed graph
+    dgr = digraph()
+    dgr.add_nodes(all_nodes)
+    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
+    for spec in specs:
+        for dep in spec['ec'].all_dependencies:
+            # NOTE: we assign negative weights here for finding longest paths
+            dgr.add_edge((spec['module'], dep))
+            if dep in spec['ec'].build_dependencies:
+                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
+
+    if filename is not None:
+        _dep_graph_dump(dgr, filename)
+
+    return dgr
 
 
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
