@@ -277,35 +277,53 @@ def dep_graph_layers(specs, full_graph_filename=None, transitive_reduction_filen
 def dep_graph_obj(specs, filename=None):
     """
     Return a dependency graph pygraph object for the given easyconfigs.
-    Nodes are named by ec file names. Dump graph file if desired.
+    Nodes are identified by their full module names and labeled with 
+    corresponding EasyConfig file names. Dump graph file if desired.
     """
     def mk_node_name(spec):
-        _log.debug(spec)
-        node_name = ActiveMNS().det_full_module_name(spec)
-        return node_name
+        # _log.info("EC spec: %s" % spec)
+        return ActiveMNS().det_full_module_name(spec)
+
+    def mk_node_label(spec):
+        return spec.filename()
 
     # enhance list of specs
     all_nodes = set()
-    for spec in specs:
+    label_dict = {}
+    for i, spec in enumerate(specs):
+        _log.debug("#%d spec ec filename: %s" % (i, spec['ec'].filename()))
         spec['module'] = mk_node_name(spec['ec'])
-        all_nodes.add(spec['module'])
+        node_name =  mk_node_label(spec['ec'])
+        label_dict[spec['module']] = node_name
+        all_nodes.add(node_name)
+
+        for j, s in enumerate(spec['ec'].all_dependencies):
+            _log.debug("spec %d- all dep %d spec: %s" % (i, j, s))
+
         spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
-        all_nodes.update(spec['ec'].all_dependencies)
+        # all_nodes.update(spec['ec'].all_dependencies)
+        # under what circumstances would it be necessary to explicitly add dependencies to node set?
 
         # Get the build dependencies for each spec so we can distinguish them later
+        for j, s in enumerate(spec['ec'].builddependencies()):
+            _log.debug("spec %d - build dep %d spec: %s" % (i, j, s))
+
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec'].builddependencies()]
-        all_nodes.update(spec['ec'].build_dependencies)
+        # all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
+    # for v in dgr.nodes():
+    #    dgr.add_node_attribute(v, ('ec', label_dict[v]))
+
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             # NOTE: we assign negative weights here for finding longest paths
-            dgr.add_edge((spec['module'], dep))
+            dgr.add_edge((label_dict[spec['module']], label_dict[dep]))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
+                dgr.add_edge_attributes((label_dict[spec['module']], label_dict[dep]), attrs=edge_attrs)
 
     if filename is not None:
         _dep_graph_dump(dgr, filename)
