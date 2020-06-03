@@ -567,7 +567,7 @@ class EasyBuildOptions(GeneralOption):
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dep-graph-layers': ("Bin dependency graph into layers", None, 'store_true', False),
-            'dep-tr-graph': ("Specify together with --dep-graph-layers to dump transient reduction of dependency graph to file", None, 'store', None, {'metavar': 'trgraph.<ext>'}),
+            # 'dep-tr-graph': ("Specify together with --dep-graph-layers to dump transient reduction of dependency graph to file", None, 'store', None, {'metavar': 'trgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),

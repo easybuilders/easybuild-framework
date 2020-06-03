@@ -459,7 +459,7 @@ def init_build_options(build_options=None, cmdline_options=None):
         # building a dependency graph implies force, so that all dependencies are retained
         # and also skips validation of easyconfigs (e.g. checking os dependencies)
         retain_all_deps = False
-        if cmdline_options.dep_graph or cmdline_options.check_conflicts:
+        if cmdline_options.dep_graph or cmdline_options.dep_graph_layers or cmdline_options.check_conflicts:
             _log.info("Enabling force to generate dependency graph.")
             cmdline_options.force = True
             retain_all_deps = True
@@ -473,7 +473,7 @@ def init_build_options(build_options=None, cmdline_options=None):
 
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.check_contrib,
                                       cmdline_options.check_style, cmdline_options.containerize,
-                                      cmdline_options.dep_graph, cmdline_options.dry_run,
+                                      cmdline_options.dep_graph, cmdline_options.dep_graph_layers, cmdline_options.dry_run,
                                       cmdline_options.dry_run_short, cmdline_options.dump_env_script,
                                       cmdline_options.extended_dry_run, cmdline_options.fix_deprecated_easyconfigs,
                                       cmdline_options.missing_modules, cmdline_options.new_branch_github,
