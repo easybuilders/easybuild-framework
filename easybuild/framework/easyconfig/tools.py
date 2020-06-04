@@ -39,6 +39,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 """
 import copy
 import glob
+import itertools
 import logging
 import math
 import os
@@ -72,6 +73,7 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 try:
     # PyGraph (used for generating dependency graphs)
     # https://pypi.python.org/pypi/python-graph-core
+    from pygraph.classes.graph import graph
     from pygraph.classes.digraph import digraph
     from pygraph.algorithms.accessibility import connected_components
     from pygraph.algorithms.critical import critical_path
@@ -175,8 +177,9 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
 
 # isnpired by https://github.com/networkx/networkx/blob/9aedc31d291ac11eb0bb374c1ce8ad5cbcce02d3/networkx/algorithms/dag.py#L581
+# transitive reduction removes all degenerate edges from a DAG while preserving dependency relations
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
-def dep_graph_transitive_redutcion(dgr):
+def dep_graph_transitive_reduction(dgr):
     """Generate transitive reduction and dump to file if desired."""
     tr = digraph()
     tr.add_nodes(dgr.nodes())
@@ -225,9 +228,9 @@ def dep_graph_sub(dgr, root):
     _log.info("Subgraph at root %s has %d nodes and %d edges." % (root, len(sub.nodes()), len(sub.edges())))
     _log.debug("Nodes: %s" % sub.nodes())
     _log.debug("Edges: %s" % sub.edges())
-    if _log.isEnabledFor(logging.DEBUG):
-        filename = os.path.splitext(root)[0] + '_dep-graph-sub.dot'
-        _dep_graph_dump(sub, filename)
+    # if _log.isEnabledFor(logging.DEBUG):
+    #    filename = os.path.splitext(root)[0] + '_dep-graph-sub.dot'
+    #    _dep_graph_dump(sub, filename)
     return sub
 
 
@@ -244,67 +247,181 @@ def dep_graph_roots(dgr):
 
 
 # https://stackoverflow.com/questions/43108481/maximum-common-subgraph-in-a-directed-graph
+# not the maximum common subgraph, just common subgraph of two graphs g1 and g2
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
-def dep_graph_pairwise_mcs(g1, g2, filename=None):
-    """Return maximum common subgraph of two DAGs g1 and g2."""
-    matching_graph = digraph()
+def dep_graph_pairwise_common_subgraph(g1, g2):
+    """Return common subgraph of two DAGs g1 and g2."""
+    sub = digraph()
 
+    # iterate over edges in g1 and add if edge in g2 as well
     for n1, n2 in g1.edges():
         if g2.has_edge((n1,n2)) :
-            if not matching_graph.has_node(n1):
-                matching_graph.add_node(n1)
-            if not matching_graph.has_node(n2):
-                matching_graph.add_node(n2)
-            matching_graph.add_edge((n1,n2))
+            if not sub.has_node(n1):
+                sub.add_node(n1)
+            if not sub.has_node(n2):
+                sub.add_node(n2)
+            sub.add_edge((n1,n2))
 
-    # returns node: component dict
-    cc_dict = connected_components(matching_graph)
-    _log.debug("Connected components: %s" % cc_dict)
-    # number of connected components:
-    n_cc = len(set(cc_dict.values()))
-    _log.debug("%d components." % n_cc)
-    cc_list = [ [] for _ in range(n_cc) ]
-    for v, cc in cc_dict.items():
-        _log.debug("%s belongs to component %d" % (v, cc))
-        cc_list[cc-1].append(v)
+    # if _log.isEnabledFor(logging.DEBUG):
+    #    roots = [*dep_graph_roots(g1), *dep_graph_roots(g2)]
+    #    filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots])) + '_dep-graph-common-sub.dot'
+    #    _dep_graph_dump(sub, filename)
 
-    _log.info("Found %d connected components: %s" % (n_cc, cc_list))
-
-    cc_len = [ len(cc) for cc in cc_list ]
-    mcs_len = max(cc_len)  # mcs not necessarily unique, only one arbitrary found
-    mcs_nodes = cc_list[cc_len.index(mcs_len)]
-
-    _log.info("%d nodes in maximum common subgraph %s" % (mcs_len, mcs_nodes))
-
-    mcs_graph = digraph()
-    mcs_graph.add_nodes(mcs_nodes)
-
-    # the edge-existance check might be obsolete within the same dependency graph
-    for u in mcs_graph.nodes():
-        for v in g1.neighbors(u):
-            if g2.has_edge((u,v)):
-                mcs_graph.add_edge((u,v))
-
-    if _log.isEnabledFor(logging.DEBUG):
-        roots = [*dep_graph_roots(g1), *dep_graph_roots(g2)]
-        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots])) + '_dep-graph-mcs.dot'
-        _dep_graph_dump(mcs_graph, filename)
-
-    return mcs_graph
+    return sub
 
 
+# recursively divide and conquer set of graphs to find all common subragphs
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
-def dep_graph_mcs(dgr_list):
-    """Find maximum common subgraph for arbitrary number of graphs."""
+def dep_graph_common_subgraph(dgr_list):
+    """Find common subgraph for arbitrary number of graphs."""
     n = len(dgr_list)
     if n < 1:
         raise ValueException("len(dg_list) < 1!")
     elif n == 1:
         return dgr_list[0]
-    else: # if len(dgr_list) >= 2:
-        return dep_graph_pairwise_mcs(
-            dep_graph_mcs(dgr_list[:n//2]),
-            dep_graph_mcs(dgr_list[n//2:]))
+    else:  # len(dgr_list) >= 2:
+        return dep_graph_pairwise_common_subgraph(
+            dep_graph_common_subgraph(dgr_list[:n//2]),
+            dep_graph_common_subgraph(dgr_list[n//2:]))
+
+
+# When layering a dependency graph G with multiple roots, we will have to branch
+# the stacked layers at some point earlier or later. We would like
+# to branch as "late" as possible when climbing down from leaves
+# towards roots [r1, ..., rN]. In other words, we might want a high "degeneracy"
+# of grouped subgraphs, thus we construct some penalty metric: A subgraph's g
+# penalty metric is determined by the number of nodes n_g within the subgraph g
+# divided by the number of roots N that share the subgraph n_g/N.
+#
+# This partition strategy implements a brute force approach to minimize that
+# metric by recursive Y-branching of "fibre bundles". A bundle pair (gl, gr) is
+# created by the union of all subgraphs spanned by an n-tuple and the complementary
+# (N-n)-tuple of roots after removing the common subgraph gc induced by all roots.
+# Note that gc may have multiple disconnected components.
+# The "best" metric is found from all possible tuple pairings for n = 1 .. N//2,
+# but only pairwise branchings are considered. The approach is repeated recursively.
+#
+# Thereby a graph of graphs is constructed, where a node represents one
+# recursion step's gc edges represent necessary branching in the layer stack.
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph_partition(dgr):
+    """Only one of many possible partitioning strategies.
+
+    Returns:
+        graph, metric
+    """
+    roots = dep_graph_roots(dgr)
+    n_roots = len(roots)
+
+    _log.info("n_roots = %d: graph with roots %s has %d nodes and %d edges." % (n_roots, roots, len(dgr.nodes()), len(dgr.edges())))
+    _log.debug("Nodes: %s" % dgr.nodes())
+    _log.debug("Edges: %s" % dgr.edges())
+
+    if n_roots == 1:
+        meta_dgr = digraph()
+        node_id = os.path.splitext(roots[0])[0]
+        meta_dgr.add_node(node_id)
+        meta_dgr.add_node_attribute(node_id, ('dgr', dgr))
+        return meta_dgr, len(dgr.nodes())
+
+    max_size = 0
+    # subgraphs induced by each root
+    subs = [dep_graph_sub(dgr, r) for r in roots]
+    # common subgraph of all roots
+    common_sub = dep_graph_common_subgraph(subs)
+    metric = len(common_sub.nodes())/n_roots
+
+    _log.info("n_roots = %d: metric = %.2f common subgraph induced by roots %s has %d nodes and %d edges." % (n_roots, metric, roots, len(common_sub.nodes()), len(common_sub.edges())))
+    _log.debug("Nodes: %s" % common_sub.nodes())
+    _log.debug("Edges: %s" % common_sub.edges())
+
+    # remove common subgraph from graph
+    reduced_dgr = digraph()
+    for u in dgr.nodes():
+        if (not common_sub.has_node(u)):
+            reduced_dgr.add_node(u)
+
+    for u in reduced_dgr.nodes():
+        for v in dgr.neighbors(u):
+            if reduced_dgr.has_node(v):
+                reduced_dgr.add_edge((u,v))
+
+    # recreate subgraphs induced by each root, this time without common subgraph
+    reduced_subs = [dep_graph_sub(reduced_dgr, r) for r in roots]
+    indices = [i for i in range(n_roots)]
+    # some impossible worst case
+    best_metric = len(reduced_dgr.nodes())*n_roots
+    # iterate over possible fibre bundles
+    for tuple_size in range(1,n_roots//2+1):
+        _log.info("n_roots = %d: tuple size %d." % (n_roots, tuple_size))
+        for left_tuple in itertools.combinations(indices, tuple_size):
+            # remove common sub from graph
+            right_tuple = tuple(i for i in indices if i not in left_tuple)
+
+            _log.info("n_roots = %d: looking at %s : %s partitioning." % (n_roots, left_tuple, right_tuple))
+
+            left_reduced_dgr = digraph()
+            left_edges = set()
+            for i in left_tuple:
+                left_edges |= set(reduced_subs[i].edges())
+            for (u,v) in list(left_edges):
+                if not left_reduced_dgr.has_node(u):
+                    left_reduced_dgr.add_node(u)
+                if not left_reduced_dgr.has_node(v):
+                    left_reduced_dgr.add_node(v)
+                left_reduced_dgr.add_edge((u,v))
+
+            _log.info("n_roots = %d: left reduced graph has %d nodes and %d edges." % (n_roots, len(left_reduced_dgr.nodes()), len(left_reduced_dgr.edges())))
+            _log.debug("Nodes: %s" % left_reduced_dgr.nodes())
+            _log.debug("Edges: %s" % left_reduced_dgr.edges())
+
+            right_reduced_dgr = digraph()
+            right_edges = set()
+            for i in right_tuple:
+                right_edges |= set(reduced_subs[i].edges())
+            for (u,v) in list(right_edges):
+                if not right_reduced_dgr.has_node(u):
+                    right_reduced_dgr.add_node(u)
+                if not right_reduced_dgr.has_node(v):
+                    right_reduced_dgr.add_node(v)
+                right_reduced_dgr.add_edge((u,v))
+
+            _log.info("n_roots = %d: right reduced graph has %d nodes and %d edges." % (n_roots, len(right_reduced_dgr.nodes()), len(right_reduced_dgr.edges())))
+            _log.debug("Nodes: %s" % right_reduced_dgr.nodes())
+            _log.debug("Edges: %s" % right_reduced_dgr.edges())
+
+            left_meta_dgr, left_metric = dep_graph_partition(left_reduced_dgr)
+            right_meta_dgr, right_metric = dep_graph_partition(right_reduced_dgr)
+
+            cur_metric = left_metric + right_metric
+
+            if cur_metric < best_metric:
+                _log.info("n_roots = %d: found better metric %d < previous best %d." % (n_roots, cur_metric, best_metric))
+                best_metric = cur_metric
+                best_child_meta_dgr = [left_meta_dgr, right_meta_dgr]
+
+    metric += best_metric
+    _log.info("n_roots = %d: total metric %d." % (n_roots, best_metric))
+
+    meta_dgr = digraph()
+    node_id = '_'.join(sorted([os.path.splitext(r)[0] for r in roots]))
+    _log.info("n_roots = %d: node_id %s." % (n_roots, node_id))
+    meta_dgr.add_node(node_id)
+    meta_dgr.add_node_attribute(node_id, ('dgr', common_sub))
+
+    for i, child_meta_dgr in enumerate(best_child_meta_dgr):
+        child_roots = dep_graph_roots(child_meta_dgr)
+        assert len(child_roots) == 1
+        child_node_id = child_roots[0]
+        _log.info("n_roots = %d: child %d node_id %s." % (n_roots, i, child_node_id))
+        meta_dgr.add_graph(child_meta_dgr)
+        # attributes and labels not preserved
+        for u in child_meta_dgr.nodes():
+            for (label, content) in child_meta_dgr.node_attributes(u):
+                meta_dgr.add_node_attribute(u, (label, content))
+        meta_dgr.add_edge((node_id, child_node_id))
+
+    return meta_dgr, metric
 
 
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
@@ -325,28 +442,123 @@ def dep_graph_grouped_layers(specs, print_result=True, terse=False):
     # the transitive reduction drops all obsolete edges while preserving all
     # dependencies
 
-    tr = dep_graph_transitive_redutcion(dgr)
+    tr = dep_graph_transitive_reduction(dgr)
     roots = dep_graph_roots(tr)
-    if len(roots) == 0:
-        raise EasyBuildError("Graph has no root!")
-    else:
-        _log.info("Dependency DAG has %d roots %s." % (len(roots), roots))
+    # n_roots = len(roots)
+    # if n_roots == 0:
+    #    raise EasyBuildError("Graph has no root!")
+    # else:
+    #    _log.info("Dependency DAG has %d roots %s." % (len(roots), roots))
 
-    subs = [ dep_graph_sub(tr, r) for r in roots ]
-    mcs = dep_graph_mcs(subs)
-    _log.info("Maximum common subgraph of all subgraphs spanned at roots %s has %d nodes and %d edges." % (roots, len(mcs.nodes()), len(mcs.edges())))
-    _log.debug("Nodes: %s" % mcs.nodes())
-    _log.debug("Edges: %s" % mcs.edges())
+    meta_dgr, metric = dep_graph_partition(tr)
+    _log.info("Best partitioning with metric %d." % (metric))
 
-    layers = dep_graph_layers(tr)
+    if _log.isEnabledFor(logging.DEBUG):
+        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots])) + '_dep-graph-meta.dot'
+        _dep_graph_dump(meta_dgr, filename)
+
+    layer_lists = dep_graph_layer_lists(meta_dgr, parallel=True)
+    _log.info("Number of layer lists: %d." % (len(layer_lists)))
+
     if print_result:
         # prepare output format
+        lines = []
         if terse:
-            lines = [ ' '.join(l) for l in layers ]
+            for layers in layer_lists:
+                lines.extend([ ' '.join(l) for l in layers ])
+                lines.extend([''])
         else:
-            digits = int(math.floor(math.log(len(layers),10)))+1
-            lines = [ '#{layer_id:0{width:d}d}: {layer_content}'.format(layer_id=i, layer_content=l, width=digits) for i, l in enumerate(layers) ]
+            for i, layers in enumerate(layer_lists):
+                digits = int(math.floor(math.log(len(layers),10)))+1
+                lines.extend(['#{block_id:0{width:d}d}'.format(block_id=i, width=2)])
+                lines.extend(['#{layer_id:0{width:d}d}: {layer_content}'.format(layer_id=j, layer_content=l, width=digits) for j, l in enumerate(layers)])
         print('\n'.join(lines))
+
+
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph_layer_lists(meta_dgr, root=None, parallel=True):
+    """Process meta graph of dep graph subgraphs."""
+    if not root:
+        roots = dep_graph_roots(meta_dgr)
+        # meta_dgr must have exactly one root
+        assert len(roots) == 1
+        root = roots[0]
+
+    attr_dict = dict(meta_dgr.node_attributes(root))
+    dgr = attr_dict['dgr']
+
+    if _log.isEnabledFor(logging.DEBUG):
+        filename = root + '_dep-graph-sub.dot'
+        _dep_graph_dump(dgr, filename)
+
+    # there might be disconnected components.
+    # we may stack or merge, (serial or parallel arrangements)
+    # https://en.wikipedia.org/wiki/Series-parallel_graph
+
+    # connected_components yields unexpected behaviort on directed graphs
+    gr = graph()
+    gr.add_graph(dgr)
+    # connected_components returns node: component dict
+    cc_dict = connected_components(gr)
+    _log.info("%s - connected component assignemnts: %s" % (root, cc_dict))
+    # number of connected components:
+    n_cc = len(set(cc_dict.values()))
+    _log.info("%s - %d connected components." % (root, n_cc))
+    dgr_components = [ digraph() for _ in range(n_cc) ]
+    for v, cc in cc_dict.items():
+        _log.info("%s - component %d: %s" % (root, cc, v))
+        dgr_components[cc-1].add_node(v)
+
+    for dgr_component in dgr_components:
+        for u in dgr_component.nodes():
+            for v in dgr.neighbors(u):
+                dgr_component.add_edge((u,v))
+
+    # now we have serial ordering
+    blocks = [ dep_graph_layers(dgr_component) for dgr_component in dgr_components ]
+    _log.info("%s: serial arrangement:" % (root))
+    for i, block in enumerate(blocks):
+        _log.info("%s -block %d:" % (root, i))
+        for j, layer in enumerate(block):
+            _log.info("%s- block %d - layer %d: %s." % (root, i, j, layer))
+
+    # we make it parallel for fewer total number of layers
+    if parallel:
+        merged_blocks = []
+        for i, block in enumerate(blocks):
+            # _log.info("%s: - block %d: %s" % (root, i, block))
+            for j, layer in enumerate(reversed(block)):
+                if j>= len(merged_blocks):
+                    merged_blocks.append(layer)
+                else:
+                    merged_blocks[j].extend(layer)
+        blocks = [list(reversed(merged_blocks))]
+        _log.info("%s - parallel arrangement:" % (root))
+        for j, layer in enumerate(blocks[0]):
+            _log.info("%s - layer %d: %s." % (root, j, layer))
+
+    layer_list = [ l for b in blocks for l in b ]
+    _log.info("%s - blocks: %s" % (root, blocks))
+    _log.info("%s - layer list prefix: %s" % (root, layer_list))
+
+    # handle dependent blocks
+    layer_lists = []
+    for i, child in enumerate(meta_dgr.neighbors(root)):
+        _log.info("%s - descend to child %d: %s." % (root, i, child))
+        child_layer_lists = dep_graph_layer_lists(meta_dgr, child, parallel)
+        _log.info("%s - child %d: %s returned %d layer lists." % (root, i, child, len(child_layer_lists)))
+        for j, child_layer_list in enumerate(child_layer_lists):
+            _log.info("%s - child %d - layer list %d: %s" % (root, i, j, child_layer_list))
+            layer_lists.append([*layer_list, *child_layer_list])
+
+    if len(layer_lists) == 0:  # no children
+        layer_lists = [layer_list]
+
+    _log.info("%s - return %d layer lists." % (root, len(layer_lists)))
+    for j, layer_list in enumerate(layer_lists):
+        _log.info("%s - layer list %d: %s" % (root, j, layer_list))
+
+    return layer_lists
 
 
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
@@ -433,8 +645,6 @@ def dep_graph_obj(specs):
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
-    # for v in dgr.nodes():
-    #    dgr.add_node_attribute(v, ('ec', label_dict[v]))
 
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
