@@ -209,7 +209,7 @@ def dep_graph_transitive_reduction(dgr):
 
     if _log.isEnabledFor(logging.DEBUG):
         roots = dep_graph_roots(tr)
-        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots])) + '_dep-graph-tr.dot'
+        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots], key=str.lower)) + '_dep-graph-tr.dot'
         _dep_graph_dump(tr, filename)
 
     return tr
@@ -404,7 +404,7 @@ def dep_graph_partition(dgr):
     _log.info("n_roots = %d: total metric %d." % (n_roots, best_metric))
 
     meta_dgr = digraph()
-    node_id = '_'.join(sorted([os.path.splitext(r)[0] for r in roots]))
+    node_id = '_'.join(sorted([os.path.splitext(r)[0] for r in roots], key=str.lower))
     _log.info("n_roots = %d: node_id %s." % (n_roots, node_id))
     meta_dgr.add_node(node_id)
     meta_dgr.add_node_attribute(node_id, ('dgr', common_sub))
@@ -454,7 +454,7 @@ def dep_graph_grouped_layers(specs, print_result=True, terse=False):
     _log.info("Best partitioning with metric %d." % (metric))
 
     if _log.isEnabledFor(logging.DEBUG):
-        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots])) + '_dep-graph-meta.dot'
+        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots], key=str.lower)) + '_dep-graph-meta.dot'
         _dep_graph_dump(meta_dgr, filename)
 
     layer_lists = dep_graph_layer_lists(meta_dgr, parallel=True)
@@ -526,7 +526,6 @@ def dep_graph_layer_lists(meta_dgr, root=None, parallel=True):
     if parallel:
         merged_blocks = []
         for i, block in enumerate(blocks):
-            # _log.info("%s: - block %d: %s" % (root, i, block))
             for j, layer in enumerate(reversed(block)):
                 if j>= len(merged_blocks):
                     merged_blocks.append(layer)
@@ -537,7 +536,8 @@ def dep_graph_layer_lists(meta_dgr, root=None, parallel=True):
         for j, layer in enumerate(blocks[0]):
             _log.info("%s - layer %d: %s." % (root, j, layer))
 
-    layer_list = [ l for b in blocks for l in b ]
+    # preserve aphabetical sorting
+    layer_list = [ list(sorted(l, key=str.lower)) for b in blocks for l in b ]
     _log.info("%s - blocks: %s" % (root, blocks))
     _log.info("%s - layer list prefix: %s" % (root, layer_list))
 
@@ -600,6 +600,9 @@ def dep_graph_layers(dgr):
         layers[layer].append(v)
 
     layers.reverse()
+
+    # assure alphabetical sorting
+    layers = [ list(sorted(l, key=str.lower)) for l in layers ]
     _log.info("Filled %d layers with %s." % (n, layers))
     return layers
 
@@ -656,7 +659,7 @@ def dep_graph_obj(specs):
 
     if _log.isEnabledFor(logging.DEBUG):
         roots = dep_graph_roots(dgr)
-        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots])) + '_dep-graph.dot'
+        filename = '_'.join(sorted([os.path.splitext(r)[0] for r in roots], key=str.lower)) + '_dep-graph.dot'
         _dep_graph_dump(dgr, filename)
 
     return dgr
