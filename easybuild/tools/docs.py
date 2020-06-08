@@ -490,7 +490,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
             txt.append(format_strings['root_templ'] % root)
 
         if format_strings.get('newline') is not None:
-                txt.append(format_strings['newline'])
+            txt.append(format_strings['newline'])
         if 'children' in classes[root]:
             txt.extend(avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
             if format_strings.get('newline') is not None:
@@ -522,7 +522,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         ecs.append(ec)
         print_msg('\r', prefix=False, newline=False, silent=silent)
-        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False, silent=silent)
+        print_msg("Processed %d/%d easyconfigs..." % (idx + 1, cnt), newline=False, silent=silent)
     print_msg('', prefix=False, silent=silent)
 
     software = {}
@@ -602,7 +602,7 @@ def list_software_rst(software, detailed=False):
 
     def key_to_ref(name):
         """Create a reference label for the specified software name."""
-        return 'list_software_%s_%d' % (name, sum(ord(l) for l in name))
+        return 'list_software_%s_%d' % (name, sum(ord(letter) for letter in name))
 
     letter = None
     sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
@@ -744,28 +744,59 @@ def list_toolchains_rst(tcs):
     """ Returns overview of all toolchains in rst format """
     title = "List of known toolchains"
 
-    # figure out column names
-    table_titles = ['name', 'compiler', 'MPI']
-    for tc in tcs.values():
-        table_titles.extend(tc.keys())
+    # Specify the column names for the table
+    table_titles = ['NAME', 'COMPILER', 'MPI', 'LINALG', 'FFT']
 
+    # Set up column name : display name pairs
     col_names = {
-        'COMPILER_CUDA': 'CUDA compiler',
-        'SCALAPACK': 'ScaLAPACK',
+        'NAME': 'Name',
+        'COMPILER': 'Compiler(s)',
+        'LINALG': "Linear algebra",
     }
 
-    table_titles = nub(table_titles)
+    # Create sorted list of toolchain names
+    sorted_tc_names = sorted(tcs.keys(), key=str.lower)
 
+    # Create text placeholder to use for missing entries
+    none_txt = '*(none)*'
+
+    # Initialize an empty list of lists for the table data
     table_values = [[] for i in range(len(table_titles))]
-    table_values[0] = ['**%s**' % tcname for tcname in tcs.keys()]
 
-    for idx in range(1, len(table_titles)):
-        for tc in tcs.values():
-            table_values[idx].append(', '.join(tc.get(table_titles[idx].upper(), [])))
+    for col_id, col_name in enumerate(table_titles):
+        if col_name == 'NAME':
+            # toolchain names column gets bold face entry
+            table_values[col_id] = ['**%s**' % tcname for tcname in sorted_tc_names]
+        else:
+            for tc_name in sorted_tc_names:
+                tc = tcs[tc_name]
+                if 'cray' in tc_name.lower():
+                    if col_name == 'COMPILER':
+                        entry = ', '.join(tc[col_name.upper()])
+                    elif col_name == 'MPI':
+                        entry = 'cray-mpich'
+                    elif col_name == 'LINALG':
+                        entry = 'cray-libsci'
+                # Combine the linear algebra libraries into a single column
+                elif col_name == 'LINALG':
+                    linalg = []
+                    for col in ['BLAS', 'LAPACK', 'SCALAPACK']:
+                        linalg.extend(tc.get(col, []))
+                    entry = ', '.join(nub(linalg)) or none_txt
+                else:
+                    # for other columns, we can grab the values via 'tc'
+                    # key = col_name
+                    entry = ', '.join(tc.get(col_name, [])) or none_txt
+                table_values[col_id].append(entry)
 
+    # Set the table titles to the pretty ones
     table_titles = [col_names.get(col, col) for col in table_titles]
+
+    # Pass the data to the rst formatter, wich is returned as a list, each element
+    # is an rst formatted text row.
     doc = rst_title_and_table(title, table_titles, table_values)
 
+    # Make a string with line endings suitable to write to document file
     return '\n'.join(doc)
 
 
@@ -871,7 +902,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         '.. _' + classname + ':',
         '',
         '``' + classname + '``',
-        '=' * (len(classname)+4),
+        '=' * (len(classname) + 4),
         '',
     ]
 
@@ -936,7 +967,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     if os.path.exists(os.path.join(path_to_examples, '%s.eb' % classname)):
         title = 'Example easyconfig for ``' + classname + '`` easyblock'
         doc.extend([title, '-' * len(title), '', '.. code::', ''])
-        for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
+        for line in read_file(os.path.join(path_to_examples, classname + '.eb')).split('\n'):
             doc.append(INDENT_4SPACES + line)
         doc.append('')  # empty line after literal block
 

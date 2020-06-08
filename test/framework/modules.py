@@ -44,6 +44,7 @@ import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
@@ -91,6 +92,104 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(ms, ['GCC/4.6.3'])
 
         shutil.rmtree(tmpdir)
+
+    def test_run_module(self):
+        """Test for ModulesTool.run_module method."""
+
+        testdir = os.path.dirname(os.path.abspath(__file__))
+
+        for key in ['EBROOTGCC', 'EBROOTOPENMPI', 'EBROOTOPENBLAS']:
+            if key in os.environ:
+                del os.environ[key]
+
+        # arguments can be passed in two ways: multiple arguments, or just 1 list argument
+        self.modtool.run_module('load', 'GCC/6.4.0-2.28')
+        self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
+
+        # restore original environment
+        modify_env(os.environ, self.orig_environ, verbose=False)
+        self.reset_modulepath([os.path.join(testdir, 'modules')])
+
+        self.assertFalse('EBROOTGCC' in os.environ)
+        self.modtool.run_module(['load', 'GCC/6.4.0-2.28'])
+        self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
+
+        # skip tests that rely on exit codes when using EnvironmentModulesTcl modules tool,
+        # because it doesn't use proper exit codes
+        if not isinstance(self.modtool, EnvironmentModulesTcl):
+
+            # by default, exit code is checked and an error is raised if we run something that fails
+            error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
+
+            # we need to use a different error pattern here with EnvironmentModulesC,
+            # because a load of a non-existing module doesnt' trigger a non-zero exit code...
+            # it will still fail though, just differently
+            if isinstance(self.modtool, EnvironmentModulesC):
+                error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
+            else:
+                error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
+
+        # we can choose to blatently ignore the exit code,
+        # and also disable the output check that serves as a fallback;
+        # we also enable return_output here, because trying to apply the environment changes produced
+        # by a faulty command is bound to cause trouble...
+        kwargs = {
+            'check_exit_code': False,
+            'check_output': False,
+            'return_output': True,
+        }
+        self.modtool.run_module('thisdoesnotmakesense', **kwargs)
+        self.modtool.run_module('load', 'nosuchmodule/1.2.3', **kwargs)
+
+        # by default, the output (stdout+stderr) produced by the command is processed;
+        # result is a list of useful info (module names in case of list/avail)
+        res = self.modtool.run_module('list')
+        self.assertEqual(res, [{'mod_name': 'GCC/6.4.0-2.28', 'default': None}])
+
+        res = self.modtool.run_module('avail', 'GCC/4.6.3')
+        self.assertTrue(isinstance(res, list))
+        self.assertEqual(sorted([x['mod_name'] for x in res]), ['GCC/4.6.3'])
+
+        # loading a module produces no output, so we get an empty list
+        res = self.modtool.run_module('load', 'OpenMPI/2.1.2-GCC-6.4.0-2.28')
+        self.assertEqual(res, [])
+        self.assertEqual(os.environ['EBROOTOPENMPI'], '/prefix/software/OpenMPI/2.1.2-GCC-6.4.0-2.28')
+
+        # we can opt into getting back the raw output (stdout + stderr);
+        # in that cases, the output includes Python statements to change the environment;
+        # the changes that would be made by the module command are *not* applied to the environment
+        out = self.modtool.run_module('load', 'OpenBLAS/0.2.20-GCC-6.4.0-2.28', return_output=True)
+        patterns = [
+            r"^os.environ\[.EBROOTOPENBLAS.\]\s*=\s*./prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28.",
+            r"^os.environ\[.LOADEDMODULES.\]\s*=.*OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
+
+        # OpenBLAS module did *not* get loaded
+        self.assertFalse('EBROOTOPENBLAS' in os.environ)
+        res = self.modtool.list()
+        expected = ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']
+        self.assertEqual(sorted([x['mod_name'] for x in res]), expected)
+
+        # we can also only obtain the stderr output (which contains the user-facing output),
+        # and just drop the stdout output (which contains the statements to change the environment)
+        out = self.modtool.run_module('show', 'OpenBLAS/0.2.20-GCC-6.4.0-2.28', return_stderr=True)
+        patterns = [
+            r"test/framework/modules/OpenBLAS/0.2.20-GCC-6.4.0-2.28:\s*$",
+            r"setenv\W+EBROOTOPENBLAS.+/prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+            r"prepend[_-]path\W+LD_LIBRARY_PATH.+/prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28/lib",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
+
+        # show method only returns user-facing output (obtained via stderr), not changes to the environment
+        regex = re.compile(r'^os\.environ\[', re.M)
+        self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
 
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
@@ -168,6 +267,7 @@ class ModulesTest(EnhancedTestCase):
 
         java_mod_dir = os.path.join(self.test_prefix, 'Java')
         write_file(os.path.join(java_mod_dir, '1.8.0_181'), '#%Module')
+        write_file(os.path.join(self.test_prefix, 'toy', '42.1337'), '#%Module')
 
         if self.modtool.__class__ == EnvironmentModulesC:
             modulerc_tcl_txt = '\n'.join([
@@ -175,11 +275,18 @@ class ModulesTest(EnhancedTestCase):
                 'if {"Java/1.8" eq [module-info version Java/1.8]} {',
                 '    module-version Java/1.8.0_181 1.8',
                 '}',
+                'if {"Java/site_default" eq [module-info version Java/site_default]} {',
+                '    module-version Java/1.8.0_181 site_default',
+                '}',
             ])
         else:
             modulerc_tcl_txt = '\n'.join([
                 '#%Module',
                 'module-version Java/1.8.0_181 1.8',
+                'module-version Java/1.8.0_181 site_default',
+                'module-alias Java/Alias toy/42.1337',
+                # 'module-alias Java/NonExist non_existant/1',  # (only) LMod has this in module avail, disable for now
+                'module-alias JavaAlias Java/1.8.0_181',  # LMod 7+ only
             ])
 
         write_file(os.path.join(java_mod_dir, '.modulerc'), modulerc_tcl_txt)
@@ -188,8 +295,20 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue('Java/1.8.0_181' in avail_mods)
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
             self.assertTrue('Java/1.8' in avail_mods)
+            self.assertTrue('Java/site_default' in avail_mods)
+            self.assertTrue('JavaAlias' in avail_mods)
+            self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
+
         self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
-        self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
+
+        # module-version with different version suffix than the base module
+        self.assertEqual(self.modtool.exist(['Java/site_default']), [True])
+        # Check for aliases:
+        # - completely different nameTrue, True,
+        # - alias to non existant module
+        # Skipped for EnvironmentModulesC as module-alias not working correctly there
+        if self.modtool.__class__ != EnvironmentModulesC:
+            self.assertEqual(self.modtool.exist(['Java/Alias', 'Java/NonExist']), [True, False])
 
         reset_module_caches()
 
@@ -199,8 +318,11 @@ class ModulesTest(EnhancedTestCase):
 
         self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
         self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
-        self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
-        self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
+        # there's a workaround to ensure that module wrappers/aliases are recognized when they're
+        # being checked with the full module name (see https://github.com/TACC/Lmod/issues/446);
+        # that's necessary when using a hierarchical module naming scheme,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3335
+        self.assertEqual(self.modtool.exist(['Core/Java/1.8', 'Core/Java/site_default']), [True, True])
 
         # also check with .modulerc.lua for Lmod 7.8 or newer
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
@@ -208,13 +330,22 @@ class ModulesTest(EnhancedTestCase):
             reset_module_caches()
 
             remove_file(os.path.join(java_mod_dir, '.modulerc'))
-            write_file(os.path.join(java_mod_dir, '.modulerc.lua'), 'module_version("Java/1.8.0_181", "1.8")')
+            write_file(os.path.join(java_mod_dir, '.modulerc.lua'),
+                       '\n'.join([
+                            'module_version("Java/1.8.0_181", "1.8")',
+                            'module_version("Java/1.8.0_181", "site_default")',
+                            'module_alias("JavaAlias", "Java/1.8")',
+                        ]))
 
             avail_mods = self.modtool.available()
             self.assertTrue('Java/1.8.0_181' in avail_mods)
             self.assertTrue('Java/1.8' in avail_mods)
             self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
-            self.assertEqual(self.modtool.module_wrapper_exists('Java/1.8'), 'Java/1.8.0_181')
+
+            # check for an alias with a different version suffix than the base module
+            self.assertEqual(self.modtool.exist(['Java/site_default']), [True])
+            # And completely different name
+            self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
             reset_module_caches()
 
@@ -223,7 +354,23 @@ class ModulesTest(EnhancedTestCase):
             self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
             self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
             self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
-            self.assertEqual(self.modtool.module_wrapper_exists('Core/Java/1.8'), 'Core/Java/1.8.0_181')
+            self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
+
+        # Test alias in home directory .modulerc
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+            # Required or temporary HOME would be in MODULEPATH already
+            self.init_testmods()
+            # Sanity check: Module aliases don't exist yet
+            self.assertEqual(self.modtool.exist(['OpenMPI/99', 'OpenMPIAlias']), [False, False])
+            # Use a temporary dir, not the users HOME
+            os.environ['HOME'] = tempfile.mkdtemp()
+            reset_module_caches()
+            write_file(os.path.join(os.environ['HOME'], '.modulerc'), '\n'.join([
+                '#%Module',
+                'module-version OpenMPI/2.1.2-GCC-6.4.0-2.28 99',
+                'module-alias OpenMPIAlias OpenMPI/2.1.2-GCC-6.4.0-2.28',
+            ]))
+            self.assertEqual(self.modtool.exist(['OpenMPI/99', 'OpenMPIAlias']), [True, True])
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
@@ -283,6 +430,25 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['GCC/6.4.0-2.28'], allow_reload=False)
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertFalse(loaded_modules[-1] == 'GCC/6.4.0-2.28')
+
+    def test_show(self):
+        """Test for ModulesTool.show method."""
+
+        out = self.modtool.show('GCC/7.3.0-2.30')
+
+        patterns = [
+            # full path to module is included in output of 'show'
+            r"test/framework/modules/GCC/7.3.0-2.30:\s*$",
+            r"setenv\W+EBROOTGCC.+prefix/software/GCC/7.3.0-2.30",
+            r"^prepend[_-]path\W+PATH.+/prefix/software/GCC/7.3.0-2.30/bin",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
+
+        # show method only returns user-facing output (obtained via stderr), not changes to the environment
+        regex = re.compile(r'^os\.environ\[', re.M)
+        self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
 
     def test_curr_module_paths(self):
         """Test for curr_module_paths function."""
@@ -543,24 +709,6 @@ class ModulesTest(EnhancedTestCase):
             self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'bzip2', '.1.0.6.lua')))
             res = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
             self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
-
-        # hack into 'module show GCC/6.4.0-2.28' cache and inject alternate output that modulecmd.tcl sometimes produces
-        # make sure we only extract the module file path, nothing else...
-        # cfr. https://github.com/easybuilders/easybuild/issues/368
-        modulepath = os.environ['MODULEPATH'].split(':')
-        mod_show_cache_key = modtool.mk_module_cache_key('GCC/6.4.0-2.28')
-        mod.MODULE_SHOW_CACHE[mod_show_cache_key] = '\n'.join([
-            "import os",
-            "os.environ['MODULEPATH_modshare'] = '%s'" % ':'.join(m + ':1' for m in modulepath),
-            "os.environ['MODULEPATH'] = '%s'" % ':'.join(modulepath),
-            "------------------------------------------------------------------------------",
-            "%s:" % gcc_mod_file,
-            "------------------------------------------------------------------------------",
-            # remainder of output doesn't really matter in this context
-            "setenv		EBROOTGCC /prefix/GCC/6.4.0-2.28"
-        ])
-        res = modtool.modulefile_path('GCC/6.4.0-2.28')
-        self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'GCC', '6.4.0-2.28')))
 
         reset_module_caches()
 
@@ -891,7 +1039,7 @@ class ModulesTest(EnhancedTestCase):
             # exact error message depends on Lmod version
             load_err_msg = '|'.join([
                 r'These[\s\sn]*module\(s\)[\s\sn]*exist[\s\sn]*but[\s\sn]*cannot[\s\sn]*be',
-                'The[\s\sn]*following[\s\sn]*module\(s\)[\s\sn]*are[\s\sn]*unknown',
+                r'The[\s\sn]*following[\s\sn]*module\(s\)[\s\sn]*are[\s\sn]*unknown',
             ])
         else:
             load_err_msg = "Unable to locate a modulefile"
@@ -1060,7 +1208,7 @@ class ModulesTest(EnhancedTestCase):
     def test_exit_code_check(self):
         """Verify that EasyBuild checks exit code of executed module commands"""
         if isinstance(self.modtool, Lmod):
-            error_pattern = "Module command 'module load nosuchmoduleavailableanywhere' failed with exit code"
+            error_pattern = "Module command '.*load nosuchmoduleavailableanywhere' failed with exit code"
         else:
             # Tcl implementations exit with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
@@ -1101,7 +1249,7 @@ class ModulesTest(EnhancedTestCase):
             r"^\* GCC/6.4.0-2.28",
             r"^\* hwloc/1.11.8-GCC-6.4.0-2.28",
             r"^\* OpenMPI/2.1.2-GCC-6.4.0-2.28",
-            "This is not recommended since it may affect the installation procedure\(s\) performed by EasyBuild.",
+            r"This is not recommended since it may affect the installation procedure\(s\) performed by EasyBuild.",
             "To make EasyBuild allow particular loaded modules, use the --allow-loaded-modules configuration option.",
             "To specify action to take when loaded modules are detected, use "
             "--detect-loaded-modules={error,ignore,purge,unload,warn}",
@@ -1119,7 +1267,7 @@ class ModulesTest(EnhancedTestCase):
 
         # error mentioning 1 non-allowed module (OpenMPI), both GCC and hwloc loaded modules are allowed
         error_pattern = r"Found one or more non-allowed loaded .* module.*\n"
-        error_pattern += "\* OpenMPI/2.1.2-GCC-6.4.0-2.28\n\nThis is not"
+        error_pattern += r"\* OpenMPI/2.1.2-GCC-6.4.0-2.28\n\nThis is not"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
         # check for warning message when purge is being run on loaded modules

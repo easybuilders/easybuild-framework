@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
+from easybuild.tools.filetools import apply_patch, change_dir, copy_dir, copy_easyblocks, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
@@ -360,7 +360,9 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     download_file(base_name, url, target_path, forced=True)
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
-    extracted_path = os.path.join(extract_file(target_path, path, forced=True), extracted_dir_name)
+    base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
+    change_dir(base_dir)
+    extracted_path = os.path.join(base_dir, extracted_dir_name)
 
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
@@ -1008,7 +1010,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     break
         except EasyBuildError as err:
             _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
-        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx+1, nr_of_ecs))
+        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
         sys.stdout.flush()
 
     sys.stdout.write('\n')
@@ -1333,10 +1335,17 @@ def new_branch_github(paths, ecs, commit_msg=None):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None):
+def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
     Create new pull request from specified branch on GitHub.
     """
+
+    if descr is None:
+        descr = build_option('pr_descr')
+    if commit_msg is None:
+        commit_msg = build_option('pr_commit_msg')
+    if title is None:
+        title = build_option('pr_title') or commit_msg
 
     pr_target_account = build_option('pr_target_account')
     pr_target_branch = build_option('pr_target_branch')
@@ -1550,19 +1559,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     :param commit_msg: commit message to use
     """
 
-    if descr is None:
-        descr = build_option('pr_descr')
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
-    if title is None:
-        title = build_option('pr_title') or commit_msg
 
     # create new branch in GitHub
     res = new_branch_github(paths, ecs, commit_msg=commit_msg)
     file_info, deleted_paths, _, branch_name, diff_stat, pr_target_repo = res
 
     new_pr_from_branch(branch_name, title=title, descr=descr, pr_target_repo=pr_target_repo,
-                       pr_metadata=(file_info, deleted_paths, diff_stat))
+                       pr_metadata=(file_info, deleted_paths, diff_stat), commit_msg=commit_msg)
 
 
 def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):

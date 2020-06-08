@@ -97,6 +97,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     PYHEADER_MANDATORY = ['version', 'name', 'toolchain', 'homepage', 'description']
     PYHEADER_BLACKLIST = []
 
+    def __init__(self, *args, **kwargs):
+        """FormatOneZero constructor."""
+        super(FormatOneZero, self).__init__(*args, **kwargs)
+
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        self.strict_sanity_check_paths_keys = True
+
     def validate(self):
         """Format validation"""
         # minimal checks
@@ -168,10 +175,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item_key in ordered_item_keys:
                         if item_key in param_val:
                             item_val = param_val[item_key]
+                            item_comments = self._get_item_comments(param_name, item_val)
+                        elif param_name == 'sanity_check_paths' and not self.strict_sanity_check_paths_keys:
+                            item_val = []
+                            item_comments = {}
+                            self.log.info("Using default value for '%s' in sanity_check_paths: %s", item_key, item_val)
                         else:
                             raise EasyBuildError("Missing mandatory key '%s' in %s.", item_key, param_name)
-
-                        item_comments = self._get_item_comments(param_name, item_val)
 
                         inline_comment = item_comments.get('inline', '')
                         item_tmpl_dict = {'inline_comment': inline_comment}
@@ -317,6 +327,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         :param templ_val: known template values
         :param toolchain_hierarchy: hierarchy of toolchains for easyconfig
         """
+        # figoure out whether we should be strict about the format of sanity_check_paths;
+        # if enhance_sanity_check is set, then both files/dirs keys are not strictly required...
+        self.strict_sanity_check_paths_keys = not ecfg['enhance_sanity_check']
+
         # include header comments first
         dump = self.comments['header'][:]
 

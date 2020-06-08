@@ -40,6 +40,7 @@ from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 import easybuild.tools.modules as modules
+import easybuild.tools.toolchain as toolchain
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.toolchains.system import SystemToolchain
@@ -49,6 +50,7 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
+from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
 from easybuild.tools.toolchain.toolchain import env_vars_external_module
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -1026,6 +1028,40 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'mpi_cmd_template': "mpirun %(foo)s -np %(nr_ranks)s %(cmd)s", 'silent': True})
         error_pattern = "Failed to complete MPI cmd template .* with .*: KeyError 'foo'"
         self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
+
+    def test_get_mpi_cmd_template(self):
+        """Test get_mpi_cmd_template function."""
+
+        # search_toolchain needs to be called once to make sure constants like toolchain.OPENMPI are in place
+        search_toolchain('')
+
+        input_params = {'nr_ranks': 123, 'cmd': 'this_is_just_a_test'}
+
+        for mpi_fam in [toolchain.OPENMPI, toolchain.MPICH, toolchain.MPICH2, toolchain.MVAPICH2]:
+            mpi_cmd_tmpl, params = get_mpi_cmd_template(mpi_fam, input_params)
+            self.assertEqual(mpi_cmd_tmpl, "mpirun -n %(nr_ranks)s %(cmd)s")
+            self.assertEqual(params, input_params)
+
+        # Intel MPI is a special case, also requires MPI version to be known
+        impi = toolchain.INTELMPI
+        error_pattern = "Intel MPI version unknown, can't determine MPI command template!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, get_mpi_cmd_template, impi, {})
+
+        mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.INTELMPI, input_params, mpi_version='1.0')
+        self.assertEqual(mpi_cmd_tmpl, "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)s %(cmd)s")
+        self.assertEqual(sorted(params.keys()), ['cmd', 'mpdbf', 'nodesfile', 'nr_ranks'])
+        self.assertEqual(params['cmd'], 'this_is_just_a_test')
+        self.assertEqual(params['nr_ranks'], 123)
+
+        mpdbf = params['mpdbf']
+        regex = re.compile('^--file=.*/mpdboot$')
+        self.assertTrue(regex.match(mpdbf), "'%s' should match pattern '%s'" % (mpdbf, regex.pattern))
+        self.assertTrue(os.path.exists(mpdbf.split('=')[1]))
+
+        nodesfile = params['nodesfile']
+        regex = re.compile('^-machinefile /.*/nodes$')
+        self.assertTrue(regex.match(nodesfile), "'%s' should match pattern '%s'" % (nodesfile, regex.pattern))
+        self.assertTrue(os.path.exists(nodesfile.split(' ')[1]))
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""

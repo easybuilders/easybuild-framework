@@ -268,12 +268,11 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
     if system_info['cpu_arch_name'] != UNKNOWN:
         system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
 
-    short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+    os_info = '%(hostname)s - %(os_type)s %(os_name)s %(os_version)s' % system_info
+    short_system_info = "%(os_info)s, %(cpu_arch)s, %(cpu_model)s, Python %(pyver)s" % {
+        'os_info': os_info,
+        'cpu_arch': system_info['cpu_arch'],
         'cpu_model': system_info['cpu_model'],
-        'hostname': system_info['hostname'],
-        'os_name': system_info['os_name'],
-        'os_type': system_info['os_type'],
-        'os_version': system_info['os_version'],
         'pyver': system_info['python_version'].split(' ')[0],
     }
 

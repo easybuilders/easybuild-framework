@@ -910,8 +910,11 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
                     if original_suffix in versionsuffix_mappings:
                         if mapped_suffix != versionsuffix_mappings[original_suffix]:
                             raise EasyBuildError("No unique versionsuffix mapping for %s in %s toolchain "
-                                                 "hierarchy to %s toolchain hierarchy", original_suffix,
-                                                 original_toolchain, toolchain_mapping[original_toolchain['name']])
+                                                 "hierarchy to %s toolchain hierarchy (mapped suffix was %s but "
+                                                 "versionsuffix mappings were %s)",
+                                                 original_suffix, original_toolchain,
+                                                 toolchain_mapping[original_toolchain['name']], mapped_suffix,
+                                                 versionsuffix_mappings)
                     else:
                         versionsuffix_mappings[original_suffix] = mapped_suffix
 
@@ -956,7 +959,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     versonsuffix_mapping = {}
     # We only need to map versionsuffixes if we are updating dependency versions and if there are
     # versionsuffixes being used in dependencies
-    if update_dep_versions and list_deps_versionsuffixes(ec_spec):
+    if update_dep_versions and (list_deps_versionsuffixes(ec_spec) or parsed_ec['versionsuffix']):
         # We may need to update the versionsuffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_versionsuffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
 
