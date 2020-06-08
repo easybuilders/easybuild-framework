@@ -1027,6 +1027,29 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
 
+    def test_java_wrapper_templating(self):
+        """test templating when the Java wrapper is a dep"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "https://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = [("Java", "11", "", True)]',
+            'modloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+
+        # no %(javaminver)s because there is no minor version for Java
+        self.assertEqual(eb.template_values['javaver'], '11')
+        self.assertEqual(eb.template_values['javamajver'], '11')
+        self.assertEqual(eb.template_values['javashortver'], '11')
+        self.assertFalse('javaminver' in eb.template_values)
+
+        self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
+
     def test_templating_doc(self):
         """test templating documentation"""
         doc = avail_easyconfig_templates()
