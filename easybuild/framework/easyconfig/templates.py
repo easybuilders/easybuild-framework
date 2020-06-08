@@ -215,7 +215,12 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
         # copy to avoid changing original list below
         deps = copy.copy(config.get('dependencies', []))
-        deps += config.get('builddependencies', [])
+
+        if hasattr(config, 'iterating'):
+            if config.iterating:
+                deps += config.get('builddependencies', [])
+        else:
+            deps += config.get('builddependencies', [])
 
         for dep in deps:
             if isinstance(dep, dict):
