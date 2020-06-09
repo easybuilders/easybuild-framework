@@ -574,30 +574,50 @@ class EasyConfig(object):
 
     def update(self, key, value, allow_duplicate=True):
         """
-        Update a string configuration value with a value (i.e. append to it).
+        Update an easyconfig parameter with the specified value (i.e. append to it).
+        Note: For dictionary easyconfig parameters, 'allow_duplicate' is ignored (since it's meaningless).
         """
         if isinstance(value, string_type):
-            lval = [value]
-        elif isinstance(value, list):
-            lval = value
+            inval = [value]
+        elif isinstance(value, (list, dict, tuple)):
+            inval = value
         else:
-            msg = "Can't update configuration value for %s, because the "
-            msg += "attempted update value, '%s', is not a string or list."
+            msg = "Can't update configuration value for %s, because the attempted"
+            msg += " update value, '%s', is not a string, list, tuple or dictionary."
             raise EasyBuildError(msg, key, value)
 
-        param_value = self[key]
+        # For easyconfig parameters that are dictionaries, input value must also be a dictionary
+        if isinstance(self[key], dict) and not isinstance(value, dict):
+            msg = "Can't update configuration value for %s, because the attempted"
+            msg += "update value (%s), is not a dictionary (type: %s)."
+            raise EasyBuildError(msg, key, value, type(value))
+
+        # Grab current parameter value so we can modify it
+        param_value = copy.deepcopy(self[key])
+
         if isinstance(param_value, string_type):
-            for item in lval:
+            for item in inval:
                 # re.search: only add value to string if it's not there yet (surrounded by whitespace)
                 if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
                     param_value = param_value + ' %s ' % item
-        elif isinstance(param_value, list):
-            for item in lval:
-                if allow_duplicate or item not in param_value:
-                    param_value = param_value + [item]
-        else:
-            raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
+        elif isinstance(param_value, (list, tuple)):
+            # make sure we have a list value so we can just append to it
+            param_value = list(param_value)
+            for item in inval:
+                if allow_duplicate or item not in param_value:
+                    param_value.append(item)
+            # cast back to tuple if original value was a tuple
+            if isinstance(self[key], tuple):
+                param_value = tuple(param_value)
+
+        elif isinstance(param_value, dict):
+            param_value.update(inval)
+        else:
+            msg = "Can't update configuration value for %s, because it's not a string, list, tuple or dictionary."
+            raise EasyBuildError(msg, key)
+
+        # Overwrite easyconfig parameter value with updated value, preserving type
         self[key] = param_value
 
     def set_keys(self, params):
