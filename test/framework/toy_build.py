@@ -1219,7 +1219,7 @@ class ToyBuildTest(EnhancedTestCase):
             '   ("exts-git", "0.0", {',
             '       "buildopts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),
             '       "sources": {',
-            '           "filename": "%s",' % ext_tgz,
+            '           "filename": "%(name)s.tar.gz",',
             '           "git_config": {',
             '               "repo_name": "testrepository",',
             '               "url": "https://github.com/easybuilders",',
