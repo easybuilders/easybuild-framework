@@ -159,7 +159,7 @@ def avail_easyconfig_constants_rst():
         "Description",
     ]
 
-    sorted_keys = sorted(EASYCONFIG_CONSTANTS.keys())
+    sorted_keys = sorted(EASYCONFIG_CONSTANTS)
 
     table_values = [
         ["``%s``" % key for key in sorted_keys],
