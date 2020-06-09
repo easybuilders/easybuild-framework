@@ -341,7 +341,7 @@ class EasyBlock(object):
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
 
-    def fetch_source(self, source=None, checksum=None, extension=False):
+    def fetch_source(self, source, checksum=None, extension=False):
         """
         Get a specific source (tarball, iso, url)
         Will be tested for existence or can be located
@@ -353,7 +353,7 @@ class EasyBlock(object):
         filename, download_filename, extract_cmd, source_urls, git_config = None, None, None, None, None
 
         if source is None:
-            raise EasyBuildError("Fetch_source called without 'source' argument")
+            raise EasyBuildError("fetch_source called with empty 'source' argument")
         elif isinstance(source, string_type):
             filename = source
         elif isinstance(source, dict):
@@ -415,14 +415,14 @@ class EasyBlock(object):
 
         # Loop over the list of sources; list of checksums must match >= in size
         for index, source in enumerate(sources):
-            if source:
-                got_src = self.fetch_source(source, self.get_checksum_for(checksums=checksums, index=index))
-                if got_src:
-                    self.src.append(got_src)
-                else:
-                    raise EasyBuildError("Unable to retrieve source %s", source)
+            if source is None:
+                raise EasyBuildError("Empty source in sources list at index %d", index)
+
+            src_spec = self.fetch_source(source, self.get_checksum_for(checksums=checksums, index=index))
+            if src_spec:
+                self.src.append(src_spec)
             else:
-                raise EasyBuildError("Empty source in list at index %d", index)
+                raise EasyBuildError("Unable to retrieve source %s", source)
 
         self.log.info("Added sources: %s", self.src)
 
@@ -549,6 +549,9 @@ class EasyBlock(object):
                         exts_sources.append(ext_src)
                     elif ext_options.get('sources', None):
                         sources = ext_options['sources']
+                        if isinstance(sources, (list,tuple)):
+                            raise EasyBuildError("'sources' entry to 'exts_list' must be a single dictionary.")
+
                         src = self.fetch_source(sources, checksums, extension=True)
                         # Copy 'path' entry to 'src' for use with extensions
                         ext_src.update({'src': src['path']})
@@ -556,10 +559,8 @@ class EasyBlock(object):
                     else:
                         source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-                        git_config = ext_options.get('git_config', None)
 
-                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download,
-                                                  git_config=git_config)
+                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
