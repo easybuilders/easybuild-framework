@@ -549,7 +549,7 @@ class EasyBlock(object):
                         exts_sources.append(ext_src)
                     elif ext_options.get('sources', None):
                         sources = ext_options['sources']
-                        if isinstance(sources, (list,tuple)):
+                        if isinstance(sources, (list, tuple)):
                             raise EasyBuildError("'sources' entry to 'exts_list' must be a single dictionary.")
 
                         src = self.fetch_source(sources, checksums, extension=True)
