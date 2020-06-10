@@ -1196,8 +1196,48 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec)
 
-    def test_toy_extension_sources(self):
-        """Test install toy that includes extensions with full sources."""
+    def test_toy_extension_sources_single_item_list(self):
+        """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # test use of single-element list in 'sources' with just the filename
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "sources": ["bar-%(version)s.tar.gz"],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec)
+
+    def test_toy_extension_sources_str(self):
+        """Test install toy that includes extensions with 'sources' spec (as string value)."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # test use of single-element list in 'sources' with just the filename
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "sources": "bar-%(version)s.tar.gz",',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec)
+
+    def test_toy_extension_sources_git_config(self):
+        """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
@@ -1230,7 +1270,6 @@ class ToyBuildTest(EnhancedTestCase):
             ']',
         ])
         write_file(test_ec, test_ec_txt)
-
         self.test_toy_build(ec_file=test_ec)
 
     def test_toy_module_fulltxt(self):
