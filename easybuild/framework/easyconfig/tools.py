@@ -276,7 +276,7 @@ def dep_graph_common_subgraph(dgr_list):
     """Find common subgraph for arbitrary number of graphs."""
     n = len(dgr_list)
     if n < 1:
-        raise ValueException("len(dg_list) < 1!")
+        raise EasyBuildError("len(dgr_list) < 1!")
     elif n == 1:
         return dgr_list[0]
     else:  # len(dgr_list) >= 2:
@@ -355,20 +355,21 @@ def dep_graph_partition(dgr):
     for tuple_size in range(1,n_roots//2+1):
         _log.info("n_roots = %d: tuple size %d." % (n_roots, tuple_size))
         for left_tuple in itertools.combinations(indices, tuple_size):
-            # remove common sub from graph
             right_tuple = tuple(i for i in indices if i not in left_tuple)
 
             _log.info("n_roots = %d: looking at %s : %s partitioning." % (n_roots, left_tuple, right_tuple))
 
             left_reduced_dgr = digraph()
+            left_nodes = set()
             left_edges = set()
             for i in left_tuple:
+                left_nodes |= set(reduced_subs[i].nodes())
                 left_edges |= set(reduced_subs[i].edges())
-            for (u,v) in list(left_edges):
+
+            for u in list(left_nodes):
                 if not left_reduced_dgr.has_node(u):
                     left_reduced_dgr.add_node(u)
-                if not left_reduced_dgr.has_node(v):
-                    left_reduced_dgr.add_node(v)
+            for (u,v) in list(left_edges):
                 left_reduced_dgr.add_edge((u,v))
 
             _log.info("n_roots = %d: left reduced graph has %d nodes and %d edges." % (n_roots, len(left_reduced_dgr.nodes()), len(left_reduced_dgr.edges())))
@@ -376,14 +377,16 @@ def dep_graph_partition(dgr):
             _log.debug("Edges: %s" % left_reduced_dgr.edges())
 
             right_reduced_dgr = digraph()
+            right_nodes = set()
             right_edges = set()
             for i in right_tuple:
+                right_nodes |= set(reduced_subs[i].nodes())
                 right_edges |= set(reduced_subs[i].edges())
-            for (u,v) in list(right_edges):
+
+            for u in list(right_nodes):
                 if not right_reduced_dgr.has_node(u):
                     right_reduced_dgr.add_node(u)
-                if not right_reduced_dgr.has_node(v):
-                    right_reduced_dgr.add_node(v)
+            for (u,v) in list(right_edges):
                 right_reduced_dgr.add_edge((u,v))
 
             _log.info("n_roots = %d: right reduced graph has %d nodes and %d edges." % (n_roots, len(right_reduced_dgr.nodes()), len(right_reduced_dgr.edges())))
