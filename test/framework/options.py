@@ -412,6 +412,44 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    def test_avail_easyconfig_constants(self):
+        """Test listing available easyconfig file constants."""
+
+        def run_test(fmt=None):
+            """Helper function to test --avail-easyconfig-constants."""
+
+            args = ['--avail-easyconfig-constants']
+            if fmt is not None:
+                args.append('--output-format=%s' % fmt)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, verbose=True, raise_error=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+
+            if fmt == 'rst':
+                pattern_lines = [
+                    r'^``HOME``.*',
+                    r'``OS_NAME``.*',
+                    r'``OS_PKG_IBVERBS_DEV``.*',
+                ]
+            else:
+                pattern_lines = [
+                    r'^\s*HOME:.*',
+                    r'\s*OS_NAME: .*',
+                    r'\s*OS_PKG_IBVERBS_DEV: .*',
+                ]
+
+            regex = re.compile('\n'.join(pattern_lines), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should match in: %s" % (regex.pattern, stdout))
+
+        for fmt in [None, 'txt', 'rst']:
+            run_test(fmt=fmt)
+
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 

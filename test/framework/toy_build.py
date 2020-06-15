@@ -1196,6 +1196,82 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec)
 
+    def test_toy_extension_sources_single_item_list(self):
+        """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # test use of single-element list in 'sources' with just the filename
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "sources": ["bar-%(version)s.tar.gz"],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec)
+
+    def test_toy_extension_sources_str(self):
+        """Test install toy that includes extensions with 'sources' spec (as string value)."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # test use of single-element list in 'sources' with just the filename
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "sources": "bar-%(version)s.tar.gz",',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec)
+
+    def test_toy_extension_sources_git_config(self):
+        """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        # Tar-ball which should be created via 'git_config', and one file
+        ext_tgz = 'exts-git.tar.gz'
+        ext_tarball = os.path.join(self.test_sourcepath, 't', 'toy', ext_tgz)
+        ext_tarfile = 'a_directory/a_file.txt'
+
+        # Dummy source code required for extensions build_step to pass
+        ext_code = 'int main() { return 0; }'
+        ext_cfile = 'exts-git.c'
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_code, ext_cfile),
+            'exts_list = [',
+            '   ("exts-git", "0.0", {',
+            '       "buildopts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),
+            '       "sources": {',
+            '           "filename": "%(name)s.tar.gz",',
+            '           "git_config": {',
+            '               "repo_name": "testrepository",',
+            '               "url": "https://github.com/easybuilders",',
+            '               "tag": "master",',
+            '           },',
+            '       },',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec)
+
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
         self.test_toy_tweaked()
