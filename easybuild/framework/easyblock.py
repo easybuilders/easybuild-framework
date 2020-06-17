@@ -1401,20 +1401,21 @@ class EasyBlock(object):
                 for path in paths:
                     if path not in uniq_paths:
                         uniq_paths.append(path)
+                paths = uniq_paths
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
                     retained_paths = [
-                        path for path in uniq_paths
+                        path for path in paths
                         if os.path.isdir(os.path.join(self.installdir, path))
                         and dir_contains_files(os.path.join(self.installdir, path))
                     ]
-                    if retained_paths != uniq_paths:
+                    if retained_paths != paths:
                         self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
                                       key, paths, retained_paths)
-                        uniq_paths = retained_paths
+                        paths = retained_paths
 
-            if uniq_paths:
-                lines.append(self.module_generator.prepend_paths(key, uniq_paths))
+            if paths:
+                lines.append(self.module_generator.prepend_paths(key, paths))
         if self.dry_run:
             self.dry_run_msg('')
 
