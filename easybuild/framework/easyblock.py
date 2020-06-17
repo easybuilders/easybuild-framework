@@ -1374,7 +1374,7 @@ class EasyBlock(object):
             if self.dry_run:
                 self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
                 # Don't expand globs or do any filtering below for dry run
-                paths = sorted(reqs)
+                paths = reqs
             else:
                 # Expand globs but only if the string is non-empty
                 # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
@@ -1395,22 +1395,26 @@ class EasyBlock(object):
                     if fixed_paths != paths:
                         self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
                         paths = fixed_paths
-                # Use a set to remove duplicates, e.g. by having lib64 and lib which get fixed to lib and lib above
-                paths = set(paths)
+                # remove duplicate paths
+                # don't use 'set' here, since order in 'paths' is important!
+                uniq_paths = []
+                for path in paths:
+                    if path not in uniq_paths:
+                        uniq_paths.append(path)
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
                     retained_paths = [
-                        path for path in paths
+                        path for path in uniq_paths
                         if os.path.isdir(os.path.join(self.installdir, path))
                         and dir_contains_files(os.path.join(self.installdir, path))
                     ]
-                    if retained_paths != paths:
+                    if retained_paths != uniq_paths:
                         self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
                                       key, paths, retained_paths)
-                        paths = retained_paths
+                        uniq_paths = retained_paths
 
-            if paths:
-                lines.append(self.module_generator.prepend_paths(key, paths))
+            if uniq_paths:
+                lines.append(self.module_generator.prepend_paths(key, uniq_paths))
         if self.dry_run:
             self.dry_run_msg('')
 

@@ -421,6 +421,31 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
+        # check for correct order of prepend statements when providing a list (and that no duplicates are allowed)
+        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
+        for path in ['pathA', 'pathB', 'pathC']:
+            os.mkdir(os.path.join(eb.installdir, 'lib', path))
+            open(os.path.join(eb.installdir, 'lib', path,'libfoo.so'), 'w').write('test')
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathC\n" +
+                                      r"prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathA\n" +
+                                      r"prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathB\n",
+                                      txt, re.M))
+            self.assertFalse(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathB\n" +
+                                       r"prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathA\n",
+                                       txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'\nprepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathC"\)\)\n' +
+                                      r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathA"\)\)\n' +
+                                      r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathB"\)\)\n',
+                                      txt, re.M))
+            self.assertFalse(re.search(r'\nprepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathB"\)\)\n' +
+                                       r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathA"\)\)\n',
+                                       txt, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
