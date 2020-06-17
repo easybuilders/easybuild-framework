@@ -425,7 +425,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
-            open(os.path.join(eb.installdir, 'lib', path,'libfoo.so'), 'w').write('test')
+            open(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'w').write('test')
         txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathC\n" +
