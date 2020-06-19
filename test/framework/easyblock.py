@@ -1512,6 +1512,45 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
         self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
+    def test_patch_step_dict(self):
+        """Test patch step."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-patch-step-dict.eb'))[0]
+        orig_sources = ec['ec']['sources'][:]
+
+        toy_patches = [
+            # test for dict syntax for patch list
+            {'filename': 'toy-0.0_fix-silly-typo-in-printf-statement.patch', 'level': 1, 'opts': '-l'}
+        ]
+        self.assertEqual(ec['ec']['patches'], toy_patches)
+
+        # test applying patches without sources
+        ec['ec']['sources'] = []
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+
+        # test actual patching of unpacked sources
+        ec['ec']['sources'] = orig_sources
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+
+        # patch step with captured output
+        self.mock_stdout(True)
+        eb.patch_step()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        # verify that patch cmd included opts ('-l')
+        self.assertIn('opts: -l', stdout)
+
+        # verify that patch was applied
+        toydir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertEqual(sorted(os.listdir(toydir)), ['toy.source', 'toy.source.orig'])
+        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
         init_config(build_options={'silent': True})
