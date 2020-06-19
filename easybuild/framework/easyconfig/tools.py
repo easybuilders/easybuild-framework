@@ -35,7 +35,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Toon Willems (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Ward Poelmans (Ghent University)
-:author: Johannes Hoerman (University of Freiburg)
+:author: Johannes Hoermann (University of Freiburg)
 """
 import copy
 import glob
