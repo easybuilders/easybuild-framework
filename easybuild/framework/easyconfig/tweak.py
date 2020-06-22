@@ -1060,9 +1060,34 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     tweaked_spec = os.path.join(targetdir or tempfile.gettempdir(), ec_filename)
 
     parsed_ec.dump(tweaked_spec, always_overwrite=False, backup=True)
+    regex_attempt_on_ecspec = attempt_regex_substitution(ec_spec, tweaked_spec)
+    if regex_attempt_on_ecspec:
+        # Prefer a simple regex substitution version
+        pass
     _log.debug("Dumped easyconfig tweaked via --try-* to %s", tweaked_spec)
 
     return tweaked_spec
+
+
+def attempt_regex_substitution(original_spec, tweaked_spec):
+    regexed_spec = None
+
+    original_ecdict = EasyConfig(original_spec).asdict()
+    tweaked_ecdict = EasyConfig(tweaked_spec).asdict()
+
+    ignore_keys = ['checksums']
+
+    changed_values = {}
+    for key in original_ecdict:
+        original_value = original_ecdict[key]
+        tweaked_value= tweaked_ecdict[key]
+        if key not in ignore_keys and original_value != tweaked_value:
+            changed_values[key] = (original_value, tweaked_value)
+
+    print(changed_values)
+    # print(tweaked_ec.template_values)
+
+    return regexed_spec
 
 
 def list_deps_versionsuffixes(ec_spec):
