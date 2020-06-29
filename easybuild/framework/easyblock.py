@@ -3439,7 +3439,7 @@ def reproduce_build(app, reprod_dir_root):
 
     # Add the build environment dump to the reprod directory
     try:
-        dump_env_script([process_easyconfig(reprod_spec)])
+        dump_env_script(process_easyconfig(reprod_spec), relative_path=True, silent=True)
         _log.debug("Created build environment dump for easyconfig %s", reprod_spec)
     except EasyBuildError as err:
         _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)

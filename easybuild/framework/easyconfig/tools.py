@@ -541,7 +541,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     return '\n'.join(lines)
 
 
-def dump_env_script(easyconfigs):
+def dump_env_script(easyconfigs, silent=False, relative_path=False):
     """
     Dump source scripts that set up build environment for specified easyconfigs.
 
@@ -549,7 +549,10 @@ def dump_env_script(easyconfigs):
     """
     ecs_and_script_paths = []
     for easyconfig in easyconfigs:
-        script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
+        if relative_path:
+            script_path = '%s.env' % os.path.splitext(easyconfig['spec'])[0]
+        else:
+            script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
         ecs_and_script_paths.append((easyconfig['ec'], script_path))
 
     # don't just overwrite existing scripts
@@ -597,7 +600,11 @@ def dump_env_script(easyconfigs):
             script_lines.append("# (no build environment defined)")
 
         write_file(script_path, '\n'.join(script_lines))
-        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
+        msg = "Script to set up build environment for %s dumped to %s" % (ecfile, script_path)
+        if silent:
+            _log.info(msg)
+        else:
+            print_msg(msg, prefix=False)
 
         restore_env(orig_env)
 
