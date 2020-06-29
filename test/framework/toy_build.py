@@ -1815,6 +1815,11 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(reprod_ec))
 
+        # Also check that the dumpenv script is placed alongside it
+        dumpenv_script = '%s.env' % os.path.splitext(os.path.basename(reprod_ec))[0]
+        reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
+        self.assertTrue(os.path.exists(reprod_dumpenv))
+
         # Check that the toytoy easyblock is recorded in the reprod easyconfig
         ec = EasyConfig(reprod_ec)
         self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
