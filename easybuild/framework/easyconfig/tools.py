@@ -615,7 +615,7 @@ def dump_env_script(easyconfigs):
         app.prepare_step(start_dir=False)
 
         # create the environment dump
-        dump_env_easyblock(app, ec_path=ec.path, script_path=script_path)
+        dump_env_easyblock(app, orig_env=orig_env, ec_path=ec.path, script_path=script_path)
 
 
 def categorize_files_by_type(paths):
