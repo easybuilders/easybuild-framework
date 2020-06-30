@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_di
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
-from easybuild.framework.easyconfig.tools import dump_env_script, get_paths_for, process_easyconfig
+from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for, process_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.tools import config, run
@@ -3439,7 +3439,7 @@ def reproduce_build(app, reprod_dir_root):
 
     # Add the build environment dump to the reprod directory
     try:
-        dump_env_script(process_easyconfig(reprod_spec), relative_path=True, silent=True)
+        dump_env_easyblock(app, ec_path=reprod_spec, silent=True)
         _log.debug("Created build environment dump for easyconfig %s", reprod_spec)
     except EasyBuildError as err:
         _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
