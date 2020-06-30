@@ -4143,8 +4143,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
         self.assertEqual(sorted(regex.findall(txt)), expected)
 
-    def test_dump_env_config(self):
-        """Test for --dump-env-config."""
+    def test_dump_env_script(self):
+        """Test for --dump-env-script."""
 
         fftw = 'FFTW-3.3.7-gompic-2018a'
         gcc = 'GCC-4.9.2'
