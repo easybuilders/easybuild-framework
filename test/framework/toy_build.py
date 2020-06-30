@@ -1820,6 +1820,18 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
         self.assertTrue(os.path.exists(reprod_dumpenv))
 
+        # Check contents of the dumpenv script
+        patterns = [
+            """#!/bin/bash""",
+            """# usage: source toy-0.0.env""",
+            # defining build env
+            """# (no modules loaded)""",
+            """# (no build environment defined)""",
+        ]
+        env_file = open(reprod_dumpenv, "r").read()
+        for pattern in patterns:
+            self.assertTrue(pattern in env_file)
+
         # Check that the toytoy easyblock is recorded in the reprod easyconfig
         ec = EasyConfig(reprod_ec)
         self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
