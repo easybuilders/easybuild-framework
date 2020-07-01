@@ -534,6 +534,16 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }))
+PATCH_DICT = (dict, as_hashable({
+    'elem_types': {
+        'filename': [str],
+        'level': [int],
+        'opts': [str],
+    },
+    'opt_keys': ['level', 'opts'],
+    'req_keys': ['filename'],
+}))
+PATCHES = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, PATCH_DICT]}))
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
 # a single checksum value (string)
@@ -543,8 +553,8 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
 CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
-                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT,
+                   STRING_DICT, STRING_OR_TUPLE_LIST, PATCHES, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
@@ -555,7 +565,7 @@ PARAMETER_TYPES = {
     'docurls': LIST_OF_STRINGS,
     'name': string_type,
     'osdependencies': STRING_OR_TUPLE_LIST,
-    'patches': STRING_OR_TUPLE_LIST,
+    'patches': PATCHES,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
     'version': string_type,
