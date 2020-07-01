@@ -29,6 +29,7 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import collections
 from distutils.util import strtobool
 
 from easybuild.base import fancylogger
@@ -349,6 +350,35 @@ def to_list_of_strings_and_tuples(spec):
     return str_tup_list
 
 
+def to_patch_list(spec):
+    """
+    Patch can be either string or tuple or dict.
+    Convert a 'list of lists and strings and dictionaries' to a 'list of tuples and strings and dictionaries'
+
+    Example:
+        ['foo', ['bar', 'baz'], {'foo2':'bar'}]
+        to
+        ['foo', ('bar', 'baz'), {'foo2':'bar'}]
+    """
+    patches_list = []
+
+    if not isinstance(spec, (list, tuple)):
+        raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
+
+    for elem in spec:
+        if isinstance(elem, (string_type, tuple)):
+            patches_list.append(elem)
+        elif isinstance(elem, list):
+            patches_list.append(tuple(elem))
+        elif isinstance(elem, collections.Mapping):
+            patches_list.append(elem)
+        else:
+            raise EasyBuildError("Expected elements to be of type string, tuple, list or dict, got %s (%s)",
+                                 elem, type(elem))
+
+    return patches_list
+
+
 def to_sanity_check_paths_dict(spec):
     """
     Convert a sanity_check_paths dict as received by yaml (a dict with list values that contain either lists or strings)
@@ -585,4 +615,5 @@ TYPE_CONVERSION_FUNCTIONS = {
     TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
     STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
+    PATCHES: to_patch_list,
 }

@@ -16,7 +16,7 @@ checksums = [[
     ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
     ('size', 273),
 ]]
-patches = [{'filename': 'toy-0.0_fix-silly-typo-in-printf-statement.patch', 'level': 0, 'opts': '-l'}]
+patches = [{'filename': 'toy-0.0_fix-silly-typo-in-printf-statement.patch', 'level': 1, 'opts': '-l'}]
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],

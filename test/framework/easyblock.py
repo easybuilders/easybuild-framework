@@ -1520,7 +1520,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         toy_patches = [
             # test for dict syntax for patch list
-            {'filename': 'toy-0.0_fix-silly-typo-in-printf-statement.patch', 'level': 0, 'opts': '-l'}
+            {'filename': 'toy-0.0_fix-silly-typo-in-printf-statement.patch', 'level': 1, 'opts': '-l'}
         ]
         self.assertEqual(ec['ec']['patches'], toy_patches)
 
