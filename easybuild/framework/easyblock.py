@@ -3282,7 +3282,14 @@ def build_and_install_one(ecdict, init_env):
             # create our reproducability files before carrying out the easyblock steps
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
+
         result = app.run_all_steps(run_test_cases=run_test_cases)
+
+        if not dry_run:
+            # also add any extension easyblocks used during the build for reproducability
+            if app.ext_instances:
+                copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
+
     except EasyBuildError as err:
         first_n = 300
         errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
@@ -3416,6 +3423,25 @@ def build_and_install_one(ecdict, init_env):
     return (success, application_log, errormsg)
 
 
+def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
+    reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
+    easyblock_paths = set()
+    for easyblock_instance in easyblock_instances:
+        for easyblock_class in inspect.getmro(type(easyblock_instance)):
+            easyblock_path = inspect.getsourcefile(easyblock_class)
+            # if we reach EasyBlock or ExtensionEasyBlock class, we are done
+            # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
+            if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+                break
+            else:
+                easyblock_paths.add(easyblock_path)
+
+    for easyblock_path in easyblock_paths:
+        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+        copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
+        _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
+
+
 def reproduce_build(app, reprod_dir_root):
     """
     Create reproducability files (processed easyconfig and easyblocks used) from class instance
@@ -3438,23 +3464,7 @@ def reproduce_build(app, reprod_dir_root):
         _log.warning("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
 
     # also archive all the relevant easyblocks (including any used by extensions)
-    reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
-    easyblock_instances = [app] + app.ext_instances
-    easyblock_paths = set()
-    for easyblock_instance in easyblock_instances:
-        for easyblock_class in inspect.getmro(type(easyblock_instance)):
-            easyblock_path = inspect.getsourcefile(easyblock_class)
-            # if we reach EasyBlock or ExtensionEasyBlock class, we are done
-            # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
-            if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
-                break
-            else:
-                easyblock_paths.add(easyblock_path)
-
-    for easyblock_path in easyblock_paths:
-        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
-        copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
-        _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
+    copy_easyblocks_for_reprod([app], reprod_dir)
 
     # if there is a hook file we should also archive it
     hooks_path = build_option('hooks')
