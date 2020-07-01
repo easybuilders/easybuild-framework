@@ -554,7 +554,7 @@ CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
 CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
 CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT,
-                   STRING_DICT, STRING_OR_TUPLE_LIST, PATCHES, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+                   STRING_DICT, STRING_OR_TUPLE_LIST, PATCHES, PATCH_DICT, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
