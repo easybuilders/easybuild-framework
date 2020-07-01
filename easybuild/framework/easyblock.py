@@ -3278,6 +3278,7 @@ def build_and_install_one(ecdict, init_env):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+
         if not dry_run:
             # create our reproducability files before carrying out the easyblock steps
             reprod_dir_root = os.path.dirname(app.logfile)
@@ -3435,7 +3436,6 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
                 break
             else:
                 easyblock_paths.add(easyblock_path)
-
     for easyblock_path in easyblock_paths:
         easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
         copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
