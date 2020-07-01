@@ -3444,18 +3444,17 @@ def reproduce_build(app, reprod_dir_root):
     for easyblock_instance in easyblock_instances:
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
-            easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
             # if we reach EasyBlock or ExtensionEasyBlock class, we are done
             # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
             if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
                 break
             else:
                 easyblock_paths.add(easyblock_path)
+
     for easyblock_path in easyblock_paths:
+        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
         copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
         _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
-
-
 
     # if there is a hook file we should also archive it
     hooks_path = build_option('hooks')
