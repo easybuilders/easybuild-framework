@@ -223,7 +223,8 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         # first, determine if we have an EasyConfig instance
         # (indirectly by checking for 'iterating' and 'iterate_options' attributes,
         #  because we can't import the EasyConfig class here without introducing
-        #  a cyclic import...)
+        #  a cyclic import...);
+        # we need to know to determine whether we're iterating over a list of build dependencies
         is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
 
         if is_easyconfig:
@@ -234,11 +235,6 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                     deps += config.get('builddependencies', [])
             else:
                 deps += config.get('builddependencies', [])
-
-        # if we're not dealing with an EasyConfig instance,
-        # we can just add list of builddependencies directly (no list of lists in that case)
-        else:
-            deps += config.get('builddependencies', [])
 
         for dep in deps:
             if isinstance(dep, dict):
