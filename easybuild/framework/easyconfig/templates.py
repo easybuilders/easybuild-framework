@@ -227,7 +227,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
 
         if is_easyconfig:
-           # if we're iterating over different lists of build dependencies,
+            # if we're iterating over different lists of build dependencies,
             # only consider build dependencies when we're actually in iterative mode!
             if 'builddependencies' in config.iterate_options:
                 if config.iterating:
