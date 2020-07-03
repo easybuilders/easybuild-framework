@@ -1374,11 +1374,11 @@ class EasyBlock(object):
             if self.dry_run:
                 self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
                 # Don't expand globs or do any filtering below for dry run
-                paths = sorted(reqs)
+                paths = reqs
             else:
                 # Expand globs but only if the string is non-empty
                 # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
-                paths = sorted(sum((glob.glob(path) if path else [path] for path in reqs), []))  # sum flattens to list
+                paths = sum((glob.glob(path) if path else [path] for path in reqs), [])  # sum flattens to list
 
                 # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
                 lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
@@ -1395,8 +1395,13 @@ class EasyBlock(object):
                     if fixed_paths != paths:
                         self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
                         paths = fixed_paths
-                # Use a set to remove duplicates, e.g. by having lib64 and lib which get fixed to lib and lib above
-                paths = sorted(set(paths))
+                # remove duplicate paths
+                # don't use 'set' here, since order in 'paths' is important!
+                uniq_paths = []
+                for path in paths:
+                    if path not in uniq_paths:
+                        uniq_paths.append(path)
+                paths = uniq_paths
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
                     retained_paths = [
