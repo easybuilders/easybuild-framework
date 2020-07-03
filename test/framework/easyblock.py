@@ -1526,9 +1526,7 @@ class EasyBlockTest(EnhancedTestCase):
         # test applying patches without filename
         del ec['ec']['patches'][0]['filename']
         eb = EasyBlock(ec['ec'])
-        eb.fetch_step()
-        eb.extract_step()
-        self.assertErrorRegex(KeyError, '.*', eb.patch_step)
+        self.assertErrorRegex(KeyError, '.*', eb.fetch_step)
 
         # test actual patching of unpacked sources
         ec['ec']['patches'] = toy_patches
