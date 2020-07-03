@@ -2663,11 +2663,16 @@ class EasyConfigTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
+        # inject fake template value, just to check whether they are copied over too
+        ec1.template_values['pyshortver'] = '3.7'
+
         ec2 = ec1.copy()
 
         self.assertEqual(ec1, ec2)
         self.assertEqual(ec1.rawtxt, ec2.rawtxt)
         self.assertEqual(ec1.path, ec2.path)
+        self.assertEqual(ec1.template_values, ec2.template_values)
+        self.assertFalse(ec1.template_values is ec2.template_values)
 
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""
@@ -3529,6 +3534,14 @@ class EasyConfigTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['2.7.15', '3.6.6']}"
+
+        # inject extension that uses %(pyshortver)s, to check whether the template value is properly resolved
+        test_ec_txt += '\n'.join([
+            '',
+            "exts_defaultclass = 'Toy_Extension'",
+            "exts_list = [('bar', '0.0', {'preinstallopts': 'echo \\'py%(pyshortver)s\\' && '})]",
+        ])
+
         write_file(test_ec, test_ec_txt)
 
         ec = EasyConfig(test_ec)
@@ -3559,6 +3572,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.template_values['pyver'], '3.6.6')
         self.assertTrue('pyshortver' in ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
+
+        # check that extensions enherit these template values too
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3317
+        eb = EasyBlock(ec)
+        eb.silent = True
+        eb.extensions_step(fetch=True, install=False)
+        ext = eb.ext_instances[0]
+        self.assertEqual(ext.cfg['preinstallopts'], "echo 'py3.6' && ")
 
     def test_fix_deprecated_easyconfigs(self):
         """Test fix_deprecated_easyconfigs function."""
