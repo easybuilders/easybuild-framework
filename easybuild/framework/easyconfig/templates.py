@@ -216,9 +216,25 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         # copy to avoid changing original list below
         deps = copy.copy(config.get('dependencies', []))
 
-        # only consider build dependencies for defining *ver and *shortver templates if we're in iterative mode
-        if hasattr(config, 'iterating') and config.iterating:
-            deps += config.get('builddependencies', [])
+        # also consider build dependencies for *ver and *shortver templates;
+        # we need to be a bit careful here, because for iterative installations
+        # (when multi_deps is used for example) the builddependencies value may be a list of lists
+
+        # first, determine if we have an EasyConfig instance
+        # (indirectly by checking for 'iterating' and 'iterate_options' attributes,
+        #  because we can't import the EasyConfig class here without introducing
+        #  a cyclic import...);
+        # we need to know to determine whether we're iterating over a list of build dependencies
+        is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
+
+        if is_easyconfig:
+            # if we're iterating over different lists of build dependencies,
+            # only consider build dependencies when we're actually in iterative mode!
+            if 'builddependencies' in config.iterate_options:
+                if config.iterating:
+                    deps += config.get('builddependencies', [])
+            else:
+                deps += config.get('builddependencies', [])
 
         for dep in deps:
             if isinstance(dep, dict):
