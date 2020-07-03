@@ -432,13 +432,17 @@ class EasyBlock(object):
 
             # patch_spec is dict
             elif isinstance(patch_spec, collections.Mapping):
+
+                # Filename must be present, if not this will throw KeyError
                 patch_file = patch_spec['filename']
 
                 # this *must* be of typ int, nothing else
                 # no 'isinstance(..., int)', since that would make True/False also acceptable
-                if not type(patch_spec.get('level')) == int:
-                    raise EasyBuildError("Wrong patch sped'%s', only int are supported as patch level values")
-                level = patch_spec.get('level')
+                if patch_spec.get('level') and type(patch_spec.get('level')) == int:
+                    level = patch_spec.get('level')
+                else:
+                    raise EasyBuildError("Wrong patch spec '%s', only int are supported as dict patch level values",
+                                         str(patch_spec))
 
                 if isinstance(patch_spec.get('opts'), string_type):
                     patch_opts = patch_spec.get('opts')

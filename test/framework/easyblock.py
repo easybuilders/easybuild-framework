@@ -1516,7 +1516,6 @@ class EasyBlockTest(EnhancedTestCase):
         """Test patch step."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-patch-step-dict.eb'))[0]
-        orig_sources = ec['ec']['sources'][:]
 
         toy_patches = [
             # test for dict syntax for patch list
@@ -1524,15 +1523,45 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         self.assertEqual(ec['ec']['patches'], toy_patches)
 
-        # test applying patches without sources
-        ec['ec']['sources'] = []
+        # test applying patches without filename
+        del ec['ec']['patches'][0]['filename']
         eb = EasyBlock(ec['ec'])
         eb.fetch_step()
         eb.extract_step()
-        self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+        self.assertErrorRegex(KeyError, '.*', eb.patch_step)
 
         # test actual patching of unpacked sources
-        ec['ec']['sources'] = orig_sources
+        ec['ec']['patches'] = toy_patches
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+
+        # patch step with captured output
+        self.mock_stdout(True)
+        eb.patch_step()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        # verify that patch cmd included opts ('--verbose')
+        self.assertIn('opts: --verbose', stdout)
+
+        # verify that patch was applied
+        toydir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertEqual(sorted(os.listdir(toydir)), ['toy.source', 'toy.source.orig'])
+        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+
+    def test_patch_step_dict_level(self):
+        """Test patch step."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-patch-step-dict-level.eb'))[0]
+
+        toy_patches = [
+            # test for dict syntax for patch list
+            {'filename': 'toy-0.0_fix-silly-typo-in-printf-statement.patch', 'level': 2, 'opts': '--verbose'}
+        ]
+        self.assertEqual(ec['ec']['patches'], toy_patches)
+
+        # test actual patching of unpacked sources
         eb = EasyBlock(ec['ec'])
         eb.fetch_step()
         eb.extract_step()
@@ -1544,7 +1573,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         # verify that patch cmd included opts ('-l')
-        self.assertIn('opts: -l', stdout)
+        self.assertIn('opts: --verbose', stdout)
+        self.assertIn('level: 2', stdout)
 
         # verify that patch was applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
