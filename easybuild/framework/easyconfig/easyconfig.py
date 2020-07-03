@@ -1593,6 +1593,7 @@ class EasyConfig(object):
     def generate_template_values(self):
         """Try to generate all template values."""
 
+        self.log.info("Generating template values...")
         self._generate_template_values()
 
         # recursive call, until there are no more changes to template values;
@@ -1610,6 +1611,8 @@ class EasyConfig(object):
                 except KeyError:
                     # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
                     pass
+
+        self.log.info("Template values: %s", ', '.join("%s='%s'" % x for x in sorted(self.template_values.items())))
 
     def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
