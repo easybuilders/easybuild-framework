@@ -1856,6 +1856,44 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_hooks = os.path.join(reprod_dir, 'hooks', hooks_filename)
         self.assertTrue(os.path.exists(reprod_hooks))
 
+    def test_reproducability_ext_easyblocks(self):
+        """Test toy build produces expected reproducability files also when extensions are used"""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        ec1 = os.path.join(self.test_prefix, 'toy1.eb')
+        ec1_txt = '\n'.join([
+            toy_ec_txt,
+            "exts_list = [('barbar', '0.0')]",
+            "",
+        ])
+        write_file(ec1, ec1_txt)
+
+        self.test_toy_build(ec_file=ec1, verify=False, extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
+
+        # Check whether easyconfig is dumped to reprod/ subdir
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
+        reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
+
+        self.assertTrue(os.path.exists(reprod_ec))
+
+        # Check for child easyblock existence
+        child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
+        self.assertTrue(os.path.exists(child_easyblock))
+        # Check for parent easyblock existence
+        parent_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
+        self.assertTrue(os.path.exists(parent_easyblock))
+        # Check for extension easyblock existence
+        ext_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy_extension.py')
+        self.assertTrue(os.path.exists(ext_easyblock))
+
+        # Make sure framework easyblock modules are not included
+        for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
+            path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
+            self.assertFalse(os.path.exists(path))
+
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
         topdir = os.path.dirname(os.path.abspath(__file__))

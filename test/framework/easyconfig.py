@@ -965,6 +965,8 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("Java", "1.7.80"),'
             '   ("Perl", "5.22.0"),'
             '   ("Python", "2.7.10"),'
+            ']',
+            'builddependencies = ['
             '   ("R", "3.2.3"),'
             ']',
             'modloadmsg = "%s"' % '; '.join([

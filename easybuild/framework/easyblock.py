@@ -1374,11 +1374,11 @@ class EasyBlock(object):
             if self.dry_run:
                 self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
                 # Don't expand globs or do any filtering below for dry run
-                paths = sorted(reqs)
+                paths = reqs
             else:
                 # Expand globs but only if the string is non-empty
                 # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
-                paths = sorted(sum((glob.glob(path) if path else [path] for path in reqs), []))  # sum flattens to list
+                paths = sum((glob.glob(path) if path else [path] for path in reqs), [])  # sum flattens to list
 
                 # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
                 lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
@@ -1395,8 +1395,13 @@ class EasyBlock(object):
                     if fixed_paths != paths:
                         self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
                         paths = fixed_paths
-                # Use a set to remove duplicates, e.g. by having lib64 and lib which get fixed to lib and lib above
-                paths = sorted(set(paths))
+                # remove duplicate paths
+                # don't use 'set' here, since order in 'paths' is important!
+                uniq_paths = []
+                for path in paths:
+                    if path not in uniq_paths:
+                        uniq_paths.append(path)
+                paths = uniq_paths
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
                     retained_paths = [
@@ -3278,11 +3283,19 @@ def build_and_install_one(ecdict, init_env):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+
         if not dry_run:
             # create our reproducability files before carrying out the easyblock steps
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
+
         result = app.run_all_steps(run_test_cases=run_test_cases)
+
+        if not dry_run:
+            # also add any extension easyblocks used during the build for reproducability
+            if app.ext_instances:
+                copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
+
     except EasyBuildError as err:
         first_n = 300
         errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
@@ -3416,6 +3429,24 @@ def build_and_install_one(ecdict, init_env):
     return (success, application_log, errormsg)
 
 
+def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
+    reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
+    easyblock_paths = set()
+    for easyblock_instance in easyblock_instances:
+        for easyblock_class in inspect.getmro(type(easyblock_instance)):
+            easyblock_path = inspect.getsourcefile(easyblock_class)
+            # if we reach EasyBlock or ExtensionEasyBlock class, we are done
+            # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
+            if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+                break
+            else:
+                easyblock_paths.add(easyblock_path)
+    for easyblock_path in easyblock_paths:
+        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+        copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
+        _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
+
+
 def reproduce_build(app, reprod_dir_root):
     """
     Create reproducability files (processed easyconfig and easyblocks used) from class instance
@@ -3456,6 +3487,9 @@ def reproduce_build(app, reprod_dir_root):
         else:
             copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
             _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
+
+    # also archive all the relevant easyblocks (including any used by extensions)
+    copy_easyblocks_for_reprod([app], reprod_dir)
 
     # if there is a hook file we should also archive it
     hooks_path = build_option('hooks')
