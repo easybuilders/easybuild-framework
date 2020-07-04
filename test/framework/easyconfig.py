@@ -3573,7 +3573,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue('pyshortver' in ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
 
-        # check that extensions enherit these template values too
+        # check that extensions inherit these template values too
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/3317
         eb = EasyBlock(ec)
         eb.silent = True
