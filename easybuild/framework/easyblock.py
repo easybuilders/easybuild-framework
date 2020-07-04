@@ -3475,20 +3475,7 @@ def reproduce_build(app, reprod_dir_root):
     except EasyBuildError as err:
         _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
 
-    # also archive the relevant easyblocks
-    reprod_easyblock_dir = os.path.join(reprod_dir, 'easyblocks')
-    for easyblock_class in inspect.getmro(type(app)):
-        easyblock_path = inspect.getsourcefile(easyblock_class)
-        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
-        # if we reach EasyBlock or ExtensionEasyBlock class, we are done
-        # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
-        if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
-            break
-        else:
-            copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
-            _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
-
-    # also archive all the relevant easyblocks (including any used by extensions)
+    # also archive all the relevant easyblocks
     copy_easyblocks_for_reprod([app], reprod_dir)
 
     # if there is a hook file we should also archive it
