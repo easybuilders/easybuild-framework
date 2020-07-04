@@ -570,6 +570,9 @@ class EasyConfig(object):
         if self.path:
             ec.path = self.path
 
+        # also copy template values, since re-generating them may not give the same set of template values straight away
+        ec.template_values = copy.deepcopy(self.template_values)
+
         return ec
 
     def update(self, key, value, allow_duplicate=True):
