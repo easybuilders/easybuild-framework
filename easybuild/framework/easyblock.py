@@ -3444,9 +3444,9 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
     for easyblock_instance in easyblock_instances:
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
-            # if we reach EasyBlock or ExtensionEasyBlock class, we are done
-            # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
-            if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+            # if we reach EasyBlock, Extension or ExtensionEasyBlock class, we are done
+            # (Extension and ExtensionEasyblock are hardcoded to avoid a cyclical import)
+            if easyblock_class.__name__ in [EasyBlock.__name__, 'Extension', 'ExtensionEasyBlock']:
                 break
             else:
                 easyblock_paths.add(easyblock_path)
