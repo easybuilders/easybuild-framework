@@ -547,6 +547,7 @@ class ModulesTool(object):
 
             :param mod_name: module name
             """
+            self.log.info("Checking whether %s exists based on output of 'module show", mod_name)
             stderr = self.show(mod_name)
             res = False
             # Parse the output:
@@ -560,18 +561,21 @@ class ModulesTool(object):
                 if OUTPUT_MATCHES['whitespace'].search(line):
                     self.log.debug("Treating line '%s' as whitespace, so skipping it", line)
                     continue
-                # skip lines that start with 'module-version',
+
+                # if any errors occured, conclude that module doesn't exist
+                if OUTPUT_MATCHES['error'].search(line):
+                    break
+
+                # skip lines that start with 'module-' (like 'module-version'),
                 # see https://github.com/easybuilders/easybuild-framework/issues/3376
-                elif line.startswith('module-version '):
+                if line.startswith('module- '):
                     self.log.debug("Skipping line '%s' since it starts with 'module-version'", line)
                     continue
-                # if any errors occured, conclude that module doesn't exist
-                elif OUTPUT_MATCHES['error'].search(line):
-                    break
+
                 # if line matches pattern that indicates an existing module file, the module file exists
-                elif re.match(mod_exists_regex, line):
-                    res = True
+                res = bool(re.match(mod_exists_regex, line))
                 break
+
             return res
 
         if skip_avail:
@@ -587,10 +591,14 @@ class ModulesTool(object):
 
         mods_exist = []
         for (mod_name, visible) in mod_names:
+            self.log.info("Checking whether %s exists...", mod_name)
             if visible:
                 mod_exists = mod_name in avail_mod_names
                 # module name may be partial, so also check via 'module show' as fallback
-                if not mod_exists and maybe_partial:
+                if mod_exists:
+                    self.log.info("Module %s exists (found in list of available modules)", mod_name)
+                elif not mod_exists and maybe_partial:
+                    self.log.info("Module %s not found in list of available modules, checking via 'module show'...", mod_name)
                     mod_exists = mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
