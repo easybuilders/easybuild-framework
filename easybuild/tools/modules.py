@@ -557,14 +557,21 @@ class ModulesTool(object):
             mod_exists_regex = r'\s*/.+:\s*'
             for line in stderr.split('\n'):
                 # skip whitespace lines
-                self.log.debug("Checking line '%s' to determine whether %s exists...", line)
+                self.log.debug("Checking line '%s' to determine whether %s exists...", line, mod_name)
                 if OUTPUT_MATCHES['whitespace'].search(line):
                     self.log.debug("Treating line '%s' as whitespace, so skipping it", line)
                     continue
 
                 # if any errors occured, conclude that module doesn't exist
                 if OUTPUT_MATCHES['error'].search(line):
+                    self.log.debug("Line '%s' looks like an error, so concluding that %s doesn't exist", mod_name)
                     break
+
+                # skip warning lines, which may be produced by modules tool but should not be used
+                # to determine whether a module file exists
+                if line.startswith('WARNING: '):
+                    self.log.debug("Skipping warning line '%s'", line)
+                    continue
 
                 # skip lines that start with 'module-' (like 'module-version'),
                 # see https://github.com/easybuilders/easybuild-framework/issues/3376
@@ -573,7 +580,9 @@ class ModulesTool(object):
                     continue
 
                 # if line matches pattern that indicates an existing module file, the module file exists
+                self.log.debug("Determining whether module %s exists using line '%s'", mod_name, line)
                 res = bool(re.match(mod_exists_regex, line))
+                self.log.debug("Result for existence check of %s based on 'module show' output: %s", mod_name, res)
                 break
 
             return res
