@@ -555,11 +555,20 @@ class ModulesTool(object):
             # - Check first non-whitespace line for something that looks like an absolute path terminated by a colon
             mod_exists_regex = r'\s*/.+:\s*'
             for line in stderr.split('\n'):
+                # skip whitespace lines
+                self.log.debug("Checking line '%s' to determine whether %s exists...", line)
                 if OUTPUT_MATCHES['whitespace'].search(line):
+                    self.log.debug("Treating line '%s' as whitespace, so skipping it", line)
                     continue
-                if OUTPUT_MATCHES['error'].search(line):
+                # skip lines that start with 'module-version', see https://github.com/easybuilders/easybuild-framework/issues/3376
+                elif line.startswith('module-version '):
+                    self.log.debug("Skipping line '%s' since it starts with 'module-version'", line)
+                    continue
+                # if any errors occured, conclude that module doesn't exist
+                elif OUTPUT_MATCHES['error'].search(line):
                     break
-                if re.match(mod_exists_regex, line):
+                # if line matches pattern that indicates an existing module file, the module file exists
+                elif re.match(mod_exists_regex, line):
                     res = True
                 break
             return res
