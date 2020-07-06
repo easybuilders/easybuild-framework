@@ -556,15 +556,18 @@ class ModulesTool(object):
             # - Check first non-whitespace line for something that looks like an absolute path terminated by a colon
             mod_exists_regex = r'\s*/.+:\s*'
             for line in stderr.split('\n'):
-                # skip whitespace lines
+
                 self.log.debug("Checking line '%s' to determine whether %s exists...", line, mod_name)
+
+                # skip whitespace lines
                 if OUTPUT_MATCHES['whitespace'].search(line):
                     self.log.debug("Treating line '%s' as whitespace, so skipping it", line)
                     continue
 
                 # if any errors occured, conclude that module doesn't exist
                 if OUTPUT_MATCHES['error'].search(line):
-                    self.log.debug("Line '%s' looks like an error, so concluding that %s doesn't exist", mod_name)
+                    self.log.debug("Line '%s' looks like an error, so concluding that %s doesn't exist",
+                                   line, mod_name)
                     break
 
                 # skip warning lines, which may be produced by modules tool but should not be used
@@ -576,14 +579,13 @@ class ModulesTool(object):
                 # skip lines that start with 'module-' (like 'module-version'),
                 # see https://github.com/easybuilders/easybuild-framework/issues/3376
                 if line.startswith('module-'):
-                    self.log.debug("Skipping line '%s' since it starts with 'module-version'", line)
+                    self.log.debug("Skipping line '%s' since it starts with 'module-'", line)
                     continue
 
                 # if line matches pattern that indicates an existing module file, the module file exists
-                self.log.debug("Determining whether module %s exists using 'module show' output line '%s'",
-                               mod_name, line)
                 res = bool(re.match(mod_exists_regex, line))
-                self.log.debug("Result for existence check of %s based on 'module show' output: %s", mod_name, res)
+                self.log.debug("Result for existence check of %s based on 'module show' output line '%s': %s",
+                               mod_name, line, res)
                 break
 
             return res
