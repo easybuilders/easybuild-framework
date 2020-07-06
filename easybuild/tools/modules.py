@@ -547,7 +547,7 @@ class ModulesTool(object):
 
             :param mod_name: module name
             """
-            self.log.info("Checking whether %s exists based on output of 'module show", mod_name)
+            self.log.info("Checking whether %s exists based on output of 'module show'", mod_name)
             stderr = self.show(mod_name)
             res = False
             # Parse the output:
