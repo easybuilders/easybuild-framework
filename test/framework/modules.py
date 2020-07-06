@@ -310,6 +310,34 @@ class ModulesTest(EnhancedTestCase):
         if self.modtool.__class__ != EnvironmentModulesC:
             self.assertEqual(self.modtool.exist(['Java/Alias', 'Java/NonExist']), [True, False])
 
+        # set 'module avail' cache entries to empty lists,
+        # to enforce fallback to 'module show'
+        import easybuild.tools.modules
+        for key in easybuild.tools.modules.MODULE_AVAIL_CACHE:
+            easybuild.tools.modules.MODULE_AVAIL_CACHE[key] = []
+
+        # clear 'module show' cache, to keep control below
+        easybuild.tools.modules.MODULE_SHOW_CACHE.clear()
+        self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
+
+        # mimic more verbose stderr output produced by old Tmod version,
+        # including a warning produced when multiple .modulerc files are being picked up
+        # see https://github.com/easybuilders/easybuild-framework/issues/3376
+        ml_show_java18_stderr = '\n'.join([
+            "module-version    Java/1.8.0_181 1.8",
+            "WARNING: Duplicate version symbol '1.8' found",
+            "module-version  Java/1.8.0_181 1.8",
+            "-------------------------------------------------------------------",
+            "/modulefiles/lang/Java/1.8.0_181:",
+            "-------------------------------------------------------------------",
+        ])
+
+        # overwrite 'module show' cache entries with output that includes extra lines
+        for key in easybuild.tools.modules.MODULE_SHOW_CACHE:
+            easybuild.tools.modules.MODULE_SHOW_CACHE[key] = ml_show_java18_stderr
+
+        self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
+
         reset_module_caches()
 
         # what if we're in an HMNS setting...

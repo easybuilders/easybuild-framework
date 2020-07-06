@@ -547,6 +547,7 @@ class ModulesTool(object):
 
             :param mod_name: module name
             """
+            self.log.debug("Checking whether %s exists based on output of 'module show'", mod_name)
             stderr = self.show(mod_name)
             res = False
             # Parse the output:
@@ -555,13 +556,38 @@ class ModulesTool(object):
             # - Check first non-whitespace line for something that looks like an absolute path terminated by a colon
             mod_exists_regex = r'\s*/.+:\s*'
             for line in stderr.split('\n'):
+
+                self.log.debug("Checking line '%s' to determine whether %s exists...", line, mod_name)
+
+                # skip whitespace lines
                 if OUTPUT_MATCHES['whitespace'].search(line):
+                    self.log.debug("Treating line '%s' as whitespace, so skipping it", line)
                     continue
+
+                # if any errors occured, conclude that module doesn't exist
                 if OUTPUT_MATCHES['error'].search(line):
+                    self.log.debug("Line '%s' looks like an error, so concluding that %s doesn't exist",
+                                   line, mod_name)
                     break
-                if re.match(mod_exists_regex, line):
-                    res = True
+
+                # skip warning lines, which may be produced by modules tool but should not be used
+                # to determine whether a module file exists
+                if line.startswith('WARNING: '):
+                    self.log.debug("Skipping warning line '%s'", line)
+                    continue
+
+                # skip lines that start with 'module-' (like 'module-version'),
+                # see https://github.com/easybuilders/easybuild-framework/issues/3376
+                if line.startswith('module-'):
+                    self.log.debug("Skipping line '%s' since it starts with 'module-'", line)
+                    continue
+
+                # if line matches pattern that indicates an existing module file, the module file exists
+                res = bool(re.match(mod_exists_regex, line))
+                self.log.debug("Result for existence check of %s based on 'module show' output line '%s': %s",
+                               mod_name, line, res)
                 break
+
             return res
 
         if skip_avail:
@@ -577,14 +603,19 @@ class ModulesTool(object):
 
         mods_exist = []
         for (mod_name, visible) in mod_names:
+            self.log.info("Checking whether %s exists...", mod_name)
             if visible:
                 mod_exists = mod_name in avail_mod_names
                 # module name may be partial, so also check via 'module show' as fallback
-                if not mod_exists and maybe_partial:
+                if mod_exists:
+                    self.log.info("Module %s exists (found in list of available modules)", mod_name)
+                elif maybe_partial:
+                    self.log.info("Module %s not found in list of available modules, checking via 'module show'...",
+                                  mod_name)
                     mod_exists = mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
-                self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
+                self.log.info("Checking whether hidden module %s exists via 'show'..." % mod_name)
                 mod_exists = mod_exists_via_show(mod_name)
 
             # if no module file was found, check whether specified module name can be a 'wrapper' module...
@@ -593,14 +624,14 @@ class ModulesTool(object):
             # Lmod will report module wrappers as non-existent when full module name is used,
             # see https://github.com/TACC/Lmod/issues/446
             if not mod_exists:
-                self.log.debug("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
+                self.log.info("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
                 wrapped_mod = self.module_wrapper_exists(mod_name)
                 if wrapped_mod is not None:
                     # module wrapper only really exists if the wrapped module file is also available
                     mod_exists = wrapped_mod in avail_mod_names or mod_exists_via_show(wrapped_mod)
                     self.log.debug("Result for existence check of wrapped module %s: %s", wrapped_mod, mod_exists)
 
-            self.log.debug("Result for existence check of %s module: %s", mod_name, mod_exists)
+            self.log.info("Result for existence check of %s module: %s", mod_name, mod_exists)
 
             mods_exist.append(mod_exists)
 

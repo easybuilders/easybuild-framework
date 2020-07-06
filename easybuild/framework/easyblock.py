@@ -2133,7 +2133,7 @@ class EasyBlock(object):
         """Install built software (abstract method)."""
         raise NotImplementedError
 
-    def extensions_step(self, fetch=False):
+    def extensions_step(self, fetch=False, install=True):
         """
         After make install, run this.
         - only if variable len(exts_list) > 0
@@ -2147,7 +2147,7 @@ class EasyBlock(object):
 
         # load fake module
         fake_mod_data = None
-        if not self.dry_run:
+        if install and not self.dry_run:
 
             # load modules for build dependencies as extra modules
             build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
@@ -2260,11 +2260,12 @@ class EasyBlock(object):
                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
             # real work
-            ext.prerun()
-            txt = ext.run()
-            if txt:
-                self.module_extra_extensions += txt
-            ext.postrun()
+            if install:
+                ext.prerun()
+                txt = ext.run()
+                if txt:
+                    self.module_extra_extensions += txt
+                ext.postrun()
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
