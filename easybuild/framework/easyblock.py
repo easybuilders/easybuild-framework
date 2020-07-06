@@ -3293,6 +3293,14 @@ def build_and_install_one(ecdict, init_env):
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
+            # Copy over the build environment used during the configuraton
+            reprod_spec = os.path.join(reprod_dir, app.cfg.filename())
+            try:
+                dump_env_easyblock(app, ec_path=reprod_spec, silent=True)
+                _log.debug("Created build environment dump for easyconfig %s", reprod_spec)
+            except EasyBuildError as err:
+                _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
+
             # also add any extension easyblocks used during the build for reproducability
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
@@ -3468,13 +3476,6 @@ def reproduce_build(app, reprod_dir_root):
         _log.info("Dumped easyconfig instance to %s", reprod_spec)
     except NotImplementedError as err:
         _log.warning("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
-
-    # Add the build environment dump to the reprod directory
-    try:
-        dump_env_easyblock(app, ec_path=reprod_spec, silent=True)
-        _log.debug("Created build environment dump for easyconfig %s", reprod_spec)
-    except EasyBuildError as err:
-        _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
 
     # also archive all the relevant easyblocks
     copy_easyblocks_for_reprod([app], reprod_dir)
