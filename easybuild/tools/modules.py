@@ -560,7 +560,8 @@ class ModulesTool(object):
                 if OUTPUT_MATCHES['whitespace'].search(line):
                     self.log.debug("Treating line '%s' as whitespace, so skipping it", line)
                     continue
-                # skip lines that start with 'module-version', see https://github.com/easybuilders/easybuild-framework/issues/3376
+                # skip lines that start with 'module-version',
+                # see https://github.com/easybuilders/easybuild-framework/issues/3376
                 elif line.startswith('module-version '):
                     self.log.debug("Skipping line '%s' since it starts with 'module-version'", line)
                     continue
