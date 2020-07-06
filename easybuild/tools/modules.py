@@ -598,7 +598,8 @@ class ModulesTool(object):
                 if mod_exists:
                     self.log.info("Module %s exists (found in list of available modules)", mod_name)
                 elif not mod_exists and maybe_partial:
-                    self.log.info("Module %s not found in list of available modules, checking via 'module show'...", mod_name)
+                    self.log.info("Module %s not found in list of available modules, checking via 'module show'...",
+                                  mod_name)
                     mod_exists = mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
