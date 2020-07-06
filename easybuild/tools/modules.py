@@ -547,7 +547,7 @@ class ModulesTool(object):
 
             :param mod_name: module name
             """
-            self.log.info("Checking whether %s exists based on output of 'module show'", mod_name)
+            self.log.debug("Checking whether %s exists based on output of 'module show'", mod_name)
             stderr = self.show(mod_name)
             res = False
             # Parse the output:
@@ -609,13 +609,13 @@ class ModulesTool(object):
                 # module name may be partial, so also check via 'module show' as fallback
                 if mod_exists:
                     self.log.info("Module %s exists (found in list of available modules)", mod_name)
-                elif not mod_exists and maybe_partial:
+                elif maybe_partial:
                     self.log.info("Module %s not found in list of available modules, checking via 'module show'...",
                                   mod_name)
                     mod_exists = mod_exists_via_show(mod_name)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
-                self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
+                self.log.info("Checking whether hidden module %s exists via 'show'..." % mod_name)
                 mod_exists = mod_exists_via_show(mod_name)
 
             # if no module file was found, check whether specified module name can be a 'wrapper' module...
@@ -624,14 +624,14 @@ class ModulesTool(object):
             # Lmod will report module wrappers as non-existent when full module name is used,
             # see https://github.com/TACC/Lmod/issues/446
             if not mod_exists:
-                self.log.debug("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
+                self.log.info("Module %s not found via module avail/show, checking whether it is a wrapper", mod_name)
                 wrapped_mod = self.module_wrapper_exists(mod_name)
                 if wrapped_mod is not None:
                     # module wrapper only really exists if the wrapped module file is also available
                     mod_exists = wrapped_mod in avail_mod_names or mod_exists_via_show(wrapped_mod)
                     self.log.debug("Result for existence check of wrapped module %s: %s", wrapped_mod, mod_exists)
 
-            self.log.debug("Result for existence check of %s module: %s", mod_name, mod_exists)
+            self.log.info("Result for existence check of %s module: %s", mod_name, mod_exists)
 
             mods_exist.append(mod_exists)
 
