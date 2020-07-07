@@ -299,7 +299,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         except EasyBuildError as err:
             # don't fail just because we couldn't resolve this template
             _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", err)
-    
+
     # step 6. CUDA compute capabilities
     cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
     if cuda_compute_capabilities:
