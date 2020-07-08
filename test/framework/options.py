@@ -412,6 +412,44 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    def test_avail_easyconfig_constants(self):
+        """Test listing available easyconfig file constants."""
+
+        def run_test(fmt=None):
+            """Helper function to test --avail-easyconfig-constants."""
+
+            args = ['--avail-easyconfig-constants']
+            if fmt is not None:
+                args.append('--output-format=%s' % fmt)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, verbose=True, raise_error=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+
+            if fmt == 'rst':
+                pattern_lines = [
+                    r'^``HOME``.*',
+                    r'``OS_NAME``.*',
+                    r'``OS_PKG_IBVERBS_DEV``.*',
+                ]
+            else:
+                pattern_lines = [
+                    r'^\s*HOME:.*',
+                    r'\s*OS_NAME: .*',
+                    r'\s*OS_PKG_IBVERBS_DEV: .*',
+                ]
+
+            regex = re.compile('\n'.join(pattern_lines), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should match in: %s" % (regex.pattern, stdout))
+
+        for fmt in [None, 'txt', 'rst']:
+            run_test(fmt=fmt)
+
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
@@ -1270,6 +1308,57 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^ \* \[ \] .*/tweaked_dep_easyconfigs/gzip-1.4-GCC-6.4.0-2.28.eb \(module: gzip/1.4-GCC-6.4.0-2.28\)$",
             # hwloc was updated to 1.11.8, thanks to available easyconfig
             r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
+            # also generated easyconfig for test/1.2.3 with expected toolchain
+            r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
+
+        # construct another toy easyconfig that is well suited for testing ignoring versionsuffix
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'test'",
+            "version = '1.2.3'",
+            ''
+            "homepage = 'https://test.org'",
+            "description = 'this is just a test'",
+            '',
+            "toolchain = {'name': 'GCC', 'version': '4.8.2'}",
+            '',
+            "dependencies = [('OpenBLAS', '0.2.8', '-LAPACK-3.4.2')]",
+        ])
+        write_file(test_ec, test_ectxt)
+        self.mock_stderr(True)
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+        errtxt = self.get_stderr()
+        warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
+                       "versionsuffix to '-LAPACK-3.4.2'"
+        self.mock_stderr(False)
+        self.assertTrue(warning_stub in errtxt)
+        patterns = [
+            # toolchain got updated
+            r"^ \* \[x\] .*/test_ecs/g/GCC/GCC-6.4.0-2.28.eb \(module: GCC/6.4.0-2.28\)$",
+            # no version update for OpenBLAS (because there's no corresponding ec using GCC/6.4.0-2.28 (sub)toolchain)
+            r"^ \* \[ \] .*/tweaked_dep_easyconfigs/OpenBLAS-0.2.8-GCC-6.4.0-2.28-LAPACK-3.4.2.eb "
+            r"\(module: OpenBLAS/0.2.8-GCC-6.4.0-2.28-LAPACK-3.4.2\)$",
+            # also generated easyconfig for test/1.2.3 with expected toolchain
+            r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
+
+        # Now verify that we can ignore versionsuffixes
+        args.append('--try-ignore-versionsuffixes')
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+        patterns = [
+            # toolchain got updated
+            r"^ \* \[x\] .*/test_ecs/g/GCC/GCC-6.4.0-2.28.eb \(module: GCC/6.4.0-2.28\)$",
+            # no version update for OpenBLAS (because there's no corresponding ec using GCC/6.4.0-2.28 (sub)toolchain)
+            r"^ \* \[x\] .*/test_ecs/o/OpenBLAS/OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb "
+            r"\(module: OpenBLAS/0.2.20-GCC-6.4.0-2.28\)$",
             # also generated easyconfig for test/1.2.3 with expected toolchain
             r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
         ]

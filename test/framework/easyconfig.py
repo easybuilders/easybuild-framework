@@ -965,14 +965,16 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("Java", "1.7.80"),'
             '   ("Perl", "5.22.0"),'
             '   ("Python", "2.7.10"),'
+            ']',
+            'builddependencies = ['
             '   ("R", "3.2.3"),'
             ']',
             'modloadmsg = "%s"' % '; '.join([
-                'CUDA: %%(cudaver)s, %%(cudamajver)s, %%(cudashortver)s',
-                'Java: %%(javaver)s, %%(javamajver)s, %%(javashortver)s',
-                'Python: %%(pyver)s, %%(pymajver)s, %%(pyshortver)s',
-                'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlshortver)s',
-                'R: %%(rver)s, %%(rmajver)s, %%(rshortver)s',
+                'CUDA: %%(cudaver)s, %%(cudamajver)s, %%(cudaminver)s, %%(cudashortver)s',
+                'Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s',
+                'Python: %%(pyver)s, %%(pymajver)s, %%(pyminver)s, %%(pyshortver)s',
+                'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
+                'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
@@ -1002,11 +1004,11 @@ class EasyConfigTest(EnhancedTestCase):
         dirs1 = eb['sanity_check_paths']['dirs'][1]
         self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
-        expected = ("CUDA: 10.1.105, 10, 10.1; "
-                    "Java: 1.7.80, 1, 1.7; "
-                    "Python: 2.7.10, 2, 2.7; "
-                    "Perl: 5.22.0, 5, 5.22; "
-                    "R: 3.2.3, 3, 3.2")
+        expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
+                    "Java: 1.7.80, 1, 7, 1.7; "
+                    "Python: 2.7.10, 2, 7, 2.7; "
+                    "Perl: 5.22.0, 5, 22, 5.22; "
+                    "R: 3.2.3, 3, 2, 3.2")
         self.assertEqual(eb['modloadmsg'], expected)
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
@@ -1026,6 +1028,29 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s  "})
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
+
+    def test_java_wrapper_templating(self):
+        """test templating when the Java wrapper is a dep"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "https://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = [("Java", "11", "", True)]',
+            'modloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+
+        # no %(javaminver)s because there is no minor version for Java
+        self.assertEqual(eb.template_values['javaver'], '11')
+        self.assertEqual(eb.template_values['javamajver'], '11')
+        self.assertEqual(eb.template_values['javashortver'], '11')
+        self.assertFalse('javaminver' in eb.template_values)
+
+        self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
 
     def test_templating_doc(self):
         """test templating documentation"""
@@ -1668,9 +1693,11 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected_template_values = {
             'perlmajver': '5',
+            'perlminver': '30',
             'perlshortver': '5.30',
             'perlver': '5.30.0',
             'pymajver': '3',
+            'pyminver': '6',
             'pyshortver': '3.6',
             'pyver': '3.6.5',
         }
@@ -1718,6 +1745,10 @@ class EasyConfigTest(EnhancedTestCase):
         patches_tmp = copy.deepcopy(ec['patches'])
         ec.update('patches', ['foo2.patch', 'bar2.patch'], allow_duplicate=False)
         self.assertEqual(ec['patches'], patches_tmp)
+
+        # for dictionary values: extend, test for existence (not ordering)
+        ec.update('sanity_check_paths', {'key1': 'value1'})
+        self.assertTrue(ec['sanity_check_paths']['key1'] == 'value1')
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
@@ -2634,11 +2665,16 @@ class EasyConfigTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
+        # inject fake template value, just to check whether they are copied over too
+        ec1.template_values['pyshortver'] = '3.7'
+
         ec2 = ec1.copy()
 
         self.assertEqual(ec1, ec2)
         self.assertEqual(ec1.rawtxt, ec2.rawtxt)
         self.assertEqual(ec1.path, ec2.path)
+        self.assertEqual(ec1.template_values, ec2.template_values)
+        self.assertFalse(ec1.template_values is ec2.template_values)
 
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""
@@ -2822,6 +2858,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'javamajver': '1',
+            'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
             'name': 'toy',
@@ -2831,6 +2868,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_version': 'system',
             'nameletterlower': 't',
             'pymajver': '3',
+            'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
             'version': '0.01',
@@ -3498,6 +3536,14 @@ class EasyConfigTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['2.7.15', '3.6.6']}"
+
+        # inject extension that uses %(pyshortver)s, to check whether the template value is properly resolved
+        test_ec_txt += '\n'.join([
+            '',
+            "exts_defaultclass = 'Toy_Extension'",
+            "exts_list = [('bar', '0.0', {'preinstallopts': 'echo \\'py%(pyshortver)s\\' && '})]",
+        ])
+
         write_file(test_ec, test_ec_txt)
 
         ec = EasyConfig(test_ec)
@@ -3528,6 +3574,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.template_values['pyver'], '3.6.6')
         self.assertTrue('pyshortver' in ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
+
+        # check that extensions inherit these template values too
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3317
+        eb = EasyBlock(ec)
+        eb.silent = True
+        eb.extensions_step(fetch=True, install=False)
+        ext = eb.ext_instances[0]
+        self.assertEqual(ext.cfg['preinstallopts'], "echo 'py3.6' && ")
 
     def test_fix_deprecated_easyconfigs(self):
         """Test fix_deprecated_easyconfigs function."""
