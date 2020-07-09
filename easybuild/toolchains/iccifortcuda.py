@@ -26,10 +26,12 @@
 EasyBuild support for a iccifort+CUDA compiler toolchain.
 
 :author: Ake Sandgren (HPC2N)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.compiler.cuda import Cuda
 from easybuild.toolchains.iccifort import IccIfort
+from easybuild.toolchains.gcccorecuda import GCCcoreCUDA
 
 
 class IccIfortCUDA(IccIfort, Cuda):
@@ -37,4 +39,4 @@ class IccIfortCUDA(IccIfort, Cuda):
     NAME = 'iccifortcuda'
 
     COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME + Cuda.COMPILER_CUDA_MODULE_NAME
-    SUBTOOLCHAIN = IccIfort.NAME
+    SUBTOOLCHAIN = [IccIfort.NAME, GCCcoreCUDA.NAME]
