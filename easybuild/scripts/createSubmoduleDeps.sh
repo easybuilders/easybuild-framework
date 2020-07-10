@@ -22,7 +22,13 @@ if [[ "$(basename "$git_repo")" == "pytorch" ]]; then
     # Repo names for dependencies that should be ignored
     repo_ignore=(zstd nccl six enum34 ios-cmake ARM_NEON_2_x86_SSE clang-cindex-python3)
     # Subdir of git_repo to ignore
-    subdir_ignore=("onnx-tensorrt/third_party/onnx" "protobuf/third_party/benchmark" "protobuf/third_party/googletest")
+    subdir_ignore=(
+        onnx/third_party/pybind11
+        onnx-tensorrt/third_party/onnx
+        protobuf/third_party/benchmark
+        protobuf/third_party/googletest
+        tensorpipe/third_party/pybind11
+    )
 fi
 
 function printSubmoduleDeps(){
