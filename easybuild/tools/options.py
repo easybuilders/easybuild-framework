@@ -320,6 +320,8 @@ class EasyBuildOptions(GeneralOption):
         opts['try-update-deps'] = ("Try to update versions of the dependencies of an easyconfig based on what is "
                                    "available in the robot path",
                                    None, 'store_true', False)
+        opts['try-ignore-versionsuffixes'] = ("Ignore versionsuffix differences when --try-update-deps is used",
+                                              None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -1490,7 +1492,8 @@ def process_software_build_specs(options):
         'version': options.try_software_version,
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
-        'update_deps': options.try_update_deps
+        'update_deps': options.try_update_deps,
+        'ignore_versionsuffixes': options.try_ignore_versionsuffixes,
     }
 
     # process easy options
