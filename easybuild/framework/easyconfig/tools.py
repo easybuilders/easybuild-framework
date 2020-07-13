@@ -185,7 +185,7 @@ def dep_graph_transitive_reduction(dgr):
     tr.add_nodes(dgr.nodes())
     descendants = {}
 
-    check_count = {v: len(dgr.incidents(v)) for v in dgr.nodes()}
+    check_count = dict((v, len(dgr.incidents(v))) for v in dgr.nodes())
     _log.debug("Incident degrees: %s" % check_count)
     for u in dgr.nodes():
         u_nbrs = set(dgr.neighbors(u))
@@ -524,7 +524,7 @@ def dep_graph_layer_lists(meta_dgr, root=None, parallel=True):
     # we make it parallel for fewer total number of layers
     if parallel:
         merged_blocks = []
-        for i, block in enumerate(blocks):
+        for block in blocks:
             for j, layer in enumerate(reversed(block)):
                 if j >= len(merged_blocks):
                     merged_blocks.append(layer)
