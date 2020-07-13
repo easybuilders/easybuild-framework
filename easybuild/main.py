@@ -278,6 +278,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.merge_pr,
         options.review_pr,
         # options.terse,  # why should terse lead to early stop?
+        options.last_log,  # if --terse does not enforce eraly abort, then options that imply --terse must do so
         search_query,
     ]
     if any(early_stop_options):
