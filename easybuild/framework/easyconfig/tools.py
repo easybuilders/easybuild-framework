@@ -79,7 +79,6 @@ try:
     from pygraph.algorithms.critical import critical_path
     from pygraph.algorithms.minmax import shortest_path_bellman_ford
     from pygraph.algorithms.searching import depth_first_search
-    from pygraph.algorithms.sorting import topological_sorting
     # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
     # graphviz (used for creating dependency graph images)
@@ -317,7 +316,6 @@ def dep_graph_partition(dgr):
         meta_dgr.add_node_attribute(node_id, ('dgr', dgr))
         return meta_dgr, len(dgr.nodes())
 
-    max_size = 0
     # subgraphs induced by each root
     subs = [dep_graph_sub(dgr, r) for r in roots]
     # common subgraph of all roots

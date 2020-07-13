@@ -567,7 +567,6 @@ class EasyBuildOptions(GeneralOption):
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dep-graph-layers': ("Bin dependency graph into layers", None, 'store_true', False),
-            # 'dep-tr-graph': ("Specify together with --dep-graph-layers to dump transient reduction of dependency graph to file", None, 'store', None, {'metavar': 'trgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
@@ -1410,7 +1409,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
     tweaked_ecs_paths, pr_path = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
-    auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or options.dep_graph_layers or search_query
+    auto_robot = (try_to_generate or options.check_conflicts or options.dep_graph or options.dep_graph_layers
+                  or search_query)
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
     log.debug("Full robot path: %s" % robot_path)
 

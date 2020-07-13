@@ -482,14 +482,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # create dependency graph and exit
     if options.dep_graph_layers:
-        # dep_graph_file = getattr(options, 'dep_graph', None)
-        # dep_tr_graph_file = getattr(options, 'dep_tr_graph', None)
         _log.info("Creating layered dependency stack.")
-        dep_graph_grouped_layers(ordered_ecs,
-                         # full_graph_filename=dep_graph_file,
-                         # transitive_reduction_filename=dep_tr_graph_file,
-                         print_result=True,
-                         terse=options.terse)
+        dep_graph_grouped_layers(ordered_ecs, print_result=True, terse=options.terse)
         clean_exit(logfile, eb_tmpdir, testing, silent=True)
     elif options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
