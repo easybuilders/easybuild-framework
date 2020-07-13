@@ -548,7 +548,9 @@ def dep_graph_layer_lists(meta_dgr, root=None, parallel=True):
         _log.info("%s - child %d: %s returned %d layer lists." % (root, i, child, len(child_layer_lists)))
         for j, child_layer_list in enumerate(child_layer_lists):
             _log.info("%s - child %d - layer list %d: %s" % (root, i, j, child_layer_list))
-            layer_lists.append([*layer_list, *child_layer_list])
+            # layer_lists.append([*layer_list, *child_layer_list])  # py3 only
+            layer_lists.extend(layer_list)
+            layer_lists.extend(child_layer_list)
 
     if len(layer_lists) == 0:  # no children
         layer_lists = [layer_list]
