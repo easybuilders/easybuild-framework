@@ -92,8 +92,13 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
 
 def quote_py_str(val):
     """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
-    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+    quoted_str = quote_str(val, escape_newline=True, prefer_single_quotes=True)
 
+    if isinstance(val, string_type):
+        # escape backslashes in strings
+        quoted_str = quoted_str.replace('\\', '\\\\')
+
+    return quoted_str
 
 def shell_quote(token):
     """
