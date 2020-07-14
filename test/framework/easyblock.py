@@ -1526,7 +1526,9 @@ class EasyBlockTest(EnhancedTestCase):
         # test applying patches without filename
         del ec['ec']['patches'][0]['filename']
         eb = EasyBlock(ec['ec'])
-        self.assertErrorRegex(KeyError, '.*', eb.fetch_step)
+        eb.fetch_step()
+        eb.extract_step()
+        self.assertErrorRegex(KeyError, '.*', eb.patch_step)
 
         # test actual patching of unpacked sources
         ec['ec']['patches'] = toy_patches
@@ -1565,13 +1567,16 @@ class EasyBlockTest(EnhancedTestCase):
         eb.extract_step()
 
         # patch step with captured output
+        self.mock_stderr(True)
         self.mock_stdout(True)
         eb.patch_step()
+        stderr = self.get_stderr()
         stdout = self.get_stdout()
+        self.mock_stderr(False)
         self.mock_stdout(False)
 
         # verify that patch cmd included opts ('-l')
-        self.assertIn('opts: --verbose', stdout)
+        self.assertIn('opts: --verbose', stderr)
         self.assertIn('level: 2', stdout)
 
         # verify that patch was applied
