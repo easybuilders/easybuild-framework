@@ -1526,7 +1526,7 @@ class EasyBlockTest(EnhancedTestCase):
         # test applying patches without filename
         ec['ec']['patches'] = [{'opts': '--verbose'}]
         eb = EasyBlock(ec['ec'])
-        self.assertErrorRegex(KeyError, '.*', eb.fetch_step)
+        self.assertErrorRegex(EasyBuildError, 'filename is mandatory in dict-style patch', eb.fetch_step)
 
         # test actual patching of unpacked sources
         ec['ec']['patches'] = toy_patches
