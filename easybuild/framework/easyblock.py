@@ -433,7 +433,10 @@ class EasyBlock(object):
             # patch_spec is dict
             elif isinstance(patch_spec, collections.Mapping):
 
-                # Filename must be present, if not this will throw KeyError
+                # Filename must be present, if not this should throw KeyError
+                if not patch_spec.get('filename'):
+                    raise EasyBuildError("Wrong patch spec '%s', filename is mandatory in dict-style patch",
+                                         str(patch_spec))
                 patch_file = patch_spec['filename']
 
                 # If there is level specified
