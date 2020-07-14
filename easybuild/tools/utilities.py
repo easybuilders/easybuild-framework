@@ -100,6 +100,7 @@ def quote_py_str(val):
 
     return quoted_str
 
+
 def shell_quote(token):
     """
     Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
