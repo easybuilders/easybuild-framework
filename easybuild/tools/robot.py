@@ -436,7 +436,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
-                        verify_easyconfig_filename(path, cand_dep, parsed_ec=processed_ecs)
+                        #verify_easyconfig_filename(path, cand_dep, parsed_ec=processed_ecs)
 
                         for ec in processed_ecs:
                             if ec not in easyconfigs + additional:
