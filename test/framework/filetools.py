@@ -1865,7 +1865,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 27)
         for fn in expected:
             self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
 
@@ -1895,7 +1895,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 27)
         for fn in expected:
             self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
 
