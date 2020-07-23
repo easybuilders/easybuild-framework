@@ -1,0 +1,19 @@
+easyblock = "Toolchain"
+
+name = 'gcccorecuda'
+version = '2020a'
+
+homepage = '(none)'
+description = """GNU Compiler Collection (GCC) based compiler toolchain, along with CUDA toolkit (Core level)."""
+
+toolchain = SYSTEM
+
+local_gcc_version = '4.9.3' # for testing only
+
+# compiler toolchain dependencies
+dependencies = [
+    ('GCCcore', local_gcc_version),
+    ('CUDAcore', '11.0.2'),
+]
+
+moduleclass = 'toolchain'

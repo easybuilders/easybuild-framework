@@ -1374,6 +1374,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             'gzip-1.5-foss-2018a.eb',
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
+            'UCX-1.8.0-gcccorecuda-2020a.eb',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=HierarchicalMNS',
@@ -1397,6 +1398,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("foss-2018a.eb", "Core", "foss/2018a", 'x'),
             # listed but not there: ' '
             ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2", "gzip/1.5", ' '),
+            ("UCX-1.8.0-gcccorecuda-2020a.eb", "Compiler/GCCcore-CUDAcore/4.9.3-11.0.2", "UCX/1.8.0", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
@@ -1414,6 +1416,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             'gzip-1.5-foss-2018a.eb',
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
+            'UCX-1.8.0-gcccorecuda-2020a.eb',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=CategorizedHMNS',
@@ -1438,6 +1441,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("foss-2018a.eb", "Core/toolchain", "foss/2018a", 'x'),
             # listed but not there: ' '
             ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/tools", "gzip/1.5", ' '),
+            ("UCX-1.8.0-gcccorecuda-2020a.eb", "Compiler/GCCcore-CUDAcore/4.9.3-11.0.2/lib", "UCX/1.8.0", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)

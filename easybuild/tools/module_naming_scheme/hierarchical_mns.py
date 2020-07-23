@@ -56,6 +56,8 @@ COMP_NAME_VERSION_TEMPLATES = {
     'iccifort': ('intel', '%(iccifort)s'),
     # required for use of ClangGCC toolchain
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
+    # required for use of gcccorecuda toolchain
+    'CUDAcore,GCCcore' : ('GCCcore-CUDAcore', '%(GCCcore)s-%(CUDAcore)s'),
     # required for use of gcccuda toolchain, and for CUDA installed with GCC toolchain
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
     # required for use of iccifortcuda toolchain
