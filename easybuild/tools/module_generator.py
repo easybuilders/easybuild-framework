@@ -962,7 +962,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param mod_name_in: name of module to load (swap in)
         :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
-        body = "module swap %s %s" % (mod_name_out, mod_name_in)
+        body = "module swap %s" % (mod_name_in)
         if guarded:
             alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
             swap_statement = [self.conditional_statement(self.is_loaded(mod_name_out), body, else_body=alt_body)]
