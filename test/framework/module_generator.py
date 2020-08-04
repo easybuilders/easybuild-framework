@@ -610,7 +610,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
-                "module swap foo bar",
+                "module swap bar",
                 '',
             ])
         else:
@@ -627,7 +627,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 "if { [ is-loaded foo ] } {",
-                "    module swap foo bar",
+                "    module swap bar",
                 '} else {',
                 "    module load bar",
                 '}',
