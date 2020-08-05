@@ -2884,7 +2884,7 @@ class EasyBlock(object):
             mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
-            if ActiveMNS().mns.det_make_devel_module() and not fake and not build_option('skip_make_devel_module'):
+            if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
                 self.make_devel_module()
             else:
                 self.log.info("Skipping devel module...")
