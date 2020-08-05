@@ -953,10 +953,11 @@ class Toolchain(object):
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
-                self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
 
                 # prepend location to this wrapper to $PATH
                 setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+
+                self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
