@@ -166,8 +166,75 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(tc.is_system_toolchain())
             self.assertTrue(dummy_depr_warning in stderr, "Found '%s' in: %s" % (dummy_depr_warning, stderr))
 
+    def unset_compiler_env_vars(self):
+        """Unset environment variables before checking whether they're set by the toolchain prep mechanism."""
+
+        comp_env_vars = ['CC', 'CXX', 'F77', 'F90', 'FC']
+
+        env_vars = ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS'] + comp_env_vars[:]
+        env_vars.extend(['MPI%s' % x for x in comp_env_vars])
+        env_vars.extend(['OMPI_%s' % x for x in comp_env_vars])
+
+        for key in env_vars:
+            if key in os.environ:
+                del os.environ[key]
+
+    def test_toolchain_compiler_env_vars(self):
+        """Test whether environment variables for compilers are defined by toolchain mechanism."""
+
+        self.unset_compiler_env_vars()
+        for key in ['CC', 'CXX', 'F77', 'F90', 'FC']:
+            self.assertEqual(os.getenv(key), None)
+
+        # first try with system compiler: only minimal build environment is set up
+        tc = self.get_toolchain('system', version='system')
+        tc.set_options({})
+        tc.prepare()
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+        self.assertEqual(os.getenv('F77'), 'gfortran')
+        self.assertEqual(os.getenv('F90'), 'gfortran')
+        self.assertEqual(os.getenv('FC'), 'gfortran')
+
+        # env vars for compiler flags and MPI compiler commands are not set for system toolchain
+        flags_keys = ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']
+        mpi_keys = ['MPICC', 'MPICXX', 'MPIFC', 'OMPI_CC', 'OMPI_CXX', 'OMPI_FC']
+        for key in flags_keys + mpi_keys:
+            self.assertEqual(os.getenv(key), None)
+
+        self.unset_compiler_env_vars()
+        for key in ['CC', 'CXX', 'F77', 'F90', 'FC']:
+            self.assertEqual(os.getenv(key), None)
+
+        # for a full toolchain, a more extensive build environment is set up (incl. $CFLAGS & co)
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({})
+        tc.prepare()
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+        self.assertEqual(os.getenv('F77'), 'gfortran')
+        self.assertEqual(os.getenv('F90'), 'gfortran')
+        self.assertEqual(os.getenv('FC'), 'gfortran')
+
+        self.assertEqual(os.getenv('MPICC'), 'mpicc')
+        self.assertEqual(os.getenv('MPICXX'), 'mpicxx')
+        self.assertEqual(os.getenv('MPIF77'), 'mpifort')
+        self.assertEqual(os.getenv('MPIF90'), 'mpifort')
+        self.assertEqual(os.getenv('MPIFC'), 'mpifort')
+
+        self.assertEqual(os.getenv('OMPI_CC'), 'gcc')
+        self.assertEqual(os.getenv('OMPI_CXX'), 'g++')
+        self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
+        self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
+
+        for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
+            self.assertEqual(os.getenv(key), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
+
         tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 

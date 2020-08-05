@@ -238,6 +238,21 @@ class Toolchain(object):
         """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
         return is_system_toolchain(self.name)
 
+    def set_minimal_build_env(self):
+        """Set up a minimal build environment, by setting $CC, $CXX, $FC environment variables."""
+
+        # this is only relevant when using a system toolchain,
+        # for proper toolchains these variables will get set via the call to set_variables()
+        env_vars = {
+            'CC': 'gcc',
+            'CXX': 'g++',
+            'F77': 'gfortran',
+            'F90': 'gfortran',
+            'FC': 'gfortran',
+        }
+        for name, value in env_vars.items():
+            setvar(name, value)
+
     def base_init(self):
         """Initialise missing class attributes (log, options, variables)."""
         if not hasattr(self, 'log'):
@@ -780,8 +795,14 @@ class Toolchain(object):
         if loadmod:
             self._load_modules(silent=silent)
 
-        if not self.is_system_toolchain():
+        if self.is_system_toolchain():
 
+            # define minimal build environment when using system toolchain;
+            # this is mostly done to try controlling which compiler commands are being used,
+            # cfr. https://github.com/easybuilders/easybuild-framework/issues/3398
+            self.set_minimal_build_env()
+
+        else:
             trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
 
             if not self.dry_run:
