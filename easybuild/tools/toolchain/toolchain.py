@@ -56,6 +56,8 @@ import stat
 import sys
 import tempfile
 
+from distutils.spawn import find_executable
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
@@ -243,13 +245,19 @@ class Toolchain(object):
 
         # this is only relevant when using a system toolchain,
         # for proper toolchains these variables will get set via the call to set_variables()
-        env_vars = {
-            'CC': 'gcc',
-            'CXX': 'g++',
-            'F77': 'gfortran',
-            'F90': 'gfortran',
-            'FC': 'gfortran',
+        known_sys_compilers = {
+            'gcc': ['CC'],
+            'g++': ['CXX'],
+            'gfortran': ['F77', 'F90', 'FC'],
         }
+
+        env_vars = {}
+        for compiler, flags in known_sys_compilers.items():
+            # distutils.spawn.find_executable() only returns first hit from $PATH
+            if find_executable(compiler):
+                for flag in flags:
+                    env_vars.update({flag: compiler})
+
         for name, value in env_vars.items():
             setvar(name, value)
 
