@@ -191,11 +191,12 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         tc.prepare()
 
+        # only $CC and $CXX are set, no point is setting environment variables for Fortran
+        # since gfortran is often not installed on the system
         self.assertEqual(os.getenv('CC'), 'gcc')
         self.assertEqual(os.getenv('CXX'), 'g++')
-        self.assertEqual(os.getenv('F77'), 'gfortran')
-        self.assertEqual(os.getenv('F90'), 'gfortran')
-        self.assertEqual(os.getenv('FC'), 'gfortran')
+        for key in ['F77', 'F90', 'FC']:
+            self.assertEqual(os.getenv(key), None)
 
         # env vars for compiler flags and MPI compiler commands are not set for system toolchain
         flags_keys = ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']

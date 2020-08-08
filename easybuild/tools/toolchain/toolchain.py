@@ -56,10 +56,8 @@ import stat
 import sys
 import tempfile
 
-from distutils.spawn import find_executable
-
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, find_eb_script, read_file, which, write_file
@@ -245,21 +243,25 @@ class Toolchain(object):
 
         # this is only relevant when using a system toolchain,
         # for proper toolchains these variables will get set via the call to set_variables()
-        known_sys_compilers = {
-            'gcc': ['CC'],
-            'g++': ['CXX'],
-            'gfortran': ['F77', 'F90', 'FC'],
+        system_compilers = {
+            'gcc': 'CC',
+            'g++': 'CXX',
         }
 
         env_vars = {}
-        for compiler, flags in known_sys_compilers.items():
-            # distutils.spawn.find_executable() only returns first hit from $PATH
-            if find_executable(compiler):
-                for flag in flags:
-                    env_vars.update({flag: compiler})
+        for cmd, env_var in system_compilers.items():
+            # which returns first hit from $PATH (or None if command was not found)
+            cmd_path = which(cmd)
+            if cmd_path:
+                self.log.info("Found compiler command %s at %s, so setting $%s in minimal build environment",
+                              cmd, cmd_path, env_var)
+                env_vars.update({env_var: cmd})
+            else:
+                warning_msg = "%s command not found, not setting $%s in minimal build environment" % (cmd, env_var)
+                print_warning(warning_msg, log=self.log)
 
-        for name, value in env_vars.items():
-            setvar(name, value)
+        for key, value in env_vars.items():
+            setvar(key, value)
 
     def base_init(self):
         """Initialise missing class attributes (log, options, variables)."""
