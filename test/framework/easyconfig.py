@@ -73,7 +73,7 @@ from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.utilities import find_full_path
 
 try:
@@ -1774,7 +1774,8 @@ class EasyConfigTest(EnhancedTestCase):
             'foo\'bar': '"foo\'bar"',
             'foo\'bar"baz': '"""foo\'bar"baz"""',
             "foo\nbar": '"foo\nbar"',
-            'foo bar': '"foo bar"'
+            'foo bar': '"foo bar"',
+            'foo\\bar': '"foo\\bar"',
         }
 
         for t in teststrings:
@@ -1789,11 +1790,24 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(quote_str('foo bar', prefer_single_quotes=True), '"foo bar"')
         self.assertEqual(quote_str("foo'bar", prefer_single_quotes=True), '"foo\'bar"')
 
+        # test escape_backslash
+        self.assertEqual(quote_str('foo\\bar', escape_backslash=False), '"foo\\bar"')
+        self.assertEqual(quote_str('foo\\bar', escape_backslash=True), '"foo\\\\bar"')
+
         # non-string values
         n = 42
         self.assertEqual(quote_str(n), 42)
         self.assertEqual(quote_str(["foo", "bar"]), ["foo", "bar"])
         self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
+
+    def test_quote_py_str(self):
+        """Test quote_py_str function."""
+
+        res = quote_py_str('description = """Example of\n multi-line\n description with \' quotes"""')
+        self.assertEqual(res, '"""description = """Example of\n multi-line\n description with \' quotes""""""')
+
+        res = quote_py_str('preconfigopts = "sed -i \'s/`which \\([a-z_]*\\)`/\\1/g;s/`//g\' foo.c && "')
+        self.assertEqual(res, '"""preconfigopts = "sed -i \'s/`which \\\\([a-z_]*\\\\)`/\\\\1/g;s/`//g\' foo.c && """"')
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
