@@ -3926,8 +3926,8 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
             "installopts = '%(cuda_compute_capabilities)s'",
-            "configopts = '%(cuda_sm_list)s'",
-            "preconfigopts = '%(cuda_sm_values)s'",
+            "configopts = '%(cuda_sm_comma_sep)s'",
+            "preconfigopts = '%(cuda_sm_space_sep)s'",
         ])
         write_file(test_ec, test_ectxt)
 

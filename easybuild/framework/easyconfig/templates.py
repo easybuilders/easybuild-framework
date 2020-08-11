@@ -301,12 +301,13 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", err)
 
     # step 6. CUDA compute capabilities
+    #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
     cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
     if cuda_compute_capabilities:
         template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
-        template_values['cuda_sm_list'] = ','.join(sm_values)
-        template_values['cuda_sm_values'] = ' '.join(sm_values)
+        template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
+        template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
 
     return template_values
 
