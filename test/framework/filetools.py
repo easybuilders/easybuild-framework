@@ -1380,6 +1380,29 @@ class FileToolsTest(EnhancedTestCase):
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
+        # test copying of files, both to an existing directory and a non-existing location
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        ft.write_file(test_file, '123')
+        target_dir = os.path.join(self.test_prefix, 'target_dir')
+        ft.mkdir(target_dir)
+
+        # copy to existing dir
+        ft.apply_patch(test_file, target_dir, copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'foo.txt')), '123')
+
+        # copy to existing file
+        ft.write_file(os.path.join(target_dir, 'foo.txt'), '')
+        ft.apply_patch(test_file, target_dir, copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'foo.txt')), '123')
+
+        # copy to new file in existing dir
+        ft.apply_patch(test_file, os.path.join(target_dir, 'target.txt'), copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'target.txt')), '123')
+
+        # copy to non-existing subdir
+        ft.apply_patch(test_file, os.path.join(target_dir, 'subdir', 'target.txt'), copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'subdir', 'target.txt')), '123')
+
     def test_copy_file(self):
         """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
