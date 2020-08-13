@@ -2352,10 +2352,11 @@ class EasyBlock(object):
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
-        lib_dir = os.path.join(self.installdir, 'lib')
-        lib64_dir = os.path.join(self.installdir, 'lib64')
-        if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-            symlink(lib_dir, lib64_dir)
+        if build_option('lib64_lib_symlink'):
+            lib_dir = os.path.join(self.installdir, 'lib')
+            lib64_dir = os.path.join(self.installdir, 'lib64')
+            if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
+                symlink(lib_dir, lib64_dir)
 
     def sanity_check_step(self, *args, **kwargs):
         """

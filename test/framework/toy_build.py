@@ -1969,7 +1969,7 @@ class ToyBuildTest(EnhancedTestCase):
         ectxt = read_file(ec_file)
 
         # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
         postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
@@ -1979,54 +1979,58 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails if lib64 fallback in sanity check is disabled
         error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
         # all is fine is lib64 fallback check is enabled (which it is by default)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
         # also check with 'lib' in sanity check dirs (special case)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
-        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub(r"\s*'dirs'.*", "'dirs': ['lib'],", ectxt)
         write_file(test_ec, ectxt)
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # also check other way around (lib64 -> lib)
         ectxt = read_file(ec_file)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
         write_file(test_ec, ectxt)
 
         # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
         error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # also check with 'lib64' in sanity check dirs (special case)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
-        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub(r"\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
         write_file(test_ec, ectxt)
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib64' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # check whether fallback works for files that's more than 1 subdir deep
         ectxt = read_file(ec_file)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
         postinstallcmd = "mkdir -p %(installdir)s/lib64/test && "
         postinstallcmd += "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/test/libtoy.a"
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
         write_file(test_ec, ectxt)
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
     def test_toy_build_enhanced_sanity_check(self):
         """Test enhancing of sanity check."""
