@@ -1039,6 +1039,7 @@ class EasyBuildOptions(GeneralOption):
         # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
             self.options.stop = FETCH_STEP
+            self.options.ignore_locks = True
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
