@@ -108,6 +108,9 @@ HTTP_STATUS_NO_CONTENT = 204
 KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
+STATUS_PENDING = 'pending'
+STATUS_SUCCESS = 'success'
+
 VALID_CLOSE_PR_REASONS = {
     'archived': 'uses an archived toolchain',
     'inactive': 'no activity for > 6 months',
@@ -1044,14 +1047,12 @@ def check_pr_eligible_to_merge(pr_data):
 
     # check test suite result, Travis must give green light
     msg_tmpl = "* test suite passes: %s"
-    if pr_data['status_last_commit'] == 'success':
+    if pr_data['status_last_commit'] == STATUS_SUCCESS:
         print_msg(msg_tmpl % 'OK', prefix=False)
-    elif pr_data['status_last_commit'] == 'pending':
+    elif pr_data['status_last_commit'] == STATUS_PENDING:
         res = not_eligible(msg_tmpl % "pending...")
-    elif pr_data['status_last_commit'] in ['error', 'failure']:
-        res = not_eligible(msg_tmpl % "FAILED")
     else:
-        res = not_eligible(msg_tmpl % "(result unknown)")
+        res = not_eligible(msg_tmpl % "(status: %s)" % pr_data['status_last_commit'])
 
     if pr_data['base']['repo']['name'] == GITHUB_EASYCONFIGS_REPO:
         # check for successful test report (checked in reverse order)
@@ -2044,6 +2045,81 @@ def find_easybuild_easyconfig(github_user=None):
     return eb_file
 
 
+def det_commit_status(account, repo, commit_sha, github_user):
+    """
+    Determine status of specified commit (pending, error, failure, success)
+
+    We combine two different things here:
+
+    * the combined commit status (Travis CI sets a commit status)
+    * results of check suites (set by CI run in GitHub Actions)
+    """
+    def commit_status_url(gh):
+        """Helper function to grab combined status of latest commit."""
+        # see https://docs.github.com/en/rest/reference/repos#get-the-combined-status-for-a-specific-reference
+        return gh.repos[account][repo].commits[commit_sha].status
+
+    def check_suites_url(gh):
+        """Helper function to grab status of latest commit."""
+        return gh.repos[account][repo].commits[commit_sha]['check-suites']
+
+    # first check combined commit status (set by e.g. Travis CI)
+    status, commit_status_data = github_api_get_request(commit_status_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get status of commit %s from %s/%s (status: %d %s)",
+                             commit_sha, account, repo, status, commit_status_data)
+
+    commit_status_count = commit_status_data['total_count']
+    combined_commit_status = commit_status_data['state']
+    _log.info("Found combined commit status set by %d contexts: %s", commit_status_count, combined_commit_status)
+
+    # if state is 'pending', we need to check whether anything is actually setting a commit status;
+    # if not (total_count == 0), then the state will stay 'pending' so we should ignore it;
+    # see also https://github.com/easybuilders/easybuild-framework/issues/3405
+    if commit_status_count == 0 and combined_commit_status == STATUS_PENDING:
+        combined_commit_status = None
+        _log.info("Ignoring %s combined commit status, since total count is 0", combined_commit_status)
+
+    # set preliminary result based on combined commit status
+    result = combined_commit_status
+
+    # also take into account check suites (used by CI in GitHub Actions)
+
+    # Checks API is currently available for developers to preview,
+    # so we need to provide this accept header;
+    # see "Preview notice" at https://docs.github.com/en/rest/reference/checks#list-check-suites-for-a-git-reference
+    headers = {'Accept': "application/vnd.github.antiope-preview+json"}
+
+    status, check_suites_data = github_api_get_request(check_suites_url, github_user, headers=headers)
+
+    # take into that there may be multiple check suites;
+    for check_suite_data in check_suites_data['check_suites']:
+        # status can be 'queued', 'in_progress', or 'completed'
+        status = check_suite_data['status']
+
+        # if any check suite hasn't completed yet, final result is still pending
+        if status in ['queued', 'in_progress']:
+            result = STATUS_PENDING
+
+        # if check suite is completed, take the conclusion into account
+        elif status == 'completed':
+            conclusion = check_suite_data['conclusion']
+            if conclusion == STATUS_SUCCESS:
+                # only set result if it hasn't been decided yet based on combined commit status
+                if result is None:
+                    result = STATUS_SUCCESS
+            else:
+                # any other conclusion determines the final result,
+                # no need to check other test suites
+                result = conclusion
+                break
+        else:
+            app_name = check_suite_data.get('app', {}).get('name', 'UNKNOWN')
+            raise EasyBuildError("Unknown check suite status set by %s: '%s'", app_name, status)
+
+    return result
+
+
 def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False, **parameters):
     """Fetch PR data from GitHub"""
 
@@ -2061,16 +2137,8 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
 
     if full:
         # also fetch status of last commit
-
-        def status_url(gh):
-            """Helper function to grab status of latest commit."""
-            return gh.repos[pr_target_account][pr_target_repo].commits[pr_data['head']['sha']].status
-
-        status, status_data = github_api_get_request(status_url, github_user, **parameters)
-        if status != HTTP_STATUS_OK:
-            raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
-                                 pr, pr_target_account, pr_target_repo, status, status_data)
-        pr_data['status_last_commit'] = status_data['state']
+        pr_data['status_last_commit'] = det_commit_status(pr_target_account, pr_target_repo,
+                                                          pr_data['head']['sha'], github_user)
 
         # also fetch comments
         def comments_url(gh):
