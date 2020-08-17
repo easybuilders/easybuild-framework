@@ -1433,9 +1433,17 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
         # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
+        ccache_path = os.path.join(self.test_prefix, 'scripts', 'ccache')
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
-        for comp in ['gcc', 'g++', 'gfortran']:
-            self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+        for comp in ['gcc', 'g++']:
+            comp_path = which(comp)
+            self.assertTrue(comp_path)
+            self.assertTrue(os.path.samefile(comp_path, ccache_path))
+
+        # no ccache wrapper for gfortran when using ccache
+        # (ccache either doesn't support Fortran anymore, or support is spotty (trouble with Fortran modules))
+        gfortran_path = which('gfortran')
+        self.assertTrue(gfortran_path is None or not os.path.samefile(gfortran_path, ccache_path))
 
         # reset environment to get rid of ccache symlinks, but with ccache/f90cache mock scripts still in place
         os.environ['PATH'] = prepped_path_envvar

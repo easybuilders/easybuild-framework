@@ -1203,9 +1203,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     elif fn and not os.path.isfile(fn):
         raise EasyBuildError("Can't patch file %s: no such file", fn)
 
-    elif not os.path.isdir(dest):
-        raise EasyBuildError("Can't patch directory %s: no such directory", dest)
-
     # copy missing files
     if copy:
         if build_option('extended_dry_run'):
@@ -1213,8 +1210,12 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
         else:
             copy_file(patch_file, dest)
             _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-            # early exit, work is done after copying
-            return True
+
+        # early exit, work is done after copying
+        return True
+
+    elif not os.path.isdir(dest):
+        raise EasyBuildError("Can't patch directory %s: no such directory", dest)
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
