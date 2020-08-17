@@ -824,8 +824,11 @@ class Toolchain(object):
         c_comps, fortran_comps = self.compilers()
 
         if cache_tool == CCACHE:
-            # recent versions of ccache (>=3.3) also support caching of Fortran compilations
-            comps = c_comps + fortran_comps
+            # some version of ccache support caching of Fortran compilations,
+            # but it doesn't work with Fortran modules (https://github.com/ccache/ccache/issues/342),
+            # and support was dropped in recent ccache versions;
+            # as a result, we only use ccache for C/C++ compilers
+            comps = c_comps
         elif cache_tool == F90CACHE:
             comps = fortran_comps
         else:
@@ -837,6 +840,8 @@ class Toolchain(object):
             if comp in self.cached_compilers:
                 self.log.debug("Not caching compiler %s, it's already being cached", comp)
                 comps.remove(comp)
+
+        self.log.info("Using %s for these compiler commands: %s", cache_tool, ', '.join(comps))
 
         return comps
 
