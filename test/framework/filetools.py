@@ -1409,7 +1409,11 @@ class FileToolsTest(EnhancedTestCase):
         path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
 
         # test applying of patch with git
+        toy_source_path = os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
         ft.apply_patch(toy_patch, self.test_prefix, use_git=True)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
 
         # construct patch that only adds a new file,
         # this shouldn't break applying a patch with git even when no level is specified
@@ -1423,10 +1427,14 @@ class FileToolsTest(EnhancedTestCase):
         ])
         ft.write_file(new_file_patch, new_file_patch_txt)
         ft.apply_patch(new_file_patch, self.test_prefix, use_git=True)
+        new_file_path = os.path.join(self.test_prefix, 'toy-0.0', 'new_file.txt')
+        self.assertEqual(ft.read_file(new_file_path), "This is a new file\n")
 
         # cleanup & restore
         ft.remove_dir(path)
         path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
 
         # mock stderr to catch deprecation warning caused by setting 'use_git_am'
         self.allow_deprecated_behaviour()
@@ -1434,6 +1442,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
         stderr = self.get_stderr()
         self.mock_stderr(False)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
         self.assertTrue("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'" in stderr)
 
     def test_copy_file(self):
