@@ -189,7 +189,17 @@ class ToolchainTest(EnhancedTestCase):
         # first try with system compiler: only minimal build environment is set up
         tc = self.get_toolchain('system', version='system')
         tc.set_options({})
+
+        # no warning about redefining if $CC/$CXX are not defined
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
 
         # only $CC and $CXX are set, no point is setting environment variables for Fortran
         # since gfortran is often not installed on the system
@@ -207,6 +217,38 @@ class ToolchainTest(EnhancedTestCase):
         self.unset_compiler_env_vars()
         for key in ['CC', 'CXX', 'F77', 'F90', 'FC']:
             self.assertEqual(os.getenv(key), None)
+
+        # warning is printed when EasyBuild redefines environment variables in minimal build environment
+        os.environ['CC'] = 'foo'
+        os.environ['CXX'] = 'bar'
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stdout, '')
+
+        for key, prev_val, new_val in [('CC', 'foo', 'gcc'), ('CXX', 'bar', 'g++')]:
+            warning_msg = "WARNING: $%s was defined as '%s', " % (key, prev_val)
+            warning_msg += "but is now set to '%s' in minimal build environment" % new_val
+            self.assertTrue(warning_msg in stderr)
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+
+        # no warning if the values are identical to the ones used in the minimal build environment
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
 
         # for a full toolchain, a more extensive build environment is set up (incl. $CFLAGS & co)
         tc = self.get_toolchain('foss', version='2018a')

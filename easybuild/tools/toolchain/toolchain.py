@@ -260,8 +260,12 @@ class Toolchain(object):
                 warning_msg = "%s command not found, not setting $%s in minimal build environment" % (cmd, env_var)
                 print_warning(warning_msg, log=self.log)
 
-        for key, value in env_vars.items():
-            setvar(key, value)
+        for key, new_value in env_vars.items():
+            curr_value = os.getenv(key)
+            if curr_value and curr_value != new_value:
+                print_warning("$%s was defined as '%s', but is now set to '%s' in minimal build environment",
+                              key, curr_value, new_value)
+            setvar(key, new_value)
 
     def base_init(self):
         """Initialise missing class attributes (log, options, variables)."""
