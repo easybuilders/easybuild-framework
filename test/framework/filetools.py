@@ -1359,9 +1359,8 @@ class FileToolsTest(EnhancedTestCase):
     def test_apply_patch(self):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = self.test_prefix
         toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
-        path = ft.extract_file(toy_tar_gz, tmpdir, change_into_dir=False)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
@@ -1402,6 +1401,49 @@ class FileToolsTest(EnhancedTestCase):
         # copy to non-existing subdir
         ft.apply_patch(test_file, os.path.join(target_dir, 'subdir', 'target.txt'), copy=True)
         self.assertEqual(ft.read_file(os.path.join(target_dir, 'subdir', 'target.txt')), '123')
+
+        # cleanup and re-extract toy source tarball
+        ft.remove_dir(self.test_prefix)
+        ft.mkdir(self.test_prefix)
+        ft.change_dir(self.test_prefix)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        # test applying of patch with git
+        toy_source_path = os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        ft.apply_patch(toy_patch, self.test_prefix, use_git=True)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        # construct patch that only adds a new file,
+        # this shouldn't break applying a patch with git even when no level is specified
+        new_file_patch = os.path.join(self.test_prefix, 'toy_new_file.patch')
+        new_file_patch_txt = '\n'.join([
+            "new file mode 100755",
+            "--- /dev/null\t1970-01-01 01:00:00.000000000 +0100",
+            "+++ b/toy-0.0/new_file.txt\t2020-08-18 12:31:57.000000000 +0200",
+            "@@ -0,0 +1 @@",
+            "+This is a new file\n",
+        ])
+        ft.write_file(new_file_patch, new_file_patch_txt)
+        ft.apply_patch(new_file_patch, self.test_prefix, use_git=True)
+        new_file_path = os.path.join(self.test_prefix, 'toy-0.0', 'new_file.txt')
+        self.assertEqual(ft.read_file(new_file_path), "This is a new file\n")
+
+        # cleanup & restore
+        ft.remove_dir(path)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        # mock stderr to catch deprecation warning caused by setting 'use_git_am'
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+        self.assertTrue("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'" in stderr)
 
     def test_copy_file(self):
         """Test copy_file function."""
