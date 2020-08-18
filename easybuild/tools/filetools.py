@@ -1243,7 +1243,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
             abs_patch_file = os.path.join(extracted_dir, patch_filestem)
 
     if use_git:
-        patch_cmd = "git apply %s" % abs_patch_file
+        verbose = '--verbose ' if build_option('debug') else ''
+        patch_cmd = "git apply %s%s" % (verbose, abs_patch_file)
     else:
         if level is None and build_option('extended_dry_run'):
             level = '<derived>'
