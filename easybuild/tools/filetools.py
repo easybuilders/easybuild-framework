@@ -1186,7 +1186,7 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
@@ -1237,8 +1237,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
             change_dir(apatch_dir)
             apatch = os.path.join(apatch_dir, apatch_name)
 
-    if use_git_am:
-        patch_cmd = "git am patch %s" % apatch
+    if use_git:
+        patch_cmd = "git apply %s" % apatch
     else:
         if level is None and build_option('extended_dry_run'):
             level = '<derived>'
