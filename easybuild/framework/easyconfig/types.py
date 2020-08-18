@@ -29,6 +29,7 @@ Support for checking types of easyconfig parameter values.
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import collections
 from distutils.util import strtobool
 
 from easybuild.base import fancylogger
@@ -349,6 +350,35 @@ def to_list_of_strings_and_tuples(spec):
     return str_tup_list
 
 
+def to_patch_list(spec):
+    """
+    Patch can be either string or tuple or dict.
+    Convert a 'list of lists and strings and dictionaries' to a 'list of tuples and strings and dictionaries'
+
+    Example:
+        ['foo', ['bar', 'baz'], {'foo2':'bar'}]
+        to
+        ['foo', ('bar', 'baz'), {'foo2':'bar'}]
+    """
+    patches_list = []
+
+    if not isinstance(spec, (list, tuple)):
+        raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
+
+    for elem in spec:
+        if isinstance(elem, (string_type, tuple)):
+            patches_list.append(elem)
+        elif isinstance(elem, list):
+            patches_list.append(tuple(elem))
+        elif isinstance(elem, collections.Mapping):
+            patches_list.append(elem)
+        else:
+            raise EasyBuildError("Expected elements to be of type string, tuple, list or dict, got %s (%s)",
+                                 elem, type(elem))
+
+    return patches_list
+
+
 def to_sanity_check_paths_dict(spec):
     """
     Convert a sanity_check_paths dict as received by yaml (a dict with list values that contain either lists or strings)
@@ -534,6 +564,16 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
 }))
+PATCH_DICT = (dict, as_hashable({
+    'elem_types': {
+        'filename': [str],
+        'level': [int],
+        'opts': [str],
+    },
+    'opt_keys': ['level', 'opts'],
+    'req_keys': ['filename'],
+}))
+PATCHES = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, PATCH_DICT]}))
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
 # a single checksum value (string)
@@ -543,8 +583,8 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
 CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
-                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT,
+                   STRING_DICT, STRING_OR_TUPLE_LIST, PATCHES, PATCH_DICT, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
@@ -555,7 +595,7 @@ PARAMETER_TYPES = {
     'docurls': LIST_OF_STRINGS,
     'name': string_type,
     'osdependencies': STRING_OR_TUPLE_LIST,
-    'patches': STRING_OR_TUPLE_LIST,
+    'patches': PATCHES,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
     'version': string_type,
@@ -575,4 +615,5 @@ TYPE_CONVERSION_FUNCTIONS = {
     TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
     STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
+    PATCHES: to_patch_list,
 }

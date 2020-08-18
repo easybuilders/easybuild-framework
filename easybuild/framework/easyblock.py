@@ -38,7 +38,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Maxime Boissonneault (Compute Canada)
 :author: Davide Vanzo (Vanderbilt University)
 """
-
+import collections
 import copy
 import glob
 import inspect
@@ -441,6 +441,9 @@ class EasyBlock(object):
             copy_file = False
             suff = None
             level = None
+            patch_opts = None
+
+            # patch_spec is list or tuple
             if isinstance(patch_spec, (list, tuple)):
                 if not len(patch_spec) == 2:
                     raise EasyBuildError("Unknown patch specification '%s', only 2-element lists/tuples are supported!",
@@ -459,6 +462,30 @@ class EasyBlock(object):
                 else:
                     raise EasyBuildError("Wrong patch spec '%s', only int/string are supported as 2nd element",
                                          str(patch_spec))
+
+            # patch_spec is dict
+            elif isinstance(patch_spec, collections.Mapping):
+
+                # Filename must be present, if not this should throw KeyError
+                if not patch_spec.get('filename'):
+                    raise EasyBuildError("Wrong patch spec '%s', filename is mandatory in dict-style patch",
+                                         str(patch_spec))
+                patch_file = patch_spec['filename']
+
+                # If there is level specified
+                if patch_spec.get('level', None) is not None:
+                    # this *must* be of typ int, nothing else
+                    # no 'isinstance(..., int)', since that would make True/False also acceptable
+                    if type(patch_spec.get('level')) == int:
+                        level = patch_spec.get('level')
+                    else:
+                        raise EasyBuildError("Wrong patch spec '%s', only int are supported as dict patch level values",
+                                             str(patch_spec))
+
+                if isinstance(patch_spec.get('opts'), string_type):
+                    patch_opts = patch_spec.get('opts')
+
+            # patch_spec is something else
             else:
                 patch_file = patch_spec
 
@@ -478,6 +505,9 @@ class EasyBlock(object):
                         patchspec['sourcepath'] = suff
                 if level is not None:
                     patchspec['level'] = level
+
+                if patch_opts is not None:
+                    patchspec['opts'] = patch_opts
 
                 if extension:
                     patches.append(patchspec)
@@ -2011,9 +2041,11 @@ class EasyBlock(object):
             srcpathsuffix = patch.get('sourcepath', patch.get('copy', ''))
             # determine whether 'patch' file should be copied rather than applied
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
+            # Get options for patch command
+            opts = patch.get('opts', '')
 
-            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                           srcind, level, srcpathsuffix, copy)
+            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s; opts: %s",
+                           srcind, level, srcpathsuffix, copy, opts)
 
             if beginpath is None:
                 try:
@@ -2029,7 +2061,7 @@ class EasyBlock(object):
             src = os.path.abspath(weld_paths(beginpath, srcpathsuffix))
             self.log.debug("Applying patch %s in path %s", patch, src)
 
-            if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
+            if not apply_patch(patch['path'], src, copy=copy_patch, level=level, opts=opts):
                 raise EasyBuildError("Applying patch %s failed", patch['name'])
 
     def prepare_step(self, start_dir=True, load_tc_deps_modules=True):
