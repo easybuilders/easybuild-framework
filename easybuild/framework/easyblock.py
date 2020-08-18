@@ -2029,8 +2029,7 @@ class EasyBlock(object):
             src = os.path.abspath(weld_paths(beginpath, srcpathsuffix))
             self.log.debug("Applying patch %s in path %s", patch, src)
 
-            if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
-                raise EasyBuildError("Applying patch %s failed", patch['name'])
+            apply_patch(patch['path'], src, copy=copy_patch, level=level)
 
     def prepare_step(self, start_dir=True, load_tc_deps_modules=True):
         """

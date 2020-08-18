@@ -454,7 +454,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
     elif not pr_closed:
         try:
             _log.debug("Trying to apply PR patch %s to %s...", diff_filepath, repo_target_branch)
-            apply_patch(diff_filepath, repo_target_branch, use_git_am=True)
+            apply_patch(diff_filepath, repo_target_branch, use_git=True)
             _log.info("Using %s which included PR patch to test PR #%s", repo_target_branch, pr)
             final_path = repo_target_branch
 
