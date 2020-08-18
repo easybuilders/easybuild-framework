@@ -239,7 +239,7 @@ class Toolchain(object):
         return is_system_toolchain(self.name)
 
     def set_minimal_build_env(self):
-        """Set up a minimal build environment, by setting $CC, $CXX, $FC environment variables."""
+        """Set up a minimal build environment, by setting (only) the $CC and $CXX environment variables."""
 
         # this is only relevant when using a system toolchain,
         # for proper toolchains these variables will get set via the call to set_variables()
