@@ -1237,41 +1237,40 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
             change_dir(apatch_dir)
             apatch = os.path.join(apatch_dir, apatch_name)
 
-    if level is None and build_option('extended_dry_run'):
-        level = '<derived>'
-
-    elif level is None:
-        # guess value for -p (patch level)
-        # - based on +++ lines
-        # - first +++ line that matches an existing file determines guessed level
-        # - we will try to match that level from current directory
-        patched_files = det_patched_files(path=apatch)
-
-        if not patched_files:
-            raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
-            return
-
-        level = guess_patch_level(patched_files, adest)
-
-        if level is None:  # level can also be 0 (zero), so don't use "not level"
-            # no match
-            raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, adest)
-        else:
-            _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
-
-    else:
-        _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
-
     if use_git_am:
         patch_cmd = "git am patch %s" % apatch
     else:
+        if level is None and build_option('extended_dry_run'):
+            level = '<derived>'
+
+        elif level is None:
+            # guess value for -p (patch level)
+            # - based on +++ lines
+            # - first +++ line that matches an existing file determines guessed level
+            # - we will try to match that level from current directory
+            patched_files = det_patched_files(path=apatch)
+
+            if not patched_files:
+                raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
+                return
+
+            level = guess_patch_level(patched_files, adest)
+
+            if level is None:  # level can also be 0 (zero), so don't use "not level"
+                # no match
+                raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, adest)
+            else:
+                _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
+
+        else:
+            _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
+
         patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
 
     out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
 
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
-
     return ec == 0
 
 
