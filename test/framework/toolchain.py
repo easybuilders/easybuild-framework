@@ -335,7 +335,11 @@ class ToolchainTest(EnhancedTestCase):
         # and the specs in --minimal-build-env are ignored
         tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
+
+        # catch potential warning about too long $TMPDIR value that causes trouble for Open MPI (irrelevant here)
+        self.mock_stderr(True)
         tc.prepare()
+        self.mock_stderr(False)
 
         self.assertEqual(os.getenv('CC'), 'gcc')
         self.assertEqual(os.getenv('CXX'), 'g++')
