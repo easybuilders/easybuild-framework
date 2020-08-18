@@ -1577,7 +1577,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         fake_patch = os.path.join(self.test_prefix, 'patch')
         fake_patch_out = os.path.join(self.test_prefix, 'patch.out')
-        write_file(fake_patch, '#!/bin/bash echo "$@" > %s' % fake_patch_out)
+        write_file(fake_patch, '#!/bin/bash\necho "$@" > %s' % fake_patch_out)
         write_file(fake_patch_out, '')   # Create empty file
         adjust_permissions(fake_patch, stat.S_IRUSR | stat.S_IXUSR)
         os.environ['PATH'] = self.test_prefix + ':' + os.environ['PATH']
@@ -1590,7 +1590,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check if output has patch level 2 and --verbose flag
         # patch ... -p2 ... --verbose
-        patch_pattern = r'patch.*?-p2.*?--verbose'
+        patch_pattern = r'.*?-p2.*?--verbose'
         fake_patch_out_txt = read_file(fake_patch_out)
         self.assertRegex(fake_patch_out_txt, patch_pattern)
 
