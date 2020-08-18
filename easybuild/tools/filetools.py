@@ -1190,6 +1190,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
+
+    Raises EasyBuildError on any error and returns True on success
     """
 
     if use_git_am:
@@ -1256,7 +1258,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
 
             if not patched_files:
                 raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
-                return
 
             level = guess_patch_level(patched_files, adest)
 
@@ -1275,7 +1276,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
 
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
-    return ec == 0
+    return True
 
 
 def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
