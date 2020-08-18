@@ -1589,10 +1589,9 @@ class EasyBlockTest(EnhancedTestCase):
         eb.patch_step()
 
         # check if output has patch level 2 and --verbose flag
-        # patch ... -p2 ... --verbose
-        patch_pattern = r'.*?-p2.*?--verbose'
         fake_patch_out_txt = read_file(fake_patch_out)
-        self.assertRegex(fake_patch_out_txt, patch_pattern)
+        self.assertIn('-p2', fake_patch_out_txt)
+        self.assertIn('--verbose', fake_patch_out_txt)
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
