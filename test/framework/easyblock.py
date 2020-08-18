@@ -1578,6 +1578,7 @@ class EasyBlockTest(EnhancedTestCase):
         fake_patch = os.path.join(self.test_prefix, 'patch')
         fake_patch_out = os.path.join(self.test_prefix, 'patch.out')
         write_file(fake_patch, '#!/bin/bash echo "$@" > %s' % fake_patch_out)
+        write_file(fake_patch_out, '')   # Create empty file
         adjust_permissions(fake_patch, stat.S_IRUSR | stat.S_IXUSR)
         os.environ['PATH'] = self.test_prefix + ':' + os.environ['PATH']
 
