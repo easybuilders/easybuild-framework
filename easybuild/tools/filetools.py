@@ -1239,7 +1239,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
             extracted_dir = extract_file(abs_patch_file, workdir, change_into_dir=False)
-            change_dir(extracted_dir)
             abs_patch_file = os.path.join(extracted_dir, patch_stem)
 
     if use_git:
