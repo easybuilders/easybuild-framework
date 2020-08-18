@@ -4717,7 +4717,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'checksums = [',
             "    None,  # toy-0.0.tar.gz",
             "    # toy-0.0_fix-silly-typo-in-printf-statement.patch",
-            "    '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',",
+            "    '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',",
             "    '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt",
             ']\n',
         ])
@@ -4921,7 +4921,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         toy_source_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
-        toy_patch_sha256 = '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5'
+        toy_patch_sha256 = '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'
         bar_tar_gz_sha256 = 'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'
         bar_patch = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
         bar_patch_sha256 = '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'
@@ -5056,7 +5056,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
             "^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
-            "^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: e6785e1a721fc8bf79892e3ef41557c0$",
+            "^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: a99f2a72cee1689a2f7e3ace0356efb1$",
             "^== \* toy-extra\.txt: 3b0787b3bf36603ae1398c4a49097893$",
         ]
         for pattern in patterns:
@@ -5074,7 +5074,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ec = EasyConfigParser(test_ec).get_config_dict()
         checksums = [
             'be662daa971a640e40be5c804d9d7d10',
-            'e6785e1a721fc8bf79892e3ef41557c0',
+            'a99f2a72cee1689a2f7e3ace0356efb1',
             '3b0787b3bf36603ae1398c4a49097893',
         ]
         self.assertEqual(ec['checksums'], checksums)
