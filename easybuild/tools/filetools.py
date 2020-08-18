@@ -1195,7 +1195,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     """
 
     if use_git_am:
-        _log.deprecated('5.0', "'use_git_am' named argument in apply_patch function has been renamed to 'use_git'")
+        _log.deprecated("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", '5.0')
         use_git = True
 
     if build_option('extended_dry_run'):
