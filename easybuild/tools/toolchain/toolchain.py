@@ -243,23 +243,47 @@ class Toolchain(object):
 
         # this is only relevant when using a system toolchain,
         # for proper toolchains these variables will get set via the call to set_variables()
-        system_compilers = {
-            'gcc': 'CC',
-            'g++': 'CXX',
-        }
+
+        minimal_build_env_raw = build_option('minimal_build_env')
+
+        minimal_build_env = {}
+        for key_val in minimal_build_env_raw.split(','):
+            parts = key_val.split(':')
+            if len(parts) == 2:
+                key, val = parts
+                minimal_build_env[key] = val
+            else:
+                raise EasyBuildError("Incorrect mapping in --minimal-build-env value: '%s'", key_val)
 
         env_vars = {}
-        for cmd, env_var in system_compilers.items():
-            # which returns first hit from $PATH (or None if command was not found)
-            cmd_path = which(cmd)
-            if cmd_path:
-                self.log.info("Found compiler command %s at %s, so setting $%s in minimal build environment",
-                              cmd, cmd_path, env_var)
-                env_vars.update({env_var: cmd})
-            else:
-                warning_msg = "%s command not found, not setting $%s in minimal build environment" % (cmd, env_var)
-                print_warning(warning_msg, log=self.log)
+        for key, val in minimal_build_env.items():
+            # for key environment variables like $CC and $CXX we are extra careful,
+            # by making sure the specified command is actually available
+            if key in ['CC', 'CXX']:
+                warning_msg = None
+                if os.path.isabs(val):
+                    if os.path.exists(val):
+                        self.log.info("Specified path for $%s exists: %s", key, val)
+                        env_vars.update({key: val})
+                    else:
+                        warning_msg = "Specified path '%s' does not exist"
+                else:
+                    cmd_path = which(val)
+                    if cmd_path:
+                        self.log.info("Found compiler command %s at %s, so setting $%s in minimal build environment",
+                                      val, cmd_path, key)
+                        env_vars.update({key: val})
+                    else:
+                        warning_msg = "'%s' command not found in $PATH" % val
 
+                if warning_msg:
+                    print_warning(warning_msg + ", not setting $%s in minimal build environment" % key, log=self.log)
+            else:
+                # no checking for environment variables other than $CC or $CXX
+                env_vars.update({key: val})
+
+        # set specified environment variables, but print a warning
+        # if we're redefining anything that was already set to a *different* value
         for key, new_value in env_vars.items():
             curr_value = os.getenv(key)
             if curr_value and curr_value != new_value:

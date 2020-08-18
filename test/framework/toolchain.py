@@ -182,9 +182,18 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain_compiler_env_vars(self):
         """Test whether environment variables for compilers are defined by toolchain mechanism."""
 
+        # clean environment
         self.unset_compiler_env_vars()
         for key in ['CC', 'CXX', 'F77', 'F90', 'FC']:
             self.assertEqual(os.getenv(key), None)
+
+        # install dummy 'gcc' and 'g++' commands, to make sure they're available
+        # (required since Toolchain.set_minimal_build_env checks whether these commands exist)
+        for cmd in ['gcc', 'g++']:
+            fake_cmd = os.path.join(self.test_prefix, cmd)
+            write_file(fake_cmd, '#!/bin/bash')
+            adjust_permissions(fake_cmd, stat.S_IRUSR | stat.S_IXUSR)
+        os.environ['PATH'] = self.test_prefix + ':' + os.environ['PATH']
 
         # first try with system compiler: only minimal build environment is set up
         tc = self.get_toolchain('system', version='system')
@@ -250,7 +259,80 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         self.assertEqual(stdout, '')
 
-        # for a full toolchain, a more extensive build environment is set up (incl. $CFLAGS & co)
+        del os.environ['CC']
+        del os.environ['CXX']
+
+        # check whether specification in --minimal-build-env is picked up
+        init_config(build_options={'minimal_build_env': 'CC:g++'})
+
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'g++')
+        self.assertEqual(os.getenv('CXX'), None)
+
+        del os.environ['CC']
+
+        # check whether a warning is printed when a value specified for $CC or $CXX is not found
+        init_config(build_options={'minimal_build_env': 'CC:nosuchcommand,CXX:gcc'})
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        warning_msg = "WARNING: 'nosuchcommand' command not found in $PATH, "
+        warning_msg += "not setting $CC in minimal build environment"
+        self.assertTrue(warning_msg in stderr)
+        self.assertEqual(stdout, '')
+
+        self.assertEqual(os.getenv('CC'), None)
+        self.assertEqual(os.getenv('CXX'), 'gcc')
+
+        # no warning for defining environment variable that was previously undefined,
+        # only warning on redefining, other values can be whatever (and can include spaces)
+        init_config(build_options={'minimal_build_env': 'CC:gcc,CXX:g++,CFLAGS:-O2,CXXFLAGS:-O3 -g,FC:gfortan'})
+
+        for key in ['CFLAGS', 'CXXFLAGS', 'FC']:
+            if key in os.environ:
+                del os.environ[key]
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+        self.assertEqual(os.getenv('CFLAGS'), '-O2')
+        self.assertEqual(os.getenv('CXXFLAGS'), '-O3 -g')
+        self.assertEqual(os.getenv('FC'), 'gfortan')
+
+        # incorrect spec in minimal_build_env results in an error
+        init_config(build_options={'minimal_build_env': 'CC=gcc'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'CC=gcc'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'foo:bar:baz'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo:bar:baz'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'CC:gcc,foo'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'foo:bar:baz,CC:gcc'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo:bar:baz'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'CC:gcc,'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: ''"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        # for a full toolchain, a more extensive build environment is set up (incl. $CFLAGS & co),
+        # and the specs in --minimal-build-env are ignored
         tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()

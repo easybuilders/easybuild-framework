@@ -83,6 +83,7 @@ DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
+DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
@@ -289,6 +290,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
+    ],
+    DEFAULT_MINIMAL_BUILD_ENV: [
+        'minimal_build_env',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
