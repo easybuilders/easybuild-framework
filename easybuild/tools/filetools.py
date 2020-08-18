@@ -1228,19 +1228,19 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     abs_dest = os.path.abspath(dest)
 
     # Attempt extracting the patch if it ends in .patch.gz, .patch.bz2, .patch.xz
-    # split in name + extension
-    patch_filestem, patch_extension = os.path.splitext(os.path.split(abs_patch_file)[1])
+    # split in stem (filename w/o extension) + extension
+    patch_stem, patch_extension = os.path.splitext(os.path.split(abs_patch_file)[1])
     # Supports only bz2, gz and xz. zip can be archives which are not supported.
     if patch_extension in ['.gz', '.bz2', '.xz']:
         # split again to get the second extension
-        patch_subextension = os.path.splitext(patch_filestem)[1]
+        patch_subextension = os.path.splitext(patch_stem)[1]
         if patch_subextension == ".patch":
             workdir = tempfile.mkdtemp(prefix='eb-patch-')
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
             extracted_dir = extract_file(abs_patch_file, workdir, change_into_dir=False)
             change_dir(extracted_dir)
-            abs_patch_file = os.path.join(extracted_dir, patch_filestem)
+            abs_patch_file = os.path.join(extracted_dir, patch_stem)
 
     if use_git:
         verbose = '--verbose ' if build_option('debug') else ''
