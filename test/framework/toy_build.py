@@ -3055,6 +3055,35 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+    def test_test_toy_build_lib64_symlink(self):
+        """Check whether lib64 symlink to lib subdirectory is created."""
+        # this is done to ensure that <installdir>/lib64 is considered before /lib64 by GCC linker,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
+
+        # by default, lib64 symlink is created
+        self.test_toy_build()
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        lib_path = os.path.join(toy_installdir, 'lib')
+        lib64_path = os.path.join(toy_installdir, 'lib64')
+
+        self.assertTrue(os.path.exists(lib_path))
+        self.assertTrue(os.path.exists(lib64_path))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertFalse(os.path.islink(lib_path))
+        self.assertTrue(os.path.islink(lib64_path))
+        self.assertTrue(os.path.samefile(lib_path, lib64_path))
+
+        # cleanup and try again with --disable-lib64-lib-symlink
+        remove_dir(self.test_installpath)
+        self.test_toy_build(extra_args=['--disable-lib64-lib-symlink'])
+
+        self.assertTrue(os.path.exists(lib_path))
+        self.assertFalse(os.path.exists(lib64_path))
+        self.assertFalse('lib64' in os.listdir(toy_installdir))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertFalse(os.path.islink(lib_path))
+
 
 def suite():
     """ return all the tests in this file """
