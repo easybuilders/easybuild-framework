@@ -1186,11 +1186,15 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
     """
+
+    if use_git_am:
+        _log.deprecated('5.0', "'use_git_am' named argument has been renamed to 'use_git'")
+        use_git = True
 
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
