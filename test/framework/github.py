@@ -432,7 +432,7 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_find_easybuild_easyconfig, no GitHub token available?")
             return
         path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
-        expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
+        expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
         self.assertTrue(os.path.exists(path), "Path %s exists" % path)

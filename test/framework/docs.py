@@ -109,7 +109,7 @@ class DocsTest(EnhancedTestCase):
         self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
 
         lic_docs = avail_easyconfig_licenses(output_format='rst')
-        regex = re.compile("^``GPLv3``\s*The GNU General Public License", re.M)
+        regex = re.compile(r"^``GPLv3``\s*The GNU General Public License", re.M)
         self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
 
     def test_list_software(self):

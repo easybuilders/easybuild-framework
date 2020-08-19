@@ -578,7 +578,7 @@ class RobotTest(EnhancedTestCase):
             }],
         }
 
-        error = "Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
+        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool)
 
         # check behaviour if only module file is available
@@ -587,7 +587,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], 'test/123')
 
-        error = "Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
+        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool, retain_all_deps=True)
 
         res = resolve_dependencies([ec], self.modtool, retain_all_deps=True, raise_error_missing_ecs=False)

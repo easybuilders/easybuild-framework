@@ -51,6 +51,7 @@ from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, g
 
 
 PROC_CPUINFO_TXT = None
+
 PROC_CPUINFO_TXT_RASPI2 = """processor : 0
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
@@ -71,6 +72,7 @@ CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
 """
+
 PROC_CPUINFO_TXT_ODROID_XU3 = """processor	: 0
 model name	: ARMv7 Processor rev 3 (v7l)
 BogoMIPS	: 84.00
@@ -91,6 +93,7 @@ CPU variant	: 0x2
 CPU part	: 0xc0f
 CPU revision	: 3
 """
+
 PROC_CPUINFO_TXT_XGENE2 = """processor	: 0
 cpu MHz		: 2400.000
 Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
@@ -100,6 +103,7 @@ CPU variant	: 0x1
 CPU part	: 0x000
 CPU revision	: 0
 """
+
 PROC_CPUINFO_TXT_THUNDERX = """processor	: 0
 Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
 CPU implementer	: 0x43
@@ -108,6 +112,7 @@ CPU variant	: 0x1
 CPU part	: 0x0a1
 CPU revision	: 0
 """
+
 PROC_CPUINFO_TXT_POWER = """processor	: 0
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
@@ -123,6 +128,13 @@ platform	: pSeries
 model		: IBM,8205-E6C
 machine		: CHRP IBM,8205-E6C
 """
+
+PROC_CPUINFO_TXT_AMD_FLAGS = ' '.join([
+    "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall",
+    "nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni",
+    "monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs",
+    "skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall",
+])
 PROC_CPUINFO_TXT_AMD = """processor	: 0
 vendor_id	: AuthenticAMD
 cpu family	: 16
@@ -142,7 +154,7 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 5
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+flags		: %(flags)s
 bogomips	: 4400.54
 TLB size	: 1024 4K pages
 clflush size	: 64
@@ -169,14 +181,23 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 5
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+flags		: %(flags)s
 bogomips	: 4400.54
 TLB size	: 1024 4K pages
 clflush size	: 64
 cache_alignment	: 64
 address sizes	: 48 bits physical, 48 bits virtual
 power management: ts ttp tm stc 100mhzsteps hwpstate
-"""
+""" % {'flags': PROC_CPUINFO_TXT_AMD_FLAGS}
+
+PROC_CPUINFO_TXT_INTEL_FLAGS = ' '.join([
+    "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss",
+    "ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good xtopology nonstop_tsc",
+    "aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2",
+    "x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat xsaveopt pln pts dts tpr_shadow vnmi",
+    "flexpriority ept vpid",
+])
+
 PROC_CPUINFO_TXT_INTEL = """processor	: 0
 vendor_id	: GenuineIntel
 cpu family	: 6
@@ -196,7 +217,7 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 13
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good xtopology nonstop_tsc aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat xsaveopt pln pts dts tpr_shadow vnmi flexpriority ept vpid
+flags		: %(flags)s
 bogomips	: 5200.15
 clflush size	: 64
 cache_alignment	: 64
@@ -222,13 +243,14 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 13
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good xtopology nonstop_tsc aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat xsaveopt pln pts dts tpr_shadow vnmi flexpriority ept vpid
+flags		: %(flags)s
 bogomips	: 5200.04
 clflush size	: 64
 cache_alignment	: 64
 address sizes	: 46 bits physical, 48 bits virtual
 power management:
-"""
+""" % {'flags': PROC_CPUINFO_TXT_INTEL_FLAGS}
+
 PROC_MEMINFO_TXT = """MemTotal:       66059108 kB
 MemFree:         2639988 kB
 Buffers:          236368 kB
@@ -305,7 +327,11 @@ def mocked_run_cmd(cmd, **kwargs):
         "sysctl -n hw.memsize": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.extfeatures": "SYSCALL XD 1GBPAGE EM64T LAHF LZCNT RDTSCP TSCI",
-        "sysctl -n machdep.cpu.features": "FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C",
+        "sysctl -n machdep.cpu.features": ' '.join([
+            "FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2",
+            "SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC",
+            "MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C",
+        ]),
         "sysctl -n machdep.cpu.leaf7_features": "SMEP ERMS RDWRFSGS TSC_THREAD_OFFSET BMI1 AVX2 BMI2 INVPCID FPU_CSDS",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',

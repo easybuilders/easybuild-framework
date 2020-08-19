@@ -362,7 +362,7 @@ class ContainersTest(EnhancedTestCase):
         args.append('--container-tmpdir=%s' % self.test_prefix)
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
-        regexs[-3] = "^== Running 'sudo\s*SINGULARITY_TMPDIR=%s \S*/singularity build .*" % self.test_prefix
+        regexs[-3] = r"^== Running 'sudo\s*SINGULARITY_TMPDIR=%s \S*/singularity build .*" % self.test_prefix
         self.check_regexs(regexs, stdout)
 
     def test_end2end_dockerfile(self):
@@ -459,10 +459,10 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            "^== docker tool found at %s/bin/docker" % self.test_prefix,
-            "^== Dockerfile definition file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
-            "^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
-            "^== Docker image created at toy-0.0:latest",
+            r"^== docker tool found at %s/bin/docker" % self.test_prefix,
+            r"^== Dockerfile definition file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
+            r"^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
+            r"^== Docker image created at toy-0.0:latest",
         ]
         self.check_regexs(regexs, stdout)
 
