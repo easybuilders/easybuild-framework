@@ -53,7 +53,8 @@ YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 def yaml_join(loader, node):
     """
     defines custom YAML join function.
-    see http://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
+    see http://stackoverflow.com/questions/5484016/
+        how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
     :param loader: the YAML Loader
     :param node: the YAML (sequence) node
     """
