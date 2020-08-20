@@ -385,14 +385,14 @@ class ToyBuildTest(EnhancedTestCase):
         sys.path.append(tmpdir)
 
         args = [
-                'toy-0.0-multiple.eb',
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-               ]
+            'toy-0.0-multiple.eb',
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+        ]
         outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         for toy_prefix, toy_version, toy_suffix in [

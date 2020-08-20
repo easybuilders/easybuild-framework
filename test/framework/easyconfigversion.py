@@ -215,7 +215,7 @@ class EasyConfigVersion(EnhancedTestCase):
                     (tc, '1.2.2', False),  # version not ok, name ok
                     ('x' + tc, '1.2.3', False),  # version ok, name not ok
                     ('x' + tc, '1.2.2', False),  # version not ok, name not ok
-                    )),
+                )),
             ]
             for txt, subtests in tests:
                 tcversop = ToolchainVersionOperator(txt)

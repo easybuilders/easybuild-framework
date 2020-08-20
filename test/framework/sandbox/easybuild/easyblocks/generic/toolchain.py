@@ -32,6 +32,7 @@ from easybuild.framework.easyblock import EasyBlock
 
 class Toolchain(EasyBlock):
     """Dummy support for toolchains."""
+
     def configure_step(self):
         pass
 

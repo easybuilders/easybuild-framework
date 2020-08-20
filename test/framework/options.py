@@ -126,12 +126,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         if txt is None:
             topt = EasyBuildOptions(
-                                    go_args=['-h'],
-                                    go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
-                                    go_columns=100,  # fix col size for reproducible unittest output
-                                    help_to_string=True,  # don't print to stdout, but to StingIO fh,
-                                    prog='easybuildoptions_test',  # generate as if called from generaloption.py
-                                   )
+                go_args=['-h'],
+                go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
+                go_columns=100,  # fix col size for reproducible unittest output
+                help_to_string=True,  # don't print to stdout, but to StingIO fh,
+                prog='easybuildoptions_test',  # generate as if called from generaloption.py
+            )
 
             outtxt = topt.parser.help_to_file.getvalue()
         else:
@@ -149,12 +149,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test long help message."""
 
         topt = EasyBuildOptions(
-                                go_args=['-H'],
-                                go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
-                                go_columns=200,  # fix col size for reproducible unittest output
-                                help_to_string=True,  # don't print to stdout, but to StingIO fh,
-                                prog='easybuildoptions_test',  # generate as if called from generaloption.py
-                               )
+            go_args=['-H'],
+            go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
+            go_columns=200,  # fix col size for reproducible unittest output
+            help_to_string=True,  # don't print to stdout, but to StingIO fh,
+            prog='easybuildoptions_test',  # generate as if called from generaloption.py
+        )
         outtxt = topt.parser.help_to_file.getvalue()
 
         self.assertTrue(re.search("-H OUTPUT_FORMAT, --help=OUTPUT_FORMAT", outtxt),
@@ -199,9 +199,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for info_arg in ['--info']:
             args = [
-                    'nosuchfile.eb',
-                    info_arg,
-                   ]
+                'nosuchfile.eb',
+                info_arg,
+            ]
             outtxt = self.eb_main(args)
 
             error_tmpl = "%s log messages are included when using %s ( out: %s)"
@@ -237,9 +237,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message without --force
         args = [
-                eb_file,
-                '--debug',
-               ]
+            eb_file,
+            '--debug',
+        ]
         outtxt, error_thrown = self.eb_main(args, return_error=True)
 
         error_msg = "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown
@@ -351,9 +351,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             write_file(self.logfile, '')
 
             args = [
-                    eb_file,
-                    '--job',
-                   ] + job_args
+                eb_file,
+                '--job',
+            ] + job_args
             outtxt = self.eb_main(args)
 
             job_msg = r"INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(passed_args)
@@ -529,9 +529,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-                '--list-toolchains',
-                '--unittest-file=%s' % self.logfile,
-               ]
+            '--list-toolchains',
+            '--unittest-file=%s' % self.logfile,
+        ]
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
@@ -619,9 +619,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         }
         for (name, items) in name_items.items():
             args = [
-                    '--avail-%s' % name,
-                    '--unittest-file=%s' % self.logfile,
-                   ]
+                '--avail-%s' % name,
+                '--unittest-file=%s' % self.logfile,
+            ]
             self.eb_main(args, logfile=dummylogfn)
             logtxt = read_file(self.logfile)
 
@@ -685,9 +685,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             write_file(self.logfile, '')
 
             args = [
-                    list_arg,
-                    '--unittest-file=%s' % self.logfile,
-                   ]
+                list_arg,
+                '--unittest-file=%s' % self.logfile,
+            ]
             self.eb_main(args, logfile=dummylogfn)
             logtxt = read_file(self.logfile)
 
@@ -726,9 +726,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # detailed view
         args = [
-                '--list-easyblocks=detailed',
-                '--unittest-file=%s' % self.logfile,
-               ]
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+        ]
         self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
@@ -1633,10 +1633,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test using no arguments."""
 
         args = [
-                '--software-name=nosuchsoftware',
-                '--robot=.',
-                '--debug',
-               ]
+            '--software-name=nosuchsoftware',
+            '--robot=.',
+            '--debug',
+        ]
         outtxt = self.eb_main(args)
 
         # error message when template is not found

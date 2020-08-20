@@ -89,7 +89,7 @@ class GithubTest(EnhancedTestCase):
         try:
             expected = [(None, ['a_directory', 'second_dir'], ['README.md']),
                         ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
-                        ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
+                                                                              ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
             self.assertEqual([x for x in self.ghfs.walk(None)], expected)
         except IOError:
             pass
@@ -618,9 +618,9 @@ class GithubTest(EnhancedTestCase):
 
         patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
         file_info = {'ecs': [
-                {'name': 'A', 'patches': ['1.patch'], 'exts_list': []},
-                {'name': 'B', 'patches': [], 'exts_list': []},
-            ]
+            {'name': 'A', 'patches': ['1.patch'], 'exts_list': []},
+            {'name': 'B', 'patches': [], 'exts_list': []},
+        ]
         }
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
         self.mock_stdout(True)

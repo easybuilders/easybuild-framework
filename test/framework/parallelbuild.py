@@ -86,6 +86,7 @@ def mock(*args, **kwargs):
 
 class MockPbsJob(object):
     """Mocking class for PbsJob."""
+
     def __init__(self, *args, **kwargs):
         self.deps = []
         self.jobid = None
