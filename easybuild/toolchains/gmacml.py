@@ -34,7 +34,6 @@ from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-
 class Gmacml(Gmvapich2, Acml, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MVAPICH2, ACML, ScaLAPACK and FFTW."""
     NAME = 'gmacml'

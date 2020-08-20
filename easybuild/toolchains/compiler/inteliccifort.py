@@ -92,7 +92,7 @@ class IntelIccIfort(Compiler):
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
-        'dynamic':'-Bdynamic',
+        'dynamic': '-Bdynamic',
     }
 
     LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related

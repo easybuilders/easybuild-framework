@@ -80,7 +80,7 @@ class Acml(LinAlg):
                 self.variables.append_exists('LDFLAGS', root, self.BLAS_LIB_DIR, append_all=True)
                 incdirs = [os.path.join(x, 'include') for x in subdirs]
                 self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
-        except:
+        except Exception:
             raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
                                  "with compiler family %s", self.COMPILER_FAMILY)
 
@@ -91,4 +91,3 @@ class Acml(LinAlg):
             self.BLAS_LIB_MT.insert(0, "acml_mv")
 
         super(Acml, self)._set_blas_variables()
-

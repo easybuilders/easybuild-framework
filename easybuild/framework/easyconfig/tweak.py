@@ -47,7 +47,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
@@ -630,7 +630,7 @@ def select_or_generate_ec(fp, paths, specs):
             # if a value is specified, use that, even if it's not available yet
             selected_val = val
             # promote value to list if deemed appropriate
-            if vals and type(vals[0]) == list and not type(val) == list:
+            if vals and isinstance(vals[0], list) and not isinstance(val, list):
                 _log.debug("Promoting type of %s value to list, since original value was." % param)
                 specs[param] = [val]
             _log.debug("%s is specified, so using it (even though it's not available yet): %s" % (param, selected_val))

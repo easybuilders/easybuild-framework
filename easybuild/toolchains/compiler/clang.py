@@ -43,7 +43,6 @@ class Clang(Compiler):
     """Clang compiler class"""
 
     COMPILER_MODULE_NAME = ['Clang']
-    
     COMPILER_FAMILY = TC_CONSTANT_CLANG
 
     # Don't set COMPILER_FAMILY in this class because Clang does not have
@@ -58,10 +57,10 @@ class Clang(Compiler):
         'unroll': 'funroll-loops',
         'loop-vectorize': ['fvectorize'],
         'basic-block-vectorize': ['fslp-vectorize'],
-        'optarch':'march=native',
+        'optarch': 'march=native',
         # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
         # optimizations.
-        # 
+        #
         # -fassociative-math: allow re-association of operands in series of floating-point operations, violates the
         # ISO C and C++ language standard by possibly changing computation result.
         # -freciprocal-math: allow optimizations to use the reciprocal of an argument rather than perform division.
@@ -114,4 +113,3 @@ class Clang(Compiler):
 
         if self.options.get('32bit', None):
             raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit Clang in EasyBuild")
-

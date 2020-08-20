@@ -28,11 +28,7 @@ Support for CUDA compilers as toolchain (co-)compiler.
 :author: Kenneth Hoste (Ghent University)
 """
 
-from distutils.version import LooseVersion
-
-import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
-from easybuild.tools.toolchain.variables import FlagList
 
 
 TC_CONSTANT_CUDA = "CUDA"
@@ -45,14 +41,17 @@ class Cuda(Compiler):
     COMPILER_CUDA_FAMILY = TC_CONSTANT_CUDA
 
     COMPILER_CUDA_UNIQUE_OPTS = {
-        # handle '-gencode arch=X,code=Y' nvcc options (also -arch, -code) 
+        # handle '-gencode arch=X,code=Y' nvcc options (also -arch, -code)
         # -arch always needs to be specified, -code is optional (defaults to -arch if missing)
         # -gencode is syntactic sugar for combining -arch/-code
         # multiple values can be specified
         # examples:
-        # * target v1.3 features, generate both object code and PTX for v1.3: -gencode arch=compute_13,code=compute_13 -gencode arch=compute_13,code=sm_13
-        # * target v3.5 features, only generate object code for v3.5: -gencode arch=compute_35,code=sm_35
-        # * target v2.0 features, generate object code for v2.0 and v3.5: -gencode arch=compute_20,code=sm_20 -gencode arch=compute_20,code=sm_35
+        # * target v1.3 features, generate both object code and PTX for v1.3:
+        # -gencode arch=compute_13,code=compute_13 -gencode arch=compute_13,code=sm_13
+        # * target v3.5 features, only generate object code for v3.5:
+        # -gencode arch=compute_35,code=sm_35
+        # * target v2.0 features, generate object code for v2.0 and v3.5:
+        # -gencode arch=compute_20,code=sm_20 -gencode arch=compute_20,code=sm_35
         'cuda_gencode': ([], ("List of arguments for nvcc -gencode command line option, e.g., "
                               "['arch=compute_20,code=sm_20', 'arch=compute_35,code=compute_35']")),
     }
@@ -87,7 +86,7 @@ class Cuda(Compiler):
 
         # always C++ compiler flags, even for C!
         # note: using $LIBS will yield the use of -lcudart in Xlinker, which is silly, but fine
-        
+
         cuda_flags = [
             'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
             'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),

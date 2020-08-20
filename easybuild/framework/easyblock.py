@@ -449,7 +449,7 @@ class EasyBlock(object):
 
                 # this *must* be of typ int, nothing else
                 # no 'isinstance(..., int)', since that would make True/False also acceptable
-                if type(patch_spec[1]) == int:
+                if isinstance(patch_spec[1], int):
                     level = patch_spec[1]
                 elif isinstance(patch_spec[1], string_type):
                     # non-patch files are assumed to be files to copy
@@ -2238,7 +2238,7 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            tup = (ext.name, ext.version or '', idx+1, exts_cnt)
+            tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
