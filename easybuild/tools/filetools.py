@@ -1186,11 +1186,17 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
+
+    Raises EasyBuildError on any error and returns True on success
     """
+
+    if use_git_am:
+        _log.deprecated("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", '5.0')
+        use_git = True
 
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
@@ -1203,9 +1209,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     elif fn and not os.path.isfile(fn):
         raise EasyBuildError("Can't patch file %s: no such file", fn)
 
-    elif not os.path.isdir(dest):
-        raise EasyBuildError("Can't patch directory %s: no such directory", dest)
-
     # copy missing files
     if copy:
         if build_option('extended_dry_run'):
@@ -1213,65 +1216,67 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
         else:
             copy_file(patch_file, dest)
             _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-            # early exit, work is done after copying
-            return True
+
+        # early exit, work is done after copying
+        return True
+
+    elif not os.path.isdir(dest):
+        raise EasyBuildError("Can't patch directory %s: no such directory", dest)
 
     # use absolute paths
-    apatch = os.path.abspath(patch_file)
-    adest = os.path.abspath(dest)
+    abs_patch_file = os.path.abspath(patch_file)
+    abs_dest = os.path.abspath(dest)
 
     # Attempt extracting the patch if it ends in .patch.gz, .patch.bz2, .patch.xz
-    # split in name + extension
-    apatch_root, apatch_file = os.path.split(apatch)
-    apatch_name, apatch_extension = os.path.splitext(apatch_file)
+    # split in stem (filename w/o extension) + extension
+    patch_stem, patch_extension = os.path.splitext(os.path.split(abs_patch_file)[1])
     # Supports only bz2, gz and xz. zip can be archives which are not supported.
-    if apatch_extension in ['.gz', '.bz2', '.xz']:
+    if patch_extension in ['.gz', '.bz2', '.xz']:
         # split again to get the second extension
-        apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
-        if apatch_subextension == ".patch":
+        patch_subextension = os.path.splitext(patch_stem)[1]
+        if patch_subextension == ".patch":
             workdir = tempfile.mkdtemp(prefix='eb-patch-')
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
-            apatch_dir = extract_file(apatch, workdir, change_into_dir=False)
-            change_dir(apatch_dir)
-            apatch = os.path.join(apatch_dir, apatch_name)
+            extracted_dir = extract_file(abs_patch_file, workdir, change_into_dir=False)
+            abs_patch_file = os.path.join(extracted_dir, patch_stem)
 
-    if level is None and build_option('extended_dry_run'):
-        level = '<derived>'
+    if use_git:
+        verbose = '--verbose ' if build_option('debug') else ''
+        patch_cmd = "git apply %s%s" % (verbose, abs_patch_file)
+    else:
+        if level is None and build_option('extended_dry_run'):
+            level = '<derived>'
 
-    elif level is None:
-        # guess value for -p (patch level)
-        # - based on +++ lines
-        # - first +++ line that matches an existing file determines guessed level
-        # - we will try to match that level from current directory
-        patched_files = det_patched_files(path=apatch)
+        elif level is None:
+            # guess value for -p (patch level)
+            # - based on +++ lines
+            # - first +++ line that matches an existing file determines guessed level
+            # - we will try to match that level from current directory
+            patched_files = det_patched_files(path=abs_patch_file)
 
-        if not patched_files:
-            raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
-            return
+            if not patched_files:
+                raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch",
+                                     abs_patch_file)
 
-        level = guess_patch_level(patched_files, adest)
+            level = guess_patch_level(patched_files, abs_dest)
 
-        if level is None:  # level can also be 0 (zero), so don't use "not level"
-            # no match
-            raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, adest)
+            if level is None:  # level can also be 0 (zero), so don't use "not level"
+                # no match
+                raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, abs_dest)
+            else:
+                _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
+
         else:
-            _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
+            _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-    else:
-        _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
+        patch_cmd = "patch -b -p%s -i %s" % (level, abs_patch_file)
 
-    if use_git_am:
-        patch_cmd = "git am patch %s" % apatch
-    else:
-        patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-
-    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False, trace=False)
+    out, ec = run.run_cmd(patch_cmd, simple=False, path=abs_dest, log_ok=False, trace=False)
 
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
-
-    return ec == 0
+    return True
 
 
 def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):

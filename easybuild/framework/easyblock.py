@@ -76,7 +76,7 @@ from easybuild.tools.filetools import compute_checksum, copy_file, check_lock, c
 from easybuild.tools.filetools import diff_files, dir_contains_files, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
@@ -2029,8 +2029,7 @@ class EasyBlock(object):
             src = os.path.abspath(weld_paths(beginpath, srcpathsuffix))
             self.log.debug("Applying patch %s in path %s", patch, src)
 
-            if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
-                raise EasyBuildError("Applying patch %s failed", patch['name'])
+            apply_patch(patch['path'], src, copy=copy_patch, level=level)
 
     def prepare_step(self, start_dir=True, load_tc_deps_modules=True):
         """
@@ -2348,6 +2347,15 @@ class EasyBlock(object):
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         self.fix_shebang()
+        # GCC linker searches system /lib64 path before the $LIBRARY_PATH paths.
+        # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
+        # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
+        # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
+        if build_option('lib64_lib_symlink'):
+            lib_dir = os.path.join(self.installdir, 'lib')
+            lib64_dir = os.path.join(self.installdir, 'lib64')
+            if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
+                symlink(lib_dir, lib64_dir)
 
     def sanity_check_step(self, *args, **kwargs):
         """

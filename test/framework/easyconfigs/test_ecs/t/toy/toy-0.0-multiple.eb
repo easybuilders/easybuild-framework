@@ -12,7 +12,7 @@ sources = [SOURCE_TAR_GZ]
 patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 checksums = [
     ('adler32', '0x998410035'),
-    'e6785e1a721fc8bf79892e3ef41557c0',
+    'a99f2a72cee1689a2f7e3ace0356efb1',
 ]
 
 moduleclass = 'tools'
