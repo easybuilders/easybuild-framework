@@ -307,7 +307,7 @@ class ExtOption(CompleterOption):
                     empty = get_empty_add_flex(lvalue, self=self)
                     if empty in value:
                         ind = value.index(empty)
-                        lvalue = value[:ind] + default + value[ind+1:]
+                        lvalue = value[:ind] + default + value[ind + 1:]
                     else:
                         lvalue = value
             elif action == "regex":
@@ -1588,10 +1588,10 @@ class GeneralOption(object):
                 if default is not None:
                     if action == 'add_flex' and default:
                         for ind, elem in enumerate(opt_value):
-                            if elem == default[0] and opt_value[ind:ind+len(default)] == default:
+                            if elem == default[0] and opt_value[ind:ind + len(default)] == default:
                                 empty = get_empty_add_flex(opt_value, self=self)
                                 # TODO: this will only work for tuples and lists
-                                opt_value = opt_value[:ind] + type(opt_value)([empty]) + opt_value[ind+len(default):]
+                                opt_value = opt_value[:ind] + type(opt_value)([empty]) + opt_value[ind + len(default):]
                                 # only the first occurence
                                 break
                     elif hasattr(opt_value, '__neg__'):

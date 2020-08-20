@@ -67,7 +67,7 @@ if not os.path.isdir(easyblocks_repo_path):
 # determine path for easyblock
 if options.letter_prefix:
     letter = name.lower()[0]
-    if not ord(letter) in range(ord('a'), ord('z')+1):
+    if not ord(letter) in range(ord('a'), ord('z') + 1):
         letter = '0'
     easyblock_path = os.path.join(easyblocks_repo_path, letter, "%s.py" % name.lower())
 else:

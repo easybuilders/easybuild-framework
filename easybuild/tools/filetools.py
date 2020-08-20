@@ -131,28 +131,28 @@ CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
 EXTRACT_CMDS = {
     # gzipped or gzipped tarball
-    '.gtgz':    "tar xzf %(filepath)s",
-    '.gz':      "gunzip -c %(filepath)s > %(target)s",
-    '.tar.gz':  "tar xzf %(filepath)s",
-    '.tgz':     "tar xzf %(filepath)s",
+    '.gtgz': "tar xzf %(filepath)s",
+    '.gz': "gunzip -c %(filepath)s > %(target)s",
+    '.tar.gz': "tar xzf %(filepath)s",
+    '.tgz': "tar xzf %(filepath)s",
     # bzipped or bzipped tarball
-    '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
+    '.bz2': "bunzip2 -c %(filepath)s > %(target)s",
     '.tar.bz2': "tar xjf %(filepath)s",
-    '.tb2':     "tar xjf %(filepath)s",
-    '.tbz':     "tar xjf %(filepath)s",
-    '.tbz2':    "tar xjf %(filepath)s",
+    '.tb2': "tar xjf %(filepath)s",
+    '.tbz': "tar xjf %(filepath)s",
+    '.tbz2': "tar xjf %(filepath)s",
     # xzipped or xzipped tarball
-    '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-    '.txz':     "unxz %(filepath)s --stdout | tar x",
-    '.xz':      "unxz %(filepath)s",
+    '.tar.xz': "unxz %(filepath)s --stdout | tar x",
+    '.txz': "unxz %(filepath)s --stdout | tar x",
+    '.xz': "unxz %(filepath)s",
     # tarball
-    '.tar':     "tar xf %(filepath)s",
+    '.tar': "tar xf %(filepath)s",
     # zip file
-    '.zip':     "unzip -qq %(filepath)s",
+    '.zip': "unzip -qq %(filepath)s",
     # iso file
-    '.iso':     "7z x %(filepath)s",
+    '.iso': "7z x %(filepath)s",
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
-    '.tar.z':   "tar xzf %(filepath)s",
+    '.tar.z': "tar xzf %(filepath)s",
 }
 
 # global set of names of locks that were created in this session

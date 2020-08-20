@@ -538,7 +538,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             dep_block = reg_dep_block.search(block_contents)
             if dep_block:
                 dependencies = eval(dep_block.group(1))
-                if type(dependencies) == list:
+                if isinstance(dependencies, list):
                     block['dependencies'] = dependencies
                 else:
                     block['dependencies'] = [dependencies]

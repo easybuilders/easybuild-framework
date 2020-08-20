@@ -116,7 +116,7 @@ class FormatYeb(EasyConfigFormat):
         yaml_header = []
         for i, line in enumerate(lines):
             if line.startswith(YAML_DIR):
-                if lines[i+1].startswith(YAML_SEP):
+                if lines[i + 1].startswith(YAML_SEP):
                     yaml_header.extend([lines.pop(i), lines.pop(i)])
 
         injected_constants = ['__CONSTANTS__: ']

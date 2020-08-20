@@ -784,7 +784,7 @@ def getAllExistingLoggers():
     """
     # not-so-well documented manager (in 2.6 and later)
     # return list of (name,logger) tuple
-    return [x for x in logging.Logger.manager.loggerDict.items()]+[(logging.root.name, logging.root)]
+    return [x for x in logging.Logger.manager.loggerDict.items()] + [(logging.root.name, logging.root)]
 
 
 def getAllNonFancyloggers():
