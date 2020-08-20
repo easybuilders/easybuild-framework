@@ -302,7 +302,7 @@ MACHINE_NAME = None
 def mocked_read_file(fp):
     """Mocked version of read_file, with specified contents for known filenames."""
     known_fps = {
-        MAX_FREQ_FP:  '2850000',
+        MAX_FREQ_FP: '2850000',
         PROC_CPUINFO_FP: PROC_CPUINFO_TXT,
         PROC_MEMINFO_FP: PROC_MEMINFO_TXT,
     }
