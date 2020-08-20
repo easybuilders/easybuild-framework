@@ -112,6 +112,7 @@ _path_indexes = {}
 
 def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     """Decorator to handle deprecated/replaced easyconfig parameters."""
+
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
         # map deprecated parameters to their replacements, issue deprecation warning(/error)

@@ -1573,7 +1573,7 @@ class GeneralOption(object):
                                        (opt_name, default, action))
                 else:
                     if opt_value == default and ((action in ('store_true',) +
-                                                 ExtOption.EXTOPTION_LOG and default is False) or
+                                                  ExtOption.EXTOPTION_LOG and default is False) or
                                                  (action in ('store_false',) and default is True)):
                         if hasattr(self.parser.option_class, 'ENABLE') and \
                            hasattr(self.parser.option_class, 'DISABLE'):

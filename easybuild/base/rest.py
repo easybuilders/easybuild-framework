@@ -228,6 +228,7 @@ class RequestBuilder(object):
 
     To understand the method(...) calls, check out github.client.Client.
     '''
+
     def __init__(self, client):
         """Constructor"""
         self.client = client
@@ -288,6 +289,7 @@ class RestClient(object):
     try to validate the url you feed it. On the other hand, it
     automatically supports the full API--so why should you care?
     """
+
     def __init__(self, *args, **kwargs):
         """We create a client with the given arguments"""
         self.client = Client(*args, **kwargs)

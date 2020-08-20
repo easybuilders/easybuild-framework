@@ -370,7 +370,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             'iterabove': {},  # comment above elements of iterable values
             'iterinline': {},  # inline comments on elements of iterable values
             'tail': [],  # comment at the end of the easyconfig file
-         }
+        }
 
         parsed_ec = self.get_config_dict()
 
