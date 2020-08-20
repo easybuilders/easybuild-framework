@@ -691,7 +691,7 @@ class ToolchainTest(EnhancedTestCase):
 
         test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
 
-        for intel_flags, gcc_flags, gcccore_flags, (toolchain, toolchain_ver), enable in test_cases:
+        for intel_flags, gcc_flags, gcccore_flags, (toolchain_name, toolchain_ver), enable in test_cases:
 
             intel_flags, intel_flags_exp = intel_flags
             gcc_flags, gcc_flags_exp = gcc_flags
@@ -702,15 +702,15 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
             init_config(build_options={'optarch': optarch_var, 'silent': True})
-            tc = self.get_toolchain(toolchain, version=toolchain_ver)
+            tc = self.get_toolchain(toolchain_name, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
             flags = None
-            if toolchain == 'iccifort':
+            if toolchain_name == 'iccifort':
                 flags = intel_flags_exp
-            elif toolchain == 'GCC':
+            elif toolchain_name == 'GCC':
                 flags = gcc_flags_exp
-            elif toolchain == 'GCCcore':
+            elif toolchain_name == 'GCCcore':
                 flags = gcccore_flags_exp
             else:  # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
@@ -1589,7 +1589,7 @@ class ToolchainTest(EnhancedTestCase):
 
         ccache = which('ccache')
         if ccache is None:
-            msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
+            msg = r"ccache binary not found in \$PATH, required by --use-compiler-cache"
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache

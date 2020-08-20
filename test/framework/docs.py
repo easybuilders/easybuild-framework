@@ -109,7 +109,7 @@ class DocsTest(EnhancedTestCase):
         self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
 
         lic_docs = avail_easyconfig_licenses(output_format='rst')
-        regex = re.compile("^``GPLv3``\s*The GNU General Public License", re.M)
+        regex = re.compile(r"^``GPLv3``\s*The GNU General Public License", re.M)
         self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
 
     def test_list_software(self):
@@ -260,7 +260,7 @@ class DocsTest(EnhancedTestCase):
         ]
         txt = list_software(output_format='txt', detailed=True)
         lines = txt.split('\n')
-        expected_found = any([lines[i:i+len(expected)] == expected for i in range(len(lines))])
+        expected_found = any([lines[i:i + len(expected)] == expected for i in range(len(lines))])
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
 
         expected = [
@@ -283,7 +283,7 @@ class DocsTest(EnhancedTestCase):
         ]
         txt = list_software(output_format='rst', detailed=True)
         lines = txt.split('\n')
-        expected_found = any([lines[i:i+len(expected)] == expected for i in range(len(lines))])
+        expected_found = any([lines[i:i + len(expected)] == expected for i in range(len(lines))])
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
 
 

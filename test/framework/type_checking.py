@@ -356,7 +356,7 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # extra keys ruin it
         foo_dict.update({'extra_key': 'bogus'})
-        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*", to_dependency, foo_dict)
+        self.assertErrorRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, foo_dict)
 
         # no name/version
         self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",

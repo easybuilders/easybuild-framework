@@ -31,6 +31,7 @@ i.e. configure/make/make install.
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 
+
 class ConfigureMake(EasyBlock):
     """Dummy support for building and installing applications with configure/make/make install."""
 

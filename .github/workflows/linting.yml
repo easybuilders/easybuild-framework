@@ -19,4 +19,4 @@ jobs:
     - name: Run flake8
       run: |
         flake8 easybuild/tools
- 
+        flake8 test/
