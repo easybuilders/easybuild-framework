@@ -87,9 +87,11 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            expected = [(None, ['a_directory', 'second_dir'], ['README.md']),
-                        ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
-                                                                              ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
+            expected = [
+                (None, ['a_directory', 'second_dir'], ['README.md']),
+                ('a_directory', ['a_subdirectory'], ['a_file.txt']),
+                ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
+            ]
             self.assertEqual([x for x in self.ghfs.walk(None)], expected)
         except IOError:
             pass
