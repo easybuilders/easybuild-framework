@@ -437,6 +437,8 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
+                        None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
@@ -989,6 +991,13 @@ class EasyBuildOptions(GeneralOption):
         if self.options.dump_autopep8:
             if not HAVE_AUTOPEP8:
                 raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
+
+        # if a path is specified to --sysroot, it must exist
+        if self.options.sysroot:
+            if os.path.exists(self.options.sysroot):
+                self.log.info("Specified sysroot '%s' exists: OK", self.options.sysroot)
+            else:
+                raise EasyBuildError("Specified sysroot '%s' does not exist!", self.options.sysroot)
 
         self.log.info("Checks on configuration options passed")
 

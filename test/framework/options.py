@@ -5346,6 +5346,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"^# valid until: 9999-12-31 23:59:59", re.M)
         self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
 
+    def test_sysroot(self):
+        """Test use of --sysroot option."""
+
+        self.assertTrue(os.path.exists(self.test_prefix))
+
+        sysroot_arg = '--sysroot=' + self.test_prefix
+        stdout, stderr = self._run_mock_eb([sysroot_arg, '--show-config'], raise_error=True)
+
+        self.assertEqual(stderr, '')
+        sysroot_regex = re.compile(r'^sysroot\s*\(C\) = %s$' % self.test_prefix, re.M)
+        self.assertTrue(sysroot_regex.search(stdout), "Pattern '%s' not found in: %s" % (sysroot_regex, stdout))
+
+        os.environ['EASYBUILD_SYSROOT'] = self.test_prefix
+        stdout, stderr = self._run_mock_eb(['--show-config'], raise_error=True)
+
+        self.assertEqual(stderr, '')
+        sysroot_regex = re.compile(r'^sysroot\s*\(E\) = %s$' % self.test_prefix, re.M)
+        self.assertTrue(sysroot_regex.search(stdout), "Pattern '%s' not found in: %s" % (sysroot_regex, stdout))
+
+        # specifying a non-existing path results in an error
+        doesnotexist = os.path.join(self.test_prefix, 'non-existing-subdirectory')
+        sysroot_arg = '--sysroot=' + doesnotexist
+
+        args = [sysroot_arg, '--show-config']
+        error_pattern = r"Specified sysroot '%s' does not exist!" % doesnotexist
+        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+
+        os.environ['EASYBUILD_SYSROOT'] = doesnotexist
+        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
+
 
 def suite():
     """ returns all the testcases in this module """
