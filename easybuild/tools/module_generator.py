@@ -963,8 +963,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
         # In Modules 4.2.3+ a 2-argument swap 'module swap foo foo/X.Y.Z' will fail as the unloaded 'foo'
-        # means all 'foo' modules conflict and 'foo/X.Y.Z' will not load.  A 1-argument swap like 
-        # 'module swap foo/X.Y.Z' will unload any currently loaded 'foo' without it becoming conflicting 
+        # means all 'foo' modules conflict and 'foo/X.Y.Z' will not load.  A 1-argument swap like
+        # 'module swap foo/X.Y.Z' will unload any currently loaded 'foo' without it becoming conflicting
         # and successfully load the new module.
         # See: https://modules.readthedocs.io/en/latest/NEWS.html#modules-4-2-3-2019-03-23
         body = "module swap %s" % (mod_name_in)
