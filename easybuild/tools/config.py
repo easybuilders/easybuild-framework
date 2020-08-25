@@ -212,6 +212,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip',
         'stop',
         'subdir_user_modules',
+        'sysroot',
         'test_report_env_filter',
         'testoutput',
         'wait_on_lock',
