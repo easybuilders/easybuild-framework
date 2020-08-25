@@ -29,5 +29,6 @@ Dummy easyblock for ScaLAPACK
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class EB_ScaLAPACK(EasyBlock):
     pass

@@ -34,6 +34,7 @@ from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
+
 class Impmkl(Impich, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), MPICH,

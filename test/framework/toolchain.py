@@ -166,8 +166,204 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(tc.is_system_toolchain())
             self.assertTrue(dummy_depr_warning in stderr, "Found '%s' in: %s" % (dummy_depr_warning, stderr))
 
+    def unset_compiler_env_vars(self):
+        """Unset environment variables before checking whether they're set by the toolchain prep mechanism."""
+
+        comp_env_vars = ['CC', 'CXX', 'F77', 'F90', 'FC']
+
+        env_vars = ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS'] + comp_env_vars[:]
+        env_vars.extend(['MPI%s' % x for x in comp_env_vars])
+        env_vars.extend(['OMPI_%s' % x for x in comp_env_vars])
+
+        for key in env_vars:
+            if key in os.environ:
+                del os.environ[key]
+
+    def test_toolchain_compiler_env_vars(self):
+        """Test whether environment variables for compilers are defined by toolchain mechanism."""
+
+        # clean environment
+        self.unset_compiler_env_vars()
+        for key in ['CC', 'CXX', 'F77', 'F90', 'FC']:
+            self.assertEqual(os.getenv(key), None)
+
+        # install dummy 'gcc' and 'g++' commands, to make sure they're available
+        # (required since Toolchain.set_minimal_build_env checks whether these commands exist)
+        for cmd in ['gcc', 'g++']:
+            fake_cmd = os.path.join(self.test_prefix, cmd)
+            write_file(fake_cmd, '#!/bin/bash')
+            adjust_permissions(fake_cmd, stat.S_IRUSR | stat.S_IXUSR)
+        os.environ['PATH'] = self.test_prefix + ':' + os.environ['PATH']
+
+        # first try with system compiler: only minimal build environment is set up
+        tc = self.get_toolchain('system', version='system')
+        tc.set_options({})
+
+        # no warning about redefining if $CC/$CXX are not defined
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
+
+        # only $CC and $CXX are set, no point is setting environment variables for Fortran
+        # since gfortran is often not installed on the system
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+        for key in ['F77', 'F90', 'FC']:
+            self.assertEqual(os.getenv(key), None)
+
+        # env vars for compiler flags and MPI compiler commands are not set for system toolchain
+        flags_keys = ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']
+        mpi_keys = ['MPICC', 'MPICXX', 'MPIFC', 'OMPI_CC', 'OMPI_CXX', 'OMPI_FC']
+        for key in flags_keys + mpi_keys:
+            self.assertEqual(os.getenv(key), None)
+
+        self.unset_compiler_env_vars()
+        for key in ['CC', 'CXX', 'F77', 'F90', 'FC']:
+            self.assertEqual(os.getenv(key), None)
+
+        # warning is printed when EasyBuild redefines environment variables in minimal build environment
+        os.environ['CC'] = 'foo'
+        os.environ['CXX'] = 'bar'
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stdout, '')
+
+        for key, prev_val, new_val in [('CC', 'foo', 'gcc'), ('CXX', 'bar', 'g++')]:
+            warning_msg = "WARNING: $%s was defined as '%s', " % (key, prev_val)
+            warning_msg += "but is now set to '%s' in minimal build environment" % new_val
+            self.assertTrue(warning_msg in stderr)
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+
+        # no warning if the values are identical to the ones used in the minimal build environment
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
+
+        del os.environ['CC']
+        del os.environ['CXX']
+
+        # check whether specification in --minimal-build-env is picked up
+        init_config(build_options={'minimal_build_env': 'CC:g++'})
+
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'g++')
+        self.assertEqual(os.getenv('CXX'), None)
+
+        del os.environ['CC']
+
+        # check whether a warning is printed when a value specified for $CC or $CXX is not found
+        init_config(build_options={'minimal_build_env': 'CC:nosuchcommand,CXX:gcc'})
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        warning_msg = "WARNING: 'nosuchcommand' command not found in $PATH, "
+        warning_msg += "not setting $CC in minimal build environment"
+        self.assertTrue(warning_msg in stderr)
+        self.assertEqual(stdout, '')
+
+        self.assertEqual(os.getenv('CC'), None)
+        self.assertEqual(os.getenv('CXX'), 'gcc')
+
+        # no warning for defining environment variable that was previously undefined,
+        # only warning on redefining, other values can be whatever (and can include spaces)
+        init_config(build_options={'minimal_build_env': 'CC:gcc,CXX:g++,CFLAGS:-O2,CXXFLAGS:-O3 -g,FC:gfortan'})
+
+        for key in ['CFLAGS', 'CXXFLAGS', 'FC']:
+            if key in os.environ:
+                del os.environ[key]
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        tc.prepare()
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+        self.assertEqual(os.getenv('CFLAGS'), '-O2')
+        self.assertEqual(os.getenv('CXXFLAGS'), '-O3 -g')
+        self.assertEqual(os.getenv('FC'), 'gfortan')
+
+        # incorrect spec in minimal_build_env results in an error
+        init_config(build_options={'minimal_build_env': 'CC=gcc'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'CC=gcc'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'foo:bar:baz'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo:bar:baz'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'CC:gcc,foo'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'foo:bar:baz,CC:gcc'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo:bar:baz'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        init_config(build_options={'minimal_build_env': 'CC:gcc,'})
+        error_pattern = "Incorrect mapping in --minimal-build-env value: ''"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+
+        # for a full toolchain, a more extensive build environment is set up (incl. $CFLAGS & co),
+        # and the specs in --minimal-build-env are ignored
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({})
+
+        # catch potential warning about too long $TMPDIR value that causes trouble for Open MPI (irrelevant here)
+        self.mock_stderr(True)
+        tc.prepare()
+        self.mock_stderr(False)
+
+        self.assertEqual(os.getenv('CC'), 'gcc')
+        self.assertEqual(os.getenv('CXX'), 'g++')
+        self.assertEqual(os.getenv('F77'), 'gfortran')
+        self.assertEqual(os.getenv('F90'), 'gfortran')
+        self.assertEqual(os.getenv('FC'), 'gfortran')
+
+        self.assertEqual(os.getenv('MPICC'), 'mpicc')
+        self.assertEqual(os.getenv('MPICXX'), 'mpicxx')
+        self.assertEqual(os.getenv('MPIF77'), 'mpifort')
+        self.assertEqual(os.getenv('MPIF90'), 'mpifort')
+        self.assertEqual(os.getenv('MPIFC'), 'mpifort')
+
+        self.assertEqual(os.getenv('OMPI_CC'), 'gcc')
+        self.assertEqual(os.getenv('OMPI_CXX'), 'g++')
+        self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
+        self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
+
+        for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
+            self.assertEqual(os.getenv(key), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
+
         tc = self.get_toolchain('foss', version='2018a')
         tc.prepare()
 
@@ -495,7 +691,7 @@ class ToolchainTest(EnhancedTestCase):
 
         test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
 
-        for intel_flags, gcc_flags, gcccore_flags, (toolchain, toolchain_ver), enable in test_cases:
+        for intel_flags, gcc_flags, gcccore_flags, (toolchain_name, toolchain_ver), enable in test_cases:
 
             intel_flags, intel_flags_exp = intel_flags
             gcc_flags, gcc_flags_exp = gcc_flags
@@ -506,15 +702,15 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
             init_config(build_options={'optarch': optarch_var, 'silent': True})
-            tc = self.get_toolchain(toolchain, version=toolchain_ver)
+            tc = self.get_toolchain(toolchain_name, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
             flags = None
-            if toolchain == 'iccifort':
+            if toolchain_name == 'iccifort':
                 flags = intel_flags_exp
-            elif toolchain == 'GCC':
+            elif toolchain_name == 'GCC':
                 flags = gcc_flags_exp
-            elif toolchain == 'GCCcore':
+            elif toolchain_name == 'GCCcore':
                 flags = gcccore_flags_exp
             else:  # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
@@ -1393,7 +1589,7 @@ class ToolchainTest(EnhancedTestCase):
 
         ccache = which('ccache')
         if ccache is None:
-            msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
+            msg = r"ccache binary not found in \$PATH, required by --use-compiler-cache"
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache
@@ -1433,9 +1629,17 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
         # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
+        ccache_path = os.path.join(self.test_prefix, 'scripts', 'ccache')
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
-        for comp in ['gcc', 'g++', 'gfortran']:
-            self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+        for comp in ['gcc', 'g++']:
+            comp_path = which(comp)
+            self.assertTrue(comp_path)
+            self.assertTrue(os.path.samefile(comp_path, ccache_path))
+
+        # no ccache wrapper for gfortran when using ccache
+        # (ccache either doesn't support Fortran anymore, or support is spotty (trouble with Fortran modules))
+        gfortran_path = which('gfortran')
+        self.assertTrue(gfortran_path is None or not os.path.samefile(gfortran_path, ccache_path))
 
         # reset environment to get rid of ccache symlinks, but with ccache/f90cache mock scripts still in place
         os.environ['PATH'] = prepped_path_envvar

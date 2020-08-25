@@ -1327,11 +1327,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         test_ecs = {
-            'GCC-6.4.0-2.28.eb':               ('compiler/GCC/6.4.0-2.28',          '', [], [], []),
+            'GCC-6.4.0-2.28.eb': ('compiler/GCC/6.4.0-2.28', '', [], [], []),
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('mpi/OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
-            'gzip-1.5-foss-2018a.eb':   ('tools/gzip/1.5-foss-2018a', '', [], [], []),
-            'foss-2018a.eb':            ('toolchain/foss/2018a',      '', [], [], []),
-            'impi-5.1.2.150.eb':          ('mpi/impi/5.1.2.150',          '', [], [], []),
+            'gzip-1.5-foss-2018a.eb': ('tools/gzip/1.5-foss-2018a', '', [], [], []),
+            'foss-2018a.eb': ('toolchain/foss/2018a', '', [], [], []),
+            'impi-5.1.2.150.eb': ('mpi/impi/5.1.2.150', '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)

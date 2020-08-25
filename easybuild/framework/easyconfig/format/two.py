@@ -36,7 +36,7 @@ import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.format import EBConfigObj
-from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
+from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.tools.build_log import EasyBuildError
 
 

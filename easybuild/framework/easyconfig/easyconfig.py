@@ -112,6 +112,7 @@ _path_indexes = {}
 
 def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     """Decorator to handle deprecated/replaced easyconfig parameters."""
+
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
@@ -569,6 +570,9 @@ class EasyConfig(object):
         # since rawtxt is defined, self.path may not get inherited, make sure it does
         if self.path:
             ec.path = self.path
+
+        # also copy template values, since re-generating them may not give the same set of template values straight away
+        ec.template_values = copy.deepcopy(self.template_values)
 
         return ec
 
@@ -1593,6 +1597,7 @@ class EasyConfig(object):
     def generate_template_values(self):
         """Try to generate all template values."""
 
+        self.log.info("Generating template values...")
         self._generate_template_values()
 
         # recursive call, until there are no more changes to template values;
@@ -1610,6 +1615,8 @@ class EasyConfig(object):
                 except KeyError:
                     # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
                     pass
+
+        self.log.info("Template values: %s", ', '.join("%s='%s'" % x for x in sorted(self.template_values.items())))
 
     def _generate_template_values(self, ignore=None):
         """Actual code to generate the template values"""
