@@ -1975,6 +1975,43 @@ class ToolchainTest(EnhancedTestCase):
         # any other available 'g++' commands should not be a wrapper or our fake g++
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
+        # RPATH wrapper should be robust against Python environment variables & site-packages magic,
+        # so we set up a weird environment here to verify that
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3421)
+
+        # redefine $HOME so we can put up a fake $HOME/.local/lib/python*/site-packages,
+        # which is picked up automatically (even without setting $PYTHONPATH)
+        home = os.path.join(self.test_prefix, 'home')
+        os.environ['HOME'] = home
+
+        # also set $PYTHONUSERBASE (default is $HOME/.local when this is not set)
+        # see https://docs.python.org/3/library/site.html#site.USER_BASE
+        os.environ['PYTHONUSERBASE'] = home
+
+        # add directory to $PYTHONPATH where we can inject broken Python modules
+        pythonpath = os.getenv('PYTHONPATH')
+        if pythonpath:
+            os.environ['PYTHONPATH'] = self.test_prefix + ':' + pythonpath
+        else:
+            os.environ['PYTHONPATH'] = self.test_prefix
+
+        site_pkgs_dir = os.path.join(home, '.local', 'lib', 'python%s.%s' % sys.version_info[:2], 'site-packages')
+        mkdir(site_pkgs_dir, parents=True)
+
+        # add site.py that imports imp (which on Python 3 triggers an 'import enum')
+        # when running with Python 3 (since then 'import imp' triggers 'import enum')
+        write_file(os.path.join(site_pkgs_dir, 'site.py'), 'import imp')
+
+        # also include an empty enum.py both in $PYTHONUSERBASE and a path listed in $PYTHONPATH;
+        # combined with the site.py above, this combination is sufficient
+        # to reproduce https://github.com/easybuilders/easybuild-framework/issues/3421
+        write_file(os.path.join(site_pkgs_dir, 'enum.py'), 'import os')
+        write_file(os.path.join(self.test_prefix, 'enum.py'), 'import os')
+
+        # also add a broken re.py, which is sufficient to cause trouble in Python 2,
+        # unless $PYTHONPATH is ignored by the RPATH wrapper
+        write_file(os.path.join(self.test_prefix, 're.py'), 'import this_is_a_broken_re_module')
+
         # check whether fake g++ was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
         out, ec = run_cmd('g++ ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
