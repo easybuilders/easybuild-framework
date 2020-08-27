@@ -32,7 +32,7 @@ Support for FLAME as toolchain linear algebra library.
 from easybuild.toolchains.linalg.lapack import Lapack
 
 
-TC_CONSTANT_OPENBLAS = 'FLAME'
+TC_CONSTANT_FLAME = 'FLAME'
 
 
 class Flame(Lapack):

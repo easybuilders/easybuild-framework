@@ -35,7 +35,6 @@ Support for PGI compilers (pgcc, pgc++, pgf90/pgfortran) as toolchain compilers.
 from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -58,10 +57,10 @@ class Pgi(Compiler):
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
-        'optarch': '', # PGI by default generates code for the arch it is running on!
+        'optarch': '',  # PGI by default generates code for the arch it is running on!
         'openmp': 'mp',
         'ieee': 'Kieee',
-        'strict': ['Mnoflushz','Kieee'],
+        'strict': ['Mnoflushz', 'Kieee'],
         'precise': ['Mnoflushz'],
         'defaultprec': ['Mflushz'],
         'loose': ['Mfprelaxed'],
@@ -90,7 +89,7 @@ class Pgi(Compiler):
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
-        'dynamic':'-Bdynamic',
+        'dynamic': '-Bdynamic',
     }
 
     def _set_compiler_flags(self):

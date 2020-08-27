@@ -55,8 +55,8 @@ class IntelMKL(LinAlg):
         "interface": None,
         "interface_mt": None,
     }
-    BLAS_LIB = ["mkl_%(interface)s%(lp64)s" , "mkl_sequential", "mkl_core"]
-    BLAS_LIB_MT = ["mkl_%(interface)s%(lp64)s" , "mkl_%(interface_mt)s_thread", "mkl_core"]
+    BLAS_LIB = ["mkl_%(interface)s%(lp64)s", "mkl_sequential", "mkl_core"]
+    BLAS_LIB_MT = ["mkl_%(interface)s%(lp64)s", "mkl_%(interface_mt)s_thread", "mkl_core"]
     BLAS_LIB_GROUP = True
     BLAS_LIB_STATIC = True
     BLAS_FAMILY = TC_CONSTANT_INTELMKL
@@ -67,7 +67,7 @@ class IntelMKL(LinAlg):
 
     BLACS_MODULE_NAME = ['imkl']
     BLACS_LIB = ["mkl_blacs%(mpi)s%(lp64)s"]
-    BLACS_LIB_MAP = {'mpi':None}
+    BLACS_LIB_MAP = {'mpi': None}
     BLACS_LIB_GROUP = True
     BLACS_LIB_STATIC = True
 
@@ -114,7 +114,7 @@ class IntelMKL(LinAlg):
             self.BLAS_LIB_MAP.update({
                 "interface": interfacemap[self.COMPILER_FAMILY],
             })
-        except:
+        except Exception:
             raise EasyBuildError("_set_blas_variables: interface unsupported combination with MPI family %s",
                                  self.COMPILER_FAMILY)
 
@@ -124,18 +124,17 @@ class IntelMKL(LinAlg):
             TC_CONSTANT_PGI: 'pgi',
         }
         try:
-            self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})
-        except:
+            self.BLAS_LIB_MAP.update({"interface_mt": interfacemap_mt[self.COMPILER_FAMILY]})
+        except Exception:
             raise EasyBuildError("_set_blas_variables: interface_mt unsupported combination with compiler family %s",
                                  self.COMPILER_FAMILY)
 
-
         if self.options.get('32bit', None):
             # 32bit
-            self.BLAS_LIB_MAP.update({"lp64":''})
+            self.BLAS_LIB_MAP.update({"lp64": ''})
         if self.options.get('i8', None):
             # ilp64/i8
-            self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})
+            self.BLAS_LIB_MAP.update({"lp64": '_ilp64'})
             # CPP / CFLAGS
             self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
 
@@ -176,7 +175,7 @@ class IntelMKL(LinAlg):
         }
         try:
             self.BLACS_LIB_MAP.update({'mpi': mpimap[self.MPI_FAMILY]})
-        except:
+        except Exception:
             raise EasyBuildError("_set_blacs_variables: mpi unsupported combination with MPI family %s",
                                  self.MPI_FAMILY)
 
@@ -193,11 +192,11 @@ class IntelMKL(LinAlg):
 
         if self.options.get('32bit', None):
             # 32 bit
-            self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_core'})
+            self.SCALAPACK_LIB_MAP.update({"lp64_sc": '_core'})
 
         elif self.options.get('i8', None):
             # ilp64/i8
-            self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_ilp64'})
+            self.SCALAPACK_LIB_MAP.update({"lp64_sc": '_ilp64'})
 
         self.SCALAPACK_LIB_DIR = self.BLAS_LIB_DIR
         self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR

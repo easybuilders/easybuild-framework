@@ -29,13 +29,18 @@ Dummy easyblock for toolchains.
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class Toolchain(EasyBlock):
     """Dummy support for toolchains."""
+
     def configure_step(self):
         pass
+
     def build_step(self):
         pass
+
     def install_step(self):
         pass
+
     def sanity_check_step(self):
         pass

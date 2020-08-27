@@ -29,5 +29,6 @@ Dummy easyblock for HPL
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class EB_HPL(EasyBlock):
     pass

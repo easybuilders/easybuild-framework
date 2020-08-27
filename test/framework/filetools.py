@@ -171,7 +171,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
                               os.path.join(tmpdir, 'python*'))
 
-
     def test_encode_class_name(self):
         """Test encoding of class names."""
         for (class_name, encoded_class_name) in self.class_names:
@@ -929,7 +928,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = "29 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
         expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
@@ -948,9 +947,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "29 + postinstallcmds = "
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         expected = "30 + (1/2) toy-0.0-"
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
 
@@ -1359,8 +1358,8 @@ class FileToolsTest(EnhancedTestCase):
     def test_apply_patch(self):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = self.test_prefix
-        path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
+        toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
@@ -1378,6 +1377,72 @@ class FileToolsTest(EnhancedTestCase):
 
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
+        # test copying of files, both to an existing directory and a non-existing location
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        ft.write_file(test_file, '123')
+        target_dir = os.path.join(self.test_prefix, 'target_dir')
+        ft.mkdir(target_dir)
+
+        # copy to existing dir
+        ft.apply_patch(test_file, target_dir, copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'foo.txt')), '123')
+
+        # copy to existing file
+        ft.write_file(os.path.join(target_dir, 'foo.txt'), '')
+        ft.apply_patch(test_file, target_dir, copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'foo.txt')), '123')
+
+        # copy to new file in existing dir
+        ft.apply_patch(test_file, os.path.join(target_dir, 'target.txt'), copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'target.txt')), '123')
+
+        # copy to non-existing subdir
+        ft.apply_patch(test_file, os.path.join(target_dir, 'subdir', 'target.txt'), copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'subdir', 'target.txt')), '123')
+
+        # cleanup and re-extract toy source tarball
+        ft.remove_dir(self.test_prefix)
+        ft.mkdir(self.test_prefix)
+        ft.change_dir(self.test_prefix)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        # test applying of patch with git
+        toy_source_path = os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        ft.apply_patch(toy_patch, self.test_prefix, use_git=True)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        # construct patch that only adds a new file,
+        # this shouldn't break applying a patch with git even when no level is specified
+        new_file_patch = os.path.join(self.test_prefix, 'toy_new_file.patch')
+        new_file_patch_txt = '\n'.join([
+            "new file mode 100755",
+            "--- /dev/null\t1970-01-01 01:00:00.000000000 +0100",
+            "+++ b/toy-0.0/new_file.txt\t2020-08-18 12:31:57.000000000 +0200",
+            "@@ -0,0 +1 @@",
+            "+This is a new file\n",
+        ])
+        ft.write_file(new_file_patch, new_file_patch_txt)
+        ft.apply_patch(new_file_patch, self.test_prefix, use_git=True)
+        new_file_path = os.path.join(self.test_prefix, 'toy-0.0', 'new_file.txt')
+        self.assertEqual(ft.read_file(new_file_path), "This is a new file\n")
+
+        # cleanup & restore
+        ft.remove_dir(path)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        # mock stderr to catch deprecation warning caused by setting 'use_git_am'
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+        self.assertTrue("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'" in stderr)
 
     def test_copy_file(self):
         """Test copy_file function."""
@@ -1508,22 +1573,45 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy_dir(to_copy, testdir, dirs_exist_ok=True)
         self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(testdir)))
 
-        # if the directory already exists and 'dirs_exist_ok' is True and there is another named argument (ignore)
-        # we expect clean error on Python < 3.8 and pass the test on Python >= 3.8
-        # NOTE: reused ignore from previous test
+        # check whether use of 'ignore' works if target path already exists and 'dirs_exist_ok' is enabled
         def ignore_func(_, names):
             return [x for x in names if '6.4.0-2.28' in x]
 
         shutil.rmtree(testdir)
         ft.mkdir(testdir)
-        if sys.version_info >= (3, 8):
-            ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
-            self.assertEqual(sorted(os.listdir(testdir)), expected)
-            self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
-        else:
-            error_pattern = "Unknown named arguments passed to copy_dir with dirs_exist_ok=True: ignore"
-            self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_dir, to_copy, testdir,
-                                  dirs_exist_ok=True, ignore=ignore_func)
+        ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
+        self.assertEqual(sorted(os.listdir(testdir)), expected)
+        self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
+
+        # test copy_dir when broken symlinks are involved
+        srcdir = os.path.join(self.test_prefix, 'topdir_to_copy')
+        ft.mkdir(srcdir)
+        ft.write_file(os.path.join(srcdir, 'test.txt'), '123')
+        subdir = os.path.join(srcdir, 'subdir')
+        # introduce broken file symlink
+        foo_txt = os.path.join(subdir, 'foo.txt')
+        ft.write_file(foo_txt, 'bar')
+        ft.symlink(foo_txt, os.path.join(subdir, 'bar.txt'))
+        ft.remove_file(foo_txt)
+        # introduce broken dir symlink
+        subdir_tmp = os.path.join(srcdir, 'subdir_tmp')
+        ft.mkdir(subdir_tmp)
+        ft.symlink(subdir_tmp, os.path.join(srcdir, 'subdir_link'))
+        ft.remove_dir(subdir_tmp)
+
+        target_dir = os.path.join(self.test_prefix, 'target_to_copy_to')
+
+        # trying this without symlinks=True ends in tears, because bar.txt points to a non-existing file
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory", ft.copy_dir, srcdir, target_dir)
+        ft.remove_dir(target_dir)
+
+        ft.copy_dir(srcdir, target_dir, symlinks=True)
+
+        # copying directory with broken symlinks should also work if target directory already exists
+        ft.remove_dir(target_dir)
+        ft.mkdir(target_dir)
+        ft.mkdir(subdir)
+        ft.copy_dir(srcdir, target_dir, symlinks=True, dirs_exist_ok=True)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1542,7 +1630,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertFalse(os.path.exists(target_dir))
-        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/%s" % os.path.basename(target_dir), txt))
 
         # forced copy, even in dry run mode
         self.mock_stdout(True)
@@ -1630,19 +1718,24 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_extract_file(self):
         """Test extract_file"""
+        cwd = os.getcwd()
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
 
         self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
-        path = ft.extract_file(toy_tarball, self.test_prefix)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
+        # still in same directory as before if change_into_dir is set to False
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         shutil.rmtree(os.path.join(path, 'toy-0.0'))
 
         toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
         shutil.copyfile(toy_tarball, toy_tarball_renamed)
 
-        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s")
+        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         shutil.rmtree(os.path.join(path, 'toy-0.0'))
@@ -1655,17 +1748,56 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.mock_stdout(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0')))
         self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
-        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True)
+        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
+
+        build_options['extended_dry_run'] = False
+        init_config(build_options=build_options)
+
+        ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
+
+        # a deprecation warning is printed (which is an error in this context)
+        # if the 'change_into_dir' named argument was left unspecified
+        error_pattern = "extract_file function was called without specifying value for change_into_dir"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.extract_file, toy_tarball, self.test_prefix)
+        self.allow_deprecated_behaviour()
+
+        # make sure we're not in self.test_prefix now (checks below assumes so)
+        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+
+        # by default, extract_file changes to directory in which source file was unpacked
+        self.mock_stderr(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        regex = re.compile("^WARNING: .*extract_file function was called without specifying value for change_into_dir")
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        ft.change_dir(cwd)
+        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+
+        # no deprecation warning when change_into_dir is set to True
+        self.mock_stderr(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertFalse(stderr)
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -1748,7 +1880,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 81)
+            self.assertEqual(len(index), 82)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -1959,19 +2091,35 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
+
+        # make sure $EB_SCRIPT_PATH is not set already (used as fallback mechanism in find_eb_script)
+        if 'EB_SCRIPT_PATH' in os.environ:
+            del os.environ['EB_SCRIPT_PATH']
+
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
         self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
         # put test script in place relative to location of 'eb'
-        ft.write_file(os.path.join(self.test_prefix, 'bin', 'eb'), '#!/bin/bash\necho "fake eb"')
-        ft.adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH', ''))
+        fake_eb = os.path.join(self.test_prefix, 'bin', 'eb')
+        ft.write_file(fake_eb, '#!/bin/bash\necho "fake eb"')
+        ft.adjust_permissions(fake_eb, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.dirname(fake_eb), os.getenv('PATH', ''))
 
-        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'justatest.sh')
+        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'thisisjustatestscript.sh')
         ft.write_file(justatest, '#!/bin/bash')
 
-        self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
+        self.assertTrue(os.path.samefile(ft.find_eb_script('thisisjustatestscript.sh'), justatest))
+
+        # $EB_SCRIPT_PATH can also be used (overrules 'eb' found via $PATH)
+        ft.remove_file(fake_eb)
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(self.test_prefix, 'easybuild', 'scripts')
+        self.assertTrue(os.path.samefile(ft.find_eb_script('thisisjustatestscript.sh'), justatest))
+
+        # if script can't be found via either $EB_SCRIPT_PATH or location of 'eb', we get a clean error
+        del os.environ['EB_SCRIPT_PATH']
+        error_pattern = "Script 'thisisjustatestscript.sh' not found at expected location"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.find_eb_script, 'thisisjustatestscript.sh')
 
     def test_move_file(self):
         """Test move_file function"""
@@ -2431,6 +2579,97 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
 
         self.assertEqual(res['new'], expected_new)
+
+    def test_locks(self):
+        """Tests for lock-related functions."""
+
+        init_config(build_options={'silent': True})
+
+        # make sure that global list of locks is empty when we start off
+        self.assertFalse(ft.global_lock_names)
+
+        # use a realistic lock name (cfr. EasyBlock.run_all_steps)
+        installdir = os.path.join(self.test_installpath, 'software', 'test', '1.2.3-foss-2019b-Python-3.7.4')
+        lock_name = installdir.replace('/', '_')
+
+        # det_lock_path returns full path to lock with specified name
+        # (used internally by create_lock, check_lock, remove_lock)
+        lock_path = ft.det_lock_path(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+
+        locks_dir = os.path.dirname(lock_path)
+        self.assertFalse(os.path.exists(locks_dir))
+
+        # if lock doesn't exist yet, check_lock just returns
+        ft.check_lock(lock_name)
+
+        # create lock, and check whether it actually was created
+        ft.create_lock(lock_name)
+        self.assertTrue(os.path.exists(lock_path))
+
+        # can't use os.path.samefile until locks_dir actually exists
+        self.assertTrue(os.path.samefile(locks_dir, os.path.join(self.test_installpath, 'software', '.locks')))
+
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # if lock exists, then check_lock raises an error
+        self.assertErrorRegex(EasyBuildError, "Lock .* already exists", ft.check_lock, lock_name)
+
+        # remove_lock should... remove the lock
+        ft.remove_lock(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # no harm done if remove_lock is called if lock is already gone
+        ft.remove_lock(lock_name)
+
+        # check_lock just returns again after lock is removed
+        ft.check_lock(lock_name)
+
+        # global list of locks should be empty at this point
+        self.assertFalse(ft.global_lock_names)
+
+        # calling clean_up_locks when there are no locks should not cause trouble
+        ft.clean_up_locks()
+
+        ft.create_lock(lock_name)
+        self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        ft.clean_up_locks()
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # no problem with multiple locks
+        lock_names = [lock_name, 'test123', 'foo@bar%baz']
+        lock_paths = [os.path.join(locks_dir, x + '.lock') for x in lock_names]
+        for ln in lock_names:
+            ft.create_lock(ln)
+        for lp in lock_paths:
+            self.assertTrue(os.path.exists(lp), "Path %s should exist" % lp)
+
+        self.assertEqual(ft.global_lock_names, set(lock_names))
+        expected_locks = sorted(ln + '.lock' for ln in lock_names)
+        self.assertEqual(sorted(os.listdir(locks_dir)), expected_locks)
+
+        ft.clean_up_locks()
+        for lp in lock_paths:
+            self.assertFalse(os.path.exists(lp), "Path %s should not exist" % lp)
+        self.assertFalse(ft.global_lock_names)
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # also test signal handler that is supposed to clean up locks
+        ft.create_lock(lock_name)
+        self.assertTrue(ft.global_lock_names)
+        self.assertTrue(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # clean_up_locks_signal_handler causes sys.exit with specified exit code
+        self.assertErrorRegex(SystemExit, '15', ft.clean_up_locks_signal_handler, 15, None)
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
 
 
 def suite():

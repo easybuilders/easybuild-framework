@@ -54,6 +54,7 @@ class CommandFlagList(FlagList):
         First of the list has no prefix (i.e. the executable)
         The remainder of the options are considered flags
     """
+
     def _str_self(self):
         """Like a regular flag list, but set first element to original value"""
         tmp_str = [self.str_convert(x) for x in self if self._str_ok(x)]
@@ -66,7 +67,7 @@ class LibraryList(StrList):
     """Link library list"""
     PREFIX = "-l"
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # sanitize from end
 
     JOIN_BEGIN_END = True
 
@@ -174,5 +175,3 @@ class LinkerFlagList(StrList):
                            self.IS_BEGIN, self.PREFIX, self.BEGIN)
 
         super(LinkerFlagList, self).sanitize()
-
-

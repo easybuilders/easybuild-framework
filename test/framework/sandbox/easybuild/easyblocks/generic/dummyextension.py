@@ -30,6 +30,7 @@ EasyBuild support for building and installing dummy extensions, implemented as a
 
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 
+
 class DummyExtension(ExtensionEasyBlock):
     """Support for building/installing dummy extensions."""
 
