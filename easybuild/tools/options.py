@@ -1454,16 +1454,19 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
     if eb_go.options.include_easyblocks_from_pr:
         easyblocks_from_pr = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
+        included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
 
         if eb_go.options.include_easyblocks:
-            # make sure we're not including the same easyblock twice
-            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+            # check if you are including the same easyblock twice
             included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
             included_from_file = set([os.path.basename(eb) for eb in included_paths])
             included_twice = included_from_pr & included_from_file
             if included_twice:
-                raise EasyBuildError("Multiple inclusion of %s, check your --include-easyblocks options",
-                                     ','.join(included_twice))
+                log.info("EasyBlock(s) %s are included from multiple locations, the one from a PR will be used",
+                         ','.join(included_twice))
+
+        for easyblock in included_from_pr:
+            log.info("== easyblock %s included from PR #%s", easyblock, eb_go.options.include_easyblocks_from_pr)
 
         include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
 
