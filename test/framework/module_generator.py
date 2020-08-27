@@ -647,6 +647,21 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
 
+        # create tiny test Tcl module to make sure that tested modules tools support single-argument swap
+        # see https://github.com/easybuilders/easybuild-framework/issues/3396
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            test_mod_txt = "#%Module\nmodule swap GCC/7.3.0-2.30"
+
+            test_mod_fn = 'test_single_arg_swap/1.2.3'
+            write_file(os.path.join(self.test_prefix, test_mod_fn), test_mod_txt)
+
+            self.modtool.load(['GCC/4.6.3'])
+            self.modtool.use(self.test_prefix)
+            self.modtool.load(['test_single_arg_swap/1.2.3'])
+
+            expected = ['GCC/7.3.0-2.30', 'test_single_arg_swap/1.2.3']
+            self.assertEqual(sorted([m['mod_name'] for m in self.modtool.list()]), expected)
+
     def test_append_paths(self):
         """Test generating append-paths statements."""
         # test append_paths
