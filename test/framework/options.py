@@ -2917,7 +2917,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
 
-        # including the same easyblock twice should fail
+        # including the same easyblock twice should work and give priority to the one from the PR
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
             '--include-easyblocks-from-pr=1915',
@@ -2925,11 +2925,28 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
-        self.assertErrorRegex(EasyBuildError,
-                              "Multiple inclusion of cmakemake.py, check your --include-easyblocks options",
-                              self.eb_main, args, raise_error=True)
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
 
+        # easyblock included from pr is found
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
+        cmm_pattern = os.path.join(path_pattern, 'generic', 'cmakemake.py')
+        cmm_regex = re.compile(r"\|-- CMakeMake \(easybuild.easyblocks.generic.cmakemake @ %s\)" % cmm_pattern, re.M)
+        self.assertTrue(cmm_regex.search(logtxt), "Pattern '%s' found in: %s" % (cmm_regex.pattern, logtxt))
+
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('CMakeMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of easyblocks
+        del sys.modules['easybuild.easyblocks.foo']
+        del sys.modules['easybuild.easyblocks.generic.cmakemake']
         os.remove(os.path.join(self.test_prefix, 'cmakemake.py'))
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
         # clear log
         write_file(self.logfile, '')
