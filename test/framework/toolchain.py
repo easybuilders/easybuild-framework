@@ -1925,10 +1925,11 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
-        cmd = "%s g++ '' '%s' -v" % (script, rpath_inc)
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
-        self.assertEqual(out.strip(), "CMD_ARGS=('-v')")
+        for version_arg in ['-v', '-V', '--version', '-dumpversion']:
+            cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, version_arg)
+            out, ec = run_cmd(cmd, simple=False)
+            self.assertEqual(ec, 0)
+            self.assertEqual(out.strip(), "CMD_ARGS=('%s')" % version_arg)
 
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
