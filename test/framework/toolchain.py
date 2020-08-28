@@ -1925,11 +1925,26 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
-        for version_arg in ['-v', '-V', '--version', '-dumpversion']:
-            cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, version_arg)
+        for extra_args in ["-v", "-V", "--version", "-dumpversion", "-v -L/test/lib"]:
+            cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, extra_args)
             out, ec = run_cmd(cmd, simple=False)
             self.assertEqual(ec, 0)
-            self.assertEqual(out.strip(), "CMD_ARGS=('%s')" % version_arg)
+            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(["'%s'" % x for x in extra_args.split(' ')]))
+
+        # if a compiler command includes "-x c++-header" or "-x c-header" (which imply no linking is done),
+        # we should *not* inject -Wl,-rpath options, since those enable linking as a side-effect;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3371
+        test_cases = [
+            "-x c++-header",
+            "-x c-header",
+            "-L/test/lib -x c++-header",
+        ]
+        for extra_args in test_cases:
+            cmd = "%s g++ '' '%s' foo.c -O2 %s" % (script, rpath_inc, extra_args)
+            out, ec = run_cmd(cmd, simple=False)
+            self.assertEqual(ec, 0)
+            cmd_args = ["'foo.c'", "'-O2'"] + ["'%s'" % x for x in extra_args.split(' ')]
+            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""

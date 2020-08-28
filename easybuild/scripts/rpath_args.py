@@ -72,6 +72,15 @@ while idx < len(args):
         add_rpath_args = False
         cmd_args.append(arg)
 
+    # compiler options like "-x c++header" imply no linking is done (similar to -c),
+    # so then we must not inject -Wl,-rpath option since they *enable* linking;
+    # see https://github.com/easybuilders/easybuild-framework/issues/3371
+    elif arg == '-x':
+        idx_next = idx + 1
+        if idx_next < len(args) and args[idx_next] in ['c-header', 'c++-header']:
+            add_rpath_args = False
+        cmd_args.append(arg)
+
     # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
@@ -110,16 +119,15 @@ while idx < len(args):
 
     idx += 1
 
-# add -rpath flags in front
-cmd_args = cmd_args_rpath + cmd_args
-
-cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
-
 if add_rpath_args:
-    cmd_args = cmd_args_rpath + [
-        # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
-        flag_prefix + '--disable-new-dtags',
-    ] + cmd_args
+    # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
+    cmd_args_rpath.insert(0, flag_prefix + '--disable-new-dtags')
+
+    # add -rpath options for paths listed in rpath_include
+    cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include] + cmd_args_rpath
+
+    # add -rpath flags in front
+    cmd_args = cmd_args_rpath + cmd_args
 
 # wrap all arguments into single quotes to avoid further bash expansion
 cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
