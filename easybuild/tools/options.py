@@ -1056,7 +1056,7 @@ class EasyBuildOptions(GeneralOption):
             self.options.pre_create_installdir = False
 
         # imply --force with --disable-generate-devel-module
-        if not self.options.generate-devel-module:
+        if not self.options.generate_devel_module:
             self.options.force = True
 
     def _postprocess_list_avail(self):
