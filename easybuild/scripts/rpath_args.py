@@ -41,7 +41,7 @@ rpath_filter = sys.argv[2]
 rpath_include = sys.argv[3]
 args = sys.argv[4:]
 
-# wheter or not to use -Wl to pass options to the linker
+# determine whether or not to use -Wl to pass options to the linker based on name of command
 if cmd in ['ld', 'ld.gold', 'ld.bfd']:
     flag_prefix = ''
 else:
@@ -58,7 +58,7 @@ if rpath_include:
 else:
     rpath_include = []
 
-version_mode = False
+add_rpath_args = True
 cmd_args, cmd_args_rpath = [], []
 
 # process list of original command line arguments
@@ -69,7 +69,16 @@ while idx < len(args):
 
     # if command is run in 'version check' mode, make sure we don't include *any* -rpath arguments
     if arg in ['-v', '-V', '--version', '-dumpversion']:
-        version_mode = True
+        add_rpath_args = False
+        cmd_args.append(arg)
+
+    # compiler options like "-x c++header" imply no linking is done (similar to -c),
+    # so then we must not inject -Wl,-rpath option since they *enable* linking;
+    # see https://github.com/easybuilders/easybuild-framework/issues/3371
+    elif arg == '-x':
+        idx_next = idx + 1
+        if idx_next < len(args) and args[idx_next] in ['c-header', 'c++-header']:
+            add_rpath_args = False
         cmd_args.append(arg)
 
     # FIXME: also consider $LIBRARY_PATH?
@@ -110,16 +119,15 @@ while idx < len(args):
 
     idx += 1
 
-# add -rpath flags in front
-cmd_args = cmd_args_rpath + cmd_args
+if add_rpath_args:
+    # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
+    cmd_args_rpath.insert(0, flag_prefix + '--disable-new-dtags')
 
-cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
+    # add -rpath options for paths listed in rpath_include
+    cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include] + cmd_args_rpath
 
-if not version_mode:
-    cmd_args = cmd_args_rpath + [
-        # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
-        flag_prefix + '--disable-new-dtags',
-    ] + cmd_args
+    # add -rpath flags in front
+    cmd_args = cmd_args_rpath + cmd_args
 
 # wrap all arguments into single quotes to avoid further bash expansion
 cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
