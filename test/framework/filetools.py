@@ -171,7 +171,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
                               os.path.join(tmpdir, 'python*'))
 
-
     def test_encode_class_name(self):
         """Test encoding of class names."""
         for (class_name, encoded_class_name) in self.class_names:
@@ -929,7 +928,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = "29 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
         expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
@@ -948,9 +947,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "29 + postinstallcmds = "
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         expected = "30 + (1/2) toy-0.0-"
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
 

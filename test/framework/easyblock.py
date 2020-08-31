@@ -288,7 +288,7 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
             home = r'os.getenv\("HOME"\)'
-            pj_usermodsdir = 'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
+            pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
                 r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
@@ -1061,7 +1061,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # [==[ or ]==] in description is fatal
         if get_module_syntax() == 'Lua':
-            error_pattern = "Found unwanted '\[==\[' or '\]==\]' in: .*"
+            error_pattern = r"Found unwanted '\[==\[' or '\]==\]' in: .*"
             for descr in ["test [==[", "]==] foo"]:
                 ectxt = read_file(self.eb_file)
                 write_file(self.eb_file, re.sub('description.*', 'description = "%s"' % descr, ectxt))
@@ -1263,7 +1263,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # old format for specifying source with custom extract command is deprecated
         eb.src = []
-        error_msg = "DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
+        error_msg = r"DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
                               [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
 

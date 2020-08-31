@@ -57,7 +57,7 @@ class CrayMPICH(Mpi):
         """Set the MPI compiler variables"""
         for var_tuple in COMPILER_VARIABLES:
             c_var = var_tuple[0]  # [1] is the description
-            var = MPI_COMPILER_TEMPLATE % {'c_var':c_var}
+            var = MPI_COMPILER_TEMPLATE % {'c_var': c_var}
 
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:

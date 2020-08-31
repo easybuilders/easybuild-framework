@@ -65,7 +65,7 @@ class Fftw(Fft):
 
         super(Fftw, self)._set_fft_variables()
 
-        ## TODO can these be replaced with the FFT ones?
+        # TODO can these be replaced with the FFT ones?
         self.variables.join('FFTW_INC_DIR', 'FFT_INC_DIR')
         self.variables.join('FFTW_LIB_DIR', 'FFT_LIB_DIR')
         if 'FFT_STATIC_LIBS' in self.variables:

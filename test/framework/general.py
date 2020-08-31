@@ -49,9 +49,9 @@ class GeneralTest(EnhancedTestCase):
         easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
 
         log_method_regexes = [
-            re.compile("log\.error\("),
-            re.compile("log\.exception\("),
-            re.compile("log\.raiseException\("),
+            re.compile(r"log\.error\("),
+            re.compile(r"log\.exception\("),
+            re.compile(r"log\.raiseException\("),
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):

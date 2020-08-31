@@ -46,8 +46,14 @@ CMD=`basename $0`
 log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: '$(echo \"$@\")'"
 
 # rpath_args.py script spits out statement that defines $CMD_ARGS
-log "%(python)s -O %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' $(echo \"$@\")'"
-rpath_args_out=$(%(python)s -O %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@")
+# options for 'python' command (see https://docs.python.org/3/using/cmdline.html#miscellaneous-options)
+# * -E: ignore all $PYTHON* environment variables that might be set (like $PYTHONPATH);
+# * -O: run Python in optimized mode (remove asserts, ignore stuff under __debug__ guard);
+# * -s: don’t add the user site-packages directory to sys.path;
+# * -S: disable the import of the module site and the site-dependent manipulations of sys.path that it entails;
+# (once we only support Python 3, we can (also) use -I (isolated mode)
+log "%(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' $(echo \"$@\")'"
+rpath_args_out=$(%(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@")
 
 log "rpath_args_out:
 $rpath_args_out"

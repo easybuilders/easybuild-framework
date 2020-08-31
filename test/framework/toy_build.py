@@ -257,8 +257,8 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.copy2(os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb'), ec_file)
 
         modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
-        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0\n\s*"'
-        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
+        modloadmsg_regex_tcl = r'THANKS.*\n\s*I AM toy v0.0\n\s*"'
+        modloadmsg_regex_lua = r'\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
 
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
@@ -385,14 +385,14 @@ class ToyBuildTest(EnhancedTestCase):
         sys.path.append(tmpdir)
 
         args = [
-                'toy-0.0-multiple.eb',
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-               ]
+            'toy-0.0-multiple.eb',
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+        ]
         outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         for toy_prefix, toy_version, toy_suffix in [
@@ -727,8 +727,8 @@ class ToyBuildTest(EnhancedTestCase):
                     regex = re.compile(pattern, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
                 else:
-                    pattern = "Can't generate robust check in Lua modules for users belonging to group %s. "
-                    pattern += "Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
+                    pattern = r"Can't generate robust check in Lua modules for users belonging to group %s. "
+                    pattern += r"Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
                     regex = re.compile(pattern % group_name, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
             else:
@@ -835,7 +835,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
+            self.assertTrue(re.search(r'^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -850,7 +850,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertFalse(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
+            self.assertFalse(re.search(r'^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -1289,7 +1289,7 @@ class ToyBuildTest(EnhancedTestCase):
         modloadmsg_lua = [
             r'io.stderr:write\(\[==\[THANKS FOR LOADING ME',
             r'I AM toy v0.0',
-            '\]==\]\)',
+            r'\]==\]\)',
         ]
 
         help_txt = '\n'.join([

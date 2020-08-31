@@ -360,10 +360,10 @@ class ModulesTest(EnhancedTestCase):
             remove_file(os.path.join(java_mod_dir, '.modulerc'))
             write_file(os.path.join(java_mod_dir, '.modulerc.lua'),
                        '\n'.join([
-                            'module_version("Java/1.8.0_181", "1.8")',
-                            'module_version("Java/1.8.0_181", "site_default")',
-                            'module_alias("JavaAlias", "Java/1.8")',
-                        ]))
+                           'module_version("Java/1.8.0_181", "1.8")',
+                           'module_version("Java/1.8.0_181", "site_default")',
+                           'module_alias("JavaAlias", "Java/1.8")',
+                       ]))
 
             avail_mods = self.modtool.available()
             self.assertTrue('Java/1.8.0_181' in avail_mods)

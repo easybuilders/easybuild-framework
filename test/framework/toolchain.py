@@ -691,7 +691,7 @@ class ToolchainTest(EnhancedTestCase):
 
         test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
 
-        for intel_flags, gcc_flags, gcccore_flags, (toolchain, toolchain_ver), enable in test_cases:
+        for intel_flags, gcc_flags, gcccore_flags, (toolchain_name, toolchain_ver), enable in test_cases:
 
             intel_flags, intel_flags_exp = intel_flags
             gcc_flags, gcc_flags_exp = gcc_flags
@@ -702,15 +702,15 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
             init_config(build_options={'optarch': optarch_var, 'silent': True})
-            tc = self.get_toolchain(toolchain, version=toolchain_ver)
+            tc = self.get_toolchain(toolchain_name, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
             flags = None
-            if toolchain == 'iccifort':
+            if toolchain_name == 'iccifort':
                 flags = intel_flags_exp
-            elif toolchain == 'GCC':
+            elif toolchain_name == 'GCC':
                 flags = gcc_flags_exp
-            elif toolchain == 'GCCcore':
+            elif toolchain_name == 'GCCcore':
                 flags = gcccore_flags_exp
             else:  # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
@@ -1589,7 +1589,7 @@ class ToolchainTest(EnhancedTestCase):
 
         ccache = which('ccache')
         if ccache is None:
-            msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
+            msg = r"ccache binary not found in \$PATH, required by --use-compiler-cache"
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache
@@ -1974,6 +1974,43 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
         # any other available 'g++' commands should not be a wrapper or our fake g++
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
+
+        # RPATH wrapper should be robust against Python environment variables & site-packages magic,
+        # so we set up a weird environment here to verify that
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3421)
+
+        # redefine $HOME so we can put up a fake $HOME/.local/lib/python*/site-packages,
+        # which is picked up automatically (even without setting $PYTHONPATH)
+        home = os.path.join(self.test_prefix, 'home')
+        os.environ['HOME'] = home
+
+        # also set $PYTHONUSERBASE (default is $HOME/.local when this is not set)
+        # see https://docs.python.org/3/library/site.html#site.USER_BASE
+        os.environ['PYTHONUSERBASE'] = home
+
+        # add directory to $PYTHONPATH where we can inject broken Python modules
+        pythonpath = os.getenv('PYTHONPATH')
+        if pythonpath:
+            os.environ['PYTHONPATH'] = self.test_prefix + ':' + pythonpath
+        else:
+            os.environ['PYTHONPATH'] = self.test_prefix
+
+        site_pkgs_dir = os.path.join(home, '.local', 'lib', 'python%s.%s' % sys.version_info[:2], 'site-packages')
+        mkdir(site_pkgs_dir, parents=True)
+
+        # add site.py that imports imp (which on Python 3 triggers an 'import enum')
+        # when running with Python 3 (since then 'import imp' triggers 'import enum')
+        write_file(os.path.join(site_pkgs_dir, 'site.py'), 'import imp')
+
+        # also include an empty enum.py both in $PYTHONUSERBASE and a path listed in $PYTHONPATH;
+        # combined with the site.py above, this combination is sufficient
+        # to reproduce https://github.com/easybuilders/easybuild-framework/issues/3421
+        write_file(os.path.join(site_pkgs_dir, 'enum.py'), 'import os')
+        write_file(os.path.join(self.test_prefix, 'enum.py'), 'import os')
+
+        # also add a broken re.py, which is sufficient to cause trouble in Python 2,
+        # unless $PYTHONPATH is ignored by the RPATH wrapper
+        write_file(os.path.join(self.test_prefix, 're.py'), 'import this_is_a_broken_re_module')
 
         # check whether fake g++ was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter

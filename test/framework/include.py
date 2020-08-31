@@ -41,7 +41,7 @@ from easybuild.tools.include import is_software_specific_easyblock
 def up(path, cnt):
     """Return path N times up."""
     if cnt > 0:
-        path = up(os.path.dirname(path), cnt-1)
+        path = up(os.path.dirname(path), cnt - 1)
     return path
 
 

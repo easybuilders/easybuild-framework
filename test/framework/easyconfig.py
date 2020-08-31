@@ -558,12 +558,12 @@ class EasyConfigTest(EnhancedTestCase):
         homepage = "http://www.justatest.com"
 
         tweaks = {
-                  'version': ver,
-                  'versionprefix': verpref,
-                  'versionsuffix': versuff,
-                  'toolchain_version': tcver,
-                  'patches': new_patches
-                 }
+            'version': ver,
+            'versionprefix': verpref,
+            'versionsuffix': versuff,
+            'toolchain_version': tcver,
+            'patches': new_patches
+        }
         tweak_one(self.eb_file, tweaked_fn, tweaks)
 
         eb = EasyConfig(tweaked_fn)
@@ -939,11 +939,11 @@ class EasyConfigTest(EnhancedTestCase):
     def test_templating(self):
         """ test easyconfig templating """
         inp = {
-           'name': 'PI',
-           # purposely using minor version that starts with a 0, to check for correct version_minor value
-           'version': '3.04',
-           'namelower': 'pi',
-           'cmd': 'tar xfvz %s',
+            'name': 'PI',
+            # purposely using minor version that starts with a 0, to check for correct version_minor value
+            'version': '3.04',
+            'namelower': 'pi',
+            'cmd': 'tar xfvz %s',
         }
         # don't use any escaping insanity here, since it is templated itself
         self.contents = '\n'.join([
@@ -1072,8 +1072,8 @@ class EasyConfigTest(EnhancedTestCase):
         doc = avail_easyconfig_constants()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
-                 easyconfig.constants.EASYCONFIG_CONSTANTS,
-                ]
+            easyconfig.constants.EASYCONFIG_CONSTANTS,
+        ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
     def test_build_options(self):
@@ -2259,17 +2259,17 @@ class EasyConfigTest(EnhancedTestCase):
 
         # check internal structure to keep track of comments
         self.assertEqual(ec.parser._formatter.comments['above'], {
-           'dependencies': [
-               '# this is a multiline comment above dependencies',
-               '# I said multiline',
-               '# multi > 3',
-           ],
-           'sanity_check_paths': ['# how about comments above and in a dict value?'],
-           'source_urls': ['# how about # a comment with # multple additional hashes'],
-           'sources': ['# after toolchain, before sources comment',
-                       '',
-                       '# this comment contains another #, uh-oh...'],
-           'version': ["# the version doesn't matter much here"],
+            'dependencies': [
+                '# this is a multiline comment above dependencies',
+                '# I said multiline',
+                '# multi > 3',
+            ],
+            'sanity_check_paths': ['# how about comments above and in a dict value?'],
+            'source_urls': ['# how about # a comment with # multple additional hashes'],
+            'sources': ['# after toolchain, before sources comment',
+                        '',
+                        '# this comment contains another #, uh-oh...'],
+            'version': ["# the version doesn't matter much here"],
         })
         self.assertEqual(ec.parser._formatter.comments['header'], [
             '# this is a header',
