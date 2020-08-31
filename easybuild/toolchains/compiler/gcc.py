@@ -69,6 +69,13 @@ class Gcc(Compiler):
         DEFAULT_OPT_LEVEL: ['O2', 'ftree-vectorize'],
     }
 
+    # aarch64 does not support -mno-recip for precision. Based on
+    # https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html the following options are used instead
+    if systemtools.get_cpu_architecture() == systemtools.AARCH64:
+        COMPILER_UNIQUE_OPTION_MAP['precise'] = ['mno-low-precision-recip-sqrt',
+                                                 'mno-low-precision-sqrt',
+                                                 'mno-low-precision-div']
+
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         (systemtools.AARCH32, systemtools.ARM): 'mcpu=native',  # implies -march=native and -mtune=native
