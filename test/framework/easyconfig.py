@@ -3927,6 +3927,36 @@ class EasyConfigTest(EnhancedTestCase):
             value = resolve_exts_filter_template(exts_filter, TestExtension(ext))
             self.assertEqual(value, expected_value)
 
+    def test_cuda_compute_capabilities(self):
+        """Tests that the cuda_compute_capabilities templates are correct"""
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '0.2'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
+            "installopts = '%(cuda_compute_capabilities)s'",
+            "configopts = '%(cuda_sm_comma_sep)s'",
+            "preconfigopts = '%(cuda_sm_space_sep)s'",
+        ])
+        write_file(test_ec, test_ectxt)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
+        self.assertEqual(ec['configopts'], 'sm_51,sm_70,sm_71')
+        self.assertEqual(ec['preconfigopts'], 'sm_51 sm_70 sm_71')
+
+        # build options overwrite it
+        init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['installopts'], '4.2,6.3')
+        self.assertEqual(ec['configopts'], 'sm_42,sm_63')
+        self.assertEqual(ec['preconfigopts'], 'sm_42 sm_63')
+
 
 def suite():
     """ returns all the testcases in this module """
