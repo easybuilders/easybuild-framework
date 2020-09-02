@@ -530,6 +530,24 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
 
+        # No error for known params prefixed by "local_"
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'local_source_urls = "https://example.com"',
+            'source_urls = [local_source_urls]',
+            'local_cuda_compute_capabilities = ["3.3"]',  # This is known that it triggered the typo detection before
+            'cuda_compute_capabilities = local_cuda_compute_capabilities',
+        ])
+        self.prep()
+        # Should not raise any error, sanity check that something was done below
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['version'], '3.14')
+
     def test_tweaking(self):
         """test tweaking ability of easyconfigs"""
 
