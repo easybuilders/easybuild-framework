@@ -58,7 +58,7 @@ from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
-from easybuild.tools.build_log import init_logging, log_start, print_warning, raise_easybuilderror
+from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
 from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
@@ -1452,8 +1452,9 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    if eb_go.options.include_easyblocks_from_pr:
-        easyblocks_from_pr = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
+    pr_easyblocks = eb_go.options.include_easyblocks_from_pr
+    if pr_easyblocks:
+        easyblocks_from_pr = fetch_easyblocks_from_pr(pr_easyblocks)
         included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
 
         if eb_go.options.include_easyblocks:
@@ -1462,11 +1463,11 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
             included_from_file = set([os.path.basename(eb) for eb in included_paths])
             included_twice = included_from_pr & included_from_file
             if included_twice:
-                log.info("EasyBlock(s) %s are included from multiple locations, the one from a PR will be used",
-                         ','.join(included_twice))
+                print_warning("EasyBlock(s) %s included from multiple locations, the one from a PR will be used" %
+                              ','.join(included_twice))
 
         for easyblock in included_from_pr:
-            log.info("== easyblock %s included from PR #%s", easyblock, eb_go.options.include_easyblocks_from_pr)
+            print_msg("easyblock %s included from PR #%s" % (easyblock, pr_easyblocks), log=log)
 
         include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
 
