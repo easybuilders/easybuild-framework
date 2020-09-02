@@ -2885,8 +2885,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
         logtxt = read_file(self.logfile)
+
+        self.assertFalse(stderr)
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -2925,8 +2933,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
         logtxt = read_file(self.logfile)
+
+        expected = "WARNING: One or more easyblocks included from multiple locations: "
+        expected += "cmakemake.py (the one(s) from PR #1915 will be used)"
+        self.assertEqual(stderr.strip(), expected)
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -2958,8 +2976,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
         ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
         logtxt = read_file(self.logfile)
+
+        self.assertFalse(stderr)
+        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n")
 
         # easyconfig from pr is found
         ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',

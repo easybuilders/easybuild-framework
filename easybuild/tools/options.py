@@ -1463,8 +1463,9 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
             included_from_file = set([os.path.basename(eb) for eb in included_paths])
             included_twice = included_from_pr & included_from_file
             if included_twice:
-                print_warning("EasyBlock(s) %s included from multiple locations, the one from a PR will be used" %
-                              ','.join(included_twice))
+                warning_msg = "One or more easyblocks included from multiple locations: %s " % ', '.join(included_twice)
+                warning_msg += "(the one(s) from PR #%s will be used)" % pr_easyblocks
+                print_warning(warning_msg)
 
         for easyblock in included_from_pr:
             print_msg("easyblock %s included from PR #%s" % (easyblock, pr_easyblocks), log=log)
