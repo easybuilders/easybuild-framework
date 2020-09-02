@@ -42,7 +42,6 @@ function verbose() {
     if [ ! -z ${EB_VERBOSE} ]; then echo ">> $1"; fi
 }
 
-
 PYTHON=
 # When selecting the PYTHON command to use, we need to first take environment variable settings into account
 # - EB_PYTHON is a variable set by the user that takes precedence over everything else
