@@ -98,8 +98,11 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         self.ext_dir = None  # dir where extension source was unpacked
 
     def _set_start_dir(self):
-        # Don't change start_dir if it is already set and exists
-        # else if ext_dir (path to extracted source) is set and exists use that, similar to guess_start_dir
+        """Set value for self.start_dir
+
+        Uses existing value of self.start_dir if it is already set and exists
+        otherwise self.ext_dir (path to extracted source) if that is set and exists, similar to guess_start_dir
+        """
         possible_dirs = (self.start_dir, self.ext_dir)
         for possible_dir in possible_dirs:
             if possible_dir and os.path.isdir(possible_dir):
