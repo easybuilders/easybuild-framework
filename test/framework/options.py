@@ -2885,8 +2885,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
         logtxt = read_file(self.logfile)
+
+        self.assertFalse(stderr)
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -2917,19 +2925,46 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
 
-        # including the same easyblock twice should fail
+        # including the same easyblock twice should work and give priority to the one from the PR
         args = [
-            '--include-easyblocks=%s/cmakemake.py' % self.test_prefix,
+            '--include-easyblocks=%s/*.py' % self.test_prefix,
             '--include-easyblocks-from-pr=1915',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
-        self.assertErrorRegex(EasyBuildError,
-                              "Multiple inclusion of cmakemake.py, check your --include-easyblocks options",
-                              self.eb_main, args, raise_error=True)
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        logtxt = read_file(self.logfile)
 
+        expected = "WARNING: One or more easyblocks included from multiple locations: "
+        expected += "cmakemake.py (the one(s) from PR #1915 will be used)"
+        self.assertEqual(stderr.strip(), expected)
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+
+        # easyblock included from pr is found
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
+        cmm_pattern = os.path.join(path_pattern, 'generic', 'cmakemake.py')
+        cmm_regex = re.compile(r"\|-- CMakeMake \(easybuild.easyblocks.generic.cmakemake @ %s\)" % cmm_pattern, re.M)
+        self.assertTrue(cmm_regex.search(logtxt), "Pattern '%s' found in: %s" % (cmm_regex.pattern, logtxt))
+
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('CMakeMake')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of easyblocks
+        del sys.modules['easybuild.easyblocks.foo']
+        del sys.modules['easybuild.easyblocks.generic.cmakemake']
         os.remove(os.path.join(self.test_prefix, 'cmakemake.py'))
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
         # clear log
         write_file(self.logfile, '')
@@ -2941,8 +2976,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
         ]
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
         logtxt = read_file(self.logfile)
+
+        self.assertFalse(stderr)
+        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n")
 
         # easyconfig from pr is found
         ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',
