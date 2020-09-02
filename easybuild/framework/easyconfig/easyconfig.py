@@ -74,6 +74,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, i
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
+from easybuild.tools.systemtools import get_cpu_architecture, AARCH64
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -96,6 +97,9 @@ EASYCONFIGS_ARCHIVE_DIR = '__archive__'
 # prefix for names of local variables in easyconfig files
 LOCAL_VAR_PREFIX = 'local_'
 
+ARCH_HARD_FILTER = {
+    AARCH64: ['Yasm'],
+}
 
 try:
     import autopep8
@@ -986,8 +990,23 @@ class EasyConfig(object):
         """Parse specifications for which dependencies should be filtered."""
         res = {}
 
+        filter_list = []
+
+        build_option_filter_deps = build_option('filter_deps')
+        if build_option_filter_deps:
+            filter_list.extend(build_option_filter_deps)
+
+        # Architecture specific filtering.
+        try:
+            arch = get_cpu_architecture()
+            arch_filter = ARCH_HARD_FILTER[arch]
+            filter_list.extend(arch_filter)
+            self.log.warning("Hard architecture filtering of " + ','.join(arch_filter) + " for " + self.name)
+        except KeyError:
+            pass
+
         separator = '='
-        for filter_dep_spec in build_option('filter_deps') or []:
+        for filter_dep_spec in filter_list:
             if separator in filter_dep_spec:
                 dep_specs = filter_dep_spec.split(separator)
                 if len(dep_specs) == 2:
