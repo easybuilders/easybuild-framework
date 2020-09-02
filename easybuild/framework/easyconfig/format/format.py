@@ -95,6 +95,7 @@ def get_format_version(txt):
 
 class NestedDict(dict):
     """A nested dictionary, with tracking of depth and parent"""
+
     def __init__(self, parent, depth):
         """Initialise NestedDict instance"""
         dict.__init__(self)
@@ -121,6 +122,7 @@ class NestedDict(dict):
 
 class TopNestedDict(NestedDict):
     """The top level nested dictionary (depth 0, parent is itself)"""
+
     def __init__(self, parent=None, depth=None):
         """Initialise TopNestedDict instance"""
         # parent and depth are ignored; just to support same init for copier
@@ -129,6 +131,7 @@ class TopNestedDict(NestedDict):
 
 class Squashed(object):
     """Class to ease the squashing of OrderedVersionOperators and OrderedToolchainVersionOperators"""
+
     def __init__(self):
         """Initialise Squashed instance"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)

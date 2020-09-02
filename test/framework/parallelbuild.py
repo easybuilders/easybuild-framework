@@ -86,6 +86,7 @@ def mock(*args, **kwargs):
 
 class MockPbsJob(object):
     """Mocking class for PbsJob."""
+
     def __init__(self, *args, **kwargs):
         self.deps = []
         self.jobid = None
@@ -299,17 +300,17 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # these patterns must be found
         regexs = [
-            ' --debug ',
+            r' --debug ',
             # values got wrapped in single quotes (to avoid interpretation by shell)
-            " --tmpdir='/tmp' ",
-            " --parallel='2' ",
+            r" --tmpdir='/tmp' ",
+            r" --parallel='2' ",
             # (unparsed) optarch value got wrapped in single quotes, double quotes got stripped
-            " --optarch='GCC:O3 -mtune=generic;Intel:O3 -xHost' ",
+            r" --optarch='GCC:O3 -mtune=generic;Intel:O3 -xHost' ",
             # templates to be completed via build_easyconfigs_in_parallel -> create_job
-            ' eb %\(spec\)s ',
-            ' %\(add_opts\)s ',
-            ' --testoutput=%\(output_dir\)s',
-            ' --disable-job ',
+            r' eb %\(spec\)s ',
+            r' %\(add_opts\)s ',
+            r' --testoutput=%\(output_dir\)s',
+            r' --disable-job ',
         ]
         for regex in regexs:
             regex = re.compile(regex)

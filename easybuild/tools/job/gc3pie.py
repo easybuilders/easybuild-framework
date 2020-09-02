@@ -168,7 +168,7 @@ class GC3Pie(JobBackend):
         """
         named_args = {
             'jobname': name,  # job name in GC3Pie
-            'name':    name,  # job name in EasyBuild
+            'name': name,  # job name in EasyBuild
         }
 
         # environment

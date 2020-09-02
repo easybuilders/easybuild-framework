@@ -233,7 +233,7 @@ class RunTest(EnhancedTestCase):
         # a more 'complex' command to run, make sure all required output is there
         (out, ec) = run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
         self.assertTrue(out.startswith('hello\nhello\n'))
-        self.assertEqual(len(out), len("hello\n"*300))
+        self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
 
     def test_run_cmd_log_output(self):

@@ -58,16 +58,17 @@ from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
-from easybuild.tools.build_log import init_logging, log_start, print_warning, raise_easybuilderror
+from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
 from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
-from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
-from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL
-from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_LIMIT, EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES
-from easybuild.tools.config import GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN
-from easybuild.tools.config import LOADED_MODULES_ACTIONS, LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, WARN
+from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
+from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
+from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT, EBROOT_ENV_VAR_ACTIONS
+from easybuild.tools.config import ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
+from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, LOCAL_VAR_NAMING_CHECK_WARN
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECKS, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -75,7 +76,8 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
+from easybuild.tools.filetools import move_file, which
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
@@ -400,8 +402,14 @@ class EasyBuildOptions(GeneralOption):
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
                                             None, 'store_true', True),
+            'lib64-lib-symlink': ("Automatically create symlinks for lib64/ pointing to lib/ if the former is missing",
+                                  None, 'store_true', True),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
+            'minimal-build-env': ("Minimal build environment to define when using system toolchain, "
+                                  "specified as a comma-separated list that defines a mapping between name of "
+                                  "environment variable and its value separated by a colon (':')",
+                                  None, 'store', DEFAULT_MINIMAL_BUILD_ENV),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
@@ -430,6 +438,8 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
+                        None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
@@ -983,6 +993,13 @@ class EasyBuildOptions(GeneralOption):
             if not HAVE_AUTOPEP8:
                 raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
 
+        # if a path is specified to --sysroot, it must exist
+        if self.options.sysroot:
+            if os.path.exists(self.options.sysroot):
+                self.log.info("Specified sysroot '%s' exists: OK", self.options.sysroot)
+            else:
+                raise EasyBuildError("Specified sysroot '%s' does not exist!", self.options.sysroot)
+
         self.log.info("Checks on configuration options passed")
 
     def _postprocess_config(self):
@@ -1039,6 +1056,7 @@ class EasyBuildOptions(GeneralOption):
         # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
             self.options.stop = FETCH_STEP
+            self.options.ignore_locks = True
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
@@ -1434,17 +1452,23 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    if eb_go.options.include_easyblocks_from_pr:
-        easyblocks_from_pr = fetch_easyblocks_from_pr(eb_go.options.include_easyblocks_from_pr)
+    pr_easyblocks = eb_go.options.include_easyblocks_from_pr
+    if pr_easyblocks:
+        easyblocks_from_pr = fetch_easyblocks_from_pr(pr_easyblocks)
+        included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
 
         if eb_go.options.include_easyblocks:
-            # make sure we're not including the same easyblock twice
-            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
-            included_from_file = set([os.path.basename(eb) for eb in eb_go.options.include_easyblocks])
+            # check if you are including the same easyblock twice
+            included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
+            included_from_file = set([os.path.basename(eb) for eb in included_paths])
             included_twice = included_from_pr & included_from_file
             if included_twice:
-                raise EasyBuildError("Multiple inclusion of %s, check your --include-easyblocks options",
-                                     ','.join(included_twice))
+                warning_msg = "One or more easyblocks included from multiple locations: %s " % ', '.join(included_twice)
+                warning_msg += "(the one(s) from PR #%s will be used)" % pr_easyblocks
+                print_warning(warning_msg)
+
+        for easyblock in included_from_pr:
+            print_msg("easyblock %s included from PR #%s" % (easyblock, pr_easyblocks), log=log)
 
         include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
 

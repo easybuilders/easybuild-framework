@@ -16,7 +16,6 @@ jobs:
         pip install --upgrade pip
         pip install --upgrade flake8
 
-    - name: Run flake8
+    - name: Run flake8 to verify PEP8-compliance of Python code
       run: |
-        flake8 easybuild/tools
- 
+        flake8

@@ -29,7 +29,6 @@ Support for dummy compiler.
 :author: Kenneth Hoste (Ghent University)
 """
 
-import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
