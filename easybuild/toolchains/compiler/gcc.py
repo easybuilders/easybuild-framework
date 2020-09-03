@@ -72,10 +72,9 @@ class Gcc(Compiler):
     # gcc on aarch64 does not support -mno-recip, -mieee-fp, -mfno-math-errno...
     # https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html
     if systemtools.get_cpu_architecture() == systemtools.AARCH64:
-        COMPILER_UNIQUE_OPTION_MAP = {
-            'strict': ['mno-low-precision-recip-sqrt', 'mno-low-precision-sqrt', 'mno-low-precision-div'],
-            'precise': ['mno-low-precision-recip-sqrt', 'mno-low-precision-sqrt', 'mno-low-precision-div'],
-        }
+        no_recip_alternative = ['mno-low-precision-recip-sqrt', 'mno-low-precision-sqrt', 'mno-low-precision-div']
+        COMPILER_UNIQUE_OPTION_MAP['strict'] = no_recip_alternative
+        COMPILER_UNIQUE_OPTION_MAP['precise'] = no_recip_alternative
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
