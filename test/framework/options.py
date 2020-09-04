@@ -5057,6 +5057,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         }))
         self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
             'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838'],
+            'start_dir': 'src',
         }))
 
         # backup of easyconfig was created
