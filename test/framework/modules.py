@@ -1387,6 +1387,8 @@ class ModulesTest(EnhancedTestCase):
     def test_get_setenv_value_from_modulefile(self):
         """Test for ModulesTool.get_setenv_value_from_modulefile method."""
 
+        init_config(build_options={'generate_devel_module': True})
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 

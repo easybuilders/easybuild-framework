@@ -252,6 +252,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sequential',
         'set_gid_bit',
         'skip_test_cases',
+        'generate_devel_module',
         'sticky_bit',
         'trace',
         'upload_test_report',
