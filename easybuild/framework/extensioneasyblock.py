@@ -120,6 +120,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_options,
                                         change_into_dir=False)
 
+            # setting start dir must be done from unpacked source directory for extension,
+            # because start_dir value is usually a relative path (if it is set)
+            change_dir(self.ext_dir)
+
             self._set_start_dir()
             change_dir(self.start_dir)
         else:

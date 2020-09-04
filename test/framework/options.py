@@ -4986,7 +4986,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^==  \* bar-0\.0\.tar\.gz: %s$" % bar_tar_gz_sha256,
             r"^==  \* %s: %s$" % (bar_patch, bar_patch_sha256),
             r"^==  \* %s: %s$" % (bar_patch_bis, bar_patch_bis_sha256),
-            r"^==  \* barbar-0\.0\.tar\.gz: a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c$",
+            r"^==  \* barbar-0\.0\.tar\.gz: d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -4999,7 +4999,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # some checks on 'raw' easyconfig contents
         # single-line checksum for barbar extension since there's only one
-        self.assertTrue("'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c']," in ec_txt)
+        self.assertTrue("'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838']," in ec_txt)
 
         # single-line checksum entry for bar source tarball
         regex = re.compile("^[ ]*'%s',  # bar-0.0.tar.gz$" % bar_tar_gz_sha256, re.M)
@@ -5056,7 +5056,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'keepsymlinks': True,
         }))
         self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
-            'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
+            'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838'],
         }))
 
         # backup of easyconfig was created
