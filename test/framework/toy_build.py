@@ -1038,7 +1038,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
-        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
@@ -1849,7 +1849,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec1 = os.path.join(self.test_prefix, 'toy1.eb')
         ec1_txt = '\n'.join([
             toy_ec_txt,
-            "exts_list = [('barbar', '0.0')]",
+            "exts_list = [('barbar', '0.0', {'start_dir': 'src'})]",
             "",
         ])
         write_file(ec1, ec1_txt)
@@ -2489,7 +2489,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         # also inject (minimal) list of extensions to test iterative installation of extensions
-        test_ec_txt += "\nexts_list = [('barbar', '0.0')]"
+        test_ec_txt += "\nexts_list = [('barbar', '0.0', {'start_dir': 'src'})]"
 
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"
         write_file(test_ec, test_ec_txt)
