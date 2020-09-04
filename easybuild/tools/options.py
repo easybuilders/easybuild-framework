@@ -1065,7 +1065,6 @@ class EasyBuildOptions(GeneralOption):
         if self.options.inject_checksums:
             self.options.pre_create_installdir = False
 
-
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
