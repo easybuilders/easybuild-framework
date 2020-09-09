@@ -42,7 +42,7 @@ import tempfile
 import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-
+from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR
@@ -1253,9 +1253,27 @@ class FileToolsTest(EnhancedTestCase):
 
         # passing empty list of substitions is a no-op
         ft.write_file(testfile, testtxt)
-        ft.apply_regex_substitutions(testfile, [])
+        ft.apply_regex_substitutions(testfile, [], on_missing_match=run.IGNORE)
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, testtxt)
+
+        # Check handling of on_missing_match
+        ft.write_file(testfile, testtxt)
+        regex_subs_no_match = [('Not there', 'Not used')]
+        error_pat = 'Nothing found to replace in %s' % testfile
+        # Error
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
+                              on_missing_match=run.ERROR)
+        # Warn
+        self.mock_stderr(True)
+        ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+        self.assertTrue(error_pat in self.get_stderr())
+        self.mock_stderr(False)
+        # Ignore
+        self.mock_stderr(True)
+        ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
+        self.assertFalse(error_pat in self.get_stderr())
+        self.mock_stderr(False)
 
         # clean error on non-existing file
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"

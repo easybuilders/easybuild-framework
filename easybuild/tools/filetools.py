@@ -1466,14 +1466,23 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_match=None):
     """
     Apply specified list of regex substitutions.
 
     :param paths: list of paths to files to patch (or just a single filepath)
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
+    :param on_missing_match: Define what to do when the file when no match was found in the file.
+                             Can be 'error' to raise an error, 'warn' to print a warning or 'ignore' to do nothing
+                             Defaults to value of --strict
     """
+    if on_missing_match is None:
+        on_missing_match = build_option('strict')
+    ALLOWED_VALUES = (run.ERROR, run.WARN, run.IGNORE)
+    if on_missing_match not in ALLOWED_VALUES:
+        raise EasyBuildError('Invalid value passed to on_missing_match: %s', on_missing_match)
+
     if isinstance(paths, string_type):
         paths = [paths]
 
@@ -1524,7 +1533,13 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                 if replacement_msgs:
                     _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
                 else:
-                    _log.info('Nothing found to replace in %s:', path)
+                    msg = 'Nothing found to replace in %s' % path
+                    if on_missing_match == run.ERROR:
+                        raise EasyBuildError(msg)
+                    elif on_missing_match == run.WARN:
+                        print_warning(msg)
+                    else:
+                        _log.info(msg)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
