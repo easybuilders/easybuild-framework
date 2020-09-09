@@ -1507,6 +1507,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
 
                 if backup:
                     copy_file(path, path + backup)
+                replacement_msgs = []
                 with open_file(path, 'w') as out_file:
                     lines = txt_utf8.split('\n')
                     del txt_utf8
@@ -1515,11 +1516,15 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                             match = regex.search(line)
                             if match:
                                 origtxt = match.group(0)
-                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
-                                          (line_id + 1), path, origtxt, subtxt)
+                                replacement_msgs.append("Replaced in line %d: '%s' -> '%s'" %
+                                                        (line_id + 1, origtxt, subtxt))
                                 line = regex.sub(subtxt, line)
                                 lines[line_id] = line
                     out_file.write('\n'.join(lines))
+                if replacement_msgs:
+                    _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
+                else:
+                    _log.info('Nothing found to replace in %s:', path)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
