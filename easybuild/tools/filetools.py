@@ -1487,9 +1487,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
     else:
         _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        compiled_regex_subs = []
-        for regex, subtxt in regex_subs:
-            compiled_regex_subs.append((re.compile(regex), subtxt))
+        compiled_regex_subs = [(re.compile(regex), subtxt) for (regex, subtxt) in regex_subs]
 
         for path in paths:
             try:

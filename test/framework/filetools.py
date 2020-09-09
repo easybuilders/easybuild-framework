@@ -1208,6 +1208,7 @@ class FileToolsTest(EnhancedTestCase):
             (r"^(FC\s*=\s*).*$", r"\1${FC}"),
             (r"^(.FLAGS)\s*=\s*-O3\s-g(.*)$", r"\1 = -O2\2"),
         ]
+        regex_subs_copy = regex_subs.copy()
         ft.apply_regex_substitutions(testfile, regex_subs)
 
         expected_testtxt = '\n'.join([
@@ -1218,6 +1219,8 @@ class FileToolsTest(EnhancedTestCase):
         ])
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
+        # Must not have touched the list
+        self.assertEqual(regex_subs_copy, regex_subs)
 
         # backup file is created by default
         backup = testfile + '.orig.eb'
