@@ -39,6 +39,7 @@ from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
 from easybuild.toolchains.mpi.mvapich2 import TC_CONSTANT_MVAPICH2
 from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -58,7 +59,7 @@ class IntelMKL(LinAlg):
     BLAS_LIB = ["mkl_%(interface)s%(lp64)s", "mkl_sequential", "mkl_core"]
     BLAS_LIB_MT = ["mkl_%(interface)s%(lp64)s", "mkl_%(interface_mt)s_thread", "mkl_core"]
     BLAS_LIB_GROUP = True
-    BLAS_LIB_STATIC = True
+    BLAS_LIB_STATIC = not build_option('link_mkl_dynamically')
     BLAS_FAMILY = TC_CONSTANT_INTELMKL
 
     LAPACK_MODULE_NAME = ['imkl']
@@ -69,7 +70,7 @@ class IntelMKL(LinAlg):
     BLACS_LIB = ["mkl_blacs%(mpi)s%(lp64)s"]
     BLACS_LIB_MAP = {'mpi': None}
     BLACS_LIB_GROUP = True
-    BLACS_LIB_STATIC = True
+    BLACS_LIB_STATIC = not build_option('link_mkl_dynamically')
 
     SCALAPACK_MODULE_NAME = ['imkl']
     SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
@@ -77,7 +78,7 @@ class IntelMKL(LinAlg):
     SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
     SCALAPACK_LIB_GROUP = True
-    SCALAPACK_LIB_STATIC = True
+    SCALAPACK_LIB_STATIC = not build_option('link_mkl_dynamically')
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""

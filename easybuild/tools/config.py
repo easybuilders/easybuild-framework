@@ -238,6 +238,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_index',
         'ignore_locks',
         'install_latest_eb_release',
+        'link_mkl_dynamically',
         'logtostdout',
         'minimal_toolchains',
         'module_extensions',

@@ -404,6 +404,7 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', True),
             'lib64-lib-symlink': ("Automatically create symlinks for lib64/ pointing to lib/ if the former is missing",
                                   None, 'store_true', True),
+            'link-mkl-dynamically': ("Link MKL dynamically instead of statically", None, 'store_true', False),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
             'minimal-build-env': ("Minimal build environment to define when using system toolchain, "
