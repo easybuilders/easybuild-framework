@@ -9,16 +9,19 @@ v4.3.0 (September 11th 2020)
 feature release
 
 - various enhancements, including:
-  - add script to create sources entries for git submodules (#3369, #3436)
+  - add script to create 'sources' entries for git submodules (#3369, #3436)
   - add templates for CUDA compute capabilities (#3382)
-  - add EB option --generate-devel-module (#3388)
+    - '%(cuda_compute_capabilities)s', '%(cuda_sm_comma_sep)s', '%(cuda_sm_space_sep)s'
+  - add EasyBuild configuration option --generate-devel-module (#3388)
+    - to allow disabling generating of "devel" modules via --disable-generate-devel-module
   - set up a minimal build environment when using system compiler (#3399)
-  - add --sysroot configuration option (#3419)
-  - make sure self.start_dir is set in ExtensionEasyBlock (#3426)
+    - by default, $CC is set to 'gcc' and $CXX is set to 'g++' when using 'system' toolchain
+    - minimal build environment can be customized via --minimal-build-env configuration option
+  - add --sysroot configuration option to specify alternative location of system root (#3419)
+    - this is useful when installing software in a Gentoo Prefix environment (for example)
 - various bug fixes, including:
-  - allow including easyblocks from multiple locations (#3311)
+  - allow including easyblocks from multiple locations, by combining --include-easyblocks and --include-easyblocks-from-pr (#3311)
   - also escape backslashes in quote_py_str() (#3386)
-  - stick to cryptography 2.9.2 when using Python 2.7 to avoid broken test suite in CI (#3392)
   - use one argument 'module swap' statements in Tcl modulefiles (required by Modules 4.2.3+) (#3397)
   - fix copying of (non-existing) file with apply_patch (#3400)
   - create symlink from lib64 to lib subdir in installation directories to avoid that GCC prefers /lib64 system directories (#3401)
@@ -27,17 +30,17 @@ feature release
   - stop installing ccache wrapper for Fortran compiler (#3409)
   - fix issues with applying PR patch in --from-pr (#3414)
   - make RPATH wrapper script more robust by using 'python -E -s -S' to run rpath_args.py (#3422)
-  - ignore deprecation warning raised for cryptography when using Python 3.5 produced by output of test suite (#3423)
   - don't inject -Wl,-rpath options when '-x c++-header' compiler option is used (#3424)
   - fix lack of -mno-recip on aarch64 by tweaking GCC options used when 'precise' toolchain option is enabled (#3425)
+  - make sure self.start_dir is set in ExtensionEasyBlock (#3426, #3435)
   - exclude local variables from typo check in easyconfig files (#3427)
-  - determine start dir for extension from unpacked source directory of extension + enhance tests to capture bug (#3435)
 - other changes:
+  - stick to cryptography 2.9.2 when using Python 2.7 to avoid broken test suite in CI (#3392)
   - automatically enable --ignore-locks with --fetch (#3404)
   - switch to status badge based on tests run in GitHub Actions CI in README (#3415)
-  - make flake8 code style checks pass in test/ (#3416)
-  - make flake8 code style checks pass fully (#3417)
+  - make flake8 code style checks pass (#3416, #3417)
   - limit Travis to only test with Python 2.6 + Lomod 7 (#3418)
+  - ignore deprecation warning raised for cryptography when using Python 3.5 produced by output of test suite (#3423)
 
 
 v4.2.2 (July 8th 2020)
