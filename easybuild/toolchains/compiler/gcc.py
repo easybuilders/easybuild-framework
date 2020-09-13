@@ -50,7 +50,7 @@ class Gcc(Compiler):
     COMPILER_UNIQUE_OPTS = {
         'loop': (False, "Automatic loop parallellisation"),
         'f2c': (False, "Generate code compatible with f2c and f77"),
-        'lto':(False, "Enable Link Time Optimization"),
+        'lto': (False, "Enable Link Time Optimization"),
     }
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'fdefault-integer-8',
@@ -69,18 +69,26 @@ class Gcc(Compiler):
         DEFAULT_OPT_LEVEL: ['O2', 'ftree-vectorize'],
     }
 
+    # aarch64 does not support -mno-recip for precision. Based on
+    # https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html the following options are used instead
+    if systemtools.get_cpu_architecture() == systemtools.AARCH64:
+        COMPILER_UNIQUE_OPTION_MAP['precise'] = ['mno-low-precision-recip-sqrt',
+                                                 'mno-low-precision-sqrt',
+                                                 'mno-low-precision-div']
+
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.AARCH32, systemtools.ARM): 'mcpu=native', # implies -march=native and -mtune=native
-        (systemtools.AARCH64, systemtools.ARM): 'mcpu=native', # since GCC 6; implies -march=native and -mtune=native
-        (systemtools.POWER, systemtools.POWER): 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
-        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
-        (systemtools.X86_64, systemtools.AMD): 'march=native', # implies -mtune=native
-        (systemtools.X86_64, systemtools.INTEL): 'march=native', # implies -mtune=native
+        (systemtools.AARCH32, systemtools.ARM): 'mcpu=native',  # implies -march=native and -mtune=native
+        (systemtools.AARCH64, systemtools.ARM): 'mcpu=native',  # since GCC 6; implies -march=native and -mtune=native
+        # no support for -march on POWER; implies -mtune=native
+        (systemtools.POWER, systemtools.POWER): 'mcpu=native',
+        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',
+        (systemtools.X86_64, systemtools.AMD): 'march=native',  # implies -mtune=native
+        (systemtools.X86_64, systemtools.INTEL): 'march=native',  # implies -mtune=native
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.AARCH32, systemtools.ARM): 'mcpu=generic-armv7', # implies -march=armv7 and -mtune=generic-armv7
+        (systemtools.AARCH32, systemtools.ARM): 'mcpu=generic-armv7',  # implies -march=armv7 and -mtune=generic-armv7
         (systemtools.AARCH64, systemtools.ARM): 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
         (systemtools.POWER, systemtools.POWER): 'mcpu=powerpc64',    # no support for -march on POWER
         (systemtools.POWER, systemtools.POWER_LE): 'mcpu=powerpc64le',    # no support for -march on POWER
@@ -157,7 +165,7 @@ class Gcc(Compiler):
             core_types = []
             for core_type in [ct.strip().lower() for ct in cpu_model[4:].split('+')]:
                 # Determine numeric ID for each core type, since we need to sort them later numerically
-                res = re.search('\d+$', core_type)  # note: numeric ID is expected at the end
+                res = re.search(r'\d+$', core_type)  # note: numeric ID is expected at the end
                 if res:
                     core_id = int(res.group(0))
                     core_types.append((core_id, core_type))

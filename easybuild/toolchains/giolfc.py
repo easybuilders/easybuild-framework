@@ -35,8 +35,8 @@ from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
+
 class Giolfc(Gimpic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, IntelMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'giolfc'
     SUBTOOLCHAIN = [Gimpic.NAME, Golfc.NAME]
-

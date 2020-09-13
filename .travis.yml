@@ -1,29 +1,10 @@
 language: python
-python: 2.7
-dist: xenial
+python: 2.6
+dist: trusty
 env:
-  matrix:
-    - LMOD_VERSION=7.8.22
-    - LMOD_VERSION=7.8.22 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - ENV_MOD_VERSION=4.1.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules  # Tmod 4.1.4 is used in RHEL8
+    - LMOD_VERSION=7.8.22 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Python26
 cache:
   pip: true
-matrix:
-  # mark build as finished as soon as job has failed
-  fast_finish: true
-  include:
-    # also test default configuration with Python 2.6
-    - python: 2.6
-      env: LMOD_VERSION=7.8.22 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Python26
-      dist: trusty
-    # single configuration to test with Lmod 6 and Python 2.7
-    - python: 2.7
-      env: LMOD_VERSION=6.5.1 TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=Lmod6
-    # also test with Python 3.6
-    - python: 3.6
-      env: LMOD_VERSION=7.8.22
 addons:
   apt:
     packages:
@@ -108,7 +89,7 @@ script:
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20200203.01 616bf3ce812c0844bf9ea3e690f9d88b394ed48f834ddb8424a73cf45fc64ea5"
+    - EB_BOOTSTRAP_EXPECTED="20200820.01 d490d229a18bd5eaa717bb8d5684d754729143d5e995e35a40c84d03ffb1de50"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap

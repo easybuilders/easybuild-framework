@@ -190,8 +190,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'] = 'whatever'
 
         error = r"Found 2 environment variable\(s\) that are prefixed with %s " % CONFIG_ENV_VAR_PREFIX
-        error += "but do not match valid option\(s\): "
-        error += ','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
+        error += r"but do not match valid option\(s\): "
+        error += r','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
         self.assertErrorRegex(EasyBuildError, error, init_config)
 
         del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
@@ -365,7 +365,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # only valid keys can be set
         BuildOptions.__class__._instances.clear()
-        msg = "Encountered unknown keys .* \(known keys: .*"
+        msg = r"Encountered unknown keys .* \(known keys: .*"
         self.assertErrorRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
         # test init_build_options and build_option functions

@@ -44,7 +44,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import EnvironmentModulesC, Lmod
+from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -610,7 +610,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
-                "module swap foo bar",
+                "module swap bar",
                 '',
             ])
         else:
@@ -627,7 +627,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 "if { [ is-loaded foo ] } {",
-                "    module swap foo bar",
+                "    module swap bar",
                 '} else {',
                 "    module load bar",
                 '}',
@@ -646,6 +646,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
+
+        # create tiny test Tcl module to make sure that tested modules tools support single-argument swap
+        # see https://github.com/easybuilders/easybuild-framework/issues/3396;
+        # this is known to fail with the ancient Tcl-only implementation of environment modules,
+        # but that's considered to be a non-issue (since this is mostly relevant for Cray systems,
+        # which are either using EnvironmentModulesC (3.2.10), EnvironmentModules (4.x) or Lmod...
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and self.modtool.__class__ != EnvironmentModulesTcl:
+            test_mod_txt = "#%Module\nmodule swap GCC/7.3.0-2.30"
+
+            test_mod_fn = 'test_single_arg_swap/1.2.3'
+            write_file(os.path.join(self.test_prefix, test_mod_fn), test_mod_txt)
+
+            self.modtool.load(['GCC/4.6.3'])
+            self.modtool.use(self.test_prefix)
+            self.modtool.load(['test_single_arg_swap/1.2.3'])
+
+            expected = ['GCC/7.3.0-2.30', 'test_single_arg_swap/1.2.3']
+            self.assertEqual(sorted([m['mod_name'] for m in self.modtool.list()]), expected)
 
     def test_append_paths(self):
         """Test generating append-paths statements."""
@@ -1327,11 +1345,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         test_ecs = {
-            'GCC-6.4.0-2.28.eb':               ('compiler/GCC/6.4.0-2.28',          '', [], [], []),
+            'GCC-6.4.0-2.28.eb': ('compiler/GCC/6.4.0-2.28', '', [], [], []),
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('mpi/OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
-            'gzip-1.5-foss-2018a.eb':   ('tools/gzip/1.5-foss-2018a', '', [], [], []),
-            'foss-2018a.eb':            ('toolchain/foss/2018a',      '', [], [], []),
-            'impi-5.1.2.150.eb':          ('mpi/impi/5.1.2.150',          '', [], [], []),
+            'gzip-1.5-foss-2018a.eb': ('tools/gzip/1.5-foss-2018a', '', [], [], []),
+            'foss-2018a.eb': ('toolchain/foss/2018a', '', [], [], []),
+            'impi-5.1.2.150.eb': ('mpi/impi/5.1.2.150', '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)

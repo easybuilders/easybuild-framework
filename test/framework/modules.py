@@ -360,10 +360,10 @@ class ModulesTest(EnhancedTestCase):
             remove_file(os.path.join(java_mod_dir, '.modulerc'))
             write_file(os.path.join(java_mod_dir, '.modulerc.lua'),
                        '\n'.join([
-                            'module_version("Java/1.8.0_181", "1.8")',
-                            'module_version("Java/1.8.0_181", "site_default")',
-                            'module_alias("JavaAlias", "Java/1.8")',
-                        ]))
+                           'module_version("Java/1.8.0_181", "1.8")',
+                           'module_version("Java/1.8.0_181", "site_default")',
+                           'module_alias("JavaAlias", "Java/1.8")',
+                       ]))
 
             avail_mods = self.modtool.available()
             self.assertTrue('Java/1.8.0_181' in avail_mods)
@@ -1386,6 +1386,8 @@ class ModulesTest(EnhancedTestCase):
 
     def test_get_setenv_value_from_modulefile(self):
         """Test for ModulesTool.get_setenv_value_from_modulefile method."""
+
+        init_config(build_options={'generate_devel_module': True})
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')

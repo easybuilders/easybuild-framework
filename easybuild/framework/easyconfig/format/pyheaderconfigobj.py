@@ -128,8 +128,8 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         else:
             start_section = reg.start()
             last_n = 100
-            pre_section_tail = txt[start_section-last_n:start_section]
-            sections_head = txt[start_section:start_section+last_n]
+            pre_section_tail = txt[start_section - last_n:start_section]
+            sections_head = txt[start_section:start_section + last_n]
             self.log.debug('Sections start at index %s, %d-chars context:\n"""%s""""\n<split>\n"""%s..."""',
                            start_section, last_n, pre_section_tail, sections_head)
 
@@ -199,7 +199,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             exc_tb = sys.exc_info()[2]
             if exc_tb.tb_next is not None:
                 err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
-            raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
+            raise EasyBuildError("Parsing easyconfig file failed: %s", err_msg)
 
         self.log.debug("pyheader parsed cfg: %s", cfg)
 

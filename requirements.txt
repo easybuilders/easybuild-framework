@@ -52,3 +52,8 @@ python-hglib
 requests
 
 archspec; python_version >= '2.7'
+
+# cryptography 3.0 deprecates Python 2.7
+# and cryptography is not needed at all for Python 2.6
+cryptography==2.9.2; python_version == '2.7'
+cryptography; python_version >= '3.5'

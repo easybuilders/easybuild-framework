@@ -125,6 +125,8 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
 
 def verify_imports(pymods, pypkg, from_path):
     """Verify that import of specified modules from specified package and expected location works."""
+    saved_modules = sys.modules.copy()
+
     for pymod in pymods:
         pymod_spec = '%s.%s' % (pypkg, pymod)
         try:
@@ -139,6 +141,10 @@ def verify_imports(pymods, pypkg, from_path):
                                  pymod_spec, from_path, pymod.__file__)
 
         _log.debug("Import of %s from %s verified", pymod_spec, from_path)
+
+    # restore sys.modules to its original state (not only verified modules but also their dependencies)
+    sys.modules.clear()
+    sys.modules.update(saved_modules)
 
 
 def is_software_specific_easyblock(module):

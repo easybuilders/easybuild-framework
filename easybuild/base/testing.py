@@ -60,7 +60,7 @@ def nicediff(txta, txtb, offset=5):
     res_idx = []
     # very bruteforce
     for didx in different_idx:
-        for idx in range(max(didx-offset, 0), min(didx+offset, len(diff)-1)):
+        for idx in range(max(didx - offset, 0), min(didx + offset, len(diff) - 1)):
             if idx not in res_idx:
                 res_idx.append(idx)
     res_idx.sort()
