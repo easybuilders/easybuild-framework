@@ -1392,16 +1392,14 @@ def add_pr_labels(pr, branch='develop'):
     pr_labels = [label['name'] for label in pr_data['labels']]
 
     expected_labels = det_pr_labels(file_info, pr_target_repo)
+    missing_labels = [label for label in expected_labels if label not in pr_labels]
 
-    missing_labels = []
-    for label in expected_labels:
-        if label not in pr_labels:
-            missing_labels.append(label)
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if missing_labels:
         missing_labels_txt = ', '.join(["'%s'" % l for l in missing_labels])
         print_msg("PR #%s should be labelled %s" % (pr, missing_labels_txt), log=_log, prefix=False)
-        if not post_pr_labels(pr, missing_labels):
+        if not dry_run and not post_pr_labels(pr, missing_labels):
             print_msg("Could not add labels %s to PR #%s" % (missing_labels_txt, pr), log=_log, prefix=False)
     else:
         print_msg("Could not determine any missing labels for PR #%s" % pr, log=_log, prefix=False)

@@ -554,11 +554,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
         pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
 
         expected_labels = det_pr_labels(file_info, pr_target_repo)
-
-        missing_labels = []
-        for label in expected_labels:
-            if label not in pr_labels:
-                missing_labels.append(label)
+        missing_labels = [label for label in expected_labels if label not in pr_labels]
 
         if missing_labels:
             lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % l for l in missing_labels])])

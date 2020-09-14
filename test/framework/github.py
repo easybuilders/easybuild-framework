@@ -120,6 +120,40 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_add_pr_labels(self):
+        """Test add_pr_labels function."""
+        if self.skip_github_tests:
+            print("Skipping test_add_pr_labels, no GitHub token available?")
+            return
+
+        build_options = {
+            'pr_target_account': GITHUB_USER,
+            'pr_target_repo': GITHUB_EASYBLOCKS_REPO,
+            'github_user':  GITHUB_TEST_ACCOUNT,
+            'dry_run': True,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        error_pattern = "Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet"
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.add_pr_labels, 1)
+        self.mock_stdout(False)
+
+        build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        gh.add_pr_labels(11262)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue("Could not determine any missing labels for PR 11262" in stdout)
+
+        self.mock_stdout(True)
+        gh.add_pr_labels(11250)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue("PR #11250 should be labelled 'update'" in stdout)
+
     def test_fetch_pr_data(self):
         """Test fetch_pr_data function."""
         if self.skip_github_tests:
