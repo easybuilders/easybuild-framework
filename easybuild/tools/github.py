@@ -1397,7 +1397,7 @@ def add_pr_labels(pr, branch='develop'):
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if missing_labels:
-        missing_labels_txt = ', '.join(["'%s'" % l for l in missing_labels])
+        missing_labels_txt = ', '.join(["'%s'" % ml for ml in missing_labels])
         print_msg("PR #%s should be labelled %s" % (pr, missing_labels_txt), log=_log, prefix=False)
         if not dry_run and not post_pr_labels(pr, missing_labels):
             print_msg("Could not add labels %s to PR #%s" % (missing_labels_txt, pr), log=_log, prefix=False)
