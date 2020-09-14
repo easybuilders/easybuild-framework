@@ -41,7 +41,7 @@ from easybuild.tools.include import is_software_specific_easyblock
 def up(path, cnt):
     """Return path N times up."""
     if cnt > 0:
-        path = up(os.path.dirname(path), cnt-1)
+        path = up(os.path.dirname(path), cnt - 1)
     return path
 
 
@@ -102,19 +102,22 @@ class IncludeTest(EnhancedTestCase):
         myfoo_pyc_path = easybuild.easyblocks.myfoo.__file__
         myfoo_real_py_path = os.path.realpath(os.path.join(os.path.dirname(myfoo_pyc_path), 'myfoo.py'))
         self.assertTrue(os.path.samefile(up(myfoo_real_py_path, 1), myeasyblocks))
+        del sys.modules['easybuild.easyblocks.myfoo']
 
         import easybuild.easyblocks.generic.mybar
         mybar_pyc_path = easybuild.easyblocks.generic.mybar.__file__
         mybar_real_py_path = os.path.realpath(os.path.join(os.path.dirname(mybar_pyc_path), 'mybar.py'))
         self.assertTrue(os.path.samefile(up(mybar_real_py_path, 2), myeasyblocks))
+        del sys.modules['easybuild.easyblocks.generic.mybar']
 
         # existing (test) easyblocks are unaffected
         import easybuild.easyblocks.foofoo
         foofoo_path = os.path.dirname(os.path.dirname(easybuild.easyblocks.foofoo.__file__))
         self.assertTrue(os.path.samefile(foofoo_path, test_easyblocks))
+        del sys.modules['easybuild.easyblocks.foofoo']
 
     def test_include_easyblocks_priority(self):
-        """Test whether easyblocks included via include_easyblocks() get prioroity over others."""
+        """Test whether easyblocks included via include_easyblocks() get priority over others."""
         test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
 
         # make sure that test 'foo' easyblock is there
@@ -138,15 +141,23 @@ class IncludeTest(EnhancedTestCase):
             "   pass",
         ])
         write_file(os.path.join(myeasyblocks, 'foo.py'), foo_easyblock_txt)
-        include_easyblocks(self.test_prefix, [os.path.join(myeasyblocks, 'foo.py')])
 
+        # check that the sandboxed easyblock is imported before include_easyblocks is run
         foo_pyc_path = easybuild.easyblocks.foo.__file__
         foo_real_py_path = os.path.realpath(os.path.join(os.path.dirname(foo_pyc_path), 'foo.py'))
-        self.assertFalse(os.path.samefile(os.path.dirname(foo_pyc_path), test_easyblocks))
+        self.assertTrue(os.path.samefile(os.path.dirname(os.path.dirname(foo_pyc_path)), test_easyblocks))
+        self.assertFalse(os.path.samefile(foo_real_py_path, os.path.join(myeasyblocks, 'foo.py')))
+
+        include_easyblocks(self.test_prefix, [os.path.join(myeasyblocks, 'foo.py')])
+
+        # check that the included easyblock is imported after include_easyblocks is run
+        foo_pyc_path = easybuild.easyblocks.foo.__file__
+        foo_real_py_path = os.path.realpath(os.path.join(os.path.dirname(foo_pyc_path), 'foo.py'))
+        self.assertFalse(os.path.samefile(os.path.dirname(os.path.dirname(foo_pyc_path)), test_easyblocks))
         self.assertTrue(os.path.samefile(foo_real_py_path, os.path.join(myeasyblocks, 'foo.py')))
 
-        # 'undo' import of foo easyblock
-        del sys.modules['easybuild.easyblocks.foo']
+        # check that the included easyblock is not loaded
+        self.assertFalse('easybuild.easyblocks.foo' in sys.modules)
 
     def test_include_mns(self):
         """Test include_module_naming_schemes()."""

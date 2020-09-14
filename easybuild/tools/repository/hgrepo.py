@@ -100,7 +100,7 @@ class HgRepository(FileRepository):
 
         # try to get a copy of
         try:
-            client = hglib.clone(self.repo, self.wc)
+            hglib.clone(self.repo, self.wc)
             self.log.debug("repo %s cloned in %s" % (self.repo, self.wc))
         except (HgCommandError, OSError) as err:
             # it might already have existed

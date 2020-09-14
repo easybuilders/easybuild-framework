@@ -29,5 +29,6 @@ Dummy easyblock for GCC
 """
 from easybuild.framework.easyblock import EasyBlock
 
+
 class EB_GCC(EasyBlock):
     pass

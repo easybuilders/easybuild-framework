@@ -82,7 +82,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
     https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
     """
     # apparently this is not the same as physical_line line?!
-    line = lines[line_number-1]
+    line = lines[line_number - 1]
 
     if COMMENT_REGEX.match(line):
         return None

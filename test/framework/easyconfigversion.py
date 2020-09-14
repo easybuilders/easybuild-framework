@@ -114,10 +114,10 @@ class EasyConfigVersion(EnhancedTestCase):
             ('> 2 suffix:-x1', '< 1 suffix:-x1', (False, False)),  # suffix equal, no conflict (and no overlap)
         ]
 
-        for l, r, res in overlap_conflict:
-            vl = VersionOperator(l)
-            vr = VersionOperator(r)
-            self.assertEqual(vl.test_overlap_and_conflict(vr), res)
+        for left, right, res in overlap_conflict:
+            verop_left = VersionOperator(left)
+            verop_right = VersionOperator(right)
+            self.assertEqual(verop_left.test_overlap_and_conflict(verop_right), res)
 
     def test_versop_gt(self):
         """Test strict greater then ordering"""
@@ -135,8 +135,8 @@ class EasyConfigVersion(EnhancedTestCase):
             # suffix
             ('> 2 suffix:-x1', '> 1 suffix:-x1'),  # equal suffixes, regular ordering
         ]
-        for l, r in left_gt_right:
-            self.assertTrue(VersionOperator(l) > VersionOperator(r), "%s gt %s" % (l, r))
+        for left, right in left_gt_right:
+            self.assertTrue(VersionOperator(left) > VersionOperator(right), "%s gt %s" % (left, right))
 
     def test_ordered_versop_expressions(self):
         """Given set of ranges, order them according to version/operator (most recent/specific first)"""
@@ -215,7 +215,7 @@ class EasyConfigVersion(EnhancedTestCase):
                     (tc, '1.2.2', False),  # version not ok, name ok
                     ('x' + tc, '1.2.3', False),  # version ok, name not ok
                     ('x' + tc, '1.2.2', False),  # version not ok, name not ok
-                    )),
+                )),
             ]
             for txt, subtests in tests:
                 tcversop = ToolchainVersionOperator(txt)

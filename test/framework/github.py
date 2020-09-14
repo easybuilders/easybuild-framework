@@ -87,9 +87,11 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            expected = [(None, ['a_directory', 'second_dir'], ['README.md']),
-                        ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
-                        ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
+            expected = [
+                (None, ['a_directory', 'second_dir'], ['README.md']),
+                ('a_directory', ['a_subdirectory'], ['a_file.txt']),
+                ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
+            ]
             self.assertEqual([x for x in self.ghfs.walk(None)], expected)
         except IOError:
             pass
@@ -138,7 +140,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(pr_data['reviews'])
         self.assertEqual(pr_data['reviews'][0]['state'], "APPROVED")
         self.assertEqual(pr_data['reviews'][0]['user']['login'], 'boegel')
-        self.assertEqual(pr_data['status_last_commit'], 'pending')
+        self.assertEqual(pr_data['status_last_commit'], None)
 
     def test_list_prs(self):
         """Test list_prs function."""
@@ -432,7 +434,7 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_find_easybuild_easyconfig, no GitHub token available?")
             return
         path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
-        expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
+        expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
         self.assertTrue(os.path.exists(path), "Path %s exists" % path)
@@ -458,6 +460,53 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(ec == 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
+
+    def test_det_commit_status(self):
+        """Test det_commit_status function."""
+
+        if self.skip_github_tests:
+            print("Skipping test_det_commit_status, no GitHub token available?")
+            return
+
+        # ancient commit, from Jenkins era
+        commit_sha = 'ec5d6f7191676a86a18404616691796a352c5f1d'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
+
+        # commit with failing tests from Travis CI era (no GitHub Actions yet)
+        commit_sha = 'd0c62556caaa78944722dc84bbb1072bf9688f74'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'failure')
+
+        # commit with passing tests from Travis CI era (no GitHub Actions yet)
+        commit_sha = '21354990e4e6b4ca169b93d563091db4c6b2693e'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
+
+        # commit with failing tests, tested by both Travis CI and GitHub Actions
+        commit_sha = '3a596de93dd95b651b0d1503562d888409364a96'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'failure')
+
+        # commit with passing tests, tested by both Travis CI and GitHub Actions
+        commit_sha = '1fba8ac835d62e78cdc7988b08f4409a1570cef1'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
+
+        # commit with failing tests, only tested by GitHub Actions
+        commit_sha = 'd7130683f02fe8284df3557f0b2fd3947c2ea153'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'failure')
+
+        # commit with passing tests, only tested by GitHub Actions
+        commit_sha = 'e6df09700a1b90c63b4f760eda4b590ee1a9c2fd'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
+
+        # commit in test repo where no CI is running at all
+        commit_sha = '8456f867b03aa001fd5a6fe5a0c4300145c065dc'
+        res = gh.det_commit_status('easybuilders', GITHUB_REPO, commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, None)
 
     def test_check_pr_eligible_to_merge(self):
         """Test check_pr_eligible_to_merge function"""
@@ -503,11 +552,11 @@ class GithubTest(EnhancedTestCase):
 
         # test suite must PASS (not failed, pending or unknown) in Travis
         tests = [
-            ('', '(result unknown)'),
-            ('foobar', '(result unknown)'),
             ('pending', 'pending...'),
-            ('error', 'FAILED'),
-            ('failure', 'FAILED'),
+            ('error', '(status: error)'),
+            ('failure', '(status: failure)'),
+            ('foobar', '(status: foobar)'),
+            ('', '(status: )'),
         ]
         for status, test_result in tests:
             pr_data['status_last_commit'] = status
@@ -590,9 +639,9 @@ class GithubTest(EnhancedTestCase):
 
         patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
         file_info = {'ecs': [
-                {'name': 'A', 'patches': ['1.patch'], 'exts_list': []},
-                {'name': 'B', 'patches': [], 'exts_list': []},
-            ]
+            {'name': 'A', 'patches': ['1.patch'], 'exts_list': []},
+            {'name': 'B', 'patches': [], 'exts_list': []},
+        ]
         }
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
         self.mock_stdout(True)

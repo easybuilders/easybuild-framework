@@ -34,6 +34,7 @@ import ConfigParser as configparser  # noqa
 import json
 import subprocess
 import urllib2 as std_urllib  # noqa
+from HTMLParser import HTMLParser  # noqa
 from string import letters as ascii_letters  # noqa
 from string import lowercase as ascii_lowercase  # noqa
 from StringIO import StringIO  # noqa
@@ -64,7 +65,7 @@ def subprocess_popen_text(cmd, **kwargs):
 
 def raise_with_traceback(exception_class, message, traceback):
     """Raise exception of specified class with given message and traceback."""
-    raise exception_class, message, traceback
+    raise exception_class, message, traceback  # noqa: E999
 
 
 def extract_method_name(method_func):

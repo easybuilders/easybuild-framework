@@ -35,4 +35,4 @@ globals().update(ALL_CATEGORIES)
 EASYCONFIGS_PKG_SUBDIR = 'easyconfigs'
 
 # is used in some tools
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig  # noqa

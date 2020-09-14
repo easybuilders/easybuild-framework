@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
+from easybuild.tools.filetools import apply_patch, change_dir, copy_dir, copy_easyblocks, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
@@ -107,6 +107,9 @@ HTTP_STATUS_CREATED = 201
 HTTP_STATUS_NO_CONTENT = 204
 KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
+
+STATUS_PENDING = 'pending'
+STATUS_SUCCESS = 'success'
 
 VALID_CLOSE_PR_REASONS = {
     'archived': 'uses an archived toolchain',
@@ -360,7 +363,9 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     download_file(base_name, url, target_path, forced=True)
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
-    extracted_path = os.path.join(extract_file(target_path, path, forced=True), extracted_dir_name)
+    base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
+    change_dir(base_dir)
+    extracted_path = os.path.join(base_dir, extracted_dir_name)
 
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
@@ -449,7 +454,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
     elif not pr_closed:
         try:
             _log.debug("Trying to apply PR patch %s to %s...", diff_filepath, repo_target_branch)
-            apply_patch(diff_filepath, repo_target_branch, use_git_am=True)
+            apply_patch(diff_filepath, repo_target_branch, use_git=True)
             _log.info("Using %s which included PR patch to test PR #%s", repo_target_branch, pr)
             final_path = repo_target_branch
 
@@ -1008,7 +1013,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     break
         except EasyBuildError as err:
             _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
-        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx+1, nr_of_ecs))
+        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
         sys.stdout.flush()
 
     sys.stdout.write('\n')
@@ -1042,14 +1047,12 @@ def check_pr_eligible_to_merge(pr_data):
 
     # check test suite result, Travis must give green light
     msg_tmpl = "* test suite passes: %s"
-    if pr_data['status_last_commit'] == 'success':
+    if pr_data['status_last_commit'] == STATUS_SUCCESS:
         print_msg(msg_tmpl % 'OK', prefix=False)
-    elif pr_data['status_last_commit'] == 'pending':
+    elif pr_data['status_last_commit'] == STATUS_PENDING:
         res = not_eligible(msg_tmpl % "pending...")
-    elif pr_data['status_last_commit'] in ['error', 'failure']:
-        res = not_eligible(msg_tmpl % "FAILED")
     else:
-        res = not_eligible(msg_tmpl % "(result unknown)")
+        res = not_eligible(msg_tmpl % "(status: %s)" % pr_data['status_last_commit'])
 
     if pr_data['base']['repo']['name'] == GITHUB_EASYCONFIGS_REPO:
         # check for successful test report (checked in reverse order)
@@ -1424,10 +1427,17 @@ def new_branch_github(paths, ecs, commit_msg=None):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None):
+def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
     Create new pull request from specified branch on GitHub.
     """
+
+    if descr is None:
+        descr = build_option('pr_descr')
+    if commit_msg is None:
+        commit_msg = build_option('pr_commit_msg')
+    if title is None:
+        title = build_option('pr_title') or commit_msg
 
     pr_target_account = build_option('pr_target_account')
     pr_target_branch = build_option('pr_target_branch')
@@ -1627,19 +1637,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     :param commit_msg: commit message to use
     """
 
-    if descr is None:
-        descr = build_option('pr_descr')
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
-    if title is None:
-        title = build_option('pr_title') or commit_msg
 
     # create new branch in GitHub
     res = new_branch_github(paths, ecs, commit_msg=commit_msg)
     file_info, deleted_paths, _, branch_name, diff_stat, pr_target_repo = res
 
     new_pr_from_branch(branch_name, title=title, descr=descr, pr_target_repo=pr_target_repo,
-                       pr_metadata=(file_info, deleted_paths, diff_stat))
+                       pr_metadata=(file_info, deleted_paths, diff_stat), commit_msg=commit_msg)
 
 
 def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
@@ -2116,6 +2122,81 @@ def find_easybuild_easyconfig(github_user=None):
     return eb_file
 
 
+def det_commit_status(account, repo, commit_sha, github_user):
+    """
+    Determine status of specified commit (pending, error, failure, success)
+
+    We combine two different things here:
+
+    * the combined commit status (Travis CI sets a commit status)
+    * results of check suites (set by CI run in GitHub Actions)
+    """
+    def commit_status_url(gh):
+        """Helper function to grab combined status of latest commit."""
+        # see https://docs.github.com/en/rest/reference/repos#get-the-combined-status-for-a-specific-reference
+        return gh.repos[account][repo].commits[commit_sha].status
+
+    def check_suites_url(gh):
+        """Helper function to grab status of latest commit."""
+        return gh.repos[account][repo].commits[commit_sha]['check-suites']
+
+    # first check combined commit status (set by e.g. Travis CI)
+    status, commit_status_data = github_api_get_request(commit_status_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get status of commit %s from %s/%s (status: %d %s)",
+                             commit_sha, account, repo, status, commit_status_data)
+
+    commit_status_count = commit_status_data['total_count']
+    combined_commit_status = commit_status_data['state']
+    _log.info("Found combined commit status set by %d contexts: %s", commit_status_count, combined_commit_status)
+
+    # if state is 'pending', we need to check whether anything is actually setting a commit status;
+    # if not (total_count == 0), then the state will stay 'pending' so we should ignore it;
+    # see also https://github.com/easybuilders/easybuild-framework/issues/3405
+    if commit_status_count == 0 and combined_commit_status == STATUS_PENDING:
+        combined_commit_status = None
+        _log.info("Ignoring %s combined commit status, since total count is 0", combined_commit_status)
+
+    # set preliminary result based on combined commit status
+    result = combined_commit_status
+
+    # also take into account check suites (used by CI in GitHub Actions)
+
+    # Checks API is currently available for developers to preview,
+    # so we need to provide this accept header;
+    # see "Preview notice" at https://docs.github.com/en/rest/reference/checks#list-check-suites-for-a-git-reference
+    headers = {'Accept': "application/vnd.github.antiope-preview+json"}
+
+    status, check_suites_data = github_api_get_request(check_suites_url, github_user, headers=headers)
+
+    # take into that there may be multiple check suites;
+    for check_suite_data in check_suites_data['check_suites']:
+        # status can be 'queued', 'in_progress', or 'completed'
+        status = check_suite_data['status']
+
+        # if any check suite hasn't completed yet, final result is still pending
+        if status in ['queued', 'in_progress']:
+            result = STATUS_PENDING
+
+        # if check suite is completed, take the conclusion into account
+        elif status == 'completed':
+            conclusion = check_suite_data['conclusion']
+            if conclusion == STATUS_SUCCESS:
+                # only set result if it hasn't been decided yet based on combined commit status
+                if result is None:
+                    result = STATUS_SUCCESS
+            else:
+                # any other conclusion determines the final result,
+                # no need to check other test suites
+                result = conclusion
+                break
+        else:
+            app_name = check_suite_data.get('app', {}).get('name', 'UNKNOWN')
+            raise EasyBuildError("Unknown check suite status set by %s: '%s'", app_name, status)
+
+    return result
+
+
 def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False, **parameters):
     """Fetch PR data from GitHub"""
 
@@ -2133,16 +2214,8 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
 
     if full:
         # also fetch status of last commit
-
-        def status_url(gh):
-            """Helper function to grab status of latest commit."""
-            return gh.repos[pr_target_account][pr_target_repo].commits[pr_data['head']['sha']].status
-
-        status, status_data = github_api_get_request(status_url, github_user, **parameters)
-        if status != HTTP_STATUS_OK:
-            raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
-                                 pr, pr_target_account, pr_target_repo, status, status_data)
-        pr_data['status_last_commit'] = status_data['state']
+        pr_data['status_last_commit'] = det_commit_status(pr_target_account, pr_target_repo,
+                                                          pr_data['head']['sha'], github_user)
 
         # also fetch comments
         def comments_url(gh):

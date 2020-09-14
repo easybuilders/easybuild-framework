@@ -69,7 +69,7 @@ try:
         """
         pass
 
-except ImportError as err:
+except ImportError:
     _log.debug("Failed to import gc3libs from GC3Pie."
                " Silently ignoring, this is a real issue only when GC3Pie is used as backend for --job")
 
@@ -168,7 +168,7 @@ class GC3Pie(JobBackend):
         """
         named_args = {
             'jobname': name,  # job name in GC3Pie
-            'name':    name,  # job name in EasyBuild
+            'name': name,  # job name in EasyBuild
         }
 
         # environment

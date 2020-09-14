@@ -40,6 +40,7 @@ from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain, map_
 from easybuild.framework.easyconfig.tweak import get_matching_easyconfig_candidates, map_toolchain_hierarchies
 from easybuild.framework.easyconfig.tweak import find_potential_version_mappings
 from easybuild.framework.easyconfig.tweak import map_easyconfig_to_target_tc_hierarchy
+from easybuild.framework.easyconfig.tweak import list_deps_versionsuffixes
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import change_dir, write_file
@@ -377,6 +378,40 @@ class TweakTest(EnhancedTestCase):
             'path': os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
             'toolchain': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
             'version': '1.6',
+            'versionsuffix': '',
+        }
+        self.assertEqual(potential_versions[0], expected)
+
+        # Test that we can override respecting the versionsuffix
+
+        # Create toolchain mapping for OpenBLAS
+        gcc_4_tc = {'name': 'GCC', 'version': '4.8.2'}
+        gcc_6_tc = {'name': 'GCC', 'version': '6.4.0-2.28'}
+        tc_mapping = map_toolchain_hierarchies(gcc_4_tc, gcc_6_tc, self.modtool)
+        # Create a dep with the necessary params (including versionsuffix)
+        openblas_dep = {
+            'toolchain': {'version': '4.8.2', 'name': 'GCC'},
+            'name': 'OpenBLAS',
+            'system': False,
+            'versionsuffix': '-LAPACK-3.4.2',
+            'version': '0.2.8'
+        }
+
+        self.mock_stderr(True)
+        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping)
+        errtxt = self.get_stderr()
+        warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
+                       "versionsuffix to '-LAPACK-3.4.2'"
+        self.mock_stderr(False)
+        self.assertTrue(errtxt.startswith(warning_stub))
+        self.assertEqual(len(potential_versions), 0)
+        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffixes=True)
+        self.assertEqual(len(potential_versions), 1)
+        expected = {
+            'path': os.path.join(test_easyconfigs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
+            'toolchain': {'version': '6.4.0-2.28', 'name': 'GCC'},
+            'version': '0.2.20',
+            'versionsuffix': '',
         }
         self.assertEqual(potential_versions[0], expected)
 
@@ -471,8 +506,7 @@ class TweakTest(EnhancedTestCase):
                                                              update_build_specs={'version': new_version},
                                                              update_dep_versions=False)
         tweaked_ec = process_easyconfig(tweaked_spec)[0]
-        tweaked_dict = tweaked_ec['ec'].asdict()
-        extensions = tweaked_dict['exts_list']
+        extensions = tweaked_ec['ec']['exts_list']
         # check one extension with the same name exists and that the version has been updated
         hit_extension = 0
         for extension in extensions:
@@ -482,6 +516,25 @@ class TweakTest(EnhancedTestCase):
                 self.assertFalse('checksums' in extension[2])
                 hit_extension += 1
         self.assertEqual(hit_extension, 1, "Should only have updated one extension")
+
+    def test_list_deps_versionsuffixes(self):
+        """Test listing of dependencies' version suffixes"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        get_toolchain_hierarchy.clear()
+
+        ec_spec = os.path.join(test_easyconfigs, 'g', 'golf', 'golf-2018a.eb')
+        self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-serial'])
+        ec_spec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        self.assertEqual(list_deps_versionsuffixes(ec_spec), [])
+        ec_spec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
+
 
 def suite():
     """ return all the tests in this file """

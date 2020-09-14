@@ -87,9 +87,12 @@ DEFAULT_CONFIG = {
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
+    'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
+    'enhance_sanity_check': [False, "Indicate that additional sanity check commands & paths should enhance "
+                             "the existin sanity check, not replace it", BUILD],
     'fix_perl_shebang_for': [None, "List of files for which Perl shebang should be fixed "
                                    "to '#!/usr/bin/env perl' (glob patterns supported)", BUILD],
     'fix_python_shebang_for': [None, "List of files for which Python shebang should be fixed "
@@ -152,6 +155,7 @@ DEFAULT_CONFIG = {
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
+    'moddependpaths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
     'group': [None, "Name of the user group for which the software should be available; "

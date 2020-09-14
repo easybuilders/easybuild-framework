@@ -66,15 +66,14 @@ and the methods will return None.
 """
 
 import errno
+import fcntl
 import os
+import select
 import subprocess
 import time
 
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
-
-import select  #@UnresolvedImport
-import fcntl  #@UnresolvedImport
 
 
 class Popen(subprocess.Popen):
@@ -117,7 +116,7 @@ class Popen(subprocess.Popen):
         try:
             written = os.write(self.stdin.fileno(), inp.encode())
         except OSError as why:
-            if why[0] == errno.EPIPE: #broken pipe
+            if why[0] == errno.EPIPE:  # broken pipe
                 return self._close('stdin')
             raise
 
@@ -147,7 +146,9 @@ class Popen(subprocess.Popen):
             if not conn.closed:
                 fcntl.fcntl(conn, fcntl.F_SETFL, flags)
 
+
 message = "Other end disconnected!"
+
 
 def recv_some(p, t=.2, e=1, tr=5, stderr=0):
     if tr < 1:
@@ -170,6 +171,7 @@ def recv_some(p, t=.2, e=1, tr=5, stderr=0):
         else:
             time.sleep(max((x - time.time()) / tr, 0))
     return b''.join(y)
+
 
 def send_all(p, data):
     while len(data):
