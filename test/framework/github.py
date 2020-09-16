@@ -142,17 +142,25 @@ class GithubTest(EnhancedTestCase):
         build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
         init_config(build_options=build_options)
 
+        # PR #11262 includes easyconfigs that use 'dummy' toolchain,
+        # so we need to allow triggering deprecated behaviour
+        self.allow_deprecated_behaviour()
+
         self.mock_stdout(True)
+        self.mock_stderr(True)
         gh.add_pr_labels(11262)
         stdout = self.get_stdout()
         self.mock_stdout(False)
-        self.assertTrue("Could not determine any missing labels for PR 11262" in stdout)
+        self.mock_stderr(False)
+        self.assertTrue("Could not determine any missing labels for PR #11262" in stdout)
 
         self.mock_stdout(True)
-        gh.add_pr_labels(11250)
+        self.mock_stderr(True)
+        gh.add_pr_labels(8006)  # closed, unmerged, unlabeled PR
         stdout = self.get_stdout()
         self.mock_stdout(False)
-        self.assertTrue("PR #11250 should be labelled 'update'" in stdout)
+        self.mock_stderr(False)
+        self.assertTrue("PR #8006 should be labelled 'update'" in stdout)
 
     def test_fetch_pr_data(self):
         """Test fetch_pr_data function."""
