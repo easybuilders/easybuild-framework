@@ -839,8 +839,7 @@ class GithubTest(EnhancedTestCase):
             'github_user': GITHUB_TEST_ACCOUNT,
         })
 
-        test_report = os.path.join(self.test_prefix, 'test_report.txt')
-        write_file(test_report, "This is a test report!")
+        test_report = {'full': "This is a test report!"}
 
         init_session_state = session_state()
 

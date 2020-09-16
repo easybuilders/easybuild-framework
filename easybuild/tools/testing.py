@@ -160,7 +160,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
         "",
     ])
 
-    build_overview = []
+    build_overview = ["#### Overview of tested easyconfigs (in order)"]
     for (ec, ec_res) in ecs_with_res:
         test_log = ''
         if ec_res.get('success', False):
@@ -189,7 +189,8 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 test_log = "(partial log available at %s)" % gist_url
 
         build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
-    test_report.extend(["#### Overview of tested easyconfigs (in order)"] + build_overview + [""])
+    build_overview.append("")
+    test_report.extend(build_overview)
 
     time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
     start_time = strftime(time_format, init_session_state['time'])
@@ -232,7 +233,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
 
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
-    return '\n'.join(test_report)
+    return {'full': '\n'.join(test_report), 'overview': '\n'.join(build_overview)}
 
 
 def upload_test_report_as_gist(test_report, descr=None, fn=None):
@@ -262,7 +263,7 @@ def post_pr_test_report(pr_nr, repo, test_report, msg, init_session_state, succe
     descr = "EasyBuild test report for %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr_nr)
     timestamp = strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
     fn = 'easybuild_test_report_%s_%s_pr%s_%s.md' % (pr_nr, pr_target_account, pr_target_repo, timestamp)
-    gist_url = upload_test_report_as_gist(test_report, descr=descr, fn=fn)
+    gist_url = upload_test_report_as_gist(test_report['full'], descr=descr, fn=fn)
 
     # post comment to report test result
     system_info = init_session_state['system_info']
@@ -282,12 +283,17 @@ def post_pr_test_report(pr_nr, repo, test_report, msg, init_session_state, succe
     comment_lines = ["Test report by @%s" % github_user]
 
     easyblocks_pr_nr = build_option('include_easyblocks_from_pr')
-    if easyblocks_pr_nr and repo == 'easyconfigs':
-        comment_lines.append("Using easyblocks from https://github.com/%s/%s/pull/%s" % (
-            pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr))
+    if easyblocks_pr_nr:
+        if repo == 'easyconfigs':
+            comment_lines.append("Using easyblocks from https://github.com/%s/%s/pull/%s" % (
+                pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr))
+        else:
+            comment_lines.append(test_report['overview'])
+
+    if repo == 'easyconfigs':
+        comment_lines.append(('**FAILED**', '**SUCCESS**')[success])
 
     comment_lines.extend([
-        ('**FAILED**', '**SUCCESS**')[success],
         msg,
         short_system_info,
         "See %s for a full test report." % gist_url,
@@ -325,15 +331,15 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
             txt = post_pr_test_report(easyblocks_pr_nr, 'easyblocks', test_report, msg, init_session_state, success)
         else:
             # only upload test report as a gist
-            gist_url = upload_test_report_as_gist(test_report)
+            gist_url = upload_test_report_as_gist(test_report['full'])
             txt = "Test report uploaded to %s" % gist_url
     else:
         test_report = create_test_report(msg, ecs_with_res, init_session_state)
         txt = None
-    _log.debug("Test report: %s" % test_report)
+    _log.debug("Test report: %s" % test_report['full'])
 
     if dump_path is not None:
-        write_file(dump_path, test_report)
+        write_file(dump_path, test_report['full'])
         _log.info("Test report dumped to %s" % dump_path)
 
     return txt
