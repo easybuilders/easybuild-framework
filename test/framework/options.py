@@ -695,6 +695,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'EasyBlock',
                 r'\|-- bar',
                 r'\|-- ConfigureMake',
+                r'\|   \|-- MakeCp',
+                r'\|-- EB_EasyBuildMeta',
                 r'\|-- EB_FFTW',
                 r'\|-- EB_foo',
                 r'\|   \|-- EB_foofoo',
