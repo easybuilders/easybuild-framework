@@ -166,6 +166,53 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(tc.is_system_toolchain())
             self.assertTrue(dummy_depr_warning in stderr, "Found '%s' in: %s" % (dummy_depr_warning, stderr))
 
+    def test_toolchain_prepare_sysroot(self):
+        """Test build environment setup done by Toolchain.prepare in case --sysroot is specified."""
+
+        sysroot = os.path.join(self.test_prefix, 'test', 'alternate', 'sysroot')
+        sysroot_pkgconfig = os.path.join(sysroot, 'usr', 'lib', 'pkgconfig')
+        mkdir(sysroot_pkgconfig, parents=True)
+        init_config(build_options={'sysroot': sysroot})
+
+        # clean environment
+        self.unset_compiler_env_vars()
+
+        if 'PKG_CONFIG_PATH' in os.environ:
+            del os.environ['PKG_CONFIG_PATH']
+
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), None)
+
+        tc = self.get_toolchain('system', version='system')
+        tc.prepare()
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), sysroot_pkgconfig)
+
+        # usr/lib64/pkgconfig is also picked up
+        sysroot = sysroot.replace('usr/lib/pkgconfig', 'usr/lib64/pkgconfig')
+        mkdir(sysroot_pkgconfig, parents=True)
+        init_config(build_options={'sysroot': sysroot})
+
+        del os.environ['PKG_CONFIG_PATH']
+        tc.prepare()
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), sysroot_pkgconfig)
+
+        # existing $PKG_CONFIG_PATH value is retained
+        test_pkg_config_path = ':'.join([self.test_prefix, '/foo/bar'])
+        os.environ['PKG_CONFIG_PATH'] = test_pkg_config_path
+        tc.prepare()
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path + ':' + sysroot_pkgconfig)
+
+        # no duplicate paths are added
+        test_pkg_config_path = ':'.join([self.test_prefix, sysroot_pkgconfig, '/foo/bar'])
+        os.environ['PKG_CONFIG_PATH'] = test_pkg_config_path
+        tc.prepare()
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path)
+
+        # if no usr/lib*/pkgconfig subdirectory is present in sysroot, then $PKG_CONFIG_PATH is not touched
+        del os.environ['PKG_CONFIG_PATH']
+        init_config(build_options={'sysroot': self.test_prefix})
+        tc.prepare()
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), None)
+
     def unset_compiler_env_vars(self):
         """Unset environment variables before checking whether they're set by the toolchain prep mechanism."""
 
