@@ -196,13 +196,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('PKG_CONFIG_PATH'), sysroot_pkgconfig)
 
         # existing $PKG_CONFIG_PATH value is retained
-        test_pkg_config_path = ':'.join([self.test_prefix, '/foo/bar'])
+        test_pkg_config_path = os.pathsep.join([self.test_prefix, '/foo/bar'])
         os.environ['PKG_CONFIG_PATH'] = test_pkg_config_path
         tc.prepare()
-        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path + ':' + sysroot_pkgconfig)
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path + os.pathsep + sysroot_pkgconfig)
 
         # no duplicate paths are added
-        test_pkg_config_path = ':'.join([self.test_prefix, sysroot_pkgconfig, '/foo/bar'])
+        test_pkg_config_path = os.pathsep.join([self.test_prefix, sysroot_pkgconfig, '/foo/bar'])
         os.environ['PKG_CONFIG_PATH'] = test_pkg_config_path
         tc.prepare()
         self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path)
