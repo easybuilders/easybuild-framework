@@ -953,7 +953,9 @@ class Toolchain(object):
 
         # always include filter for 'stubs' library directory,
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
-        rpath_filter_dirs.append('.*/lib(64)?/stubs/?')
+        lib_stubs_pattern = '.*/lib(64)?/stubs/?'
+        if lib_stubs_pattern not in rpath_filter_dirs:
+            rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
         wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
