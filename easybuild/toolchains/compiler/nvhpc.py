@@ -26,7 +26,8 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for NVIDIA HPC SDK ('NVHPC') compilers (nvc, nvc++, nvfortran) as toolchain compilers. NVHPC is the successor of the PGI compilers, on which this file is based upon.
+Support for NVIDIA HPC SDK ('NVHPC') compilers (nvc, nvc++, nvfortran) as toolchain compilers.
+NVHPC is the successor of the PGI compilers, on which this file is based upon.
 
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
@@ -34,7 +35,6 @@ Support for NVIDIA HPC SDK ('NVHPC') compilers (nvc, nvc++, nvfortran) as toolch
 """
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
