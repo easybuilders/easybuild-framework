@@ -41,7 +41,7 @@ from easybuild.tools.toolchain.compiler import Compiler
 TC_CONSTANT_NVHPC = "NVHPC"
 
 
-class Nvhpc(Compiler):
+class NVHPC(Compiler):
     """NVHPC compiler class
     """
 
@@ -83,7 +83,6 @@ class Nvhpc(Compiler):
     }
 
     COMPILER_CC = 'nvc'
-    # C++ compiler command is version-dependent, see below
     COMPILER_CXX = 'nvc++'
 
     COMPILER_F77 = 'nvfortran'
@@ -99,8 +98,8 @@ class Nvhpc(Compiler):
         """Set -tp=x64 if optarch is set to False."""
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
-        super(Nvhpc, self)._set_compiler_flags()
+        super(NVHPC, self)._set_compiler_flags()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        super(Nvhpc, self)._set_compiler_vars()
+        super(NVHPC, self)._set_compiler_vars()
