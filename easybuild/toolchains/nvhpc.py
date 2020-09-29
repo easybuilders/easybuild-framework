@@ -44,4 +44,3 @@ class NvhpcToolchain(Nvhpc):
     # in particular in a hierarchical module naming scheme
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
     OPTIONAL = False
-

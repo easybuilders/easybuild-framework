@@ -33,8 +33,6 @@ Support for NVIDIA HPC SDK ('NVHPC') compilers (nvc, nvc++, nvfortran) as toolch
 :author: Andreas Herten (Forschungszentrum Juelich GmbH)
 """
 
-from distutils.version import LooseVersion
-
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
@@ -62,10 +60,10 @@ class Nvhpc(Compiler):
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
-        'optarch': '', # PGI by default generates code for the arch it is running on!
+        'optarch': '',  # PGI by default generates code for the arch it is running on!
         'openmp': 'mp',
         'ieee': 'Kieee',
-        'strict': ['Mnoflushz','Kieee'],
+        'strict': ['Mnoflushz', 'Kieee'],
         'precise': ['Mnoflushz'],
         'defaultprec': ['Mflushz'],
         'loose': ['Mfprelaxed'],
@@ -94,7 +92,7 @@ class Nvhpc(Compiler):
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
-        'dynamic':'-Bdynamic',
+        'dynamic': '-Bdynamic',
     }
 
     def _set_compiler_flags(self):
@@ -105,7 +103,4 @@ class Nvhpc(Compiler):
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        nvhpc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
-
         super(Nvhpc, self)._set_compiler_vars()
-
