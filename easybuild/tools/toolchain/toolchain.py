@@ -821,6 +821,9 @@ class Toolchain(object):
         :param rpath_include_dirs: extra directories to include in RPATH
         """
 
+        # take into account --sysroot configuration setting
+        self.handle_sysroot()
+
         # do all dependencies have a toolchain version?
         if deps is None:
             deps = []
@@ -1024,6 +1027,28 @@ class Toolchain(object):
                 self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
+
+    def handle_sysroot(self):
+        """
+        Extra stuff to be done when alternate system root is specified via --sysroot EasyBuild configuration option.
+
+        * Update $PKG_CONFIG_PATH to include sysroot location to pkg-config files (*.pc).
+        """
+        sysroot = build_option('sysroot')
+        if sysroot:
+            # update $PKG_CONFIG_PATH to include sysroot location to pkg-config files (*.pc)
+            sysroot_pc_paths = [os.path.join(sysroot, 'usr', libdir, 'pkgconfig') for libdir in ['lib', 'lib64']]
+
+            pkg_config_path = [p for p in os.getenv('PKG_CONFIG_PATH', '').split(os.pathsep) if p]
+
+            for sysroot_pc_path in sysroot_pc_paths:
+                if os.path.exists(sysroot_pc_path):
+                    # avoid adding duplicate paths
+                    if not any(os.path.exists(x) and os.path.samefile(x, sysroot_pc_path) for x in pkg_config_path):
+                        pkg_config_path.append(sysroot_pc_path)
+
+            if pkg_config_path:
+                setvar('PKG_CONFIG_PATH', os.pathsep.join(pkg_config_path))
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
