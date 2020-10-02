@@ -249,15 +249,12 @@ def upload_test_report_as_gist(test_report, descr=None, fn=None):
     return gist_url
 
 
-def post_pr_test_report(pr_nr, repo, test_report, msg, init_session_state, success):
+def post_pr_test_report(pr_nr, repo_type, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs or easyblocks PR."""
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
-    if repo == 'easyconfigs':
-        pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
-    else:
-        pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYBLOCKS_REPO
+    pr_target_repo = build_option('pr_target_repo') or repo_type
 
     # create gist with test report
     descr = "EasyBuild test report for %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr_nr)
@@ -284,13 +281,15 @@ def post_pr_test_report(pr_nr, repo, test_report, msg, init_session_state, succe
 
     easyblocks_pr_nr = build_option('include_easyblocks_from_pr')
     if easyblocks_pr_nr:
-        if repo == 'easyconfigs':
+        if repo_type == GITHUB_EASYCONFIGS_REPO:
             comment_lines.append("Using easyblocks from https://github.com/%s/%s/pull/%s" % (
                 pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr))
-        else:
+        elif repo_type == GITHUB_EASYBLOCKS_REPO:
             comment_lines.append(test_report['overview'])
+        else:
+            raise EasyBuildError("Don't know how to submit test reports to repo %s.", repo_type)
 
-    if repo == 'easyconfigs':
+    if repo_type == GITHUB_EASYCONFIGS_REPO:
         comment_lines.append(('**FAILED**', '**SUCCESS**')[success])
 
     comment_lines.extend([
@@ -302,7 +301,7 @@ def post_pr_test_report(pr_nr, repo, test_report, msg, init_session_state, succe
 
     post_comment_in_issue(pr_nr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
-    msg = "Test report uploaded to %s and mentioned in a comment in %s PR#%s" % (gist_url, repo, pr_nr)
+    msg = "Test report uploaded to %s and mentioned in a comment in %s PR#%s" % (gist_url, pr_target_repo, pr_nr)
     return msg
 
 
@@ -325,10 +324,10 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
         test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
         if pr_nr:
             # upload test report to gist and issue a comment in the PR to notify
-            txt = post_pr_test_report(pr_nr, 'easyconfigs', test_report, msg, init_session_state, success)
+            txt = post_pr_test_report(pr_nr, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state, success)
         elif easyblocks_pr_nr:
             # upload test report to gist and issue a comment in the easyblocks PR to notify
-            txt = post_pr_test_report(easyblocks_pr_nr, 'easyblocks', test_report, msg, init_session_state, success)
+            txt = post_pr_test_report(easyblocks_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg, init_session_state, success)
         else:
             # only upload test report as a gist
             gist_url = upload_test_report_as_gist(test_report['full'])

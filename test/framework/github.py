@@ -845,7 +845,7 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        post_pr_test_report('1234', 'easyconfigs', test_report, "OK!", init_session_state, True)
+        post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
         stderr, stdout = self.get_stderr(), self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -862,7 +862,7 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        post_pr_test_report('1234', 'easyblocks', test_report, "OK!", init_session_state, True)
+        post_pr_test_report('1234', gh.GITHUB_EASYBLOCKS_REPO, test_report, "OK!", init_session_state, True)
         stderr, stdout = self.get_stderr(), self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
