@@ -316,7 +316,7 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     """
     dump_path = build_option('dump_test_report')
     pr_nr = build_option('from_pr')
-    easyblocks_pr_nr = build_option('include_easyblocks_from_pr')
+    eb_pr_nr = build_option('include_easyblocks_from_pr')
     upload = build_option('upload_test_report')
 
     if upload:
@@ -325,9 +325,9 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
         if pr_nr:
             # upload test report to gist and issue a comment in the PR to notify
             txt = post_pr_test_report(pr_nr, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state, success)
-        elif easyblocks_pr_nr:
+        elif eb_pr_nr:
             # upload test report to gist and issue a comment in the easyblocks PR to notify
-            txt = post_pr_test_report(easyblocks_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg, init_session_state, success)
+            txt = post_pr_test_report(eb_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg, init_session_state, success)
         else:
             # only upload test report as a gist
             gist_url = upload_test_report_as_gist(test_report['full'])
