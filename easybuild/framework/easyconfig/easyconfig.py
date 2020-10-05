@@ -1267,7 +1267,7 @@ class EasyConfig(object):
             (prefix_var_name % name, version_var_name % name)
             for name in [
                 soft_name_in_mod_name,
-                convert_name(mod_name.replace("-", "_"), upper=True),
+                convert_name(mod_name.split('/')[0].replace("-", "_"), upper=True),
             ]
             for prefix_var_name, version_var_name in var_name_pairs
         ]
