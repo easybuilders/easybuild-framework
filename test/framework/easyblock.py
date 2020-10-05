@@ -288,7 +288,7 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
             home = r'os.getenv\("HOME"\)'
-            pj_usermodsdir = 'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
+            pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
                 r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
@@ -1061,7 +1061,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # [==[ or ]==] in description is fatal
         if get_module_syntax() == 'Lua':
-            error_pattern = "Found unwanted '\[==\[' or '\]==\]' in: .*"
+            error_pattern = r"Found unwanted '\[==\[' or '\]==\]' in: .*"
             for descr in ["test [==[", "]==] foo"]:
                 ectxt = read_file(self.eb_file)
                 write_file(self.eb_file, re.sub('description.*', 'description = "%s"' % descr, ectxt))
@@ -1263,7 +1263,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # old format for specifying source with custom extract command is deprecated
         eb.src = []
-        error_msg = "DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
+        error_msg = r"DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
                               [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
 
@@ -1856,7 +1856,7 @@ class EasyBlockTest(EnhancedTestCase):
         # single SHA256 checksum per source/patch: OK
         eb.cfg['checksums'] = [
             '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # toy-0.0.tar.gz
-            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
             '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt]
         ]
         # no checksum issues
@@ -1865,7 +1865,7 @@ class EasyBlockTest(EnhancedTestCase):
         # SHA256 checksum with type specifier: OK
         eb.cfg['checksums'] = [
             ('sha256', '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'),  # toy-0.0.tar.gz
-            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
             ('sha256', '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'),  # toy-extra.txt]
         ]
         # no checksum issues
@@ -1878,7 +1878,7 @@ class EasyBlockTest(EnhancedTestCase):
                 'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
                 '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
             ),
-            '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5',  # toy-*.patch
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
             '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
         ]
         # no checksum issues

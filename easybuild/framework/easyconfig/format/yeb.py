@@ -53,7 +53,8 @@ YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 def yaml_join(loader, node):
     """
     defines custom YAML join function.
-    see http://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
+    see http://stackoverflow.com/questions/5484016/
+        how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
     :param loader: the YAML Loader
     :param node: the YAML (sequence) node
     """
@@ -115,7 +116,7 @@ class FormatYeb(EasyConfigFormat):
         yaml_header = []
         for i, line in enumerate(lines):
             if line.startswith(YAML_DIR):
-                if lines[i+1].startswith(YAML_SEP):
+                if lines[i + 1].startswith(YAML_SEP):
                     yaml_header.extend([lines.pop(i), lines.pop(i)])
 
         injected_constants = ['__CONSTANTS__: ']

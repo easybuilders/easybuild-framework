@@ -105,8 +105,8 @@ class IntelFFTW(Fftw):
             # See https://software.intel.com/en-us/articles/intel-mkl-main-libraries-contain-fftw3-interfaces
             # The cluster interface libs (libfftw3x_cdft*) can be omitted if the toolchain does not provide MPI-FFTW
             # interfaces.
-            fftw_libs = [l for l in fftw_libs if l not in [interface_lib, cluster_interface_lib]]
-            fftw_mt_libs = [l for l in fftw_mt_libs if l not in [interface_lib, cluster_interface_lib]]
+            fftw_libs = [lib for lib in fftw_libs if lib not in [interface_lib, cluster_interface_lib]]
+            fftw_mt_libs = [lib for lib in fftw_mt_libs if lib not in [interface_lib, cluster_interface_lib]]
 
         # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
         check_fftw_libs = [lib for lib in fftw_libs if lib not in ['dl', 'gfortran']]

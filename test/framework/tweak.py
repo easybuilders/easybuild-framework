@@ -535,6 +535,7 @@ class TweakTest(EnhancedTestCase):
         ec_spec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
 
+
 def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(TweakTest, sys.argv[1:])

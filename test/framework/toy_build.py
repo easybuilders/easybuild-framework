@@ -257,8 +257,8 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.copy2(os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb'), ec_file)
 
         modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
-        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0\n\s*"'
-        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
+        modloadmsg_regex_tcl = r'THANKS.*\n\s*I AM toy v0.0\n\s*"'
+        modloadmsg_regex_lua = r'\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
 
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
@@ -385,14 +385,14 @@ class ToyBuildTest(EnhancedTestCase):
         sys.path.append(tmpdir)
 
         args = [
-                'toy-0.0-multiple.eb',
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-               ]
+            'toy-0.0-multiple.eb',
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+        ]
         outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         for toy_prefix, toy_version, toy_suffix in [
@@ -727,8 +727,8 @@ class ToyBuildTest(EnhancedTestCase):
                     regex = re.compile(pattern, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
                 else:
-                    pattern = "Can't generate robust check in Lua modules for users belonging to group %s. "
-                    pattern += "Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
+                    pattern = r"Can't generate robust check in Lua modules for users belonging to group %s. "
+                    pattern += r"Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
                     regex = re.compile(pattern % group_name, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
             else:
@@ -835,7 +835,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
+            self.assertTrue(re.search(r'^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -850,7 +850,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertFalse(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
+            self.assertFalse(re.search(r'^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -1038,7 +1038,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
-        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
@@ -1289,7 +1289,7 @@ class ToyBuildTest(EnhancedTestCase):
         modloadmsg_lua = [
             r'io.stderr:write\(\[==\[THANKS FOR LOADING ME',
             r'I AM toy v0.0',
-            '\]==\]\)',
+            r'\]==\]\)',
         ]
 
         help_txt = '\n'.join([
@@ -1849,7 +1849,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec1 = os.path.join(self.test_prefix, 'toy1.eb')
         ec1_txt = '\n'.join([
             toy_ec_txt,
-            "exts_list = [('barbar', '0.0')]",
+            "exts_list = [('barbar', '0.0', {'start_dir': 'src'})]",
             "",
         ])
         write_file(ec1, ec1_txt)
@@ -1969,7 +1969,7 @@ class ToyBuildTest(EnhancedTestCase):
         ectxt = read_file(ec_file)
 
         # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
         postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
@@ -1979,54 +1979,58 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails if lib64 fallback in sanity check is disabled
         error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
         # all is fine is lib64 fallback check is enabled (which it is by default)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
         # also check with 'lib' in sanity check dirs (special case)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
-        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub(r"\s*'dirs'.*", "'dirs': ['lib'],", ectxt)
         write_file(test_ec, ectxt)
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # also check other way around (lib64 -> lib)
         ectxt = read_file(ec_file)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
         write_file(test_ec, ectxt)
 
         # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
         error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # also check with 'lib64' in sanity check dirs (special case)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy'],", ectxt)
-        ectxt = re.sub("\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy'],", ectxt)
+        ectxt = re.sub(r"\s*'dirs'.*", "'dirs': ['lib64'],", ectxt)
         write_file(test_ec, ectxt)
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib64' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                              raise_error=True, verbose=False)
 
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # check whether fallback works for files that's more than 1 subdir deep
         ectxt = read_file(ec_file)
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
+        ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
         postinstallcmd = "mkdir -p %(installdir)s/lib64/test && "
         postinstallcmd += "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/test/libtoy.a"
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
         write_file(test_ec, ectxt)
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
     def test_toy_build_enhanced_sanity_check(self):
         """Test enhancing of sanity check."""
@@ -2485,7 +2489,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         # also inject (minimal) list of extensions to test iterative installation of extensions
-        test_ec_txt += "\nexts_list = [('barbar', '0.0')]"
+        test_ec_txt += "\nexts_list = [('barbar', '0.0', {'start_dir': 'src'})]"
 
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"
         write_file(test_ec, test_ec_txt)
@@ -3050,6 +3054,35 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+    def test_test_toy_build_lib64_symlink(self):
+        """Check whether lib64 symlink to lib subdirectory is created."""
+        # this is done to ensure that <installdir>/lib64 is considered before /lib64 by GCC linker,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
+
+        # by default, lib64 symlink is created
+        self.test_toy_build()
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        lib_path = os.path.join(toy_installdir, 'lib')
+        lib64_path = os.path.join(toy_installdir, 'lib64')
+
+        self.assertTrue(os.path.exists(lib_path))
+        self.assertTrue(os.path.exists(lib64_path))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertFalse(os.path.islink(lib_path))
+        self.assertTrue(os.path.islink(lib64_path))
+        self.assertTrue(os.path.samefile(lib_path, lib64_path))
+
+        # cleanup and try again with --disable-lib64-lib-symlink
+        remove_dir(self.test_installpath)
+        self.test_toy_build(extra_args=['--disable-lib64-lib-symlink'])
+
+        self.assertTrue(os.path.exists(lib_path))
+        self.assertFalse(os.path.exists(lib64_path))
+        self.assertFalse('lib64' in os.listdir(toy_installdir))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertFalse(os.path.islink(lib_path))
 
 
 def suite():

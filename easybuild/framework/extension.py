@@ -85,6 +85,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
+
     def __init__(self, mself, ext, extra_params=None):
         """
         Constructor for Extension class
