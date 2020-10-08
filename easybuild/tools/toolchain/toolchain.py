@@ -57,7 +57,7 @@ import sys
 import tempfile
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, find_eb_script, read_file, which, write_file
@@ -238,6 +238,59 @@ class Toolchain(object):
         """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
         return is_system_toolchain(self.name)
 
+    def set_minimal_build_env(self):
+        """Set up a minimal build environment, by setting (only) the $CC and $CXX environment variables."""
+
+        # this is only relevant when using a system toolchain,
+        # for proper toolchains these variables will get set via the call to set_variables()
+
+        minimal_build_env_raw = build_option('minimal_build_env')
+
+        minimal_build_env = {}
+        for key_val in minimal_build_env_raw.split(','):
+            parts = key_val.split(':')
+            if len(parts) == 2:
+                key, val = parts
+                minimal_build_env[key] = val
+            else:
+                raise EasyBuildError("Incorrect mapping in --minimal-build-env value: '%s'", key_val)
+
+        env_vars = {}
+        for key, val in minimal_build_env.items():
+            # for key environment variables like $CC and $CXX we are extra careful,
+            # by making sure the specified command is actually available
+            if key in ['CC', 'CXX']:
+                warning_msg = None
+                if os.path.isabs(val):
+                    if os.path.exists(val):
+                        self.log.info("Specified path for $%s exists: %s", key, val)
+                        env_vars.update({key: val})
+                    else:
+                        warning_msg = "Specified path '%s' does not exist"
+                else:
+                    cmd_path = which(val)
+                    if cmd_path:
+                        self.log.info("Found compiler command %s at %s, so setting $%s in minimal build environment",
+                                      val, cmd_path, key)
+                        env_vars.update({key: val})
+                    else:
+                        warning_msg = "'%s' command not found in $PATH" % val
+
+                if warning_msg:
+                    print_warning(warning_msg + ", not setting $%s in minimal build environment" % key, log=self.log)
+            else:
+                # no checking for environment variables other than $CC or $CXX
+                env_vars.update({key: val})
+
+        # set specified environment variables, but print a warning
+        # if we're redefining anything that was already set to a *different* value
+        for key, new_value in env_vars.items():
+            curr_value = os.getenv(key)
+            if curr_value and curr_value != new_value:
+                print_warning("$%s was defined as '%s', but is now set to '%s' in minimal build environment",
+                              key, curr_value, new_value)
+            setvar(key, new_value)
+
     def base_init(self):
         """Initialise missing class attributes (log, options, variables)."""
         if not hasattr(self, 'log'):
@@ -331,8 +384,7 @@ class Toolchain(object):
         if self.vars is None:
             self.generate_vars()
 
-        var_names = self.variables.keys()
-        var_names.sort()
+        var_names = sorted(self.variables.keys())
         res = []
         for v in var_names:
             res.append("%s=%s" % (v, self.variables[v]))
@@ -661,8 +713,8 @@ class Toolchain(object):
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
         if self.is_system_toolchain():
-                self.log.info("Loading dependencies using system toolchain...")
-                self._load_dependencies_modules(silent=silent)
+            self.log.info("Loading dependencies using system toolchain...")
+            self._load_dependencies_modules(silent=silent)
         else:
             # load the toolchain and dependencies modules
             self.log.debug("Loading toolchain module and dependencies...")
@@ -675,7 +727,7 @@ class Toolchain(object):
             dry_run_msg("\nFull list of loaded modules:", silent=silent)
             if loaded_mods:
                 for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
-                    dry_run_msg("  %d) %s" % (i+1, mod_name), silent=silent)
+                    dry_run_msg("  %d) %s" % (i + 1, mod_name), silent=silent)
             else:
                 dry_run_msg("  (none)", silent=silent)
             dry_run_msg('', silent=silent)
@@ -781,8 +833,14 @@ class Toolchain(object):
         if loadmod:
             self._load_modules(silent=silent)
 
-        if not self.is_system_toolchain():
+        if self.is_system_toolchain():
 
+            # define minimal build environment when using system toolchain;
+            # this is mostly done to try controlling which compiler commands are being used,
+            # cfr. https://github.com/easybuilders/easybuild-framework/issues/3398
+            self.set_minimal_build_env()
+
+        else:
             trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
 
             if not self.dry_run:
@@ -825,8 +883,11 @@ class Toolchain(object):
         c_comps, fortran_comps = self.compilers()
 
         if cache_tool == CCACHE:
-            # recent versions of ccache (>=3.3) also support caching of Fortran compilations
-            comps = c_comps + fortran_comps
+            # some version of ccache support caching of Fortran compilations,
+            # but it doesn't work with Fortran modules (https://github.com/ccache/ccache/issues/342),
+            # and support was dropped in recent ccache versions;
+            # as a result, we only use ccache for C/C++ compilers
+            comps = c_comps
         elif cache_tool == F90CACHE:
             comps = fortran_comps
         else:
@@ -838,6 +899,8 @@ class Toolchain(object):
             if comp in self.cached_compilers:
                 self.log.debug("Not caching compiler %s, it's already being cached", comp)
                 comps.remove(comp)
+
+        self.log.info("Using %s for these compiler commands: %s", cache_tool, ', '.join(comps))
 
         return comps
 
@@ -954,10 +1017,11 @@ class Toolchain(object):
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
-                self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
 
                 # prepend location to this wrapper to $PATH
                 setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+
+                self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 

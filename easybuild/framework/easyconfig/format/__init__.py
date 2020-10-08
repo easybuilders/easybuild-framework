@@ -30,5 +30,5 @@ The easybuild.framework.easyconfig.format package provides the EasyConfig format
 
 # we need to make sure all known formats are imported,
 # such that get_format_version_classes() is able to find all subclasses of EasyConfigFormat
-from easybuild.framework.easyconfig.format.one import FormatOneZero
-from easybuild.framework.easyconfig.format.two import FormatTwoZero
+from easybuild.framework.easyconfig.format.one import FormatOneZero  # noqa
+from easybuild.framework.easyconfig.format.two import FormatTwoZero  # noqa

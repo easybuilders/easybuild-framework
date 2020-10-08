@@ -68,7 +68,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     :param output_dir: output directory
     :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
-    _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
+    _log.info("going to build these easyconfigs in parallel: %s", [os.path.basename(ec['spec']) for ec in easyconfigs])
 
     active_job_backend = job_backend()
     if active_job_backend is None:
@@ -94,7 +94,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
             prepare_easyconfig(easyconfig)
 
         # the new job will only depend on already submitted jobs
-        _log.info("creating job for ec: %s" % easyconfig['ec'])
+        _log.info("creating job for ec: %s" % os.path.basename(easyconfig['spec']))
         new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
 
         # filter out dependencies marked as external modules
@@ -127,10 +127,16 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     curdir = os.getcwd()
 
     # regex pattern for options to ignore (help options can't reach here)
-    ignore_opts = re.compile('^--robot$|^--job$|^--try-.*$')
+    ignore_opts = re.compile('^--robot$|^--job|^--try-.*$')
 
     # generate_cmd_line returns the options in form --longopt=value
     opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
+
+    # add --disable-job to make sure the submitted job doesn't submit a job itself,
+    # resulting in an infinite cycle of jobs;
+    # this can happen if job submission is enabled via a configuration file or via $EASYBUILD_JOB,
+    # cfr. https://github.com/easybuilders/easybuild-framework/issues/3307
+    opts.append('--disable-job')
 
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')

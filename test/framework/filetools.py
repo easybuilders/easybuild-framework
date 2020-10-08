@@ -29,6 +29,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
 import glob
@@ -38,6 +39,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -146,6 +148,28 @@ class FileToolsTest(EnhancedTestCase):
 
         os.chdir(tmpdir)
         self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
+
+    def test_find_glob_pattern(self):
+        """test find_glob_pattern function"""
+        tmpdir = tempfile.mkdtemp()
+        os.mkdir(os.path.join(tmpdir, 'python2.7'))
+        os.mkdir(os.path.join(tmpdir, 'python2.7', 'include'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m'))
+        os.mkdir(os.path.join(tmpdir, 'python3.5m', 'include'))
+
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*')),
+                         os.path.join(tmpdir, 'python2.7'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python2.7*', 'include')),
+                         os.path.join(tmpdir, 'python2.7', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*')),
+                         os.path.join(tmpdir, 'python3.5m'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.5*', 'include')),
+                         os.path.join(tmpdir, 'python3.5m', 'include'))
+        self.assertEqual(ft.find_glob_pattern(os.path.join(tmpdir, 'python3.6*'), False), None)
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python3.6*'))
+        self.assertErrorRegex(EasyBuildError, "Was expecting exactly", ft.find_glob_pattern,
+                              os.path.join(tmpdir, 'python*'))
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -268,7 +292,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
         # checksum of length other than 32/64 yields an error
-        error_pattern = "Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        error_pattern = r"Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
         for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['sha256'] + 'foo']:
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
@@ -584,7 +608,7 @@ class FileToolsTest(EnhancedTestCase):
 
         txt2 = '\n'.join(['test', '123'])
         ft.write_file(fp, txt2, append=True)
-        self.assertEqual(ft.read_file(fp), txt+txt2)
+        self.assertEqual(ft.read_file(fp), txt + txt2)
 
         # test backing up of existing file
         ft.write_file(fp, 'foo', backup=True)
@@ -655,6 +679,16 @@ class FileToolsTest(EnhancedTestCase):
 
         # test use of 'mode' in read_file
         self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
+
+    def test_is_binary(self):
+        """Test is_binary function."""
+
+        for test in ['foo', '', b'foo', b'', "This is just a test", b"This is just a test", b"\xa0"]:
+            self.assertFalse(ft.is_binary(test))
+
+        self.assertTrue(ft.is_binary(b'\00'))
+        self.assertTrue(ft.is_binary(b"File is binary when it includes \00 somewhere"))
+        self.assertTrue(ft.is_binary(ft.read_file('/bin/ls', mode='rb')))
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -894,7 +928,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = "29 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
         expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
@@ -913,9 +947,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "29 + postinstallcmds = "
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         expected = "30 + (1/2) toy-0.0-"
-        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
 
@@ -1281,8 +1315,8 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
         self.assertTrue(eb340_url, res)
         pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern_md5 = pattern + 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
-        pattern_sha256 = pattern + 'easybuild-[0-9rc.]+.tar.gz#sha256=[a-f0-9]{64}$'
+        pattern_md5 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#md5=[a-f0-9]{32}$'
+        pattern_sha256 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#sha256=[a-f0-9]{64}$'
         regex_md5 = re.compile(pattern_md5)
         regex_sha256 = re.compile(pattern_sha256)
         for url in res:
@@ -1291,6 +1325,15 @@ class FileToolsTest(EnhancedTestCase):
 
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
+
+        # check for Python package that has yanked releases,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3301
+        res = ft.pypi_source_urls('ipython')
+        self.assertTrue(isinstance(res, list) and res)
+        prefix = 'https://pypi.python.org/packages'
+        for entry in res:
+            self.assertTrue(entry.startswith(prefix), "'%s' should start with '%s'" % (entry, prefix))
+            self.assertTrue('ipython' in entry, "Pattern 'ipython' should be found in '%s'" % entry)
 
     def test_derive_alt_pypi_url(self):
         """Test derive_alt_pypi_url() function."""
@@ -1315,8 +1358,8 @@ class FileToolsTest(EnhancedTestCase):
     def test_apply_patch(self):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = self.test_prefix
-        path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
+        toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
@@ -1334,6 +1377,72 @@ class FileToolsTest(EnhancedTestCase):
 
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
+        # test copying of files, both to an existing directory and a non-existing location
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        ft.write_file(test_file, '123')
+        target_dir = os.path.join(self.test_prefix, 'target_dir')
+        ft.mkdir(target_dir)
+
+        # copy to existing dir
+        ft.apply_patch(test_file, target_dir, copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'foo.txt')), '123')
+
+        # copy to existing file
+        ft.write_file(os.path.join(target_dir, 'foo.txt'), '')
+        ft.apply_patch(test_file, target_dir, copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'foo.txt')), '123')
+
+        # copy to new file in existing dir
+        ft.apply_patch(test_file, os.path.join(target_dir, 'target.txt'), copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'target.txt')), '123')
+
+        # copy to non-existing subdir
+        ft.apply_patch(test_file, os.path.join(target_dir, 'subdir', 'target.txt'), copy=True)
+        self.assertEqual(ft.read_file(os.path.join(target_dir, 'subdir', 'target.txt')), '123')
+
+        # cleanup and re-extract toy source tarball
+        ft.remove_dir(self.test_prefix)
+        ft.mkdir(self.test_prefix)
+        ft.change_dir(self.test_prefix)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        # test applying of patch with git
+        toy_source_path = os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        ft.apply_patch(toy_patch, self.test_prefix, use_git=True)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        # construct patch that only adds a new file,
+        # this shouldn't break applying a patch with git even when no level is specified
+        new_file_patch = os.path.join(self.test_prefix, 'toy_new_file.patch')
+        new_file_patch_txt = '\n'.join([
+            "new file mode 100755",
+            "--- /dev/null\t1970-01-01 01:00:00.000000000 +0100",
+            "+++ b/toy-0.0/new_file.txt\t2020-08-18 12:31:57.000000000 +0200",
+            "@@ -0,0 +1 @@",
+            "+This is a new file\n",
+        ])
+        ft.write_file(new_file_patch, new_file_patch_txt)
+        ft.apply_patch(new_file_patch, self.test_prefix, use_git=True)
+        new_file_path = os.path.join(self.test_prefix, 'toy-0.0', 'new_file.txt')
+        self.assertEqual(ft.read_file(new_file_path), "This is a new file\n")
+
+        # cleanup & restore
+        ft.remove_dir(path)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+
+        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+
+        # mock stderr to catch deprecation warning caused by setting 'use_git_am'
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+        self.assertTrue("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'" in stderr)
 
     def test_copy_file(self):
         """Test copy_file function."""
@@ -1460,6 +1569,50 @@ class FileToolsTest(EnhancedTestCase):
         ft.mkdir(testdir)
         self.assertErrorRegex(EasyBuildError, "Target location .* already exists", ft.copy_dir, to_copy, testdir)
 
+        # if the directory already exists and 'dirs_exist_ok' is True, copy_dir should succeed
+        ft.copy_dir(to_copy, testdir, dirs_exist_ok=True)
+        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(testdir)))
+
+        # check whether use of 'ignore' works if target path already exists and 'dirs_exist_ok' is enabled
+        def ignore_func(_, names):
+            return [x for x in names if '6.4.0-2.28' in x]
+
+        shutil.rmtree(testdir)
+        ft.mkdir(testdir)
+        ft.copy_dir(to_copy, testdir, dirs_exist_ok=True, ignore=ignore_func)
+        self.assertEqual(sorted(os.listdir(testdir)), expected)
+        self.assertFalse(os.path.exists(os.path.join(testdir, 'GCC-6.4.0-2.28.eb')))
+
+        # test copy_dir when broken symlinks are involved
+        srcdir = os.path.join(self.test_prefix, 'topdir_to_copy')
+        ft.mkdir(srcdir)
+        ft.write_file(os.path.join(srcdir, 'test.txt'), '123')
+        subdir = os.path.join(srcdir, 'subdir')
+        # introduce broken file symlink
+        foo_txt = os.path.join(subdir, 'foo.txt')
+        ft.write_file(foo_txt, 'bar')
+        ft.symlink(foo_txt, os.path.join(subdir, 'bar.txt'))
+        ft.remove_file(foo_txt)
+        # introduce broken dir symlink
+        subdir_tmp = os.path.join(srcdir, 'subdir_tmp')
+        ft.mkdir(subdir_tmp)
+        ft.symlink(subdir_tmp, os.path.join(srcdir, 'subdir_link'))
+        ft.remove_dir(subdir_tmp)
+
+        target_dir = os.path.join(self.test_prefix, 'target_to_copy_to')
+
+        # trying this without symlinks=True ends in tears, because bar.txt points to a non-existing file
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory", ft.copy_dir, srcdir, target_dir)
+        ft.remove_dir(target_dir)
+
+        ft.copy_dir(srcdir, target_dir, symlinks=True)
+
+        # copying directory with broken symlinks should also work if target directory already exists
+        ft.remove_dir(target_dir)
+        ft.mkdir(target_dir)
+        ft.mkdir(subdir)
+        ft.copy_dir(srcdir, target_dir, symlinks=True, dirs_exist_ok=True)
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -1477,7 +1630,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertFalse(os.path.exists(target_dir))
-        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/%s" % os.path.basename(target_dir), txt))
 
         # forced copy, even in dry run mode
         self.mock_stdout(True)
@@ -1565,19 +1718,24 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_extract_file(self):
         """Test extract_file"""
+        cwd = os.getcwd()
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
 
         self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
-        path = ft.extract_file(toy_tarball, self.test_prefix)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
+        # still in same directory as before if change_into_dir is set to False
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         shutil.rmtree(os.path.join(path, 'toy-0.0'))
 
         toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
         shutil.copyfile(toy_tarball, toy_tarball_renamed)
 
-        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s")
+        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         shutil.rmtree(os.path.join(path, 'toy-0.0'))
@@ -1590,17 +1748,56 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.mock_stdout(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0')))
         self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
-        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True)
+        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), cwd))
+
+        build_options['extended_dry_run'] = False
+        init_config(build_options=build_options)
+
+        ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
+
+        # a deprecation warning is printed (which is an error in this context)
+        # if the 'change_into_dir' named argument was left unspecified
+        error_pattern = "extract_file function was called without specifying value for change_into_dir"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.extract_file, toy_tarball, self.test_prefix)
+        self.allow_deprecated_behaviour()
+
+        # make sure we're not in self.test_prefix now (checks below assumes so)
+        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+
+        # by default, extract_file changes to directory in which source file was unpacked
+        self.mock_stderr(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        regex = re.compile("^WARNING: .*extract_file function was called without specifying value for change_into_dir")
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        ft.change_dir(cwd)
+        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+
+        # no deprecation warning when change_into_dir is set to True
+        self.mock_stderr(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertFalse(stderr)
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -1664,6 +1861,129 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
+    def test_index_functions(self):
+        """Test *_index functions."""
+
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # create_index checks whether specified path is an existing directory
+        doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
+        self.assertErrorRegex(EasyBuildError, "Specified path does not exist", ft.create_index, doesnotexist)
+
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        self.assertErrorRegex(EasyBuildError, "Specified path is not a directory", ft.create_index, toy_ec)
+
+        # load_index just returns None if there is no index in specified directory
+        self.assertEqual(ft.load_index(self.test_prefix), None)
+
+        # create index for test easyconfigs;
+        # test with specified path with and without trailing '/'s
+        for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
+            index = ft.create_index(path)
+            self.assertEqual(len(index), 82)
+
+            expected = [
+                os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
+                os.path.join('t', 'toy', 'toy-0.0.eb'),
+                os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'),
+            ]
+            for fn in expected:
+                self.assertTrue(fn in index)
+
+            for fp in index:
+                self.assertTrue(fp.endswith('.eb'))
+
+        # set up some files to create actual index file for
+        ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
+
+        # test dump_index function
+        index_fp = ft.dump_index(self.test_prefix)
+        self.assertTrue(os.path.exists(index_fp))
+        self.assertTrue(os.path.samefile(self.test_prefix, os.path.dirname(index_fp)))
+
+        datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
+        expected_header = [
+            "# created at: " + datestamp_pattern,
+            "# valid until: " + datestamp_pattern,
+        ]
+        expected = [
+            os.path.join('g', 'gzip', 'gzip-1.4.eb'),
+            os.path.join('g', 'GCC', 'GCC-7.3.0-2.30.eb'),
+            os.path.join('g', 'gompic', 'gompic-2018a.eb'),
+        ]
+        index_txt = ft.read_file(index_fp)
+        for fn in expected_header + expected:
+            regex = re.compile('^%s$' % fn, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        # test load_index function
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(len(index), 26)
+        for fn in expected:
+            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+
+        # dump_index will not overwrite existing index without force
+        error_pattern = "File exists, not overwriting it without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, self.test_prefix)
+
+        ft.remove_file(index_fp)
+
+        # test creating index file that's infinitely valid
+        index_fp = ft.dump_index(self.test_prefix, max_age_sec=0)
+        index_txt = ft.read_file(index_fp)
+        expected_header[1] = r"# valid until: 9999-12-31 23:59:59\.9+"
+        for fn in expected_header + expected:
+            regex = re.compile('^%s$' % fn, re.M)
+            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(len(index), 26)
+        for fn in expected:
+            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+
+        ft.remove_file(index_fp)
+
+        # test creating index file that's only valid for a (very) short amount of time
+        index_fp = ft.dump_index(self.test_prefix, max_age_sec=1)
+        time.sleep(3)
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        index = ft.load_index(self.test_prefix)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertTrue(index is None)
+        self.assertFalse(stdout)
+        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % self.test_prefix)
+        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # check whether load_index takes into account --ignore-index
+        init_config(build_options={'ignore_index': True})
+        self.assertEqual(ft.load_index(self.test_prefix), None)
+
     def test_search_file(self):
         """Test search_file function."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -1678,6 +1998,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
         self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
         self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
+
+        # also test case-sensitive searching
+        var_defs, hits_bis = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits_bis, [])
+
+        var_defs, hits_bis = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits_bis, hits)
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
@@ -1762,19 +2091,35 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
+
+        # make sure $EB_SCRIPT_PATH is not set already (used as fallback mechanism in find_eb_script)
+        if 'EB_SCRIPT_PATH' in os.environ:
+            del os.environ['EB_SCRIPT_PATH']
+
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
         self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
         # put test script in place relative to location of 'eb'
-        ft.write_file(os.path.join(self.test_prefix, 'bin', 'eb'), '#!/bin/bash\necho "fake eb"')
-        ft.adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH', ''))
+        fake_eb = os.path.join(self.test_prefix, 'bin', 'eb')
+        ft.write_file(fake_eb, '#!/bin/bash\necho "fake eb"')
+        ft.adjust_permissions(fake_eb, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.dirname(fake_eb), os.getenv('PATH', ''))
 
-        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'justatest.sh')
+        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'thisisjustatestscript.sh')
         ft.write_file(justatest, '#!/bin/bash')
 
-        self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
+        self.assertTrue(os.path.samefile(ft.find_eb_script('thisisjustatestscript.sh'), justatest))
+
+        # $EB_SCRIPT_PATH can also be used (overrules 'eb' found via $PATH)
+        ft.remove_file(fake_eb)
+        os.environ['EB_SCRIPT_PATH'] = os.path.join(self.test_prefix, 'easybuild', 'scripts')
+        self.assertTrue(os.path.samefile(ft.find_eb_script('thisisjustatestscript.sh'), justatest))
+
+        # if script can't be found via either $EB_SCRIPT_PATH or location of 'eb', we get a clean error
+        del os.environ['EB_SCRIPT_PATH']
+        error_pattern = "Script 'thisisjustatestscript.sh' not found at expected location"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.find_eb_script, 'thisisjustatestscript.sh')
 
     def test_move_file(self):
         """Test move_file function"""
@@ -1812,7 +2157,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         # informative message printed, but file was not actually moved
-        regex = re.compile("^moved file .*/test\.txt to .*/new_test\.txt$")
+        regex = re.compile(r"^moved file .*/test\.txt to .*/new_test\.txt$")
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertEqual(stderr, '')
 
@@ -1875,7 +2220,7 @@ class FileToolsTest(EnhancedTestCase):
         ])
         res = ft.diff_files(foo, bar)
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
-        regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
+        regex = re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
     def test_get_source_tarball_from_git(self):
@@ -1883,7 +2228,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'https://github.com/hpcugent',
+            'url': 'https://github.com/easybuilders',
             'tag': 'master',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
@@ -1908,7 +2253,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'git@github.com:hpcugent',
+            'url': 'git@github.com:easybuilders',
             'tag': 'master',
         }
         args = ['test.tar.gz', self.test_prefix, git_config]
@@ -1962,46 +2307,56 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config = {
             'repo_name': 'testrepository',
-            'url': 'git@github.com:hpcugent',
+            'url': 'git@github.com:easybuilders',
             'tag': 'master',
         }
         expected = '\n'.join([
-            '  running command "git clone --branch master git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone --branch master git@github.com:easybuilders/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            '  running command "git clone --branch master --recursive git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
+
+        git_config['keep_git_dir'] = True
+        expected = '\n'.join([
+            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ])
+        run_check()
+        del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            '  running command "git clone --recursive git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "git checkout 8456f86 && git submodule update"',
-            "  \(in testrepository\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86 && git submodule update"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
 
         del git_config['recursive']
         expected = '\n'.join([
-            '  running command "git clone git@github.com:hpcugent/testrepository.git"',
-            "  \(in .*/tmp.*\)",
-            '  running command "git checkout 8456f86"',
-            "  \(in testrepository\)",
-            '  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            "  \(in .*/tmp.*\)",
+            r'  running command "git clone git@github.com:easybuilders/testrepository.git"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
         ])
         run_check()
 
@@ -2016,7 +2371,7 @@ class FileToolsTest(EnhancedTestCase):
             True,
             12345,
             '',
-            (a_sha256_checksum, ),
+            (a_sha256_checksum,),
             [],
         ]:
             self.assertFalse(ft.is_sha256_checksum(not_a_sha256_checksum))
@@ -2077,6 +2432,244 @@ class FileToolsTest(EnhancedTestCase):
         from test_fake_vsc import pkgutil
         self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
 
+    def test_is_generic_easyblock(self):
+        """Test for is_generic_easyblock function."""
+
+        for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
+            self.assertTrue(ft.is_generic_easyblock(name))
+
+        for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
+            self.assertFalse(ft.is_generic_easyblock(name))
+
+    def test_get_easyblock_class_name(self):
+        """Test for get_easyblock_class_name function."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
+        self.assertEqual(ft.get_easyblock_class_name(configuremake), 'ConfigureMake')
+
+        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
+        self.assertEqual(ft.get_easyblock_class_name(gcc_eb), 'EB_GCC')
+
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        self.assertEqual(ft.get_easyblock_class_name(toy_eb), 'EB_toy')
+
+    def test_copy_easyblocks(self):
+        """Test for copy_easyblocks function."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        # easybuild/easyblocks subdirectory must exist in target directory
+        error_pattern = "Could not find easybuild/easyblocks subdir in .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_easyblocks, [], self.test_prefix)
+
+        easyblocks_dir = os.path.join(self.test_prefix, 'easybuild', 'easyblocks')
+
+        # passing empty list works fine
+        ft.mkdir(easyblocks_dir, parents=True)
+        res = ft.copy_easyblocks([], self.test_prefix)
+        self.assertEqual(os.listdir(easyblocks_dir), [])
+        self.assertEqual(res, {'eb_names': [], 'new': [], 'paths_in_repo': []})
+
+        # check with different types of easyblocks
+        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
+        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        test_ebs = [gcc_eb, configuremake, toy_eb]
+
+        # copy them straight into tmpdir first, to check whether correct subdir is derived correctly
+        ft.copy_files(test_ebs, self.test_prefix)
+
+        # touch empty toy.py easyblock, to check whether 'new' aspect is determined correctly
+        ft.write_file(os.path.join(easyblocks_dir, 't', 'toy.py'), '')
+
+        # check whether easyblocks were copied as expected, and returned dict is correct
+        test_ebs = [os.path.join(self.test_prefix, os.path.basename(e)) for e in test_ebs]
+        res = ft.copy_easyblocks(test_ebs, self.test_prefix)
+
+        self.assertEqual(sorted(res.keys()), ['eb_names', 'new', 'paths_in_repo'])
+        self.assertEqual(res['eb_names'], ['gcc', 'configuremake', 'toy'])
+        self.assertEqual(res['new'], [True, True, False])  # toy.py is not new
+
+        self.assertEqual(sorted(os.listdir(easyblocks_dir)), ['g', 'generic', 't'])
+
+        g_dir = os.path.join(easyblocks_dir, 'g')
+        self.assertEqual(sorted(os.listdir(g_dir)), ['gcc.py'])
+        copied_gcc_eb = os.path.join(g_dir, 'gcc.py')
+        self.assertEqual(ft.read_file(copied_gcc_eb), ft.read_file(gcc_eb))
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_gcc_eb))
+
+        gen_dir = os.path.join(easyblocks_dir, 'generic')
+        self.assertEqual(sorted(os.listdir(gen_dir)), ['configuremake.py'])
+        copied_configuremake = os.path.join(gen_dir, 'configuremake.py')
+        self.assertEqual(ft.read_file(copied_configuremake), ft.read_file(configuremake))
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][1], copied_configuremake))
+
+        t_dir = os.path.join(easyblocks_dir, 't')
+        self.assertEqual(sorted(os.listdir(t_dir)), ['toy.py'])
+        copied_toy_eb = os.path.join(t_dir, 'toy.py')
+        self.assertEqual(ft.read_file(copied_toy_eb), ft.read_file(toy_eb))
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][2], copied_toy_eb))
+
+    def test_copy_framework_files(self):
+        """Test for copy_framework_files function."""
+
+        target_dir = os.path.join(self.test_prefix, 'target')
+        ft.mkdir(target_dir)
+
+        res = ft.copy_framework_files([], target_dir)
+
+        self.assertEqual(os.listdir(target_dir), [])
+        self.assertEqual(res, {'paths_in_repo': [], 'new': []})
+
+        foo_py = os.path.join(self.test_prefix, 'foo.py')
+        ft.write_file(foo_py, '')
+
+        error_pattern = "Specified path '.*/foo.py' does not include a 'easybuild-framework' directory!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_framework_files, [foo_py], self.test_prefix)
+
+        # create empty test/framework/modules.py, to check whether 'new' is set correctly in result
+        ft.write_file(os.path.join(target_dir, 'test', 'framework', 'modules.py'), '')
+
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        test_files = [
+            os.path.join('easybuild', 'tools', 'filetools.py'),
+            os.path.join('test', 'framework', 'modules.py'),
+            os.path.join('test', 'framework', 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'),
+        ]
+        expected_entries = ['easybuild', 'test']
+        # test/framework/modules.py is not new
+        expected_new = [True, False, True]
+
+        # we include setup.py conditionally because it may not be there,
+        # for example when running the tests on an actual easybuild-framework instalation,
+        # as opposed to when running from a repository checkout...
+        # setup.py is an important test case, since it has no parent directory
+        # (it's straight in the easybuild-framework directory)
+        setup_py = 'setup.py'
+        if os.path.exists(os.path.join(topdir, setup_py)):
+            test_files.append(os.path.join(setup_py))
+            expected_entries.append(setup_py)
+            expected_new.append(True)
+
+        # files being copied are expected to be in a directory named 'easybuild-framework',
+        # so we need to make sure that's the case here as well (may not be in workspace dir on Travis from example)
+        framework_dir = os.path.join(self.test_prefix, 'easybuild-framework')
+        for test_file in test_files:
+            ft.copy_file(os.path.join(topdir, test_file), os.path.join(framework_dir, test_file))
+
+        test_paths = [os.path.join(framework_dir, f) for f in test_files]
+
+        res = ft.copy_framework_files(test_paths, target_dir)
+
+        self.assertEqual(sorted(os.listdir(target_dir)), sorted(expected_entries))
+
+        self.assertEqual(sorted(res.keys()), ['new', 'paths_in_repo'])
+
+        for idx, test_file in enumerate(test_files):
+            orig_path = os.path.join(topdir, test_file)
+            copied_path = os.path.join(target_dir, test_file)
+
+            self.assertTrue(os.path.exists(copied_path))
+            self.assertEqual(ft.read_file(orig_path, mode='rb'), ft.read_file(copied_path, mode='rb'))
+
+            self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
+
+        self.assertEqual(res['new'], expected_new)
+
+    def test_locks(self):
+        """Tests for lock-related functions."""
+
+        init_config(build_options={'silent': True})
+
+        # make sure that global list of locks is empty when we start off
+        self.assertFalse(ft.global_lock_names)
+
+        # use a realistic lock name (cfr. EasyBlock.run_all_steps)
+        installdir = os.path.join(self.test_installpath, 'software', 'test', '1.2.3-foss-2019b-Python-3.7.4')
+        lock_name = installdir.replace('/', '_')
+
+        # det_lock_path returns full path to lock with specified name
+        # (used internally by create_lock, check_lock, remove_lock)
+        lock_path = ft.det_lock_path(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+
+        locks_dir = os.path.dirname(lock_path)
+        self.assertFalse(os.path.exists(locks_dir))
+
+        # if lock doesn't exist yet, check_lock just returns
+        ft.check_lock(lock_name)
+
+        # create lock, and check whether it actually was created
+        ft.create_lock(lock_name)
+        self.assertTrue(os.path.exists(lock_path))
+
+        # can't use os.path.samefile until locks_dir actually exists
+        self.assertTrue(os.path.samefile(locks_dir, os.path.join(self.test_installpath, 'software', '.locks')))
+
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # if lock exists, then check_lock raises an error
+        self.assertErrorRegex(EasyBuildError, "Lock .* already exists", ft.check_lock, lock_name)
+
+        # remove_lock should... remove the lock
+        ft.remove_lock(lock_name)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # no harm done if remove_lock is called if lock is already gone
+        ft.remove_lock(lock_name)
+
+        # check_lock just returns again after lock is removed
+        ft.check_lock(lock_name)
+
+        # global list of locks should be empty at this point
+        self.assertFalse(ft.global_lock_names)
+
+        # calling clean_up_locks when there are no locks should not cause trouble
+        ft.clean_up_locks()
+
+        ft.create_lock(lock_name)
+        self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        ft.clean_up_locks()
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # no problem with multiple locks
+        lock_names = [lock_name, 'test123', 'foo@bar%baz']
+        lock_paths = [os.path.join(locks_dir, x + '.lock') for x in lock_names]
+        for ln in lock_names:
+            ft.create_lock(ln)
+        for lp in lock_paths:
+            self.assertTrue(os.path.exists(lp), "Path %s should exist" % lp)
+
+        self.assertEqual(ft.global_lock_names, set(lock_names))
+        expected_locks = sorted(ln + '.lock' for ln in lock_names)
+        self.assertEqual(sorted(os.listdir(locks_dir)), expected_locks)
+
+        ft.clean_up_locks()
+        for lp in lock_paths:
+            self.assertFalse(os.path.exists(lp), "Path %s should not exist" % lp)
+        self.assertFalse(ft.global_lock_names)
+        self.assertEqual(os.listdir(locks_dir), [])
+
+        # also test signal handler that is supposed to clean up locks
+        ft.create_lock(lock_name)
+        self.assertTrue(ft.global_lock_names)
+        self.assertTrue(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
+
+        # clean_up_locks_signal_handler causes sys.exit with specified exit code
+        self.assertErrorRegex(SystemExit, '15', ft.clean_up_locks_signal_handler, 15, None)
+        self.assertFalse(ft.global_lock_names)
+        self.assertFalse(os.path.exists(lock_path))
+        self.assertEqual(os.listdir(locks_dir), [])
 
 
 def suite():

@@ -32,7 +32,7 @@ Script to create a template easyblock Python module, for a given software packag
 import datetime
 import os
 import sys
-from optparse import OptionParser, OptionGroup
+from optparse import OptionParser
 
 from easybuild.tools.filetools import encode_class_name
 
@@ -46,7 +46,6 @@ parser.add_option("--parent", default="EasyBlock",
                   help="Name of parent easyblock for this easyblock (default: 'EasyBlock').")
 parser.add_option("--letter-prefix", default=False, action="store_true",
                   help="Whether or not to prefix the easyblock path with a letter directory (default: False)")
-                 
 
 (options, args) = parser.parse_args()
 
@@ -68,7 +67,7 @@ if not os.path.isdir(easyblocks_repo_path):
 # determine path for easyblock
 if options.letter_prefix:
     letter = name.lower()[0]
-    if not ord(letter) in range(ord('a'),ord('z')+1):
+    if not ord(letter) in range(ord('a'), ord('z') + 1):
         letter = '0'
     easyblock_path = os.path.join(easyblocks_repo_path, letter, "%s.py" % name.lower())
 else:
@@ -147,8 +146,8 @@ class %(class_name)s(%(parent)s):
 
         # always use env.setvar instead of os.putenv or os.environ for defining environment variables
         env.setvar('CUSTOM_ENV_VAR', 'foo')
- 
-        cmd = "configure command" 
+
+        cmd = "configure command"
         run_cmd(cmd, log_all=True, simple=True, log_ok=True)
 
         # complete configuration with configure_method of parent
@@ -172,13 +171,13 @@ class %(class_name)s(%(parent)s):
         \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
 
         if self.cfg['runtest']:
-            cmd = "test-command" 
+            cmd = "test-command"
             run_cmd(cmd, simple=True, log_all=True, log_ok=True)
 
     def install_step(self):
         \"\"\"Custom install procedure for %(name)s.\"\"\"
-       
-        cmd = "install command" 
+
+        cmd = "install command"
         run_cmd(cmd, log_all=True, simple=True, log_ok=True)
 
     def sanity_check_step(self):

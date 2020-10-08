@@ -30,5 +30,14 @@ EasyBuild support for building and installing dummy extensions, implemented as a
 
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 
+
 class DummyExtension(ExtensionEasyBlock):
     """Support for building/installing dummy extensions."""
+
+    def __init__(self, *args, **kwargs):
+
+        super(DummyExtension, self).__init__(*args, **kwargs)
+
+        # use lowercase name as default value for expected module name, and replace '-' with '_'
+        if 'modulename' not in self.options:
+            self.options['modulename'] = self.name.lower().replace('-', '_')

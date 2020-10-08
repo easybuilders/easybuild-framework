@@ -32,7 +32,7 @@ exts_list = [
         'buildopts': " && gcc bar.c -o anotherbar",
         'checksums': ['f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'],  # checksum for 
         # custom extension filter to verify use of stdin value being passed to filter command
-    'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
+        'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
         'patches': [
             'bar-0.0_fix-silly-typo-in-printf-statement.patch',
             'bar-0.0_fix-very-silly-typo-in-printf-statement.patch',
@@ -43,10 +43,13 @@ exts_list = [
         # cfr. https://github.com/easybuilders/easybuild-framework/pull/3034
         'keepsymlinks': True,
     }),
-    ('barbar', '0.0'),
+    ('barbar', '0.0', {
+        'start_dir': 'src',
+    }),
     (name, version, {
         'sanity_check_paths': {'files': ['lib/libtoy.a'], 'dirs': []},
         'exts_filter': ("ls -l lib/libtoy.a", ''),
+        'checksums': ['44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc']
     }),
 ]
 

@@ -37,7 +37,7 @@ import copy
 import os
 
 from easybuild.framework.easyconfig.easyconfig import resolve_template
-from easybuild.framework.easyconfig.templates import template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_cmd
@@ -85,6 +85,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
+
     def __init__(self, mself, ext, extra_params=None):
         """
         Constructor for Extension class
@@ -111,6 +112,10 @@ class Extension(object):
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
 
+        # Add install/builddir templates with values from master.
+        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+            self.cfg.template_values[name[0]] = str(getattr(self.master, name[0], None))
+
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
@@ -123,14 +128,14 @@ class Extension(object):
         # make sure they are merged into self.cfg so they can be queried;
         # unknown easyconfig parameters are ignored since self.options may include keys only there for extensions;
         # this allows to specify custom easyconfig parameters on a per-extension basis
-        for key in self.options:
+        for key, value in self.options.items():
             if key in self.cfg:
-                self.cfg[key] = resolve_template(self.options[key], self.cfg.template_values)
+                self.cfg[key] = value
                 self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, name, version, self.cfg[key])
+                               key, name, version, value)
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, name, version, self.options[key])
+                               key, name, version, value)
 
         self.sanity_check_fail_msgs = []
 

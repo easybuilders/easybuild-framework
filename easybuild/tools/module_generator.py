@@ -524,7 +524,8 @@ class ModuleGenerator(object):
         """
         Generate a string with a comma-separated list of extensions.
         """
-        exts_list = self.app.cfg['exts_list']
+        # We need only name and version, so don't resolve templates
+        exts_list = self.app.cfg.get_ref('exts_list')
         extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
 
         return extensions
@@ -735,7 +736,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         txt = '\n'.join([
             "proc ModulesHelp { } {",
-            "    puts stderr {%s" % re.sub('([{}\[\]])', r'\\\1', self._generate_help_text()),
+            "    puts stderr {%s" % re.sub(r'([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',
@@ -762,7 +763,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = ["module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
+        whatis_lines = [
+            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
+            for line in self._generate_whatis_lines()
+        ]
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
@@ -958,7 +962,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param mod_name_in: name of module to load (swap in)
         :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
-        body = "module swap %s %s" % (mod_name_out, mod_name_in)
+        # In Modules 4.2.3+ a 2-argument swap 'module swap foo foo/X.Y.Z' will fail as the unloaded 'foo'
+        # means all 'foo' modules conflict and 'foo/X.Y.Z' will not load.  A 1-argument swap like
+        # 'module swap foo/X.Y.Z' will unload any currently loaded 'foo' without it becoming conflicting
+        # and successfully load the new module.
+        # See: https://modules.readthedocs.io/en/latest/NEWS.html#modules-4-2-3-2019-03-23
+        body = "module swap %s" % (mod_name_in)
         if guarded:
             alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
             swap_statement = [self.conditional_statement(self.is_loaded(mod_name_out), body, else_body=alt_body)]

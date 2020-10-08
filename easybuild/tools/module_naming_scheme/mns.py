@@ -162,7 +162,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
             <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^%s(/\S+)?$' % re.escape(name))
+        modname_regex = re.compile(r'^%s(/\S+)?$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",

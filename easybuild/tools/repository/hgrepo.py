@@ -44,7 +44,7 @@ import time
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import rmtree2
+from easybuild.tools.filetools import remove_dir
 from easybuild.tools.repository.filerepo import FileRepository
 
 _log = fancylogger.getLogger('hgrepo', fname=False)
@@ -100,7 +100,7 @@ class HgRepository(FileRepository):
 
         # try to get a copy of
         try:
-            client = hglib.clone(self.repo, self.wc)
+            hglib.clone(self.repo, self.wc)
             self.log.debug("repo %s cloned in %s" % (self.repo, self.wc))
         except (HgCommandError, OSError) as err:
             # it might already have existed
@@ -192,6 +192,6 @@ class HgRepository(FileRepository):
         Clean up mercurial working copy.
         """
         try:
-            rmtree2(self.wc)
+            remove_dir(self.wc)
         except IOError as err:
             raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

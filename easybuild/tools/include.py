@@ -31,6 +31,7 @@ Support for including additional Python modules, for easyblocks, module naming s
 import os
 import re
 import sys
+import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -67,7 +68,7 @@ EASYBLOCKS_PKG_INIT_BODY = """
 import pkgutil
 
 # extend path so Python finds our easyblocks in the subdirectories where they are located
-subdirs = [chr(l) for l in range(ord('a'), ord('z') + 1)] + ['0']
+subdirs = [chr(char) for char in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
     __path__ = pkgutil.extend_path(__path__, '%s.%s' % (__name__, subdir))
 
@@ -124,6 +125,8 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
 
 def verify_imports(pymods, pypkg, from_path):
     """Verify that import of specified modules from specified package and expected location works."""
+    saved_modules = sys.modules.copy()
+
     for pymod in pymods:
         pymod_spec = '%s.%s' % (pypkg, pymod)
         try:
@@ -139,22 +142,29 @@ def verify_imports(pymods, pypkg, from_path):
 
         _log.debug("Import of %s from %s verified", pymod_spec, from_path)
 
+    # restore sys.modules to its original state (not only verified modules but also their dependencies)
+    sys.modules.clear()
+    sys.modules.update(saved_modules)
+
 
 def is_software_specific_easyblock(module):
     """Determine whether Python module at specified location is a software-specific easyblock."""
-    return bool(re.search('^class EB_.*\(.*\):\s*$', read_file(module), re.M))
+    return bool(re.search(r'^class EB_.*\(.*\):\s*$', read_file(module), re.M))
 
 
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
-    easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
+    easyblocks_path = tempfile.mkdtemp(dir=tmpdir, prefix='included-easyblocks-')
 
     set_up_eb_package(easyblocks_path, 'easybuild.easyblocks',
                       subpkgs=['generic'], pkg_init_body=EASYBLOCKS_PKG_INIT_BODY)
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
-    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
+    allpaths = [p for p in expand_glob_paths(paths)
+                if os.path.basename(p).endswith('.py') and
+                os.path.basename(p) != '__init__.py']
+
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 

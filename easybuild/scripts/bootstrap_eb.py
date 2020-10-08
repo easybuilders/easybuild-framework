@@ -62,7 +62,7 @@ else:
     import urllib.request as std_urllib
 
 
-EB_BOOTSTRAP_VERSION = '20200203.01'
+EB_BOOTSTRAP_VERSION = '20200820.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -625,7 +625,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
 
     # figure out EasyBuild version via eb command line
     # note: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual pkgs
-    pattern = "This is EasyBuild (?P<version>%(v)s) \(framework: %(v)s, easyblocks: %(v)s\)" % {'v': '[0-9.]*[a-z0-9]*'}
+    ver_regex = {'ver': '[0-9.]*[a-z0-9]*'}
+    pattern = r"This is EasyBuild (?P<version>%(ver)s) \(framework: %(ver)s, easyblocks: %(ver)s\)" % ver_regex
     version_re = re.compile(pattern)
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
     eb_version_cmd = 'from easybuild.tools.version import this_is_easybuild; print(this_is_easybuild())'

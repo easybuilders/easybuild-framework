@@ -59,6 +59,13 @@ except ImportError as err:
     _log.debug("Failed to import 'distro' Python module: %s", err)
     HAVE_DISTRO = False
 
+try:
+    from archspec.cpu import host as archspec_cpu_host
+    HAVE_ARCHSPEC = True
+except ImportError as err:
+    _log.debug("Failed to import 'archspec' Python module: %s", err)
+    HAVE_ARCHSPEC = False
+
 
 # Architecture constants
 AARCH32 = 'AArch32'
@@ -333,7 +340,7 @@ def get_cpu_family():
 
             # Distinguish POWER running in little-endian mode
             system, node, release, version, machine, processor = platform.uname()
-            powerle_regex = re.compile("^ppc(\d*)le")
+            powerle_regex = re.compile(r"^ppc(\d*)le")
             if powerle_regex.search(machine):
                 family = POWER_LE
 
@@ -342,6 +349,22 @@ def get_cpu_family():
         _log.warning("Failed to determine CPU family, returning %s" % family)
 
     return family
+
+
+def get_cpu_arch_name():
+    """
+    Determine CPU architecture name via archspec (if available).
+    """
+    cpu_arch_name = None
+    if HAVE_ARCHSPEC:
+        res = archspec_cpu_host()
+        if res:
+            cpu_arch_name = str(res.name)
+
+    if cpu_arch_name is None:
+        cpu_arch_name = UNKNOWN
+
+    return cpu_arch_name
 
 
 def get_cpu_model():
@@ -457,11 +480,11 @@ def get_cpu_features():
                 _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
             elif get_cpu_architecture() == POWER:
                 # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
-                cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
+                cpu_altivec_regex = re.compile(r"^cpu\s*:.*altivec supported", re.M)
                 if cpu_altivec_regex.search(proc_cpuinfo):
                     cpu_feat.append('altivec')
                 # VSX is supported since POWER7
-                cpu_power7_regex = re.compile("^cpu\s*:.*POWER(7|8|9)", re.M)
+                cpu_power7_regex = re.compile(r"^cpu\s*:.*POWER(7|8|9)", re.M)
                 if cpu_power7_regex.search(proc_cpuinfo):
                     cpu_feat.append('vsx')
             else:
@@ -563,6 +586,7 @@ def get_os_name():
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
+        'red hat enterprise linux': 'RHEL',  # RHEL8 has no server/client
         'scientific linux sl': 'SL',
         'scientific linux': 'SL',
         'suse linux enterprise server': 'SLES',
@@ -699,7 +723,7 @@ def get_gcc_version():
 
     # Fedora: gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)
     # Debian: gcc (Debian 4.9.2-10) 4.9.2
-    find_version = re.search("^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
+    find_version = re.search(r"^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
     if find_version:
         res = find_version.group('version')
         _log.debug("Found GCC version: %s from %s", res, out)
@@ -745,6 +769,8 @@ def get_system_info():
     return {
         'core_count': get_avail_core_count(),
         'total_memory': get_total_memory(),
+        'cpu_arch': get_cpu_architecture(),
+        'cpu_arch_name': get_cpu_arch_name(),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),

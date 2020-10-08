@@ -69,6 +69,7 @@ class MultiDiff(object):
     """
     Class representing a multi-diff.
     """
+
     def __init__(self, base_fn, base_lines, files, colored=True):
         """
         MultiDiff constructor

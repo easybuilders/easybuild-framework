@@ -86,7 +86,7 @@ class EasyConfigParser(object):
         Initialise the EasyConfigParser class
         :param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
         :param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
-        :param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
+        :param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig supplied via filename)
         :param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
                                          in case they are wrong
         """
@@ -129,8 +129,8 @@ class EasyConfigParser(object):
             if not type_ok:
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, PARAMETER_TYPES[key].__name__))
             elif newval != cfg[key]:
-                self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
-                                 key, cfg[key], type(cfg[key]), newval, type(newval))
+                warning_msg = "Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)"
+                self.log.warning(warning_msg, key, cfg[key], type(cfg[key]), newval, type(newval))
                 cfg[key] = newval
 
         if wrong_type_msgs:
@@ -226,6 +226,7 @@ class EasyConfigParser(object):
 
         return cfg
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """Dump easyconfig in format it was parsed from."""
-        return self._formatter.dump(ecfg, default_values, templ_const, templ_val)
+        return self._formatter.dump(ecfg, default_values, templ_const, templ_val,
+                                    toolchain_hierarchy=toolchain_hierarchy)

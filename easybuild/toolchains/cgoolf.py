@@ -26,7 +26,8 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for cgoolf compiler toolchain (includes Clang, GFortran, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for cgoolf compiler toolchain (includes Clang, GFortran, OpenMPI, OpenBLAS,
+LAPACK, ScaLAPACK and FFTW).
 
 :author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """

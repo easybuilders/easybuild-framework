@@ -39,6 +39,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
+from easybuild.tools.config import build_option
 
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
@@ -77,6 +78,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 # software names for which to define <pref>ver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
     # software name, prefix for *ver and *shortver
+    ('CUDA', 'cuda'),
     ('Java', 'java'),
     ('Perl', 'perl'),
     ('Python', 'py'),
@@ -145,7 +147,7 @@ for ext in extensions:
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None):
+def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
@@ -215,23 +217,53 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
         # copy to avoid changing original list below
         deps = copy.copy(config.get('dependencies', []))
 
-        # only consider build dependencies for defining *ver and *shortver templates if we're in iterative mode
-        if hasattr(config, 'iterating') and config.iterating:
-            deps += config.get('builddependencies', [])
+        # also consider build dependencies for *ver and *shortver templates;
+        # we need to be a bit careful here, because for iterative installations
+        # (when multi_deps is used for example) the builddependencies value may be a list of lists
+
+        # first, determine if we have an EasyConfig instance
+        # (indirectly by checking for 'iterating' and 'iterate_options' attributes,
+        #  because we can't import the EasyConfig class here without introducing
+        #  a cyclic import...);
+        # we need to know to determine whether we're iterating over a list of build dependencies
+        is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
+
+        if is_easyconfig:
+            # if we're iterating over different lists of build dependencies,
+            # only consider build dependencies when we're actually in iterative mode!
+            if 'builddependencies' in config.iterate_options:
+                if config.iterating:
+                    deps += config.get('builddependencies', [])
+            else:
+                deps += config.get('builddependencies', [])
 
         for dep in deps:
             if isinstance(dep, dict):
                 dep_name, dep_version = dep['name'], dep['version']
+
+                # take into account dependencies marked as external modules,
+                # where name/version may have to be harvested from metadata available for that external module
+                if dep.get('external_module', False):
+                    metadata = dep.get('external_module_metadata', {})
+                    if dep_name is None:
+                        # name is a list in metadata, just take first value (if any)
+                        dep_name = metadata.get('name', [None])[0]
+                    if dep_version is None:
+                        # version is a list in metadata, just take first value (if any)
+                        dep_version = metadata.get('version', [None])[0]
+
             elif isinstance(dep, (list, tuple)):
                 dep_name, dep_version = dep[0], dep[1]
             else:
                 raise EasyBuildError("Unexpected type for dependency: %s", dep)
 
-            if isinstance(dep_name, string_type) and dep_name.lower() == name.lower():
+            if isinstance(dep_name, string_type) and dep_name.lower() == name.lower() and dep_version:
                 dep_version = pick_dep_version(dep_version)
                 template_values['%sver' % pref] = dep_version
                 dep_version_parts = dep_version.split('.')
                 template_values['%smajver' % pref] = dep_version_parts[0]
+                if len(dep_version_parts) > 1:
+                    template_values['%sminver' % pref] = dep_version_parts[1]
                 template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
                 break
 
@@ -256,6 +288,26 @@ def template_constant_dict(config, ignore=None, skip_lower=None):
             template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = value.lower()
         except Exception:
             _log.warning("Failed to get .lower() for name %s value %s (type %s)", name, value, type(value))
+
+    # step 5. add additional conditional templates
+    if toolchain is not None and hasattr(toolchain, 'mpi_cmd_prefix'):
+        try:
+            # get prefix for commands to be run with mpi runtime using default number of ranks
+            mpi_cmd_prefix = toolchain.mpi_cmd_prefix()
+            if mpi_cmd_prefix is not None:
+                template_values['mpi_cmd_prefix'] = mpi_cmd_prefix
+        except EasyBuildError as err:
+            # don't fail just because we couldn't resolve this template
+            _log.warning("Failed to create mpi_cmd_prefix template, error was:\n%s", err)
+
+    # step 6. CUDA compute capabilities
+    #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
+    cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
+    if cuda_compute_capabilities:
+        template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
+        sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
+        template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
+        template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
 
     return template_values
 

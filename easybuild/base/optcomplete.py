@@ -186,6 +186,7 @@ class NoneCompleter(Completer):
 
 class ListCompleter(Completer):
     """Completes by filtering using a fixed list of strings."""
+
     def __init__(self, stringlist):
         self.olist = stringlist
 
@@ -263,6 +264,7 @@ class DirCompleter(Completer):
 
 class KnownHostsCompleter(Completer):
     """Completes a list of known hostnames"""
+
     def _call(self, **kwargs):
         if SHELL == BASH:
             return "_known_hosts"
@@ -310,6 +312,7 @@ class RegexCompleter(Completer):
 
 class CompleterOption(OPTION_CLASS):
     """optparse Option class with completer attribute"""
+
     def __init__(self, *args, **kwargs):
         completer = kwargs.pop('completer', None)
         OPTION_CLASS.__init__(self, *args, **kwargs)
@@ -587,7 +590,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
             'completer_kwargs%s' % str(completer_kwargs),
             # 'completer_completions %s' % completer_completions,
             'completions %s' % completions,
-            ])
+        ])
         if isinstance(debugfn, logging.Logger):
             debugfn.debug(txt)
         else:

@@ -46,7 +46,7 @@ class EB_toy(ExtensionEasyBlock):
 
     @staticmethod
     def extra_options(extra_vars=None):
-        """Custom easyconfig parameters for toytoy."""
+        """Custom easyconfig parameters for toy."""
         if extra_vars is None:
             extra_vars = {}
 
