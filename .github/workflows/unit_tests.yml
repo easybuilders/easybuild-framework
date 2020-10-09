@@ -116,7 +116,7 @@ jobs:
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
 
-    - name: run test suite & test bootstrap script
+    - name: run test suite
       env:
         EB_VERBOSE: 1
         EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
@@ -158,6 +158,11 @@ jobs:
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
 
+    - name: test bootstrap script
+      # skip testing of bootstrap script with Python 3.9,
+      # until an EasyBuild release that is compatible with Python 3.9 is available
+      if: ${{ matrix.python != 3.9 }}
+      run: |
           # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
