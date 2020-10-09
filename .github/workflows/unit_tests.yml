@@ -167,6 +167,14 @@ jobs:
           if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
           source $(cat $HOME/mod_init); type module
 
+          # define $EASYBUILD_MODULES_TOOL only for oldest module tools
+          # (for Lmod and EnvironmentModules 4.x the bootstrap script should correctly auto-detect the modules tool)
+          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
+          fi
+
           # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
