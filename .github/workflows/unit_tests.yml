@@ -163,6 +163,10 @@ jobs:
       # until an EasyBuild release that is compatible with Python 3.9 is available
       if: ${{ matrix.python != 3.9 }}
       run: |
+          # (re)initialize environment for modules tool
+          if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
+          source $(cat $HOME/mod_init); type module
+
           # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
