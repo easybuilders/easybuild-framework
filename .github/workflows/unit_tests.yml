@@ -166,6 +166,8 @@ jobs:
           # (re)initialize environment for modules tool
           if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
           source $(cat $HOME/mod_init); type module
+          # also pick up changes to $PATH set by sourcing $HOME/mod_init
+          export PATH=$(cat $HOME/path)
 
           # define $EASYBUILD_MODULES_TOOL only for oldest module tools
           # (for Lmod and EnvironmentModules 4.x the bootstrap script should correctly auto-detect the modules tool)
