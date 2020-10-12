@@ -3657,11 +3657,11 @@ def inject_checksums(ecs, checksum_type):
 
         checksums_txt = '\n'.join(checksum_lines)
 
-        # if any checksums were provided before, get rid of them
-        if app.cfg['checksums']:
+        # if 'checksums' is specified in easyconfig file, get rid of it (even if it's just an empty list)
+        checksums_regex = re.compile(r'^checksums(?:.|\n)+?\]\s*$', re.M)
+        if checksums_regex.search(ectxt):
             _log.debug("Removing existing 'checksums' easyconfig parameter definition...")
-            regex = re.compile(r'^checksums(?:.|\n)+?\]\s*$', re.M)
-            ectxt = regex.sub('', ectxt)
+            ectxt = checksums_regex.sub('', ectxt)
 
         # it is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
         if app.src:
