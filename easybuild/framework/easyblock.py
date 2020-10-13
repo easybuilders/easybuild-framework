@@ -555,7 +555,7 @@ class EasyBlock(object):
                             if len(sources) == 1:
                                 source = sources[0]
                             else:
-                                error_msg = "'sources' spec for %s in exts_list must be single element list"
+                                error_msg = "'sources' spec for %s in exts_list must be single element list. Is: %s"
                                 raise EasyBuildError(error_msg, ext_name, sources)
                         else:
                             source = sources
