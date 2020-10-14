@@ -137,10 +137,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
             if os.stat(parent_dir).st_mode & 0o200:
-                write_file(test_report_fp, test_report_txt)
+                write_file(test_report_fp, test_report_txt['full'])
             else:
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
-                write_file(test_report_fp, test_report_txt)
+                write_file(test_report_fp, test_report_txt['full'])
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:

@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
         modules_tool: [Lmod-7.8.22, Lmod-8.2.9, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
         module_syntax: [Lua, Tcl]
         # exclude some configuration for non-Lmod modules tool:
@@ -25,24 +25,30 @@ jobs:
             python: 3.7
           - modules_tool: modules-tcl-1.147
             python: 3.8
+          - modules_tool: modules-tcl-1.147
+            python: 3.9
           - modules_tool: modules-3.2.10
             python: 3.5
           - modules_tool: modules-3.2.10
             python: 3.7
           - modules_tool: modules-3.2.10
             python: 3.8
+          - modules_tool: modules-3.2.10
+            python: 3.9
           - modules_tool: modules-4.1.4
             python: 3.5
           - modules_tool: modules-4.1.4
             python: 3.7
           - modules_tool: modules-4.1.4
             python: 3.8
+          - modules_tool: modules-4.1.4
+            python: 3.9
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
 
     - name: set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -110,7 +116,7 @@ jobs:
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
 
-    - name: run test suite & test bootstrap script
+    - name: run test suite
       env:
         EB_VERBOSE: 1
         EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
@@ -151,6 +157,25 @@ jobs:
           # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
+
+    - name: test bootstrap script
+      # skip testing of bootstrap script with Python 3.9,
+      # until an EasyBuild release that is compatible with Python 3.9 is available
+      if: ${{ matrix.python != 3.9 }}
+      run: |
+          # (re)initialize environment for modules tool
+          if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
+          source $(cat $HOME/mod_init); type module
+          # also pick up changes to $PATH set by sourcing $HOME/mod_init
+          export PATH=$(cat $HOME/path)
+
+          # define $EASYBUILD_MODULES_TOOL only for oldest module tools
+          # (for Lmod and EnvironmentModules 4.x the bootstrap script should correctly auto-detect the modules tool)
+          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
+            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
+          fi
 
           # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
