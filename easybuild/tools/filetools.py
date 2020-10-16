@@ -579,6 +579,12 @@ def download_file(filename, url, path, forced=False):
         timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
+    # extra custom HTTP header fields specified by user string
+    http_header_fields = build_option('http_header_fields')
+    # if value is a file path, read that instead (in case of sensitive data)
+    if http_header_fields is not None and os.path.isfile(http_header_fields):
+        http_header_fields = read_file(http_header_fields)
+
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
@@ -590,6 +596,19 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
+
+    # permit additional or override headers via http_headers_fields option
+    # whose string value contains header-fields grammar: (see rfc7230)
+    #   header-fields   = *( header-field *(CR) LF )
+    #   header-field    = field-name ":" OWS field-value OWS
+    #   OWS             = ( optional white space )
+    # Note CR may be omitted for convenience (it is absorbed in OWS and stripped)
+    if http_header_fields is not None:
+        extraheaders = dict(hf.split(':') for hf in http_header_fields.split('\n') if hf.count(':') == 1)
+        for key, val in extraheaders.items():
+            headers[key] = val
+            _log.debug('Setting custom HTTP header field: %s (not logging the value)' % (key))
+
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = std_urllib.Request(url, headers=headers)
     used_urllib = std_urllib
