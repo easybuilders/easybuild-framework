@@ -373,6 +373,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                     log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s", paths)
 
+    # if we are only copying ec's for a specific PR we can do that now
+    if options.copy_ec and options.from_pr:
+        determined_paths = [path[0] for path in paths]
+        copy_ecs_to_target(determined_paths, target_path)
+        clean_exit(logfile, eb_tmpdir, testing)
+
     # run regtest
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
@@ -384,12 +390,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # read easyconfig files
     easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
-
-    # if we are only copying ec's for a specific PR we can do that now
-    if options.copy_ec and options.from_pr:
-        determined_paths = [ec['spec'] for ec in easyconfigs]
-        copy_ecs_to_target(determined_paths, target_path)
-        clean_exit(logfile, eb_tmpdir, testing)
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):

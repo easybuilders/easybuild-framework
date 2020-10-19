@@ -1072,6 +1072,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(copied_toy_cwd))
         self.assertEqual(read_file(copied_toy_cwd), toy_ec_txt)
 
+        # Test --copy-ec coupled with --from-pr
+        all_ecs_pr8007 = [
+            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
+            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+            'bat-0.3.3-fix-pyspark.patch',
+        ]
+        # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
+        args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
+        # Check that the two easyconfigs exist
+        self.assertTrue(os.path.exists(os.path.join(test_target_dir, 'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb')))
+        self.assertTrue(os.path.exists(os.path.join(test_target_dir, 'bat-0.3.3-intel-2017b-Python-3.6.3.eb')))
+
         # --copy-ec without arguments results in a proper error
         args = ['--copy-ec']
         error_pattern = "One of more files to copy should be specified!"
