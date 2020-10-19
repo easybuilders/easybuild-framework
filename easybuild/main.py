@@ -389,7 +389,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # if we are only copying ec's for a specific PR we can do that now
     if options.copy_ec and options.from_pr:
-        copy_ecs_to_target(determined_paths,target_path)
+        copy_ecs_to_target(determined_paths, target_path)
         clean_exit(logfile, eb_tmpdir, testing)
 
     # handle --check-contrib & --check-style options
