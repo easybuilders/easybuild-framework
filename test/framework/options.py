@@ -1052,7 +1052,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         check_copied_files()
 
-        # copying multiple easyconfig to an existing target file resuts in an error
+        # copying multiple easyconfig to an existing target file results in an error
         target = os.path.join(self.test_prefix, 'test.eb')
         self.assertTrue(os.path.isfile(target))
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
