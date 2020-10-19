@@ -1075,16 +1075,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Test --copy-ec coupled with --from-pr
         all_ecs_pr8007 = [
             'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
             'bat-0.3.3-fix-pyspark.patch',
+            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
         ]
+
+        # test use of `--copy-ec` with `--from-pr` to the cwd
+        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
+        mkdir(test_working_dir)
+        change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007']
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_working_dir)
+        # check that the two easyconfigs exist
+        self.assertTrue(os.path.exists(os.path.join(test_working_dir, all_ecs_pr8007[0])))
+        remove_file(os.path.join(test_working_dir, all_ecs_pr8007[0]))
+        self.assertTrue(os.path.exists(os.path.join(test_working_dir, all_ecs_pr8007[2])))
+        remove_file(os.path.join(test_working_dir, all_ecs_pr8007[2]))
+        # ...but the patch doesn't
+        self.assertFalse(os.path.exists(os.path.join(test_working_dir, all_ecs_pr8007[1])))
+        remove_file(os.path.join(test_working_dir, all_ecs_pr8007[1]))
+
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
         args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
         stdout = mocked_main(args)
         self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
-        # Check that the two easyconfigs exist
-        self.assertTrue(os.path.exists(os.path.join(test_target_dir, 'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb')))
-        self.assertTrue(os.path.exists(os.path.join(test_target_dir, 'bat-0.3.3-intel-2017b-Python-3.6.3.eb')))
+        # check that the two easyconfigs exist
+        self.assertTrue(os.path.exists(os.path.join(test_target_dir, all_ecs_pr8007[0])))
+        self.assertTrue(os.path.exists(os.path.join(test_target_dir, all_ecs_pr8007[2])))
+        # ...but the patch doesn't
+        self.assertFalse(os.path.exists(os.path.join(test_target_dir, all_ecs_pr8007[1])))
+        remove_dir(test_target_dir)
+
+        # test with only one ec in the PR (final argument is taken as a filename)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = ['--copy-ec', '--from-pr', '11521', test_ec]
+        ec_pr11521 = "ExifTool-12.00-GCCcore-9.3.0.eb"
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '%s copied to %s' % (ec_pr11521, test_ec))
+        self.assertTrue(os.path.exists(test_ec))
+        remove_file(test_ec)
 
         # --copy-ec without arguments results in a proper error
         args = ['--copy-ec']
