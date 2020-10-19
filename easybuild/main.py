@@ -176,6 +176,26 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
+def copy_ecs_to_target(determined_paths, target_path, prefix=False):
+    """
+    Copy list of easyconfigs to specified path
+
+    :param determined_paths: paths to ecs to copy
+    :param target_path: target to copy files to
+    :param prefix: include message prefix characters
+    """
+    if not target_path:
+        raise EasyBuildError("No target path specified to copy files to!")
+    if len(determined_paths) == 1:
+        copy_file(determined_paths[0], target_path)
+        print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=prefix)
+    elif len(determined_paths) > 1:
+        copy_files(determined_paths, target_path)
+        print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=prefix)
+    else:
+        raise EasyBuildError("One of more files to copy should be specified!")
+
+
 def clean_exit(logfile, tmpdir, testing, silent=False):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
@@ -303,12 +323,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
-    if len(orig_paths) == 1:
+    if not orig_paths and options.copy_ec and options.from_pr:
+        # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
+        target_path = os.getcwd()
+    elif len(orig_paths) == 1 and not (options.copy_ec and options.from_pr):
         # if only one easyconfig file is specified, use current directory as target directory
         target_path = os.getcwd()
     elif orig_paths:
         # last path is target when --copy-ec is used, so remove that from the list
-        target_path = orig_paths.pop() if options.copy_ec else None
+        # use the absolute path as some use cases occur in a temporary directory
+        target_path = os.path.abspath(orig_paths.pop()) if options.copy_ec else None
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
@@ -321,17 +345,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
+    if (options.copy_ec and not tweaked_ecs_paths) or \
+            (options.copy_ec and not options.from_pr) or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
-            if len(determined_paths) == 1:
-                copy_file(determined_paths[0], target_path)
-                print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=False)
-            elif len(determined_paths) > 1:
-                copy_files(determined_paths, target_path)
-                print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=False)
-            else:
-                raise EasyBuildError("One of more files to copy should be specified!")
+            copy_ecs_to_target(determined_paths, target_path)
 
         elif options.fix_deprecated_easyconfigs:
             fix_deprecated_easyconfigs(determined_paths)
@@ -368,6 +386,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # read easyconfig files
     easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+
+    # if we are only copying ec's for a specific PR we can do that now
+    if options.copy_ec and options.from_pr:
+        copy_ecs_to_target(determined_paths,target_path)
+        clean_exit(logfile, eb_tmpdir, testing)
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
@@ -429,8 +452,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if tweaked_ecs_in_all_ecs:
             # Clean them, then copy them
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
-            copy_files(tweaked_ecs_in_all_ecs, target_path)
-            print_msg("%d file(s) copied to %s" % (len(tweaked_ecs_in_all_ecs), target_path), prefix=False)
+            copy_ecs_to_target(tweaked_ecs_in_all_ecs, target_path)
+            clean_exit(logfile, eb_tmpdir, testing)
 
     # creating/updating PRs
     if pr_options:
