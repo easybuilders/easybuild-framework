@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, copy_ecs_to_target, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
@@ -174,24 +174,6 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
                 raise EasyBuildError("One or more %s checks FAILED!" % check_label)
 
     return check_contrib or check_style
-
-
-def copy_ecs_to_target(determined_paths, target_path, prefix=False):
-    """
-    Copy list of easyconfigs to specified path
-
-    :param determined_paths: paths to ecs to copy
-    :param target_path: target to copy files to
-    :param prefix: include message prefix characters
-    """
-    if len(determined_paths) == 1:
-        copy_file(determined_paths[0], target_path)
-        print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=prefix)
-    elif len(determined_paths) > 1:
-        copy_files(determined_paths, target_path)
-        print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=prefix)
-    else:
-        raise EasyBuildError("One of more files to copy should be specified!")
 
 
 def clean_exit(logfile, tmpdir, testing, silent=False):
@@ -321,16 +303,17 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
-    if not orig_paths:
-        # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
-        target_path = os.getcwd() if (options.copy_ec and options.from_pr) else None
-    elif len(orig_paths) == 1 and not (options.copy_ec and options.from_pr):
-        # if only one easyconfig file is specified, use current directory as target directory
+    # if only one easyconfig is specified, or if none are specified and we are using --from-pr,
+    # use current directory as target directory
+    if len(orig_paths) == 1 and not (options.copy_ec and options.from_pr):
         target_path = os.getcwd()
     elif orig_paths:
         # last path is target when --copy-ec is used, so remove that from the list
-        # use the absolute path as some use cases occur in a temporary directory
+        # use the absolute path as the --from-pr case drops us into a temporary directory
         target_path = os.path.abspath(orig_paths.pop()) if options.copy_ec else None
+    else:
+        # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
+        target_path = os.getcwd() if (options.copy_ec and options.from_pr) else None
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
@@ -343,8 +326,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if (options.copy_ec and not (tweaked_ecs_paths or options.from_pr)) or options.fix_deprecated_easyconfigs or \
-            options.show_ec:
+    # only copy easyconfigs here if we're not using --try-* or --from-pr (that's are handled below)
+    copy_ec = options.copy_ec and not (tweaked_ecs_paths or options.from_pr)
+    if copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
             copy_ecs_to_target(determined_paths, target_path)
@@ -373,10 +357,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                     log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s", paths)
 
-    # if we are only copying ec's for a specific PR we can do that now
+    # if we are only copying ec's from a specific PR we can do that now
     if options.copy_ec and options.from_pr:
-        determined_paths = [path[0] for path in paths]
-        copy_ecs_to_target(determined_paths, target_path)
+        copy_ecs_to_target([x for (x, _) in paths], target_path)
         clean_exit(logfile, eb_tmpdir, testing)
 
     # run regtest
