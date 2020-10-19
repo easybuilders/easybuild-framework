@@ -2072,7 +2072,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                      verbose=True, raise_error=True)
         outtxt = self.get_stdout()
         errtxt = self.get_stderr()
-        self.assertTrue( + r'foo-1.2.3-gompi-2018a.eb copied to ' + tweaked_ecs_dir in outtxt)
+        self.assertTrue(r'foo-1.2.3-gompi-2018a.eb copied to ' + tweaked_ecs_dir in outtxt)
         self.assertFalse(errtxt)
         self.mock_stdout(False)
         self.mock_stderr(False)
