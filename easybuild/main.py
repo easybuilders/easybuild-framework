@@ -184,8 +184,6 @@ def copy_ecs_to_target(determined_paths, target_path, prefix=False):
     :param target_path: target to copy files to
     :param prefix: include message prefix characters
     """
-    if not target_path:
-        raise EasyBuildError("No target path specified to copy files to!")
     if len(determined_paths) == 1:
         copy_file(determined_paths[0], target_path)
         print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=prefix)
@@ -323,9 +321,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
-    if not orig_paths and options.copy_ec and options.from_pr:
+    if not orig_paths:
         # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
-        target_path = os.getcwd()
+        target_path = os.getcwd() if (options.copy_ec and options.from_pr) else None
     elif len(orig_paths) == 1 and not (options.copy_ec and options.from_pr):
         # if only one easyconfig file is specified, use current directory as target directory
         target_path = os.getcwd()
@@ -345,8 +343,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if (options.copy_ec and not tweaked_ecs_paths) or \
-            (options.copy_ec and not options.from_pr) or options.fix_deprecated_easyconfigs or options.show_ec:
+    if (options.copy_ec and not (tweaked_ecs_paths or options.from_pr)) or options.fix_deprecated_easyconfigs or \
+            options.show_ec:
 
         if options.copy_ec:
             copy_ecs_to_target(determined_paths, target_path)

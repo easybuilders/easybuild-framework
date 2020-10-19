@@ -1002,7 +1002,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
         stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s/test.eb' % cwd)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to %s/test.eb' % self.test_prefix)
 
         change_dir(cwd)
 
@@ -1048,7 +1048,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(args[-1]))
 
         stdout = mocked_main(args)
-        self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
 
         check_copied_files()
 
@@ -2067,15 +2067,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        tweaked_ecs_dir = os.path.join(self.test_buildpath, 'my_tweaked_ecs')
-        self.eb_main(args + ['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a', tweaked_ecs_dir],
-                     verbose=True, raise_error=True)
+        tweaked_ecs_dir = os.path.join(self.test_buildpath)
+        os.chdir(tweaked_ecs_dir)
+        self.eb_main(args + ['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a'], verbose=True, raise_error=True)
         outtxt = self.get_stdout()
         errtxt = self.get_stderr()
-        self.assertTrue(r'foo-1.2.3-gompi-2018a.eb copied to ' + tweaked_ecs_dir in outtxt)
-        self.assertFalse(errtxt)
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertTrue(r'foo-1.2.3-GCC-6.4.0-2.28.eb copied to ' + tweaked_ecs_dir in outtxt)
+        self.assertFalse(errtxt)
         self.assertTrue(
             os.path.exists(os.path.join(self.test_buildpath, tweaked_ecs_dir, 'foo-1.2.3-GCC-6.4.0-2.28.eb'))
         )
