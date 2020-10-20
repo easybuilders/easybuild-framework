@@ -1197,6 +1197,16 @@ class ToolchainTest(EnhancedTestCase):
         """Test mpi_exec_nranks function."""
         self.modtool.prepend_module_path(self.test_prefix)
 
+        # first try calling mpi_cmd_prefix without having any modules loaded, should not cause trouble
+
+        # for toolchain with Intel MPI we get None as result in this cause (because impi version can
+        # not be determined)
+        tc = self.get_toolchain('intel', version='2018a')
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), None)
+
+        tc = self.get_toolchain('gompi', version='2018a')
+        self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), "mpirun -n 2")
+
         tc = self.get_toolchain('gompi', version='2018a')
         tc.prepare()
         self.assertEqual(tc.mpi_cmd_prefix(nr_ranks=2), "mpirun -n 2")
@@ -1238,6 +1248,16 @@ class ToolchainTest(EnhancedTestCase):
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
         self.modtool.prepend_module_path(self.test_prefix)
+
+        # if mpi_cmd_for is called too early when using toolchain that includes impi,
+        # we get None as result because Intel MPI version can not be determined
+        tc = self.get_toolchain('intel', version='2018a')
+        self.assertEqual(tc.mpi_cmd_for('test123', 2), None)
+
+        # no problem for OpenMPI-based toolchain, because OpenMPI version is not required
+        # to determine MPI command template
+        tc = self.get_toolchain('gompi', version='2018a')
+        self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
 
         tc = self.get_toolchain('gompi', version='2018a')
         tc.prepare()
