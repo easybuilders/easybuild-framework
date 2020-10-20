@@ -1073,6 +1073,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(read_file(copied_toy_cwd), toy_ec_txt)
 
         # Test --copy-ec coupled with --from-pr
+
+        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
+        mkdir(test_working_dir)
+        change_dir(test_working_dir)
+        test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
+        # Make sure the test target directory doesn't exist
+        remove_dir(test_target_dir)
+
         all_ecs_pr8007 = [
             'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
             'bat-0.3.3-fix-pyspark.patch',
@@ -1080,9 +1088,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         # test use of `--copy-ec` with `--from-pr` to the cwd
-        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
-        mkdir(test_working_dir)
-        change_dir(test_working_dir)
         args = ['--copy-ec', '--from-pr', '8007']
         stdout = mocked_main(args)
         self.assertEqual(stdout, '3 file(s) copied to %s' % test_working_dir)
@@ -1125,7 +1130,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(test_ec))
         remove_file(test_ec)
 
-        # --copy-ec without arguments results in a proper error
+        # --copy-ec without arguments (and  no --from-pr) results in a proper error
         args = ['--copy-ec']
         error_pattern = "One of more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
