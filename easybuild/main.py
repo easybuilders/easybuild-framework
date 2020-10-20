@@ -451,7 +451,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             # Clean them, then copy them
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
             copy_ecs_to_target(tweaked_ecs_in_all_ecs, target_path, target_is_dir=True)
-            clean_exit(logfile, eb_tmpdir, testing)
 
     # creating/updating PRs
     if pr_options:
