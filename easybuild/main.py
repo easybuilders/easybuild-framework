@@ -340,6 +340,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                     if not orig_paths:
                         # It should have been the only easyconfig selected
                         determined_paths = [pr_path]
+                    else:
+                        if os.path.basename(pr_path) not in [os.path.basename(path) for path in determined_paths]:
+                            determined_paths.append(pr_path)
                     target_path = os.getcwd()
             other_pr_paths = []
             for ec_path in determined_paths:
