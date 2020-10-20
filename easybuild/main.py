@@ -331,7 +331,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     copy_ec = options.copy_ec and not tweaked_ecs_paths
     if copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
         if options.from_pr:
-            # if we are using from pr we also want any (related) files that are not easyconfigs
+            # pull in the paths to all the changed files in the PR (need to do this in a new temp dir)
             pr_paths = fetch_files_from_pr(pr=options.from_pr, path=tempfile.mktemp())
             for pr_path in pr_paths:
                 # we assumed that the last argument from the command line was the target_path but if it appears in the
@@ -346,9 +346,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                         # Search for any associated patches (they would have the same dirname)
                         for patch_path in pr_paths:
                             if pr_path != patch_path and os.path.dirname(pr_path) == os.path.dirname(patch_path):
-                                other_pr_paths.append(patch_path)
-            if other_pr_paths:
-                determined_paths += other_pr_paths
+                                # if it's an easyconfig, we already have it covered
+                                if not patch_path.endswith('.eb'):
+                                    other_pr_paths.append(patch_path)
+            determined_paths += other_pr_paths
 
         if options.copy_ec:
             copy_ecs_to_target(determined_paths, target_path)
