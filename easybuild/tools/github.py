@@ -364,6 +364,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
+    working_directory = os.getcwd()
     change_dir(base_dir)
     extracted_path = os.path.join(base_dir, extracted_dir_name)
 
@@ -372,6 +373,9 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
 
     write_file(latest_sha_path, latest_commit_sha, forced=True)
+
+    # go back to previous working directory
+    change_dir(working_directory)
 
     _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path
