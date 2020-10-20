@@ -307,14 +307,15 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # if only one easyconfig is specified, or if none are specified and we are using --from-pr,
     # use current directory as target directory
+    cwd = os.getcwd()
     if len(orig_paths) == 1 and not (options.copy_ec and options.from_pr):
-        target_path = os.getcwd()
+        target_path = cwd
     elif orig_paths:
         # last path is target when --copy-ec is used, so remove that from the list
         target_path = orig_paths.pop() if options.copy_ec else None
     else:
         # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
-        target_path = os.getcwd() if (options.copy_ec and options.from_pr) else None
+        target_path = cwd if (options.copy_ec and options.from_pr) else None
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
@@ -343,7 +344,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                     else:
                         if os.path.basename(pr_path) not in [os.path.basename(path) for path in determined_paths]:
                             determined_paths.append(pr_path)
-                    target_path = os.getcwd()
+                    target_path = cwd
             other_pr_paths = []
             for ec_path in determined_paths:
                 for pr_path in pr_paths:
