@@ -347,7 +347,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                         for patch_path in pr_paths:
                             if pr_path != patch_path and os.path.dirname(pr_path) == os.path.dirname(patch_path):
                                 # if it's an easyconfig, we already have it covered
-                                if not patch_path.endswith('.eb'):
+                                if not patch_path.endswith('.eb') and patch_path not in other_pr_paths:
                                     other_pr_paths.append(patch_path)
             determined_paths += other_pr_paths
 
