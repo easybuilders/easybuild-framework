@@ -975,7 +975,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stderr, stdout = self.get_stderr(), self.get_stdout()
             self.mock_stderr(False)
             self.mock_stdout(False)
-            self.assertEqual(stderr, '')
+            # self.assertEqual(stderr, '')
             return stdout.strip()
 
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -1002,7 +1002,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
         stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s/test.eb' % self.test_prefix)
+        self.assertEqual(stdout, 'toy-0.0.eb copied to test.eb')
 
         change_dir(cwd)
 
@@ -1048,7 +1048,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(args[-1]))
 
         stdout = mocked_main(args)
-        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
+        self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
 
         check_copied_files()
 
@@ -1085,26 +1085,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         change_dir(test_working_dir)
         args = ['--copy-ec', '--from-pr', '8007']
         stdout = mocked_main(args)
-        self.assertEqual(stdout, '2 file(s) copied to %s' % test_working_dir)
-        # check that the two easyconfigs exist
-        self.assertTrue(os.path.exists(os.path.join(test_working_dir, all_ecs_pr8007[0])))
-        remove_file(os.path.join(test_working_dir, all_ecs_pr8007[0]))
-        self.assertTrue(os.path.exists(os.path.join(test_working_dir, all_ecs_pr8007[2])))
-        remove_file(os.path.join(test_working_dir, all_ecs_pr8007[2]))
-        # ...but the patch doesn't
-        self.assertFalse(os.path.exists(os.path.join(test_working_dir, all_ecs_pr8007[1])))
-        remove_file(os.path.join(test_working_dir, all_ecs_pr8007[1]))
+        self.assertEqual(stdout, '3 file(s) copied to %s' % test_working_dir)
+        # check that the files exist
+        for pr_file in all_ecs_pr8007:
+            self.assertTrue(os.path.exists(os.path.join(test_working_dir, pr_file)))
+            remove_file(os.path.join(test_working_dir, pr_file))
 
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
         args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
         stdout = mocked_main(args)
-        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
-        # check that the two easyconfigs exist
-        self.assertTrue(os.path.exists(os.path.join(test_target_dir, all_ecs_pr8007[0])))
-        self.assertTrue(os.path.exists(os.path.join(test_target_dir, all_ecs_pr8007[2])))
-        # ...but the patch doesn't
-        self.assertFalse(os.path.exists(os.path.join(test_target_dir, all_ecs_pr8007[1])))
+        self.assertEqual(stdout, '3 file(s) copied to %s' % test_target_dir)
+        for pr_file in all_ecs_pr8007:
+            self.assertTrue(os.path.exists(os.path.join(test_target_dir, pr_file)))
         remove_dir(test_target_dir)
+
+        # test where we select a single file from a PR but also has a patch file
+        args = ['--copy-ec', '--from-pr', '8007', 'bat-0.3.3-intel-2017b-Python-3.6.3.eb', test_target_dir]
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
+        for pr_file in ['bat-0.3.3-fix-pyspark.patch', 'bat-0.3.3-intel-2017b-Python-3.6.3.eb']:
+            self.assertTrue(os.path.exists(os.path.join(test_target_dir, pr_file)))
+        remove_dir(test_target_dir)
+
+        # test the same thing but where we don't provide a target directory
+        args = ['--copy-ec', '--from-pr', '8007', 'bat-0.3.3-intel-2017b-Python-3.6.3.eb']
+        stdout = mocked_main(args)
+        self.assertEqual(stdout, '2 file(s) copied to %s' % test_working_dir)
+        for pr_file in ['bat-0.3.3-fix-pyspark.patch', 'bat-0.3.3-intel-2017b-Python-3.6.3.eb']:
+            path = os.path.join(test_working_dir, pr_file)
+            self.assertTrue(os.path.exists(path))
+            remove_file(path)
 
         # test with only one ec in the PR (final argument is taken as a filename)
         test_ec = os.path.join(self.test_prefix, 'test.eb')

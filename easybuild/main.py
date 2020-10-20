@@ -39,6 +39,7 @@ import copy
 import os
 import stat
 import sys
+import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -59,8 +60,9 @@ from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, dump_index, load_index
 from easybuild.tools.filetools import read_file, register_lock_cleanup_signal_handlers, write_file
-from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
-from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
+from easybuild.tools.github import check_github, close_pr, fetch_files_from_pr, find_easybuild_easyconfig
+from easybuild.tools.github import install_github_token, list_prs, merge_pr, new_branch_github, new_pr
+from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
@@ -310,7 +312,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif orig_paths:
         # last path is target when --copy-ec is used, so remove that from the list
         # use the absolute path as the --from-pr case drops us into a temporary directory
-        target_path = os.path.abspath(orig_paths.pop()) if options.copy_ec else None
+        target_path = orig_paths.pop() if options.copy_ec else None
     else:
         # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
         target_path = os.getcwd() if (options.copy_ec and options.from_pr) else None
@@ -326,9 +328,28 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    # only copy easyconfigs here if we're not using --try-* or --from-pr (that's are handled below)
-    copy_ec = options.copy_ec and not (tweaked_ecs_paths or options.from_pr)
+    # only copy easyconfigs here if we're not using --try-* (that's are handled below)
+    copy_ec = options.copy_ec and not tweaked_ecs_paths
     if copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
+        if options.from_pr:
+            # if we are using from pr we also want any (related) files that are not easyconfigs
+            pr_paths = fetch_files_from_pr(pr=options.from_pr, path=tempfile.mktemp())
+            for pr_path in pr_paths:
+                # we assumed that the last argument from the command line was the target_path but if it appears in the
+                # PR file list then it was most likely intended to use the CWD and (also) copy that particular file
+                if target_path == os.path.basename(pr_path):
+                    determined_paths.append(pr_path)
+                    target_path = os.getcwd()
+            other_pr_paths = []
+            for ec_path in determined_paths:
+                for pr_path in pr_paths:
+                    if os.path.basename(ec_path) == os.path.basename(pr_path):
+                        # Search for any associated patches (they would have the same dirname)
+                        for patch_path in pr_paths:
+                            if pr_path != patch_path and os.path.dirname(pr_path) == os.path.dirname(patch_path):
+                                other_pr_paths.append(patch_path)
+            if other_pr_paths:
+                determined_paths += other_pr_paths
 
         if options.copy_ec:
             copy_ecs_to_target(determined_paths, target_path)
@@ -357,16 +378,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                     log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s", paths)
 
-    # if we are only copying ec's from a specific PR we can do that now
-    if options.copy_ec and options.from_pr:
-        copy_ecs_to_target([x for (x, _) in paths], target_path)
-        clean_exit(logfile, eb_tmpdir, testing)
-
     # run regtest
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         # fallback: easybuild-easyconfigs install path
-        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths, modtool)
+        regtest_ok = regtest([x for (x, _) in paths] or easyconfigs_pkg_paths, modtool)
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
@@ -434,7 +450,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if tweaked_ecs_in_all_ecs:
             # Clean them, then copy them
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
-            copy_ecs_to_target(tweaked_ecs_in_all_ecs, target_path)
+            copy_ecs_to_target(tweaked_ecs_in_all_ecs, target_path, target_is_dir=True)
             clean_exit(logfile, eb_tmpdir, testing)
 
     # creating/updating PRs
