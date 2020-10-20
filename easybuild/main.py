@@ -311,7 +311,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         target_path = os.getcwd()
     elif orig_paths:
         # last path is target when --copy-ec is used, so remove that from the list
-        # use the absolute path as the --from-pr case drops us into a temporary directory
         target_path = orig_paths.pop() if options.copy_ec else None
     else:
         # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
