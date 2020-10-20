@@ -337,7 +337,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                 # we assumed that the last argument from the command line was the target_path but if it appears in the
                 # PR file list then it was most likely intended to use the CWD and (also) copy that particular file
                 if target_path == os.path.basename(pr_path):
-                    determined_paths.append(pr_path)
+                    if not orig_paths:
+                        # It should have been the only easyconfig selected
+                        determined_paths = [pr_path]
                     target_path = os.getcwd()
             other_pr_paths = []
             for ec_path in determined_paths:
