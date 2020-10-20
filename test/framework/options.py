@@ -2130,7 +2130,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                      verbose=True, raise_error=True)
         outtxt = self.get_stdout()
         errtxt = self.get_stderr()
-        self.assertTrue(r'foo-1.2.3-GCC-6.4.0-2.28.eb copied to ' + tweaked_ecs_dir in outtxt)
+        self.assertTrue(r'1 file(s) copied to ' + tweaked_ecs_dir in outtxt)
         self.assertFalse(errtxt)
         self.mock_stdout(False)
         self.mock_stderr(False)
