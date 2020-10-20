@@ -975,7 +975,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stderr, stdout = self.get_stderr(), self.get_stdout()
             self.mock_stderr(False)
             self.mock_stdout(False)
-            # self.assertEqual(stderr, '')
+            self.assertEqual(stderr, '')
             return stdout.strip()
 
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -1076,7 +1076,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
         mkdir(test_working_dir)
-        change_dir(test_working_dir)
         test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
         # Make sure the test target directory doesn't exist
         remove_dir(test_target_dir)
@@ -1088,6 +1087,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         # test use of `--copy-ec` with `--from-pr` to the cwd
+        change_dir(test_working_dir)
         args = ['--copy-ec', '--from-pr', '8007']
         stdout = mocked_main(args)
         self.assertEqual(stdout, '3 file(s) copied to %s' % test_working_dir)
