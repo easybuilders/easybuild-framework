@@ -2125,15 +2125,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        tweaked_ecs_dir = os.path.join(self.test_buildpath)
-        os.chdir(tweaked_ecs_dir)
-        self.eb_main(args + ['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a'], verbose=True, raise_error=True)
+        tweaked_ecs_dir = os.path.join(self.test_buildpath, 'my_tweaked_ecs')
+        self.eb_main(args + ['--try-software=foo,1.2.3', '--try-toolchain=gompi,2018a', tweaked_ecs_dir],
+                     verbose=True, raise_error=True)
         outtxt = self.get_stdout()
         errtxt = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
         self.assertTrue(r'foo-1.2.3-GCC-6.4.0-2.28.eb copied to ' + tweaked_ecs_dir in outtxt)
         self.assertFalse(errtxt)
+        self.mock_stdout(False)
+        self.mock_stderr(False)
         self.assertTrue(
             os.path.exists(os.path.join(self.test_buildpath, tweaked_ecs_dir, 'foo-1.2.3-GCC-6.4.0-2.28.eb'))
         )
