@@ -579,11 +579,41 @@ def download_file(filename, url, path, forced=False):
         timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
-    # extra custom HTTP header fields specified by user string
-    http_header_fields = build_option('http_header_fields')
-    # if value is a file path, read that instead (in case of sensitive data)
-    if http_header_fields is not None and os.path.isfile(http_header_fields):
-        http_header_fields = read_file(http_header_fields)
+    # apply extra custom HTTP header fields for URLs containing a pattern
+    http_header_fields_urlpat = build_option('http_header_fields_urlpat')
+    extra_http_header_fields = list()
+    if isinstance(http_header_fields_urlpat, (list, tuple)):
+        prev_urlpat = None
+        header_urlpat = None
+        for argument in http_header_fields_urlpat:
+            _log.debug("Got build option http header fields urlpat = %s" % argument)
+            # if argument is actually a file path, read that instead (useful with sensitive data)
+            if os.path.isfile(argument):
+                argument = read_file(argument)
+            # use '::' as a delimeter between URL pattern and the header field
+            if header_urlpat is not None:
+                # remember previous urlpat
+                prev_urlpat = header_urlpat
+            if '::' in argument:
+                _log.debug("It contains ::")
+                [header_urlpat, header_field] = argument.split('::', 1)
+            elif prev_urlpat is not None:
+                header_urlpat = prev_urlpat  # reuse previous urlpat
+                header_field = argument        # whole argument only contains header info
+            else:
+                # ignore the argument entirely if the URL pattern isn't (or wasn't) given
+                _log.debug("no urlpat given, giving up")
+                continue
+            _log.debug("urlpat = %s" % header_urlpat)
+            _log.debug("header = %s" % header_field)
+            _log.debug("url = %s" % url)
+            if re.search(header_urlpat, url):
+                _log.debug("url matched!")
+                # if header is actually a file path, read that instead (useful with sensitive data)
+                if os.path.isfile(header_field):
+                    header_field = read_file(header_field)
+                    _log.debug("header from file = %s" % header_field)
+                extra_http_header_fields.append(header_field)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
@@ -603,7 +633,8 @@ def download_file(filename, url, path, forced=False):
     #   header-field    = field-name ":" OWS field-value OWS
     #   OWS             = ( optional white space )
     # Note CR may be omitted for convenience (it is absorbed in OWS and stripped)
-    if http_header_fields is not None:
+    # Note field-value may not not contain ":"
+    for http_header_fields in extra_http_header_fields:
         extraheaders = dict(hf.split(':') for hf in http_header_fields.split('\n') if hf.count(':') == 1)
         for key, val in extraheaders.items():
             headers[key] = val

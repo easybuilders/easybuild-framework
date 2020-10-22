@@ -397,7 +397,9 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
-            'http-header-fields': ("Set extra HTTP header fields", 'str', 'store', None),
+            'http-header-fields-urlpat': (("Set extra HTTP header fields (or file) for URL patterns;"
+                       "(e.g. ^https://www.example.com::/path/to/headers.txt)"),
+                      None, 'append', None, {'metavar':'PAT::FIELD[,[PAT::]FIELDS..]'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
