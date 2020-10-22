@@ -862,7 +862,7 @@ class EasyBuildOptions(GeneralOption):
         # (this should only happen during --show-config)
         if not self.single_cfg_level:
             self._postprocess_checks()
-            
+
         # imply --terse for --last-log to avoid extra output that gets in the way
         if self.options.last_log:
             self.options.terse = True
@@ -1584,7 +1584,7 @@ def process_software_build_specs(options):
             if ',' in value:
                 value = value.split(',')
             build_specs.update({param: value})
-            
+
     return (try_to_generate, build_specs)
 
 
