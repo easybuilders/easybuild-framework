@@ -44,7 +44,7 @@ class GenericSpecsParser(object):
 class YamlSpecParser(GenericSpecsParser):
     @staticmethod
     def parse(filename):
-        
+
         try:
             with open(filename, 'r') as f:
                 spec_dict = yaml.safe_load(f)
@@ -74,9 +74,9 @@ class YamlSpecParser(GenericSpecsParser):
                             version_info = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
                             if version_info['versionsuffix'] is not None:
                                 sw.version_suffix = version_info['versionsuffix']
-                        except (KeyError, TypeError, IndexError) as e:
+                        except (KeyError, TypeError, IndexError):
                             continue
-            except (KeyError, TypeError, IndexError) as ex:
+            except (KeyError, TypeError, IndexError):
                 print('Software ' + str(software) + ' has wrong yaml structure!')
 
         # assign general EB attributes
@@ -86,10 +86,10 @@ class YamlSpecParser(GenericSpecsParser):
 
 
 def handle_specsfile(filename):
-    
+
     eb = YamlSpecParser.parse(filename)
-    
+
     eb_cmds = eb.compose_eb_cmds()
-    
+
     for x in eb_cmds:
         print(x)
