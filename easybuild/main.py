@@ -70,7 +70,7 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.specsfile.handle_specsfile import handle_specsfile
+from easybuild.tools.build_from_specsfile import handle_specsfile
 
 _log = None
 
