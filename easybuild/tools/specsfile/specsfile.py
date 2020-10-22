@@ -1,6 +1,5 @@
-
 # general specs applicable to all commands
-class EbFromSpecs(object):
+class Specsfile(object):
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
@@ -15,15 +14,17 @@ class EbFromSpecs(object):
 
     # single command
     def make_cmd(self, sw):
-        version_suffix = lambda version_suffix: str(sw.version_suffix) if sw.version_suffix != None else ''
-        eb_cmd = 'eb ' + sw.software + '-' + sw.version + '-' + sw.toolchain + version_suffix(sw.version_suffix) + ' --robot=' + str(self.robot)
+        eb_cmd = 'eb %s-%s-%s%s --robot=%s ' % (sw.software, sw.version, sw.toolchain, sw.get_version_suffix(), self.robot)
         return eb_cmd
 
 # single sw command
 class SoftwareSpecs(object):
-    def __init__(self):
-        self.software = None
-        self.version = None
-        self.toolchain = None
+    def __init__(self, software, version, toolchain):
+        self.software = software
+        self.version = version
+        self.toolchain = toolchain
         self.version_suffix = None
+        
+    def get_version_suffix(self):
+        return self.version_suffix or ''
 

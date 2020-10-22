@@ -604,7 +604,7 @@ class EasyBuildOptions(GeneralOption):
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
-            'specfile': ("Accepts file containing build specifications (i.e. yaml), parses it and prints all eb commands to run"
+            'specsfile': ("Accepts file containing build specifications (i.e. yaml), parses it and prints all eb commands to run"
                         , None, 'store', None),
 
         })

@@ -70,7 +70,7 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.specfile.handle_specfile import handle_specfile
+from easybuild.tools.specsfile.handle_specsfile import handle_specsfile
 
 _log = None
 
@@ -317,7 +317,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
     pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
     pr_options = pr_options or options.update_branch_github or options.update_pr
-    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query, options.specfile]
+    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query, options.specsfile]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
@@ -416,7 +416,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif pr_options or options.specfile:
+    elif pr_options or options.specsfile:
         ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
@@ -476,8 +476,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.inject_checksums:
         inject_checksums(ordered_ecs, options.inject_checksums)
 
-    elif options.specfile:
-        handle_specfile(options.specfile)
+    elif options.specsfile:
+        handle_specsfile(options.specsfile)
         
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]

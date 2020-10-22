@@ -1,25 +1,26 @@
 import yaml
 import os
-from easybuild.tools.specfile.eb_from_specs import EbFromSpecs, SoftwareSpecs
+from easybuild.tools.specsfile.specsfile import Specsfile, SoftwareSpecs
 
 # implement this to your own needs - to create custom yaml/json/xml parser
-class GenericParser(object):
+class GenericSpecsParser(object):
     @staticmethod
     def parse(filename):
         raise NotImplementedError
 
 
-class YamlSpecParser(GenericParser):
+class YamlSpecParser(GenericSpecsParser):
     @staticmethod
     def parse(filename):
-        try:
-            with open(filename, 'r') as f:
-                spec_dict = yaml.safe_load(f)
+        
+        # try:
+        with open(filename, 'r') as f:
+            spec_dict = yaml.safe_load(f)
 
-            eb = EbFromSpecs()
-        except:
-            print("Cannot open file '" + filename + "'. Try to provide relative path or adjust permissions.")
-            exit()
+        eb = Specsfile()
+        # except:
+        #     print("Cannot open file '" + filename + "'. Try to provide absolute path or adjust permissions.")
+        #     exit()
         # loads all softwares' dictionaries from yaml
         sw_dict = spec_dict["software"]
         
@@ -31,7 +32,7 @@ class YamlSpecParser(GenericParser):
                     # retrieves version number
                     for yaml_version in sw_dict[software]['toolchains'][yaml_toolchain]['versions']:
                         # creates a sw class instance
-                        sw = SoftwareSpecs()
+                        sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain)
                         # assigns attributes retrieved from yaml stream
                         sw.software = str(software)
                         sw.version = str(yaml_version)
