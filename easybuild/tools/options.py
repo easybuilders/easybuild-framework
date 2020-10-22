@@ -605,7 +605,7 @@ class EasyBuildOptions(GeneralOption):
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
             'specfile': ("Accepts file containing build specifications (i.e. yaml), parses it and prints all eb commands to run"
-                        , None, 'store_or_None', None),
+                        , None, 'store', None),
 
         })
 
@@ -862,7 +862,6 @@ class EasyBuildOptions(GeneralOption):
         # (this should only happen during --show-config)
         if not self.single_cfg_level:
             self._postprocess_checks()
-            
             
         # imply --terse for --last-log to avoid extra output that gets in the way
         if self.options.last_log:
@@ -1396,8 +1395,6 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
 
     # parse EasyBuild configuration settings
     eb_go = parse_options(args=args)
-
-
     options = eb_go.options
 
     # tmpdir is set by option parser via set_tmpdir function
@@ -1587,6 +1584,7 @@ def process_software_build_specs(options):
             if ',' in value:
                 value = value.split(',')
             build_specs.update({param: value})
+            
     return (try_to_generate, build_specs)
 
 
@@ -1728,4 +1726,3 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir
-
