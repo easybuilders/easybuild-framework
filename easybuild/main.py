@@ -70,6 +70,8 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from easybuild.tools.specfile.handle_specfile import handle_specfile
+
 
 _log = None
 
@@ -137,10 +139,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
             if os.stat(parent_dir).st_mode & 0o200:
-                write_file(test_report_fp, test_report_txt['full'])
+                write_file(test_report_fp, test_report_txt)
             else:
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
-                write_file(test_report_fp, test_report_txt['full'])
+                write_file(test_report_fp, test_report_txt)
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:
@@ -316,7 +318,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
     pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
     pr_options = pr_options or options.update_branch_github or options.update_pr
-    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
+    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query, options.specfile]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
@@ -415,7 +417,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif pr_options:
+    elif pr_options or options.specfile:
         ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
@@ -475,6 +477,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.inject_checksums:
         inject_checksums(ordered_ecs, options.inject_checksums)
 
+    elif options.specfile:
+        handle_specfile(options.specfile)
+        
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
     if any(no_ec_opts) or any(stop_options):
@@ -535,3 +540,4 @@ if __name__ == "__main__":
         print_error(err.msg)
     except KeyboardInterrupt as err:
         print_error("Cancelled by user: %s" % err)
+
