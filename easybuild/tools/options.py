@@ -624,7 +624,7 @@ class EasyBuildOptions(GeneralOption):
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
-            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", int, 'store', None,
+            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", 'strlist', 'store', [],
                                            {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
@@ -1454,25 +1454,33 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    pr_easyblocks = eb_go.options.include_easyblocks_from_pr
-    if pr_easyblocks:
-        easyblocks_from_pr = fetch_easyblocks_from_pr(pr_easyblocks)
-        included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+    try:
+        easyblock_prs = map(int, eb_go.options.include_easyblocks_from_pr)
+    except ValueError:
+        raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR numbers.")
+    if easyblock_prs:
 
         if eb_go.options.include_easyblocks:
             # check if you are including the same easyblock twice
             included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
             included_from_file = set([os.path.basename(eb) for eb in included_paths])
-            included_twice = included_from_pr & included_from_file
-            if included_twice:
-                warning_msg = "One or more easyblocks included from multiple locations: %s " % ', '.join(included_twice)
-                warning_msg += "(the one(s) from PR #%s will be used)" % pr_easyblocks
-                print_warning(warning_msg)
 
-        for easyblock in included_from_pr:
-            print_msg("easyblock %s included from PR #%s" % (easyblock, pr_easyblocks), log=log)
+        for easyblock_pr in easyblock_prs:
+            easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
+            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
 
-        include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+            if eb_go.options.include_easyblocks:
+                included_twice = included_from_pr & included_from_file
+                if included_twice:
+                    warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                                  % ', '.join(included_twice)
+                    warning_msg += "(the one(s) from PR #%s will be used)" % easyblock_pr
+                    print_warning(warning_msg)
+
+            for easyblock in included_from_pr:
+                print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+
+            include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
 
         if eb_go.options.list_easyblocks:
             msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
