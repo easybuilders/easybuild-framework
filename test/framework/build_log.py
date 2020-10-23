@@ -419,7 +419,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(logfile))
         self.assertEqual(os.path.dirname(logfile), tmpdir)
         self.assertTrue(isinstance(log, EasyBuildLog))
-        self.assertTrue(stdout.startswith("== temporary log file in case of crash"))
+        self.assertTrue(stdout.startswith("== Temporary log file in case of crash"))
 
         stop_logging(logfile)
 
