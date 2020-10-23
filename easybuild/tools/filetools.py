@@ -567,6 +567,56 @@ def derive_alt_pypi_url(url):
     return alt_pypi_url
 
 
+def parse_http_header_fields_urlpat(arg, urlpat=None, urlpat_headers={}, maxdepth=3):
+    """
+    Recurse into PAT::[PAT::FILE|PAT::HEADER: FIELD|HEADER: FIELD] where FILE may be a
+    file containing lines matching the same format, and flatten the result as a dict
+    e.g. {'^example.com': ['Authorization: Basic token', 'User-Agent: Special Agent']}
+    """
+    # stop infinite recursion that might happen if a file.txt refers to itself
+    if maxdepth < 0:
+        _log.debug("Failed to parse_http_header_fields_urlpat (recursion limit)")
+        return urlpat_headers
+
+    if not isinstance(arg, str):
+        _log.debug("Failed to parse_http_header_fields_urlpat (argument not a string)")
+        return urlpat_headers
+
+    # HTTP header fields are separated by CRLF but splitting on LF is more convenient
+    for argline in arg.split('\n'):
+        argline = argline.strip()  # remove optional whitespace (e.g. remaining CR)
+        if argline == '' or '#' in argline[0]:
+            continue  # permit comment lines: ignore them
+
+        if os.path.isfile(os.path.join(os.getcwd(), argline)):
+            # expand existing relative path to absolute
+            argline = os.path.join(os.path.join(os.getcwd(), argline))
+        if os.path.isfile(argline):
+            # argline is a file path, so read that instead
+            _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
+            argline = read_file(argline)
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, urlpat_headers, maxdepth-1)
+            continue
+
+        # URL pattern is separated by '::' from a HTTP header field
+        if '::' in argline:
+            [urlpat, argline] = argline.split('::', 1)  # get the urlpat
+            # the remainder may be another parseable argument, recurse with same depth
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, urlpat_headers, maxdepth)
+            continue
+
+        if urlpat is not None:
+            if urlpat in urlpat_headers.keys():
+                urlpat_headers[urlpat].append(argline)  # add headers to the list
+            else:
+                urlpat_headers[urlpat] = list([argline])  # new list headers for this urlpat
+        else:
+            _log.warning("Non-empty argument to http-header-fields-urlpat ignored (missing URL pattern)")
+
+    # return a dict full of {urlpat: [list, of, headers]}
+    return urlpat_headers
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -579,41 +629,14 @@ def download_file(filename, url, path, forced=False):
         timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
-    # apply extra custom HTTP header fields for URLs containing a pattern
+    # parse option HTTP header fields for URLs containing a pattern
     http_header_fields_urlpat = build_option('http_header_fields_urlpat')
-    extra_http_header_fields = list()
-    if isinstance(http_header_fields_urlpat, (list, tuple)):
-        prev_urlpat = None
-        header_urlpat = None
-        for argument in http_header_fields_urlpat:
-            _log.debug("Got build option http header fields urlpat = %s" % argument)
-            # if argument is actually a file path, read that instead (useful with sensitive data)
-            if os.path.isfile(argument):
-                argument = read_file(argument)
-            # use '::' as a delimeter between URL pattern and the header field
-            if header_urlpat is not None:
-                # remember previous urlpat
-                prev_urlpat = header_urlpat
-            if '::' in argument:
-                _log.debug("It contains ::")
-                [header_urlpat, header_field] = argument.split('::', 1)
-            elif prev_urlpat is not None:
-                header_urlpat = prev_urlpat  # reuse previous urlpat
-                header_field = argument        # whole argument only contains header info
-            else:
-                # ignore the argument entirely if the URL pattern isn't (or wasn't) given
-                _log.debug("no urlpat given, giving up")
-                continue
-            _log.debug("urlpat = %s" % header_urlpat)
-            _log.debug("header = %s" % header_field)
-            _log.debug("url = %s" % url)
-            if re.search(header_urlpat, url):
-                _log.debug("url matched!")
-                # if header is actually a file path, read that instead (useful with sensitive data)
-                if os.path.isfile(header_field):
-                    header_field = read_file(header_field)
-                    _log.debug("header from file = %s" % header_field)
-                extra_http_header_fields.append(header_field)
+    # compile a dict full of {urlpat: [header, list]}
+    urlpat_headers = dict()
+    if http_header_fields_urlpat is not None:
+        # there may be multiple options given, parse them all, while updating urlpat_headers
+        for arg in http_header_fields_urlpat:
+            urlpat_headers = parse_http_header_fields_urlpat(arg, None, urlpat_headers)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
@@ -627,18 +650,14 @@ def download_file(filename, url, path, forced=False):
     # use custom HTTP header
     headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
 
-    # permit additional or override headers via http_headers_fields option
-    # whose string value contains header-fields grammar: (see rfc7230)
-    #   header-fields   = *( header-field *(CR) LF )
-    #   header-field    = field-name ":" OWS field-value OWS
-    #   OWS             = ( optional white space )
-    # Note CR may be omitted for convenience (it is absorbed in OWS and stripped)
-    # Note field-value may not not contain ":"
-    for http_header_fields in extra_http_header_fields:
-        extraheaders = dict(hf.split(':') for hf in http_header_fields.split('\n') if hf.count(':') == 1)
-        for key, val in extraheaders.items():
-            headers[key] = val
-            _log.debug('Setting custom HTTP header field: %s (not logging the value)' % (key))
+    # permit additional or override headers via http_headers_fields_urlpat option
+    # only append/override HTTP header fields that match current url
+    for urlpatkey, http_header_fields in urlpat_headers.items():
+        if re.search(urlpatkey, url):
+            extraheaders = dict(hf.split(':', 1) for hf in http_header_fields)
+            for key, val in extraheaders.items():
+                headers[key] = val
+                _log.debug('Custom HTTP header field set: %s (value omitted from log)' % (key))
 
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = std_urllib.Request(url, headers=headers)
