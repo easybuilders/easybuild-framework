@@ -2680,6 +2680,79 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(lock_path))
         self.assertEqual(os.listdir(locks_dir), [])
 
+    def test_locate_files(self):
+        """Test locate_files function."""
+
+        # create some files to find
+        one = os.path.join(self.test_prefix, '1.txt')
+        ft.write_file(one, 'one')
+        two = os.path.join(self.test_prefix, 'subdirA', '2.txt')
+        ft.write_file(two, 'two')
+        three = os.path.join(self.test_prefix, 'subdirB', '3.txt')
+        ft.write_file(three, 'three')
+        ft.mkdir(os.path.join(self.test_prefix, 'empty_subdir'))
+
+        # empty list of files yields empty result
+        self.assertEqual(ft.locate_files([], []), [])
+        self.assertEqual(ft.locate_files([], [self.test_prefix]), [])
+
+        # error is raised if files could not be found
+        error_pattern = r"One or more files not found: nosuchfile.txt \(search paths: \)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['nosuchfile.txt'], [])
+
+        # files specified via absolute path don't have to be found
+        res = ft.locate_files([one], [])
+        self.assertTrue(len(res) == 1)
+        self.assertTrue(os.path.samefile(res[0], one))
+
+        # note: don't compare file paths directly but use os.path.samefile instead,
+        # which is required to avoid failing tests in case temporary directory is a symbolic link (e.g. on macOS)
+        res = ft.locate_files(['1.txt'], [self.test_prefix])
+        self.assertEqual(len(res), 1)
+        self.assertTrue(os.path.samefile(res[0], one))
+
+        res = ft.locate_files(['2.txt'], [self.test_prefix])
+        self.assertEqual(len(res), 1)
+        self.assertTrue(os.path.samefile(res[0], two))
+
+        res = ft.locate_files(['1.txt', '3.txt'], [self.test_prefix])
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], one))
+        self.assertTrue(os.path.samefile(res[1], three))
+
+        # search in multiple paths
+        files = ['2.txt', '3.txt']
+        paths = [os.path.dirname(three), os.path.dirname(two)]
+        res = ft.locate_files(files, paths)
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], two))
+        self.assertTrue(os.path.samefile(res[1], three))
+
+        # same file specified multiple times works fine
+        files = ['1.txt', '2.txt', '1.txt', '3.txt', '2.txt']
+        res = ft.locate_files(files, [self.test_prefix])
+        self.assertEqual(len(res), 5)
+        for idx, expected in enumerate([one, two, one, three, two]):
+            self.assertTrue(os.path.samefile(res[idx], expected))
+
+        # only some files found yields correct warning
+        files = ['2.txt', '3.txt', '1.txt']
+        error_pattern = r"One or more files not found: 3\.txt, 1.txt \(search paths: .*/subdirA\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, files, [os.path.dirname(two)])
+
+        # check that relative paths are found in current working dir
+        ft.change_dir(self.test_prefix)
+        rel_paths = ['subdirA/2.txt', '1.txt']
+        # result is still absolute paths to those files
+        res = ft.locate_files(rel_paths, [])
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], two))
+        self.assertTrue(os.path.samefile(res[1], one))
+
+        # no recursive search in current working dir (which would potentially be way too expensive)
+        error_pattern = r"One or more files not found: 2\.txt \(search paths: \)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['2.txt'], [])
+
 
 def suite():
     """ returns all the testcases in this module """

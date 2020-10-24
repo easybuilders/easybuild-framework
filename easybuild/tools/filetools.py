@@ -792,6 +792,49 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
+def locate_files(files, paths, ignore_subdirs=None):
+    """
+    Determine full path for list of files, in given list of paths (directories).
+    """
+    # determine which easyconfigs files need to be found, if any
+    files_to_find = []
+    for idx, ec_file in enumerate(files):
+        if ec_file == os.path.basename(ec_file) and not os.path.exists(ec_file):
+            files_to_find.append((idx, ec_file))
+    _log.debug("List of files to find: %s" % files_to_find)
+
+    # find missing easyconfigs by walking paths in robot search path
+    for path in paths:
+        _log.debug("Looking for missing files (%d left) in %s..." % (len(files_to_find), path))
+        for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
+            for idx, orig_path in files_to_find[:]:
+                if orig_path in filenames:
+                    full_path = os.path.join(subpath, orig_path)
+                    _log.info("Found %s in %s: %s" % (orig_path, path, full_path))
+                    files[idx] = full_path
+                    # if file was found, stop looking for it (first hit wins)
+                    files_to_find.remove((idx, orig_path))
+
+            # stop os.walk insanity as soon as we have all we need (os.walk loop)
+            if not files_to_find:
+                break
+
+            # ignore specified subdirectories
+            if ignore_subdirs:
+                dirnames[:] = [d for d in dirnames if d not in ignore_subdirs]
+
+        # stop os.walk insanity as soon as we have all we need (outer loop)
+        if not files_to_find:
+            break
+
+    if files_to_find:
+        filenames = ', '.join([f for (_, f) in files_to_find])
+        paths = ', '.join(paths)
+        raise EasyBuildError("One or more files not found: %s (search paths: %s)", filenames, paths)
+
+    return [os.path.abspath(f) for f in files]
+
+
 def find_glob_pattern(glob_pattern, fail_on_no_match=True):
     """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
     if build_option('extended_dry_run'):
