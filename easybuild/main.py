@@ -39,7 +39,6 @@ import copy
 import os
 import stat
 import sys
-import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -52,15 +51,16 @@ from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, copy_ecs_to_target, dep_graph
-from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
-from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
+from easybuild.framework.easyconfig.tools import det_copy_ec_specs, det_easyconfig_paths, dump_env_script
+from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, run_contrib_checks
+from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, dump_index, load_index
+from easybuild.tools.filetools import adjust_permissions, cleanup, dump_index, load_index, locate_files
 from easybuild.tools.filetools import read_file, register_lock_cleanup_signal_handlers, write_file
-from easybuild.tools.github import check_github, close_pr, fetch_files_from_pr, find_easybuild_easyconfig
+from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
@@ -305,17 +305,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
-    # if only one easyconfig is specified, or if none are specified and we are using --from-pr,
-    # use current directory as target directory
-    if len(orig_paths) == 1 and not (options.copy_ec and options.from_pr):
-        target_path = os.getcwd()
-    elif orig_paths:
-        # last path is target when --copy-ec is used, so remove that from the list
-        target_path = orig_paths.pop() if options.copy_ec else None
-    else:
-        # if no easyconfig files are specified and we are using --from-pr, use current directory as target directory
-        target_path = os.getcwd() if (options.copy_ec and options.from_pr) else None
-
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
@@ -327,37 +316,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    # only copy easyconfigs here if we're not using --try-* (that's are handled below)
+    # only copy easyconfigs here if we're not using --try-* (that's handled below)
     copy_ec = options.copy_ec and not tweaked_ecs_paths
+
     if copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
-        if options.from_pr:
-            # pull in the paths to all the changed files in the PR (need to do this in a new temp dir)
-            pr_paths = fetch_files_from_pr(pr=options.from_pr, path=tempfile.mktemp())
-            for pr_path in pr_paths:
-                # we assumed that the last argument from the command line was the target_path but if it appears in the
-                # PR file list then it was most likely intended to use the CWD and (also) copy that particular file
-                if target_path == os.path.basename(pr_path):
-                    if not orig_paths:
-                        # It should have been the only easyconfig selected
-                        determined_paths = [pr_path]
-                    else:
-                        if os.path.basename(pr_path) not in [os.path.basename(path) for path in determined_paths]:
-                            determined_paths.append(pr_path)
-                    target_path = os.getcwd()
-            other_pr_paths = []
-            for ec_path in determined_paths:
-                for pr_path in pr_paths:
-                    if os.path.basename(ec_path) == os.path.basename(pr_path):
-                        # Search for any associated patches (they would have the same dirname)
-                        for patch_path in pr_paths:
-                            if pr_path != patch_path and os.path.dirname(pr_path) == os.path.dirname(patch_path):
-                                # if it's an easyconfig, we already have it covered
-                                if not patch_path.endswith('.eb') and patch_path not in other_pr_paths:
-                                    other_pr_paths.append(patch_path)
-            determined_paths += other_pr_paths
 
         if options.copy_ec:
-            copy_ecs_to_target(determined_paths, target_path)
+            # figure out list of files to copy + target location (taking into account --from-pr)
+            paths, target_path = det_copy_ec_specs(orig_paths, options.from_pr)
+
+            # at this point some paths may still just be filenames rather than absolute paths,
+            # so try to determine full path for those too via robot search path
+            paths = locate_files(paths, robot_path)
+
+            copy_ecs_to_target(paths, target_path)
 
         elif options.fix_deprecated_easyconfigs:
             fix_deprecated_easyconfigs(determined_paths)
