@@ -351,7 +351,7 @@ def det_easyconfig_paths(orig_paths):
     if ec_files and robot_path:
         ignore_subdirs = build_option('ignore_dirs')
         if not build_option('consider_archived_easyconfigs'):
-            ignore_subdirs.extend(EASYCONFIGS_ARCHIVE_DIR)
+            ignore_subdirs.append(EASYCONFIGS_ARCHIVE_DIR)
 
         ec_files = locate_files(ec_files, robot_path, ignore_subdirs=ignore_subdirs)
 

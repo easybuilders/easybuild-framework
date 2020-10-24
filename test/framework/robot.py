@@ -620,12 +620,19 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
+        # copy hwloc easyconfig to h/hwloc subdir in robot search path,
+        # to trigger bug fixed in det_easyconfig_paths (.extend rather than .append for '__archive'__ to ignore_subdirs)
+        hwloc_ec = 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'
+        subdir_hwloc = os.path.join(self.test_prefix, 'h', 'hwloc')
+        mkdir(subdir_hwloc, parents=True)
+        shutil.copy2(os.path.join(test_ecs_path, 'h', 'hwloc', hwloc_ec), subdir_hwloc)
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
+            hwloc_ec,
             '--dry-run',
             '--debug',
             '--robot',
@@ -640,6 +647,7 @@ class RobotTest(EnhancedTestCase):
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
+            (self.test_prefix, 'hwloc/1.11.8-GCC-6.4.0-2.28'),  # specified easyconfig, found in robot search path
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
