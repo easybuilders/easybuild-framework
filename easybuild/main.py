@@ -305,6 +305,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
+    if options.copy_ec:
+        # figure out list of files to copy + target location (taking into account --from-pr)
+        orig_paths, target_path = det_copy_ec_specs(orig_paths, options.from_pr)
+
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
@@ -322,12 +326,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
-            # figure out list of files to copy + target location (taking into account --from-pr)
-            paths, target_path = det_copy_ec_specs(orig_paths, options.from_pr)
-
             # at this point some paths may still just be filenames rather than absolute paths,
             # so try to determine full path for those too via robot search path
-            paths = locate_files(paths, robot_path)
+            paths = locate_files(orig_paths, robot_path)
 
             copy_ecs_to_target(paths, target_path)
 
