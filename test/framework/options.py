@@ -1181,7 +1181,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(sorted(os.listdir(test_working_dir)), sorted([ec_filename, patch_fn]))
-        self.assertTrue(is_patch_file(patch_fn))
+        self.assertTrue(is_patch_file(os.path.join(test_working_dir, patch_fn)))
 
         change_dir(cwd)
         remove_dir(test_working_dir)
