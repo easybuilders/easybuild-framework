@@ -967,14 +967,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def mocked_main(self, args):
         """Run eb_main with mocked stdout/stderr."""
-        #self.mock_stderr(True)
+        self.mock_stderr(True)
         self.mock_stdout(True)
         self.eb_main(args, raise_error=True)
-        #stderr, stdout = self.get_stderr(), self.get_stdout()
-        stdout = self.get_stdout()
-        #self.mock_stderr(False)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
         self.mock_stdout(False)
-        #self.assertEqual(stderr, '')
+        self.assertEqual(stderr, '')
         return stdout.strip()
 
     def test_copy_ec(self):
@@ -2638,7 +2637,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # different error when a non-existing easyconfig file is specified to --robot
         args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
-        self.assertErrorRegex(EasyBuildError, "Can't find path", self.eb_main, args, raise_error=True)
+        error_pattern = "One or more files not found: no_such_easyconfig_file_in_robot_search_path.eb"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
             args = ['toy-0.0.eb', '--dry-run', robot]
