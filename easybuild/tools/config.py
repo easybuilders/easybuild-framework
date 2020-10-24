@@ -205,7 +205,6 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_branch_name',
         'pr_commit_msg',
         'pr_descr',
-        'pr_target_account',
         'pr_target_repo',
         'pr_title',
         'rpath_filter',
