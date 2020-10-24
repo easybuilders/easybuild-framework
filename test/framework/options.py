@@ -1170,7 +1170,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(os.listdir(test_working_dir), [ec_filename])
-        self.assertTrue("name = 'bat'" in read_file(ec_filename))
+        self.assertTrue("name = 'bat'" in read_file(os.path.join(test_working_dir, ec_filename)))
 
         # also test copying of patch file to current directory (without specifying target location)
         change_dir(test_working_dir)
