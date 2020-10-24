@@ -101,6 +101,7 @@ DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
 DEFAULT_PKG_TYPE = PKG_TYPE_RPM
 DEFAULT_PNS = 'EasyBuildPNS'
+DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
@@ -306,6 +307,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
+    ],
+    DEFAULT_PR_TARGET_ACCOUNT: [
+        'pr_target_account',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
