@@ -393,7 +393,7 @@ def pr_files_cache(func):
         # cache key is combination of all function arguments (incl. optional ones)
         key = tuple([pr] + [kwargs[key] for key in sorted(kwargs.keys())])
 
-        if key in cache:
+        if key in cache and all(os.path.exists(x) for x in cache[key]):
             _log.debug("Using cached value for fetch_files_from_pr for PR #%s (%s)", pr, kwargs)
             return cache[key]
         else:
