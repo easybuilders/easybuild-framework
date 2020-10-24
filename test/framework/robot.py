@@ -654,7 +654,8 @@ class RobotTest(EnhancedTestCase):
             '--robot',
             '--unittest-file=%s' % self.logfile,
         ]
-        self.assertErrorRegex(EasyBuildError, "Can't find", self.eb_main, args, logfile=dummylogfn, raise_error=True)
+        error_pattern = "One or more files not found: intel-2012a.eb"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
