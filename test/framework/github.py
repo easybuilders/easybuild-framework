@@ -345,6 +345,8 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_download_repo, no GitHub token available?")
             return
 
+        cwd = os.getcwd()
+
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
@@ -353,6 +355,9 @@ class GithubTest(EnhancedTestCase):
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
+
+        # current directory should not have changed after calling download_repo
+        self.assertTrue(os.path.samefile(cwd, os.getcwd()))
 
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
