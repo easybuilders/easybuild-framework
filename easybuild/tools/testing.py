@@ -279,11 +279,13 @@ def post_pr_test_report(pr_nr, repo_type, test_report, msg, init_session_state, 
 
     comment_lines = ["Test report by @%s" % github_user]
 
-    easyblocks_pr_nr = build_option('include_easyblocks_from_pr')
-    if easyblocks_pr_nr:
+    if build_option('include_easyblocks_from_pr'):
         if repo_type == GITHUB_EASYCONFIGS_REPO:
-            comment_lines.append("Using easyblocks from https://github.com/%s/%s/pull/%s" % (
-                pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr))
+            easyblocks_pr_nrs = map(int, build_option('include_easyblocks_from_pr'))
+            comment_lines.append("Using easyblocks from PR(s) %s" %
+                                 ", ".join(["https://github.com/%s/%s/pull/%s" %
+                                            (pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr)
+                                            for easyblocks_pr_nr in easyblocks_pr_nrs]))
         elif repo_type == GITHUB_EASYBLOCKS_REPO:
             comment_lines.append(test_report['overview'])
         else:
@@ -316,7 +318,7 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     """
     dump_path = build_option('dump_test_report')
     pr_nr = build_option('from_pr')
-    eb_pr_nr = build_option('include_easyblocks_from_pr')
+    eb_pr_nrs = build_option('include_easyblocks_from_pr')
     upload = build_option('upload_test_report')
 
     if upload:
@@ -325,9 +327,11 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
         if pr_nr:
             # upload test report to gist and issue a comment in the PR to notify
             txt = post_pr_test_report(pr_nr, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state, success)
-        elif eb_pr_nr:
+        elif eb_pr_nrs:
             # upload test report to gist and issue a comment in the easyblocks PR to notify
-            txt = post_pr_test_report(eb_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg, init_session_state, success)
+            for eb_pr_nr in map(int, eb_pr_nrs):
+                txt = post_pr_test_report(eb_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg, init_session_state,
+                                          success)
         else:
             # only upload test report as a gist
             gist_url = upload_test_report_as_gist(test_report['full'])
