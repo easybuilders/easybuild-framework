@@ -1196,7 +1196,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec)
 
-    def test_toy_extension_sources_single_item_list(self):
+    def test_toy_extension_sources(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
@@ -1205,56 +1205,114 @@ class ToyBuildTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
-        # test use of single-element list in 'sources' with just the filename
-        test_ec_txt = '\n'.join([
-            toy_ec_txt,
-            'exts_list = [',
-            '   ("bar", "0.0", {',
-            '       "sources": ["bar-%(version)s.tar.gz"],',
-            '   }),',
-            ']',
-        ])
-        write_file(test_ec, test_ec_txt)
-        self.test_toy_build(ec_file=test_ec)
+        bar_sources_specs = [
+            '["bar-%(version)s.tar.gz"]',  # single-element list
+            '"bar-%(version)s.tar.gz"',  # string value
+        ]
 
-        # copy bar-0.0.tar.gz to <tmpdir>/bar-0.0-local.tar.gz, to be used below
-        bar_source = os.path.join(topdir, 'sandbox', 'sources', 'toy', 'extensions', 'bar-0.0.tar.gz')
-        sources = os.path.join(self.test_prefix, 'sources')
-        copy_file(bar_source, os.path.join(sources, 'bar-0.0-local.tar.gz'))
+        for bar_sources_spec in bar_sources_specs:
 
-        # verify that source_urls is picked up and taken into account
-        # when 'sources' is used to specify extension sources
-        test_ec_txt = '\n'.join([
-            toy_ec_txt,
-            'exts_list = [',
-            '   ("bar", "0.0", {',
-            '       "source_urls": ["file://%s"],' % sources,
-            '       "sources": ["bar-%(version)s-local.tar.gz"],',
-            '   }),',
-            ']',
-        ])
-        write_file(test_ec, test_ec_txt)
-        self.test_toy_build(ec_file=test_ec)
+            # test use of single-element list in 'sources' with just the filename
+            test_ec_txt = '\n'.join([
+                toy_ec_txt,
+                'exts_list = [',
+                '   ("bar", "0.0", {',
+                '       "sources": %s,' % bar_sources_spec,
+                '   }),',
+                ']',
+            ])
+            write_file(test_ec, test_ec_txt)
+            self.test_toy_build(ec_file=test_ec)
 
-    def test_toy_extension_sources_str(self):
-        """Test install toy that includes extensions with 'sources' spec (as string value)."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
+            # copy bar-0.0.tar.gz to <tmpdir>/bar-0.0-local.tar.gz, to be used below
+            test_source_path = os.path.join(self.test_prefix, 'sources')
+            toy_ext_sources = os.path.join(topdir, 'sandbox', 'sources', 'toy', 'extensions')
 
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
+            bar_source = os.path.join(toy_ext_sources, 'bar-0.0.tar.gz')
+            copy_file(bar_source, os.path.join(test_source_path, 'bar-0.0-local.tar.gz'))
 
-        # test use of single-element list in 'sources' with just the filename
-        test_ec_txt = '\n'.join([
-            toy_ec_txt,
-            'exts_list = [',
-            '   ("bar", "0.0", {',
-            '       "sources": "bar-%(version)s.tar.gz",',
-            '   }),',
-            ']',
-        ])
-        write_file(test_ec, test_ec_txt)
-        self.test_toy_build(ec_file=test_ec)
+            bar_patch = os.path.join(toy_ext_sources, 'bar-0.0_fix-silly-typo-in-printf-statement.patch')
+            copy_file(bar_patch, os.path.join(self.test_prefix, 'bar-0.0_fix-local.patch'))
+
+            # verify that source_urls and patches are picked up and taken into account
+            # when 'sources' is used to specify extension sources
+
+            bar_sources_spec = bar_sources_spec.replace('bar-%(version)s.tar.gz', 'bar-0.0-local.tar.gz')
+
+            test_ec_txt = '\n'.join([
+                toy_ec_txt,
+                'exts_list = [',
+                '   ("bar", "0.0", {',
+                '       "source_urls": ["file://%s"],' % test_source_path,
+                '       "sources": %s,' % bar_sources_spec,
+                '       "patches": ["bar-%(version)s_fix-local.patch"],',
+                '   }),',
+                ']',
+            ])
+            write_file(test_ec, test_ec_txt)
+            self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+            # check that checksums are picked up and verified
+            test_ec_txt = '\n'.join([
+                toy_ec_txt,
+                'exts_list = [',
+                '   ("bar", "0.0", {',
+                '       "source_urls": ["file://%s"],' % test_source_path,
+                '       "sources": %s,' % bar_sources_spec,
+                '       "patches": ["bar-%(version)s_fix-local.patch"],',
+                # note: purposely incorrect (SHA256) checksums! (to check if checksum verification works)
+                '       "checksums": [',
+                '           "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",',
+                '           "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",',
+                '       ],',
+                '   }),',
+                ']',
+            ])
+            write_file(test_ec, test_ec_txt)
+
+            error_pattern = r"Checksum verification for extension source bar-0.0-local.tar.gz failed"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                                  raise_error=True, verbose=False)
+
+            # test again with correct checksum for bar-0.0.tar.gz, but faulty checksum for patch file
+            test_ec_txt = '\n'.join([
+                toy_ec_txt,
+                'exts_list = [',
+                '   ("bar", "0.0", {',
+                '       "source_urls": ["file://%s"],' % test_source_path,
+                '       "sources": %s,' % bar_sources_spec,
+                '       "patches": ["bar-%(version)s_fix-local.patch"],',
+                '       "checksums": [',
+                '           "f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7",',
+                # note: purposely incorrect checksum for patch!
+                '           "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",',
+                '       ],',
+                '   }),',
+                ']',
+            ])
+            write_file(test_ec, test_ec_txt)
+
+            error_pattern = r"Checksum verification for extension patch bar-0.0_fix-local.patch failed"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                                  raise_error=True, verbose=False)
+
+            # test again with correct checksums
+            test_ec_txt = '\n'.join([
+                toy_ec_txt,
+                'exts_list = [',
+                '   ("bar", "0.0", {',
+                '       "source_urls": ["file://%s"],' % test_source_path,
+                '       "sources": %s,' % bar_sources_spec,
+                '       "patches": ["bar-%(version)s_fix-local.patch"],',
+                '       "checksums": [',
+                '           "f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7",',
+                '           "84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab",',
+                '       ],',
+                '   }),',
+                ']',
+            ])
+            write_file(test_ec, test_ec_txt)
+            self.test_toy_build(ec_file=test_ec, raise_error=True)
 
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
