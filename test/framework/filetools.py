@@ -1485,7 +1485,7 @@ class FileToolsTest(EnhancedTestCase):
         else:
             # printing this message will make test suite fail in Travis/GitHub CI,
             # since we check for unexpected output produced by the tests
-            print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)", test_file_to_overwrite)
+            print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)" % test_file_to_overwrite)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1550,6 +1550,89 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(copied_toy_ec))
         error_pattern = "/toy-0.0.eb exists but is not a directory"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [bzip2_ec], copied_toy_ec)
+
+        # by default copy_files allows empty input list, but if allow_empty=False then an error is raised
+        ft.copy_files([], self.test_prefix)
+        error_pattern = 'One of more files to copy should be specified!'
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [], self.test_prefix, allow_empty=False)
+
+        # test special case: copying a single file to a file target via target_single_file=True
+        target = os.path.join(self.test_prefix, 'target')
+        self.assertFalse(os.path.exists(target))
+        ft.copy_files([toy_ec], target, target_single_file=True)
+        self.assertTrue(os.path.exists(target))
+        self.assertTrue(os.path.isfile(target))
+        self.assertEqual(toy_ec_txt, ft.read_file(target))
+
+        ft.remove_file(target)
+
+        # default behaviour is to copy single file list to target *directory*
+        self.assertFalse(os.path.exists(target))
+        ft.copy_files([toy_ec], target)
+        self.assertTrue(os.path.exists(target))
+        self.assertTrue(os.path.isdir(target))
+        copied_toy_ec = os.path.join(target, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(toy_ec_txt, ft.read_file(copied_toy_ec))
+
+        ft.remove_dir(target)
+
+        # test enabling verbose mode
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files([toy_ec], target, verbose=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        regex = re.compile(r"^1 file\(s\) copied to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        ft.remove_dir(target)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files([toy_ec], target, target_single_file=True, verbose=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        regex = re.compile(r"^toy-0\.0\.eb copied to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        ft.remove_file(target)
+
+        # check behaviour under -x: only printing, no actual copying
+        init_config(build_options={'extended_dry_run': True})
+        self.assertFalse(os.path.exists(target))
+        self.assertFalse(os.path.exists(os.path.join(target, 'test.eb')))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files(['test.eb'], target)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(target, 'test.eb')))
+        self.assertEqual(stderr, '')
+
+        regex = re.compile("^copied test.eb to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files(['bar.eb', 'foo.eb'], target)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(target, 'bar.eb')))
+        self.assertFalse(os.path.exists(os.path.join(target, 'foo.eb')))
+        self.assertEqual(stderr, '')
+
+        regex = re.compile("^copied 2 files to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
     def test_copy_dir(self):
         """Test copy_dir function."""
