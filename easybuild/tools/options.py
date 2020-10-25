@@ -1454,11 +1454,11 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    try:
-        easyblock_prs = map(int, eb_go.options.include_easyblocks_from_pr)
-    except ValueError:
-        raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR numbers.")
-    if easyblock_prs:
+    if eb_go.options.include_easyblocks_from_pr:
+        try:
+            easyblock_prs = map(int, eb_go.options.include_easyblocks_from_pr)
+        except ValueError:
+            raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
 
         if eb_go.options.include_easyblocks:
             # check if you are including the same easyblock twice
