@@ -33,6 +33,7 @@ import base64
 import copy
 import getpass
 import glob
+import functools
 import os
 import random
 import re
@@ -377,6 +378,34 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     return extracted_path
 
 
+def pr_files_cache(func):
+    """
+    Decorator to cache result of fetch_files_from_pr.
+    """
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(pr, *args, **kwargs):
+        """Retrieve cached resul, or fetch files from PR & cache result."""
+        # cache key is combination of all function arguments (incl. optional ones)
+        key = tuple([pr] + [kwargs[key] for key in sorted(kwargs.keys())])
+
+        if key in cache and all(os.path.exists(x) for x in cache[key]):
+            _log.debug("Using cached value for fetch_files_from_pr for PR #%s (%s)", pr, kwargs)
+            return cache[key]
+        else:
+            res = func(pr, *args, **kwargs)
+            cache[key] = res
+            return res
+
+    # expose clear/update methods of cache to wrapped function
+    cache_aware_func.clear_cache = cache.clear
+    cache_aware_func.update_cache = cache.update
+
+    return cache_aware_func
+
+
+@pr_files_cache
 def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
     """Fetch patched files for a particular PR."""
 
