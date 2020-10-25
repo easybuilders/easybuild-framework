@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import copy_file, copy_files, find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_files_from_pr, download_repo
 from easybuild.tools.multidiff import multidiff
