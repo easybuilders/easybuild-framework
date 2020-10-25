@@ -539,6 +539,7 @@ class EasyBlock(object):
                     # resolve templates in extension options
                     ext_options = resolve_template(ext_options, template_values)
 
+                    source_urls = ext_options.get('source_urls', [])
                     checksums = ext_options.get('checksums', [])
 
                     # use default template for name of source file if none is specified
@@ -560,12 +561,22 @@ class EasyBlock(object):
                         else:
                             source = sources
 
+                        if isinstance(source, string_type):
+                            source = {'filename': source}
+                        elif not isinstance(source, dict):
+                            raise EasyBuildError("Incorrect value type for source of extension %s: %s",
+                                                 ext_name, source)
+
+                        if 'source_urls' not in source:
+                            source['source_urls'] = source_urls
+
                         src = self.fetch_source(source, checksums, extension=True)
-                        # Copy 'path' entry to 'src' for use with extensions
+
+                        # copy 'path' entry to 'src' for use with extensions
                         ext_src.update({'src': src['path']})
+
                         exts_sources.append(ext_src)
                     else:
-                        source_urls = ext_options.get('source_urls', [])
                         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
 
                         src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)

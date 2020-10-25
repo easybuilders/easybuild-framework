@@ -51,8 +51,8 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.py2vs3 import reload, string_type
@@ -1198,7 +1198,8 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_extension_sources_single_item_list(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
 
@@ -1210,6 +1211,25 @@ class ToyBuildTest(EnhancedTestCase):
             'exts_list = [',
             '   ("bar", "0.0", {',
             '       "sources": ["bar-%(version)s.tar.gz"],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec)
+
+        # copy bar-0.0.tar.gz to <tmpdir>/bar-0.0-local.tar.gz, to be used below
+        bar_source = os.path.join(topdir, 'sandbox', 'sources', 'toy', 'extensions', 'bar-0.0.tar.gz')
+        sources = os.path.join(self.test_prefix, 'sources')
+        copy_file(bar_source, os.path.join(sources, 'bar-0.0-local.tar.gz'))
+
+        # verify that source_urls is picked up and taken into account
+        # when 'sources' is used to specify extension sources
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            '       "source_urls": ["file://%s"],' % sources,
+            '       "sources": ["bar-%(version)s-local.tar.gz"],',
             '   }),',
             ']',
         ])
