@@ -806,24 +806,32 @@ def locate_files(files, paths, ignore_subdirs=None):
     # find missing easyconfigs by walking paths in robot search path
     for path in paths:
         _log.debug("Looking for missing files (%d left) in %s..." % (len(files_to_find), path))
-        for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
-            for idx, orig_path in files_to_find[:]:
-                if orig_path in filenames:
-                    full_path = os.path.join(subpath, orig_path)
-                    _log.info("Found %s in %s: %s" % (orig_path, path, full_path))
+
+        # try to load index for current path, or create one
+        path_index = load_index(path, ignore_dirs=ignore_subdirs)
+        if path_index is None or build_option('ignore_index'):
+            if os.path.exists(path):
+                _log.info("No index found for %s, creating one...", path)
+                path_index = create_index(path, ignore_dirs=ignore_subdirs)
+            else:
+                path_index = []
+        else:
+            _log.info("Index found for %s, so using it...", path)
+
+        for filepath in path_index:
+            for idx, file_to_find in files_to_find[:]:
+                if os.path.basename(filepath) == file_to_find:
+                    full_path = os.path.join(path, filepath)
+                    _log.info("Found %s in %s: %s", file_to_find, path, full_path)
                     files[idx] = full_path
                     # if file was found, stop looking for it (first hit wins)
-                    files_to_find.remove((idx, orig_path))
+                    files_to_find.remove((idx, file_to_find))
 
-            # stop os.walk insanity as soon as we have all we need (os.walk loop)
+            # stop as soon as we have all we need (path index loop)
             if not files_to_find:
                 break
 
-            # ignore specified subdirectories
-            if ignore_subdirs:
-                dirnames[:] = [d for d in dirnames if d not in ignore_subdirs]
-
-        # stop os.walk insanity as soon as we have all we need (outer loop)
+        # stop as soon as we have all we need (paths loop)
         if not files_to_find:
             break
 
