@@ -17,8 +17,6 @@ extract_cmd="local_extract_cmd_pattern"
 if [[ "$(basename "$git_repo")" == "pytorch" ]]; then
     # Folder in git_repo where submodules are located in
     thirdparty_dir="third_party"
-    # Variable in EC containing the name of the thirdparty_dir
-    thirdparty_var="local_pytorchthirdpartydir"
     # Repo names for dependencies that should be ignored
     repo_ignore=(zstd nccl six enum34 ios-cmake ARM_NEON_2_x86_SSE clang-cindex-python3 protobuf pybind11)
     # Subdir of git_repo to ignore
@@ -69,7 +67,7 @@ function printSubmoduleDeps(){
         'source_urls': ['$source_url'],
         'download_filename': '${hash}.tar.gz',
         'filename': '$filename',
-        'extract_cmd': $extract_cmd % ($thirdparty_var, '$subfolder'),
+        'extract_cmd': $extract_cmd % '$subfolder',
     },"
         printSubmoduleDeps "$submodule_dir" "."
     done
