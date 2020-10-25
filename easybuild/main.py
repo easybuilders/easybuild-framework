@@ -50,16 +50,15 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, copy_ecs_to_target, dep_graph
-from easybuild.framework.easyconfig.tools import det_copy_ec_specs, det_easyconfig_paths, dump_env_script
-from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, run_contrib_checks
-from easybuild.framework.easyconfig.tools import skip_available
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, det_copy_ec_specs
+from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
+from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, dump_index, load_index, locate_files
-from easybuild.tools.filetools import read_file, register_lock_cleanup_signal_handlers, write_file
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
+from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
 from easybuild.tools.github import install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
@@ -330,7 +329,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             # so try to determine full path for those too via robot search path
             paths = locate_files(orig_paths, robot_path)
 
-            copy_ecs_to_target(paths, target_path)
+            copy_files(paths, target_path, target_single_file=True, allow_empty=False, verbose=True)
 
         elif options.fix_deprecated_easyconfigs:
             fix_deprecated_easyconfigs(determined_paths)
@@ -428,7 +427,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if tweaked_ecs_in_all_ecs:
             # Clean them, then copy them
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
-            copy_ecs_to_target(tweaked_ecs_in_all_ecs, target_path, target_is_dir=True)
+            copy_files(tweaked_ecs_in_all_ecs, target_path, allow_empty=False, verbose=True)
 
     # creating/updating PRs
     if pr_options:

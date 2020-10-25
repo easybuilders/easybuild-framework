@@ -760,22 +760,3 @@ def det_copy_ec_specs(orig_paths, from_pr):
                 raise EasyBuildError("Found multiple paths for %s in PR: %s", filename, pr_matches)
 
     return paths, target_path
-
-
-def copy_ecs_to_target(determined_paths, target_path, prefix=False, target_is_dir=False):
-    """
-    Copy list of easyconfigs to specified path
-
-    :param determined_paths: paths to ecs to copy
-    :param target_path: target to copy files to
-    :param prefix: include message prefix characters
-    :param target_is_dir: target is always a directory
-    """
-    if len(determined_paths) == 1 and not target_is_dir:
-        copy_file(determined_paths[0], target_path)
-        print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=prefix)
-    elif determined_paths:
-        copy_files(determined_paths, target_path)
-        print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=prefix)
-    else:
-        raise EasyBuildError("One of more files to copy should be specified!")
