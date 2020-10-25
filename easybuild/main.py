@@ -429,6 +429,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
             copy_files(tweaked_ecs_in_all_ecs, target_path, allow_empty=False, verbose=True)
 
+        clean_exit(logfile, eb_tmpdir, testing)
+
     # creating/updating PRs
     if pr_options:
         if options.new_pr:
