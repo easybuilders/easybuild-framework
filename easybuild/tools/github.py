@@ -377,16 +377,6 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     return extracted_path
 
 
-def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
-    """Fetch patched easyconfig files for a particular PR."""
-    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
-
-
-def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
-    """Fetch patched easyconfig files for a particular PR."""
-    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYCONFIGS_REPO)
-
-
 def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
     """Fetch patched files for a particular PR."""
 
@@ -494,6 +484,16 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
             raise EasyBuildError("Couldn't find path to patched file %s", full_path)
 
     return files
+
+
+def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
+    """Fetch patched easyconfig files for a particular PR."""
+    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
+
+
+def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
+    """Fetch patched easyconfig files for a particular PR."""
+    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYCONFIGS_REPO)
 
 
 def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
