@@ -1,4 +1,5 @@
 import yaml
+import re
 
 
 # general specs applicable to all commands
@@ -55,6 +56,8 @@ class YamlSpecParser(GenericSpecsParser):
             exit()
         sw_dict = spec_dict["software"]
 
+        rx_version = re.compile('[0-9]\.[0-9]')
+
         # assign software-specific EB attributes
         for software in sw_dict:
             try:
@@ -62,20 +65,32 @@ class YamlSpecParser(GenericSpecsParser):
                 for yaml_toolchain in sw_dict[software]['toolchains']:
                     # retrieves version number
                     for yaml_version in sw_dict[software]['toolchains'][yaml_toolchain]['versions']:
-                        # creates a sw class instance
-                        sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain)
-                        # assigns attributes retrieved from yaml stream
-                        sw.software = str(software)
-                        sw.version = str(yaml_version)
-                        sw.toolchain = str(yaml_toolchain)
-                        # append newly created class instance to the list inside EbFromSpecs class
-                        eb.software_list.append(sw)
-                        try:
-                            version_info = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
-                            if version_info['versionsuffix'] is not None:
-                                sw.version_suffix = version_info['versionsuffix']
-                        except (KeyError, TypeError, IndexError):
-                            continue
+
+                        # if among \versions' there is anything else than known flags or version flag itself, it is wrong
+                        # identification of version strings is vague
+                        if str(yaml_version)[0].isdigit() \
+                            or str(yaml_version)[-1].isdigit() \
+                            or str(yaml_version) == 'exclude-labels' \
+                            or str(yaml_version) == 'versionsuffix' \
+                            or str(yaml_version) == 'include-labels':
+
+                            # creates a sw class instance
+                            sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain)
+                            # assigns attributes retrieved from yaml stream
+                            sw.software = str(software)
+                            sw.version = str(yaml_version)
+                            sw.toolchain = str(yaml_toolchain)
+                            # append newly created class instance to the list inside EbFromSpecs class
+                            eb.software_list.append(sw)
+
+                            try:
+                                version_info = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
+                                if version_info['versionsuffix'] is not None:
+                                    sw.version_suffix = version_info['versionsuffix']
+                            except (KeyError, TypeError, IndexError):
+                                continue
+                        else:
+                            print('Software ' + str(software) + ' has wrong yaml structure!')
             except (KeyError, TypeError, IndexError):
                 print('Software ' + str(software) + ' has wrong yaml structure!')
 
