@@ -293,6 +293,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
+
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
@@ -317,10 +318,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
     pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
     pr_options = pr_options or options.update_branch_github or options.update_pr
-    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query, options.specsfile]
+    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+
+    # if specsfile is provided with the command, commands with arguments from it will be executed
+    if options.specsfile:
+        determined_paths = handle_specsfile(options.specsfile)
+
+    print('\n determined_paths: ' + str(determined_paths) + '\n')
 
     if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
@@ -476,9 +483,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.inject_checksums:
         inject_checksums(ordered_ecs, options.inject_checksums)
 
-    elif options.specsfile:
-        handle_specsfile(options.specsfile)
-        
+
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
     if any(no_ec_opts) or any(stop_options):

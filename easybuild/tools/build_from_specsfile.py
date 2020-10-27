@@ -1,5 +1,6 @@
 import yaml
 import re
+from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 
 
 # general specs applicable to all commands
@@ -10,25 +11,40 @@ class Specsfile(object):
         self.software_list = []
 
     # returns list of all commands - finished
-    def compose_eb_cmds(self):
-        eb_cmd_list = []
+    def compose_full_paths(self):
+        easyconfigs_full_paths = []
         for sw in self.software_list:
-            eb_cmd_list.append(self.make_cmd(sw))
-        return eb_cmd_list
+            path_to_append = self.get_ec_path(sw)
+            if path_to_append == None:
+                continue
+            else:
+                easyconfigs_full_paths.append(path_to_append)
+        return easyconfigs_full_paths
 
     # single command
-    def make_cmd(self, sw):
-        eb_cmd = 'eb %s-%s-%s%s --robot=%s ' % (
-            sw.software, sw.version, sw.toolchain, sw.get_version_suffix(), self.robot)
-        return eb_cmd
+    def get_ec_path(self, sw):
+        print(str(sw.software) + '-' + str(sw.version) + '-' + str(sw.toolchain_name) + '-' + str(sw.toolchain_version) )
+        full_path = search_easyconfigs(query='%s-%s-%s-%s' % ( \
+        str(sw.software), str(sw.version), str(sw.toolchain_name), str(sw.toolchain_version) ), \
+        short=False, filename_only=False, terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
+        print('\n full_path: ' + str(full_path) + '\n')
+        if len(full_path) == 1:
+            # todo pridat version suffix
+            return full_path[0]
+        else:
+            print('%s does not have clearly specified parameters - %s matches found. Skipping. \n' % (sw.software, str(len(full_path))))
 
 
 # single sw command
 class SoftwareSpecs(object):
-    def __init__(self, software, version, toolchain):
+    def __init__(self, software, version, toolchain, toolchain_version, toolchain_name):
         self.software = software
         self.version = version
         self.toolchain = toolchain
+        self.toolchain_version = toolchain_version
+        self.toolchain_name = toolchain_name
+        self.toolchain = toolchain
+
         self.version_suffix = None
 
     def get_version_suffix(self):
@@ -69,26 +85,31 @@ class YamlSpecParser(GenericSpecsParser):
                         # if among \versions' there is anything else than known flags or version flag itself, it is wrong
                         # identification of version strings is vague
                         if str(yaml_version)[0].isdigit() \
-                            or str(yaml_version)[-1].isdigit() \
-                            or str(yaml_version) == 'exclude-labels' \
-                            or str(yaml_version) == 'versionsuffix' \
-                            or str(yaml_version) == 'include-labels':
-
+                        or str(yaml_version)[-1].isdigit():
                             # creates a sw class instance
-                            sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain)
-                            # assigns attributes retrieved from yaml stream
-                            sw.software = str(software)
-                            sw.version = str(yaml_version)
-                            sw.toolchain = str(yaml_toolchain)
+                            try:
+                                yaml_toolchain_name = str(yaml_toolchain).split('-', 1)[0]
+                                yaml_toolchain_version = str(yaml_toolchain).split('-', 1)[1]
+                            except IndexError:
+                                yaml_toolchain_name = str(yaml_toolchain)
+                                yaml_toolchain_version=''
+
+                            sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain, toolchain_name=yaml_toolchain_name, toolchain_version=yaml_toolchain_version)
+
                             # append newly created class instance to the list inside EbFromSpecs class
                             eb.software_list.append(sw)
 
+                        elif str(yaml_version) == 'versionsuffix':
                             try:
                                 version_info = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
                                 if version_info['versionsuffix'] is not None:
                                     sw.version_suffix = version_info['versionsuffix']
                             except (KeyError, TypeError, IndexError):
                                 continue
+                        elif str(yaml_version) == 'exclude-labels' \
+                        or str(yaml_version) == 'include-labels':
+                            continue
+
                         else:
                             print('Software ' + str(software) + ' has wrong yaml structure!')
             except (KeyError, TypeError, IndexError):
@@ -104,7 +125,6 @@ def handle_specsfile(filename):
 
     eb = YamlSpecParser.parse(filename)
 
-    eb_cmds = eb.compose_eb_cmds()
-
-    for x in eb_cmds:
-        print(x)
+    easyconfigs_full_paths = eb.compose_full_paths()
+    
+    return easyconfigs_full_paths
