@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, dep_graph_grouped_layers
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
@@ -277,7 +277,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.list_prs,
         options.merge_pr,
         options.review_pr,
-        options.terse,
+        # options.terse,  # why should terse lead to early stop?
+        options.last_log,  # if --terse does not enforce eraly abort, then options that imply --terse must do so
         search_query,
     ]
     if any(early_stop_options):
@@ -481,7 +482,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         clean_exit(logfile, eb_tmpdir, testing)
 
     # create dependency graph and exit
-    if options.dep_graph:
+    if options.dep_graph_layers:
+        _log.info("Creating layered dependency stack.")
+        dep_graph_grouped_layers(ordered_ecs, print_result=True, terse=options.terse)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True)
+    elif options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
         clean_exit(logfile, eb_tmpdir, testing, silent=True)
