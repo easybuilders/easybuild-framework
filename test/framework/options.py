@@ -2380,6 +2380,41 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
+    def test_http_header_fields_urlpat(self):
+        """Test use of --http-header-fields-urlpat."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+
+        # define header fields:values that should (not) show up in the logs
+        test_applied_hdr = 'HeaderAPPLIED'
+        test_applied_hdr_regex = re.compile(test_applied_hdr)
+        test_applied_value = 'SECRETvalue'
+        test_applied_value_regex = re.compile(test_applied_value)
+        test_ignored_hdr = 'HeaderIGNORED'
+        test_ignored_hdr_regex = re.compile(test_ignored_hdr)
+        test_ignored_value = 'BOGUSvalue'
+        test_ignored_value_regex = re.compile(test_ignored_value)
+
+        args = [
+            ec_file,
+            '--dry-run',
+            '--http-header-fields-urlpat="gnu.org::%s: %s"' % (test_applied_hdr, test_applied_value),
+            '--http-header-fields-urlpat="nomatch.com::%s: %s"' % (test_ignored_hdr, test_ignored_value),
+            '--stop=fetch',
+            '--debug',
+            '--force',
+        ]
+
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        self.assertFalse(stderr)
+
+        # Expect to find only the header key (not value) for the appropriate url pattern.
+        self.assertTrue(test_applied_hdr_regex.search(stdout))
+        self.assertFalse(test_applied_value_regex.search(stdout))
+        self.assertFalse(test_ignored_hdr_regex.search(stdout))
+        self.assertFalse(test_ignored_value_regex.search(stdout))
+
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
 

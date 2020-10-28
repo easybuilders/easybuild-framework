@@ -595,7 +595,7 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, urlpat_headers={}, maxdept
             # argline is a file path, so read that instead
             _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
             argline = read_file(argline)
-            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, urlpat_headers, maxdepth-1)
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, urlpat_headers, maxdepth - 1)
             continue
 
         # URL pattern is separated by '::' from a HTTP header field
