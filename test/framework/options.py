@@ -2971,7 +2971,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--from-pr=10487',  # PR for CMake easyconfig
-            '--include-easyblocks-from-pr=1936',  # PR for EB_CMake easyblock
+            '--include-easyblocks-from-pr=1936,2204',  # PRs for EB_CMake and Siesta easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -2985,7 +2985,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n")
+        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n" +
+                         "== easyblock siesta.py included from PR #2204\n")
 
         # easyconfig from pr is found
         ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',
@@ -5128,6 +5129,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertEqual(ec['checksums'], checksums)
 
+        # check whether empty list of checksums is stripped out by --inject-checksums
+        toy_ec_txt = read_file(toy_ec)
+
+        regex = re.compile(r'^checksums(?:.|\n)*?\]\s*$', re.M)
+        toy_ec_txt = regex.sub('', toy_ec_txt)
+
+        toy_ec_txt += "\nchecksums = []"
+
+        write_file(test_ec, toy_ec_txt)
+        args = [test_ec, '--inject-checksums', '--force']
+        self._run_mock_eb(args, raise_error=True, strip=True)
+
+        ec_txt = read_file(test_ec)
+        regex = re.compile(r"^checksums = \[\]", re.M)
+        self.assertFalse(regex.search(ec_txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, ec_txt))
+
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        expected_checksums = [
+            '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'
+        ]
+        self.assertEqual(ec['checksums'], expected_checksums)
+
+        # passing easyconfig filename as argument to --inject-checksums results in error being reported,
+        # because it's not a valid type of checksum
         args = ['--inject-checksums', test_ec]
         self.mock_stdout(True)
         self.mock_stderr(True)

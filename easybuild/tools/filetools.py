@@ -1306,6 +1306,19 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             backup_ext = ''
 
         try:
+            # make sure that file can be opened in text mode;
+            # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
+            try:
+                with open(path, 'r') as fp:
+                    _ = fp.read()
+            except UnicodeDecodeError as err:
+                _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
+                path_backup = back_up_file(path)
+                _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
+                txt = read_file(path, mode='rb')
+                txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
+                write_file(path, txt_utf8)
+
             for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
                 for regex, subtxt in regex_subs:
                     match = regex.search(line)
@@ -1314,7 +1327,7 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
                     line = regex.sub(subtxt, line)
                 sys.stdout.write(line)
 
-        except OSError as err:
+        except (IOError, OSError) as err:
             raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
