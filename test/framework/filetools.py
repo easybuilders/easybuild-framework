@@ -2433,13 +2433,22 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^\nERROR: %s" % error_pattern)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
-        # no error if import was detected from pkgutil.py,
+        # no error if import was detected from pkgutil.py or pkg_resources/__init__.py,
         # since that may be triggered by a system-wide vsc-base installation
         # (even though no code is doing 'import vsc'...)
         ft.move_file(test_python_mod, os.path.join(os.path.dirname(test_python_mod), 'pkgutil.py'))
 
         from test_fake_vsc import pkgutil
         self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
+
+        pkg_resources_init = os.path.join(os.path.dirname(test_python_mod), 'pkg_resources', '__init__.py')
+        ft.write_file(pkg_resources_init, 'import vsc')
+
+        # cleanup to force new import of 'vsc', avoid using cached import from previous attempt
+        del sys.modules['vsc']
+
+        from test_fake_vsc import pkg_resources
+        self.assertTrue(pkg_resources.__file__.endswith('/test_fake_vsc/pkg_resources/__init__.py'))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
