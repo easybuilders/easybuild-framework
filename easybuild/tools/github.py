@@ -249,6 +249,12 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     if token is None:
         token = fetch_github_token(github_user)
 
+    # if we don't have a GitHub token, don't pass username either;
+    # this maeks sense for read-only actions like fetching files from PRs
+    if token is None:
+        _log.info("Not specifying username since no GitHub token is available for %s", github_user)
+        github_user = None
+
     url = request_f(RestClient(GITHUB_API_URL, username=github_user, token=token))
 
     try:
