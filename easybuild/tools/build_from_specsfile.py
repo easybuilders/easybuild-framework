@@ -25,15 +25,16 @@ class Specsfile(object):
     # single command
     def get_ec_path(self, sw):
         # print(str(sw.software) + '-' + str(sw.version) + '-' + str(sw.toolchain_name) + '-' + str(sw.toolchain_version) )
-        full_path = search_easyconfigs(query='%s-%s-%s-%s' % ( \
-        str(sw.software), str(sw.version), str(sw.toolchain_name), str(sw.toolchain_version) ), \
-        short=False, filename_only=False, terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
+        full_path = search_easyconfigs(query='%s-%s-%s-%s' % (
+            str(sw.software), str(sw.version), str(sw.toolchain_name), str(sw.toolchain_version)),
+            short=False, filename_only=False, terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
         # print('\n full_path: ' + str(full_path) + '\n')
         if len(full_path) == 1:
             # todo pridat version suffix
             return full_path[0]
         else:
-            print('%s does not have clearly specified parameters - %s matches found. Skipping. \n' % (sw.software, str(len(full_path))))
+            print('%s does not have clearly specified parameters - %s matches found. Skipping. \n' %
+                  (sw.software, str(len(full_path))))
 
 
 # single sw command
@@ -73,8 +74,6 @@ class YamlSpecParser(GenericSpecsParser):
 
         sw_dict = spec_dict["software"]
 
-        rx_version = re.compile('[0-9]\.[0-9]')
-
         # assign software-specific EB attributes
         for software in sw_dict:
             try:
@@ -86,16 +85,17 @@ class YamlSpecParser(GenericSpecsParser):
                         # if among \versions' there is anything else than known flags or version flag itself, it is wrong
                         # identification of version strings is vague
                         if str(yaml_version)[0].isdigit() \
-                        or str(yaml_version)[-1].isdigit():
+                                or str(yaml_version)[-1].isdigit():
                             # creates a sw class instance
                             try:
                                 yaml_toolchain_name = str(yaml_toolchain).split('-', 1)[0]
                                 yaml_toolchain_version = str(yaml_toolchain).split('-', 1)[1]
                             except IndexError:
                                 yaml_toolchain_name = str(yaml_toolchain)
-                                yaml_toolchain_version=''
+                                yaml_toolchain_version = ''
 
-                            sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain, toolchain_name=yaml_toolchain_name, toolchain_version=yaml_toolchain_version)
+                            sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain,
+                                               toolchain_name=yaml_toolchain_name, toolchain_version=yaml_toolchain_version)
 
                             # append newly created class instance to the list inside EbFromSpecs class
                             eb.software_list.append(sw)
@@ -108,7 +108,7 @@ class YamlSpecParser(GenericSpecsParser):
                             except (KeyError, TypeError, IndexError):
                                 continue
                         elif str(yaml_version) == 'exclude-labels' \
-                        or str(yaml_version) == 'include-labels':
+                                or str(yaml_version) == 'include-labels':
                             continue
 
                         else:
@@ -127,5 +127,5 @@ def handle_specsfile(filename):
     eb = YamlSpecParser.parse(filename)
 
     easyconfigs_full_paths = eb.compose_full_paths()
-    
+
     return easyconfigs_full_paths
