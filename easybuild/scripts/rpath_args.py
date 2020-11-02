@@ -81,7 +81,6 @@ while idx < len(args):
             add_rpath_args = False
         cmd_args.append(arg)
 
-    # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
     # FIXME skip paths in /tmp, build dir, etc.?
@@ -118,6 +117,14 @@ while idx < len(args):
         cmd_args.append(arg)
 
     idx += 1
+
+# also inject -rpath options for all entries in $LIBRARY_PATH,
+# unless they are there already
+for lib_path in os.getenv('LIBRARY_PATH', '').split(os.pathsep):
+    if lib_path and (rpath_filter is None or not rpath_filter.match(lib_path)):
+        rpath_arg = flag_prefix + '-rpath=%s' % lib_path
+        if rpath_arg not in cmd_args_rpath:
+            cmd_args_rpath.append(rpath_arg)
 
 if add_rpath_args:
     # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags

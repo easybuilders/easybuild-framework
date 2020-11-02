@@ -1729,6 +1729,11 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_rpath_args_script(self):
         """Test rpath_args.py script"""
+
+        # $LIBRARY_PATH affects result of rpath_args.py, so make sure it's not set
+        if 'LIBRARY_PATH' in os.environ:
+            del os.environ['LIBRARY_PATH']
+
         script = find_eb_script('rpath_args.py')
 
         rpath_inc = ','.join([
@@ -2011,6 +2016,63 @@ class ToolchainTest(EnhancedTestCase):
             out, ec = run_cmd(cmd, simple=False)
             self.assertEqual(ec, 0)
             cmd_args = ["'foo.c'", "'-O2'"] + ["'%s'" % x for x in extra_args.split(' ')]
+            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # check whether $LIBRARY_PATH is taken into account
+        test_cmd_gcc = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
+        pre_cmd_args_gcc = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+        ]
+        post_cmd_args_gcc = [
+            "'-c'",
+            "'foo.c'",
+        ]
+
+        test_cmd_ld = "%s ld '' '%s' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % (script, rpath_inc)
+        pre_cmd_args_ld = [
+            "'-rpath=%s/lib'" % self.test_prefix,
+            "'-rpath=%s/lib64'" % self.test_prefix,
+            "'-rpath=$ORIGIN'",
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
+            "'-rpath=/foo'",
+            "'-rpath=/lib64'",
+            "'-rpath=/usr/lib'",
+            "'-rpath=/bar'",
+        ]
+        post_cmd_args_ld = [
+            "'-L/foo'",
+            "'foo.o'",
+            "'-L/lib64'",
+            "'-lfoo'",
+            "'-lbar'",
+            "'-L/usr/lib'",
+            "'-L/bar'",
+        ]
+
+        library_paths = [
+            ('',),  # special case: empty value
+            ('/path/to/lib',),
+            ('/path/to/lib', '/another/path/to/lib64'),
+            ('/path/to/lib', '/another/path/to/lib64', '/yet-another/path/to/libraries'),
+        ]
+        for library_path in library_paths:
+            os.environ['LIBRARY_PATH'] = ':'.join(library_path)
+
+            out, ec = run_cmd(test_cmd_gcc, simple=False)
+            self.assertEqual(ec, 0)
+            cmd_args = pre_cmd_args_gcc + ["'-Wl,-rpath=%s'" % x for x in library_path if x] + post_cmd_args_gcc
+            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+            out, ec = run_cmd(test_cmd_ld, simple=False)
+            self.assertEqual(ec, 0)
+            cmd_args = pre_cmd_args_ld + ["'-rpath=%s'" % x for x in library_path if x] + post_cmd_args_ld
             self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
     def test_toolchain_prepare_rpath(self):
