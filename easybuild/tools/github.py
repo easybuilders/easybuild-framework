@@ -385,20 +385,22 @@ def pr_files_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(pr, *args, **kwargs):
+    def cache_aware_func(pr, path=None, github_user=None, github_account=None, github_repo=None):
         """Retrieve cached resul, or fetch files from PR & cache result."""
         # cache key is combination of all function arguments (incl. optional ones)
-        key = tuple([pr] + [kwargs[key] for key in sorted(kwargs.keys())])
+        key = (pr, github_account, github_repo, path)
 
         if key in cache and all(os.path.exists(x) for x in cache[key]):
-            _log.debug("Using cached value for fetch_files_from_pr for PR #%s (%s)", pr, kwargs)
+            _log.info("Using cached value for fetch_files_from_pr for PR #%s (account=%s, repo=%s, path=%s)",
+                       pr, github_account, github_repo, path)
             return cache[key]
         else:
-            res = func(pr, *args, **kwargs)
+            res = func(pr, path=path, github_user=github_user, github_account=github_account, github_repo=github_repo)
             cache[key] = res
             return res
 
-    # expose clear/update methods of cache to wrapped function
+    # expose clear/update methods of cache + cache itself to wrapped function
+    cache_aware_func._cache = cache  # useful in tests
     cache_aware_func.clear_cache = cache.clear
     cache_aware_func.update_cache = cache.update
 
@@ -406,7 +408,7 @@ def pr_files_cache(func):
 
 
 @pr_files_cache
-def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
+def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, github_repo=None):
     """Fetch patched files for a particular PR."""
 
     if github_user is None:
@@ -429,7 +431,8 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
-    github_account = build_option('pr_target_account')
+    if github_account is None:
+        github_account = build_option('pr_target_account')
 
     if github_repo == GITHUB_EASYCONFIGS_REPO:
         easyfiles = 'easyconfigs'
@@ -1312,7 +1315,7 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
-    pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
