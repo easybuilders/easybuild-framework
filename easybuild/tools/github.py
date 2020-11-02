@@ -386,13 +386,13 @@ def pr_files_cache(func):
 
     @functools.wraps(func)
     def cache_aware_func(pr, path=None, github_user=None, github_account=None, github_repo=None):
-        """Retrieve cached resul, or fetch files from PR & cache result."""
+        """Retrieve cached result, or fetch files from PR & cache result."""
         # cache key is combination of all function arguments (incl. optional ones)
         key = (pr, github_account, github_repo, path)
 
         if key in cache and all(os.path.exists(x) for x in cache[key]):
             _log.info("Using cached value for fetch_files_from_pr for PR #%s (account=%s, repo=%s, path=%s)",
-                       pr, github_account, github_repo, path)
+                      pr, github_account, github_repo, path)
             return cache[key]
         else:
             res = func(pr, path=path, github_user=github_user, github_account=github_account, github_repo=github_repo)

@@ -357,8 +357,6 @@ class GithubTest(EnhancedTestCase):
         # check that cache has been populated for PR 7159
         self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
 
-        print(gh.fetch_files_from_pr._cache.keys())
-
         # github_account value is None (results in using default 'easybuilders')
         cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
         self.assertTrue(cache_key in gh.fetch_files_from_pr._cache.keys())
