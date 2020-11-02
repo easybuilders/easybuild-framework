@@ -1,6 +1,7 @@
 import yaml
 import re
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
+from easybuild.tools.build_log import EasyBuildError
 
 
 # general specs applicable to all commands
@@ -68,8 +69,8 @@ class YamlSpecParser(GenericSpecsParser):
 
             eb = Specsfile()
         except FileNotFoundError:
-            print("Cannot open file '" + filename + "'. Try to provide absolute path or adjust permissions.")
-            exit()
+            raise EasyBuildError("Could not read provided specsfile.")
+
         sw_dict = spec_dict["software"]
 
         rx_version = re.compile('[0-9]\.[0-9]')
