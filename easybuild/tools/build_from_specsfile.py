@@ -23,11 +23,11 @@ class Specsfile(object):
 
     # single command
     def get_ec_path(self, sw):
-        print(str(sw.software) + '-' + str(sw.version) + '-' + str(sw.toolchain_name) + '-' + str(sw.toolchain_version) )
+        # print(str(sw.software) + '-' + str(sw.version) + '-' + str(sw.toolchain_name) + '-' + str(sw.toolchain_version) )
         full_path = search_easyconfigs(query='%s-%s-%s-%s' % ( \
         str(sw.software), str(sw.version), str(sw.toolchain_name), str(sw.toolchain_version) ), \
         short=False, filename_only=False, terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
-        print('\n full_path: ' + str(full_path) + '\n')
+        # print('\n full_path: ' + str(full_path) + '\n')
         if len(full_path) == 1:
             # todo pridat version suffix
             return full_path[0]

@@ -327,7 +327,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if options.specsfile:
         determined_paths = handle_specsfile(options.specsfile)
 
-    print('\n determined_paths: ' + str(determined_paths) + '\n')
+    # print('\n determined_paths: ' + str(determined_paths) + '\n')
 
     if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
