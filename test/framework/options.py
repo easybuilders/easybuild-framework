@@ -5453,7 +5453,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
-    def test_wrong_specsfile(self):
+    def test_wrong_read_specsfile(self):
         """Test for --specsfile <specsfile.yaml> when wrong name is provided"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_nonexistent.yaml')
@@ -5465,7 +5465,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-    def test_wrong_yaml_structure(self):
+    def test_wrong_specsfile_structure(self):
         """Test for --specsfile <specsfile.yaml> when yaml specsfile has wrong structure"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_wrong_structure.yaml')
@@ -5474,8 +5474,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.mock_stderr(True)
         self.assertErrorRegex(EasyBuildError, "Wrong yaml structure", self.eb_main, args, raise_error=True)
-        stdout = self.get_stdout().strip()
-        stderr = self.get_stderr().strip()
         self.mock_stdout(False)
         self.mock_stderr(False)
 
