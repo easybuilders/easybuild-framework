@@ -5477,6 +5477,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
+    # todo: put most complicated stuff in yaml
+    # tolerate no errors
+    # every sw finds EC <=> success
+    def test_correctly_parsed_specsfile(self):
+        """Test for --specsfile <specsfile.yaml> -> success case"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_wrong_structure.yaml')
+
+        args = ['--specsfile', toy_specsfile]
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        # todo co je to do_build= ? co je testing= ?
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+    
+        print("DENIS: " + str(stdout))
+
+        # msg_regexs = [
+        #     re.compile(r"^== Build succeeded for 1 out of 1", re.M),
+        #     re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
+        #     re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
+        #     re.compile(r"^building... \[DRY RUN\]", re.M),
+        #     re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
+        # ]
+
+        # for msg_regex in msg_regexs:
+        #     self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
+
+
 
 def suite():
     """ returns all the testcases in this module """
