@@ -329,6 +329,9 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_files_from_pr_cache(self):
         """Test caching for fetch_files_from_pr."""
+        if self.skip_github_tests:
+            print("Skipping test_fetch_files_from_pr_cache, no GitHub token available?")
+            return
 
         init_config(build_options={
             'pr_target_account': gh.GITHUB_EB_MAIN,
