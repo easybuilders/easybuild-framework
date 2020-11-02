@@ -126,13 +126,13 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_fetch_pr_data, no GitHub token available?")
             return
 
-        pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
+        pr_data, _ = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
 
         self.assertEqual(pr_data['number'], 1)
         self.assertEqual(pr_data['title'], "a pr")
         self.assertFalse(any(key in pr_data for key in ['issue_comments', 'review', 'status_last_commit']))
 
-        pr_data, pr_url = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
+        pr_data, _ = gh.fetch_pr_data(2, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT, full=True)
         self.assertEqual(pr_data['number'], 2)
         self.assertEqual(pr_data['title'], "an open pr (do not close this please)")
         self.assertTrue(pr_data['issue_comments'])
@@ -326,6 +326,66 @@ class GithubTest(EnhancedTestCase):
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
+
+    def test_fetch_files_from_pr_cache(self):
+        """Test caching for fetch_files_from_pr."""
+
+        init_config(build_options={
+            'pr_target_account': gh.GITHUB_EB_MAIN,
+        })
+
+        # clear cache first, to make sure we start with a clean slate
+        gh.fetch_files_from_pr.clear_cache()
+        self.assertFalse(gh.fetch_files_from_pr._cache)
+
+        pr7159_filenames = [
+            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
+            'OpenFOAM-5.0-20180108-foss-2018a.eb',
+            'OpenFOAM-5.0-20180108-intel-2018a.eb',
+            'OpenFOAM-6-foss-2018b.eb',
+            'OpenFOAM-6-intel-2018a.eb',
+            'OpenFOAM-v1806-foss-2018b.eb',
+            'PETSc-3.9.3-foss-2018a.eb',
+            'SCOTCH-6.0.6-foss-2018a.eb',
+            'SCOTCH-6.0.6-foss-2018b.eb',
+            'SCOTCH-6.0.6-intel-2018a.eb',
+            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        ]
+        pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
+
+        # check that cache has been populated for PR 7159
+        self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
+
+        print(gh.fetch_files_from_pr._cache.keys())
+
+        # github_account value is None (results in using default 'easybuilders')
+        cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
+        self.assertTrue(cache_key in gh.fetch_files_from_pr._cache.keys())
+
+        cache_entry = gh.fetch_files_from_pr._cache[cache_key]
+        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
+
+        # same query should return result from cache entry
+        res = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, pr7159_files)
+
+        # inject entry in cache and check result of matching query
+        pr_id = 12345
+        tmpdir = os.path.join(self.test_prefix, 'easyblocks-pr-12345')
+        pr12345_files = [
+            os.path.join(tmpdir, 'foo.py'),
+            os.path.join(tmpdir, 'bar.py'),
+        ]
+        for fp in pr12345_files:
+            write_file(fp, '')
+
+        # github_account value is None (results in using default 'easybuilders')
+        cache_key = (pr_id, None, 'easybuild-easyblocks', tmpdir)
+        gh.fetch_files_from_pr.update_cache({cache_key: pr12345_files})
+
+        res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
+        self.assertEqual(sorted(pr12345_files), sorted(res))
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
