@@ -5483,7 +5483,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_correctly_parsed_specsfile(self):
         """Test for --specsfile <specsfile.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_wrong_structure.yaml')
+        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_successful.yaml')
 
         args = ['--specsfile', toy_specsfile]
 
