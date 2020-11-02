@@ -112,9 +112,12 @@ class YamlSpecParser(GenericSpecsParser):
                             continue
 
                         else:
-                            print('Software ' + str(software) + ' has wrong yaml structure!')
+                            print('Software % s has wrong yaml structure!' % (str(software)))
+                            raise EasyBuildError('Wrong yaml structure')
+
             except (KeyError, TypeError, IndexError):
-                print('Software ' + str(software) + ' has wrong yaml structure!')
+                print('Software % s has wrong yaml structure!' % (str(software)))
+                raise EasyBuildError('Wrong yaml structure')
 
         # assign general EB attributes
         eb.easybuild_version = spec_dict.get('easybuild_version', None)
