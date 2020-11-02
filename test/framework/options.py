@@ -5478,6 +5478,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
 
     # todo: put most complicated stuff in yaml
+    # todo: use only such EC that are present for testing
     # tolerate no errors
     # every sw finds EC <=> success
     def test_correctly_parsed_specsfile(self):
