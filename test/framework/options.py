@@ -5480,35 +5480,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # todo: put most complicated stuff in yaml
     # todo: use only such EC that are present for testing
     # tolerate no errors
-    # every sw finds EC <=> success
     def test_correctly_parsed_specsfile(self):
         """Test for --specsfile <specsfile.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_successful.yaml')
+        args = ['--specsfile', toy_specsfile, '--robot', '--dry-run']
+        stdout, err = self.eb_main(args, do_build=True, return_error=True, testing=True)
 
-        args = ['--specsfile', toy_specsfile]
-
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        # todo co je to do_build= ? co je testing= ?
-        self.eb_main(args, do_build=True, raise_error=True, testing=False)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
-    
-        print("DENIS: " + str(stdout))
-
-        # msg_regexs = [
-        #     re.compile(r"^== Build succeeded for 1 out of 1", re.M),
-        #     re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
-        #     re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
-        #     re.compile(r"^building... \[DRY RUN\]", re.M),
-        #     re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
-        # ]
-
-        # for msg_regex in msg_regexs:
-        #     self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
-
+        p = re.compile(r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$[\S\s]*", re.MULTILINE)
+        self.assertTrue( p.match(stdout) is not None )
 
 
 def suite():
