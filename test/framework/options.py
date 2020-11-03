@@ -5493,28 +5493,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # print(stdout)
 
         p = re.compile(r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$\\[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$[\S\s]*", re.MULTILINE)
-
-        # p = re.compile(r"\
-        #     [\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$\
-        #     [\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$\
-        #     [\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$\
-        #     [\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$\
-        #     [\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$\
-        #     [\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$\
-        #     [\S\s]*", re.MULTILINE)
-
-        print( p.match(stdout) )
-        # msg_regexs = [
-        #     re.compile(r"^== Build succeeded for 1 out of 1", re.M),
-        #     re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
-        #     re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
-        #     re.compile(r"^building... \[DRY RUN\]", re.M),
-        #     re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
-        # ]
-
-        # for msg_regex in msg_regexs:
-        #     self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
-
+        print(p.match(stdout) == true)
+      #  self.assertTrue()
 
 
 def suite():
