@@ -5493,7 +5493,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # print(stdout)
 
         p = re.compile(r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$\\[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$[\S\s]*", re.MULTILINE)
-        print(p.match(stdout) == true)
+        print(p.match(stdout) == True)
       #  self.assertTrue()
 
 
