@@ -5488,14 +5488,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--specsfile', toy_specsfile]
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        # todo co je to do_build= ? co je testing= ?
-        self.eb_main(args, do_build=True, raise_error=True, testing=False)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
-    
+        # self.mock_stdout(True)
+        # self.mock_stderr(True)
+        stdout, err = self.eb_main(args, do_build=False, return_error=True, testing=True)
+
+        print(stdout)
         swlist = []
 
         
