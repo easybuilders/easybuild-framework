@@ -1,6 +1,5 @@
 import yaml
-import re
-from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import search_easyconfigs
 from easybuild.tools.build_log import EasyBuildError
 
 
@@ -16,7 +15,7 @@ class Specsfile(object):
         easyconfigs_full_paths = []
         for sw in self.software_list:
             path_to_append = self.get_ec_path(sw)
-            if path_to_append == None:
+            if path_to_append is None:
                 continue
             else:
                 easyconfigs_full_paths.append(path_to_append)
@@ -24,13 +23,11 @@ class Specsfile(object):
 
     # single command
     def get_ec_path(self, sw):
-        # print(str(sw.software) + '-' + str(sw.version) + '-' + str(sw.toolchain_name) + '-' + str(sw.toolchain_version) )
         full_path = search_easyconfigs(query='%s-%s-%s-%s' % (
             str(sw.software), str(sw.version), str(sw.toolchain_name), str(sw.toolchain_version)),
-            short=False, filename_only=False, terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
-        # print('\n full_path: ' + str(full_path) + '\n')
+            short=False, filename_only=False,
+            terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
         if len(full_path) == 1:
-            # todo pridat version suffix
             return full_path[0]
         else:
             print('%s does not have clearly specified parameters - %s matches found. Skipping. \n' %
@@ -82,7 +79,7 @@ class YamlSpecParser(GenericSpecsParser):
                     # retrieves version number
                     for yaml_version in sw_dict[software]['toolchains'][yaml_toolchain]['versions']:
 
-                        # if among \versions' there is anything else than known flags or version flag itself, it is wrong
+                        # if among versions there is anything else than known flags or version flag itself, it is wrong
                         # identification of version strings is vague
                         if str(yaml_version)[0].isdigit() \
                                 or str(yaml_version)[-1].isdigit():
@@ -94,8 +91,9 @@ class YamlSpecParser(GenericSpecsParser):
                                 yaml_toolchain_name = str(yaml_toolchain)
                                 yaml_toolchain_version = ''
 
-                            sw = SoftwareSpecs(software=software, version=yaml_version, toolchain=yaml_toolchain,
-                                               toolchain_name=yaml_toolchain_name, toolchain_version=yaml_toolchain_version)
+                            sw = SoftwareSpecs(software=software, version=yaml_version,
+                                               toolchain=yaml_toolchain, toolchain_name=yaml_toolchain_name,
+                                               toolchain_version=yaml_toolchain_version)
 
                             # append newly created class instance to the list inside EbFromSpecs class
                             eb.software_list.append(sw)
