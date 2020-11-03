@@ -1,33 +1,12 @@
 easybuild_version: 4.3.0
 robot: True
 software:
-  Bioconductor:
+  binutils:
     toolchains:
-      foss-2020a:
+      GCCcore-4.9.3:
         versions:
-            3.11:
-            versionsuffix: '-R-4.0.0'
-            exclude-labels: arch:aarch64
-  EasyBuild:
+            [2.25, 2.26]
+  bzip2:
     toolchains:
-      SYSTEM:
-        versions: [4.2.1]
-  GROMACS:
-    toolchains:
-      foss-2019a:
-        exclude-labels: system:gpu
-        versions:
-          2020.1:
-          2019.3:
-            from_pr: 1234
-      fosscuda-2020a:
-        include-labels: system:gpu
-        versions: [2020.1]
-  OpenFOAM:
-    toolchains:
-      foss-2020a:
-        versions: [8, v2006]
-  R:
-    toolchains:
-      foss-2020a:
-        versions: [4.0.0]
+      GCC-4.9.2:
+        versions: [1.0.6]

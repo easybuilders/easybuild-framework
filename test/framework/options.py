@@ -5496,7 +5496,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
     
-        print("DENIS: " + str(stdout))
+        swlist = []
+
+        
 
         # msg_regexs = [
         #     re.compile(r"^== Build succeeded for 1 out of 1", re.M),
