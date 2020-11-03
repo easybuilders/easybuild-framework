@@ -33,6 +33,7 @@ import base64
 import copy
 import getpass
 import glob
+import functools
 import os
 import random
 import re
@@ -376,17 +377,37 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     return extracted_path
 
 
-def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
-    """Fetch patched easyconfig files for a particular PR."""
-    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
+def pr_files_cache(func):
+    """
+    Decorator to cache result of fetch_files_from_pr.
+    """
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(pr, path=None, github_user=None, github_account=None, github_repo=None):
+        """Retrieve cached result, or fetch files from PR & cache result."""
+        # cache key is combination of all function arguments (incl. optional ones)
+        key = (pr, github_account, github_repo, path)
+
+        if key in cache and all(os.path.exists(x) for x in cache[key]):
+            _log.info("Using cached value for fetch_files_from_pr for PR #%s (account=%s, repo=%s, path=%s)",
+                      pr, github_account, github_repo, path)
+            return cache[key]
+        else:
+            res = func(pr, path=path, github_user=github_user, github_account=github_account, github_repo=github_repo)
+            cache[key] = res
+            return res
+
+    # expose clear/update methods of cache + cache itself to wrapped function
+    cache_aware_func._cache = cache  # useful in tests
+    cache_aware_func.clear_cache = cache.clear
+    cache_aware_func.update_cache = cache.update
+
+    return cache_aware_func
 
 
-def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
-    """Fetch patched easyconfig files for a particular PR."""
-    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYCONFIGS_REPO)
-
-
-def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
+@pr_files_cache
+def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, github_repo=None):
     """Fetch patched files for a particular PR."""
 
     if github_user is None:
@@ -409,7 +430,8 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
-    github_account = build_option('pr_target_account')
+    if github_account is None:
+        github_account = build_option('pr_target_account')
 
     if github_repo == GITHUB_EASYCONFIGS_REPO:
         easyfiles = 'easyconfigs'
@@ -493,6 +515,16 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
             raise EasyBuildError("Couldn't find path to patched file %s", full_path)
 
     return files
+
+
+def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
+    """Fetch patched easyconfig files for a particular PR."""
+    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
+
+
+def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
+    """Fetch patched easyconfig files for a particular PR."""
+    return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYCONFIGS_REPO)
 
 
 def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
@@ -1282,7 +1314,7 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
-    pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
