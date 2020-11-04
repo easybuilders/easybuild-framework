@@ -1,6 +1,10 @@
 import yaml
 from easybuild.tools.robot import search_easyconfigs
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.base import fancylogger
+
+
+_log = fancylogger.getLogger('specsfile', fname=False)
 
 
 # general specs applicable to all commands
@@ -15,6 +19,7 @@ class Specsfile(object):
         easyconfigs_full_paths = []
         for sw in self.software_list:
             path_to_append = self.get_ec_path(sw)
+
             if path_to_append is None:
                 continue
             else:
@@ -32,6 +37,13 @@ class Specsfile(object):
         else:
             print('%s does not have clearly specified parameters - %s matches found. Skipping. \n' %
                   (sw.software, str(len(full_path))))
+
+    # todo: flags applicable to all sw (i.e. robot)
+    def get_general_options(self):
+        general_options = {}
+        general_options['robot'] = self.robot
+        general_options['easybuild_version'] = self.easybuild_version
+        return general_options
 
 
 # single sw command
@@ -124,9 +136,15 @@ class YamlSpecParser(GenericSpecsParser):
 
 
 def handle_specsfile(filename):
+    _log.info("Building from specsfile: '%s'" % filename)
 
+    # class instance which contains all info about planned build
     eb = YamlSpecParser.parse(filename)
 
     easyconfigs_full_paths = eb.compose_full_paths()
 
-    return easyconfigs_full_paths
+    general_options = eb.get_general_options()
+
+    _log.debug("Specsfile parsed. Proceeding to install these Easyconfigs: \n'%s'" % ',\n'.join(easyconfigs_full_paths))
+
+    return easyconfigs_full_paths, general_options
