@@ -39,12 +39,11 @@ class Specsfile(object):
                   (sw.software, str(len(full_path))))
 
     # todo: flags applicable to all sw (i.e. robot)
-    def get_general_flags(self):
-        general_flags = {}
-        general_flags['robot'] = self.robot
-        general_flags['easybuild_version'] = self.easybuild_version
-        print(general_flags)
-        return general_flags
+    def get_general_options(self):
+        general_options = {}
+        general_options['robot'] = self.robot
+        general_options['easybuild_version'] = self.easybuild_version
+        return general_options
 
 
 # single sw command
@@ -137,12 +136,15 @@ class YamlSpecParser(GenericSpecsParser):
 
 
 def handle_specsfile(filename):
+    _log.info("Building from specsfile: '%s'" % filename)
 
     # class instance which contains all info about planned build
     eb = YamlSpecParser.parse(filename)
 
     easyconfigs_full_paths = eb.compose_full_paths()
 
-    general_flags = eb.get_general_flags()
+    general_options = eb.get_general_options()
 
-    return easyconfigs_full_paths, general_flags
+    _log.debug("Proceeding to install these Easyconfigs: '%s'" % ', '.join(easyconfigs_full_paths))
+
+    return easyconfigs_full_paths, general_options
