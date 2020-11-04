@@ -5480,7 +5480,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # basic stuff in yaml - just to test the basics
     # no implicit dependencies - all listed in yaml (thus no need for --robot
     # expecting successful build
-    def test_basic_specsfile(self):
+    def test_specsfile_basic(self):
         """Test for --specsfile <specsfile.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_basic.yaml')
@@ -5501,7 +5501,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_robot.yaml')
 
-        args = ['--specsfile', toy_specsfile, '--stop', '--debug']
+        args = ['--specsfile', toy_specsfile, '--stop', '--robot', '--debug']
         stdout, err = self.eb_main(args, do_build=True, return_error=True)
         print(stdout)
 

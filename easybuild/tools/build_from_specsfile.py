@@ -145,6 +145,6 @@ def handle_specsfile(filename):
 
     general_options = eb.get_general_options()
 
-    _log.debug("Proceeding to install these Easyconfigs: '%s'" % ', '.join(easyconfigs_full_paths))
+    _log.debug("Specsfile parsed. Proceeding to install these Easyconfigs: \n'%s'" % ',\n'.join(easyconfigs_full_paths))
 
     return easyconfigs_full_paths, general_options
