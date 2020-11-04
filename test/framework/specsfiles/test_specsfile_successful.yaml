@@ -1,5 +1,5 @@
 easybuild_version: 4.3.0
-robot: True
+robot: False
 software:
   binutils:
     toolchains:

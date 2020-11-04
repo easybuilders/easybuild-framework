@@ -5484,9 +5484,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test for --specsfile <specsfile.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_successful.yaml')
-        args = ['--specsfile', toy_specsfile, '--robot', '--dry-run']
+        args = ['--specsfile', toy_specsfile, '--dry-run', '--debug']
         stdout, err = self.eb_main(args, do_build=True, return_error=True, testing=True)
-
+        print(stdout)
         p = re.compile(r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$[\S\s]*", re.MULTILINE)
         self.assertTrue(p.match(stdout) is not None)
 

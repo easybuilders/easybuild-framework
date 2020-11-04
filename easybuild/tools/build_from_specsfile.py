@@ -15,6 +15,8 @@ class Specsfile(object):
         easyconfigs_full_paths = []
         for sw in self.software_list:
             path_to_append = self.get_ec_path(sw)
+            # maybe? build_options.update({'robot': True})
+
             if path_to_append is None:
                 continue
             else:
