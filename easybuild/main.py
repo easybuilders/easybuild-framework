@@ -325,9 +325,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # if specsfile is provided with the command, commands with arguments from it will be executed
     if options.specsfile:
-        determined_paths = handle_specsfile(options.specsfile)
-
-    # print('\n determined_paths: ' + str(determined_paths) + '\n')
+        # TODO add general_flags (i.e. robot) to build options
+        determined_paths, general_flags = handle_specsfile(options.specsfile)
 
     if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
