@@ -994,6 +994,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
+            'modextrapaths = {"PI_MOD_NAME": "%%(mod_name)s"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1028,6 +1029,7 @@ class EasyConfigTest(EnhancedTestCase):
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
         self.assertEqual(eb['modloadmsg'], expected)
+        self.assertEqual(eb['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
