@@ -5478,7 +5478,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
 
     # basic stuff in yaml - just to test the basics
-    # no implicit dependencies - all listed in yaml (thus no need for --robot
+    # no implicit dependencies - all listed in yaml (thus no need for --robot)
     # expecting successful build
     def test_basic_easystack(self):
         """Test for --easystack <easystack.yaml> -> success case"""
@@ -5490,23 +5490,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         print(stdout)
 
         # TODO change according to what is returned by --stop
-        p = re.compile(r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$[\S\s]*", re.MULTILINE)
-        self.assertTrue(p.match(stdout) is not None)
+        p = re.compile(
+            r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/"
+            r"GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$[\S\s]*", re.MULTILINE)
 
-    # basic stuff in yaml
-    # `--robot` is added and dependencies are not listed
-    # expecting successful build
-    def test_easystack_robot(self):
-        """Test for --easystack <easystack.yaml> -> success case"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_robot.yaml')
-
-        args = ['--easystack', toy_easystack, '--stop', '--debug']
-        stdout, err = self.eb_main(args, do_build=True, return_error=True)
-        print(stdout)
-
-        # todo change according to what is returned by --stop
-        p = re.compile(r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils\/2.25-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/binutils\/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils\/2.26-GCCcore-4.9.3\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCC\/GCC-4.9.2.eb \(module: GCC\/4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/gzip\/gzip-1.6-GCC-4.9.2.eb \(module: gzip\/1.6-GCC-4.9.2\)$[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/b\/bzip2\/bzip2-1.0.6-GCC-4.9.2.eb \(module: bzip2\/1.0.6-GCC-4.9.2\)$[\S\s]*", re.MULTILINE)
         self.assertTrue(p.match(stdout) is not None)
 
 
