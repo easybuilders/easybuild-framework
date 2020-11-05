@@ -5460,9 +5460,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
         args = ['--easystack', toy_easystack, '--experimental']
-        
-        self.assertErrorRegex(EasyBuildError, "Could not read provided easystack", self.eb_main, args, raise_error=True)
 
+        self.assertErrorRegex(EasyBuildError, "Could not read provided easystack", self.eb_main, args, raise_error=True)
 
     # testing basics - end-to-end
     # expecting successful build
@@ -5486,8 +5485,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern)
             self.assertTrue(regex.match(stdout) is not None)
 
-
-    # incorrectly structured yaml file
     def test_easystack_wrong_structure(self):
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
         topdir = os.path.dirname(os.path.abspath(__file__))

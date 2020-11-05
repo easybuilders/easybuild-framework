@@ -36,6 +36,7 @@ from easybuild.base import fancylogger
 
 _log = fancylogger.getLogger('easystack', fname=False)
 
+
 class Easystack(object):
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
     def __init__(self):
@@ -86,7 +87,7 @@ class GenericSpecsParser(object):
     """Parent of all implemented parser classes"""
     @ staticmethod
     def parse(filename):
-        """parent of all implemented parser functions (i.e. JSON, XML...)"""
+        """Parent of all implemented parser functions (i.e. JSON, XML...)"""
         raise NotImplementedError
 
 
@@ -94,7 +95,7 @@ class YamlSpecParser(GenericSpecsParser):
     """YAML file parser"""
     @ staticmethod
     def parse(filename):
-    """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
+        """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
         try:
             with open(filename, 'r') as f:
                 spec_dict = yaml.safe_load(f)
