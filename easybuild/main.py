@@ -224,6 +224,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
 
+    # if easystack is provided with the command, commands with arguments from it will be executed
+    if options.easystack:
+        # TODO add general_options (i.e. robot) to build options
+        orig_paths, general_options = handle_easystack(options.easystack)
+        print(orig_paths)
+        if general_options is not None:
+            raise EasyBuildError("Support for general options (flags) is not supported yet.")
+
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
@@ -322,11 +330,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
-
-    # if easystack is provided with the command, commands with arguments from it will be executed
-    if options.easystack:
-        # TODO add general_options (i.e. robot) to build options
-        determined_paths, general_options = handle_easystack(options.easystack)
 
     if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 

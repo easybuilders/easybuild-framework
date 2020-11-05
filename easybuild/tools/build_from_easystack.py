@@ -14,31 +14,19 @@ class Easystack(object):
         self.robot = False
         self.software_list = []
 
-    # returns list of all commands - finished
-    def compose_full_paths(self):
-        easyconfigs_full_paths = []
+    # returns list of all easyconfig names - finished
+    def compose_ec_names(self):
+        ec_names = []
         for sw in self.software_list:
-            path_to_append = self.get_ec_path(sw)
-
-            if path_to_append is None:
+            ec_to_append = '%s-%s-%s-%s' % (str(sw.software), str(sw.version),
+                                            str(sw.toolchain_name), str(sw.toolchain_version))
+            if ec_to_append is None:
                 continue
             else:
-                easyconfigs_full_paths.append(path_to_append)
-        return easyconfigs_full_paths
+                ec_names.append(ec_to_append)
+        return ec_names
 
-    # single command
-    def get_ec_path(self, sw):
-        full_path = search_easyconfigs(query='%s-%s-%s-%s' % (
-            str(sw.software), str(sw.version), str(sw.toolchain_name), str(sw.toolchain_version)),
-            short=False, filename_only=False,
-            terse=False, consider_extra_paths=True, print_result=False, case_sensitive=False)
-        if len(full_path) == 1:
-            return full_path[0]
-        else:
-            print('%s does not have clearly specified parameters - %s matches found. Skipping. \n' %
-                  (sw.software, str(len(full_path))))
-
-    # todo: flags applicable to all sw (i.e. robot)
+    # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
         general_options = {}
         general_options['robot'] = self.robot
@@ -56,21 +44,21 @@ class SoftwareSpecs(object):
         self.toolchain_name = toolchain_name
         self.toolchain = toolchain
 
-        self.version_suffix = None
+        self.versionsuffix = None
 
-    def get_version_suffix(self):
-        return self.version_suffix or ''
+    def get_versionsuffix(self):
+        return self.versionsuffix or ''
 
 
 # implement this to your own needs - to create custom yaml/json/xml parser
 class GenericSpecsParser(object):
-    @staticmethod
+    @ staticmethod
     def parse(filename):
         raise NotImplementedError
 
 
 class YamlSpecParser(GenericSpecsParser):
-    @staticmethod
+    @ staticmethod
     def parse(filename):
 
         try:
