@@ -70,7 +70,7 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.build_from_specsfile import handle_specsfile
+from easybuild.tools.build_from_easystack import parse_easystack
 
 _log = None
 
@@ -224,6 +224,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
 
+    # if easystack is provided with the command, commands with arguments from it will be executed
+    if options.easystack:
+        # TODO add general_options (i.e. robot) to build options
+        orig_paths, general_options = parse_easystack(options.easystack)
+        if general_options:
+            raise EasyBuildError("Support for general options (flags) is not supported yet.")
+
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
@@ -322,12 +329,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
-
-    # if specsfile is provided with the command, commands with arguments from it will be executed
-    if options.specsfile:
-        # TODO add general_options (i.e. robot) to build options
-        determined_paths, general_options = handle_specsfile(options.specsfile)
-
     if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
@@ -422,7 +423,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif pr_options or options.specsfile:
+    elif pr_options:
         ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)

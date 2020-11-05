@@ -1818,7 +1818,6 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
             except ImportError as err:
                 # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
                 # and not because of a broken import statement in the easyblock module
-                print('modulepath' + modulepath)
                 modname = modulepath.replace('easybuild.easyblocks.', '')
                 error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
