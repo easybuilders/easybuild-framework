@@ -1,5 +1,4 @@
 import yaml
-from easybuild.tools.robot import search_easyconfigs
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.base import fancylogger
 
@@ -19,7 +18,7 @@ class Easystack(object):
         ec_names = []
         for sw in self.software_list:
             ec_to_append = '%s-%s-%s-%s.eb' % (str(sw.software), str(sw.version),
-                                            str(sw.toolchain_name), str(sw.toolchain_version))
+                str(sw.toolchain_name), str(sw.toolchain_version))
             if ec_to_append is None:
                 continue
             else:
