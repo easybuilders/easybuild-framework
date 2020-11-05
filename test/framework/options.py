@@ -62,6 +62,7 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from easybuild.tools.build_from_easystack import parse_easystack
 
 try:
     import pycodestyle  # noqa
@@ -5453,49 +5454,47 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
-    def test_wrong_read_easystack(self):
+    # end-to-end testing of unknown filename
+    def test_easystack_wrong_read(self):
         """Test for --easystack <easystack.yaml> when wrong name is provided"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
-
-        args = ['--easystack', toy_easystack]
-        self.mock_stdout(True)
-        self.mock_stderr(True)
+        args = ['--easystack', toy_easystack, '--experimental']
+        
         self.assertErrorRegex(EasyBuildError, "Could not read provided easystack", self.eb_main, args, raise_error=True)
-        self.mock_stdout(False)
-        self.mock_stderr(False)
 
-    def test_wrong_easystack_structure(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
-        args = ['--easystack', toy_easystack]
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, "Wrong yaml structure", self.eb_main, args, raise_error=True)
-        self.mock_stdout(False)
-        self.mock_stderr(False)
-
-    # basic stuff in yaml - just to test the basics
-    # no implicit dependencies - all listed in yaml (thus no need for --robot)
+    # testing basics - end-to-end
     # expecting successful build
-    def test_basic_easystack(self):
+    def test_easystack_basic(self):
         """Test for --easystack <easystack.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
-        args = ['--easystack', toy_easystack, '--stop', '--debug']
-        stdout, err = self.eb_main(args, do_build=True, return_error=True, testing=True)
-        print(stdout)
+        args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
+        stdout, err = self.eb_main(args, do_build=True, return_error=True)
 
-        # TODO change according to what is returned by --stop
-        p = re.compile(
-            r"[\S\s]*easybuild\/easybuild-framework\/test\/framework\/easyconfigs\/test_ecs\/g\/GCCcore\/"
-            r"GCCcore-4.9.3.eb \(module: GCCcore\/4.9.3\)$[\S\s]*", re.MULTILINE)
+        patterns = [
+            r"[\S\s]*INFO Building from easystack:[\S\s]*",
+            r"[\S\s]*DEBUG Easystack parsed\. Proceeding to install these Easyconfigs: [\n]"
+            r"'binutils-2\.25-GCCcore-4\.9\.3\.eb'[\S\s]*",
+            r"[\S\s]*INFO building and installing binutils/2.25-GCCcore-4.9.3...[\S\s]*",
+            r"[\S\s]*INFO COMPLETED: Installation STOPPED successfully[\S\s]*",
+            r"[\S\s]*INFO Build succeeded for 1 out of 1[\S\s]*"
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.match(stdout) is not None)
 
-        self.assertTrue(p.match(stdout) is not None)
 
+    # incorrectly structured yaml file
+    def test_easystack_wrong_structure(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
+        args = [toy_easystack, '--experimental']
+
+        self.assertErrorRegex(EasyBuildError, "Software Bioconductor has wrong yaml structure!", parse_easystack, args)
 
 def suite():
     """ returns all the testcases in this module """
