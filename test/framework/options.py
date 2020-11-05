@@ -5453,24 +5453,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
-    def test_wrong_read_specsfile(self):
-        """Test for --specsfile <specsfile.yaml> when wrong name is provided"""
+    def test_wrong_read_easystack(self):
+        """Test for --easystack <easystack.yaml> when wrong name is provided"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_nonexistent.yaml')
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
 
-        args = ['--specsfile', toy_specsfile]
+        args = ['--easystack', toy_easystack]
         self.mock_stdout(True)
         self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, "Could not read provided specsfile", self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, "Could not read provided easystack", self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-    def test_wrong_specsfile_structure(self):
-        """Test for --specsfile <specsfile.yaml> when yaml specsfile has wrong structure"""
+    def test_wrong_easystack_structure(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_wrong_structure.yaml')
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
-        args = ['--specsfile', toy_specsfile]
+        args = ['--easystack', toy_easystack]
         self.mock_stdout(True)
         self.mock_stderr(True)
         self.assertErrorRegex(EasyBuildError, "Wrong yaml structure", self.eb_main, args, raise_error=True)
@@ -5480,12 +5480,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # basic stuff in yaml - just to test the basics
     # no implicit dependencies - all listed in yaml (thus no need for --robot
     # expecting successful build
-    def test_specsfile_basic(self):
-        """Test for --specsfile <specsfile.yaml> -> success case"""
+    def test_basic_easystack(self):
+        """Test for --easystack <easystack.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_basic.yaml')
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
-        args = ['--specsfile', toy_specsfile, '--stop', '--debug']
+        args = ['--easystack', toy_easystack, '--stop', '--debug']
         stdout, err = self.eb_main(args, do_build=True, return_error=True, testing=True)
         print(stdout)
 
@@ -5496,12 +5496,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # basic stuff in yaml
     # `--robot` is added and dependencies are not listed
     # expecting successful build
-    def test_specsfile_robot(self):
-        """Test for --specsfile <specsfile.yaml> -> success case"""
+    def test_easystack_robot(self):
+        """Test for --easystack <easystack.yaml> -> success case"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_specsfile = os.path.join(topdir, 'specsfiles', 'test_specsfile_robot.yaml')
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_robot.yaml')
 
-        args = ['--specsfile', toy_specsfile, '--stop', '--robot', '--debug']
+        args = ['--easystack', toy_easystack, '--stop', '--debug']
         stdout, err = self.eb_main(args, do_build=True, return_error=True)
         print(stdout)
 

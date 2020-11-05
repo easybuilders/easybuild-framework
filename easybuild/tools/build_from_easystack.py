@@ -4,11 +4,11 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.base import fancylogger
 
 
-_log = fancylogger.getLogger('specsfile', fname=False)
+_log = fancylogger.getLogger('easystack', fname=False)
 
 
 # general specs applicable to all commands
-class Specsfile(object):
+class Easystack(object):
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
@@ -77,9 +77,9 @@ class YamlSpecParser(GenericSpecsParser):
             with open(filename, 'r') as f:
                 spec_dict = yaml.safe_load(f)
 
-            eb = Specsfile()
+            eb = Easystack()
         except FileNotFoundError:
-            raise EasyBuildError("Could not read provided specsfile.")
+            raise EasyBuildError("Could not read provided easystack.")
 
         sw_dict = spec_dict["software"]
 
@@ -135,8 +135,8 @@ class YamlSpecParser(GenericSpecsParser):
         return eb
 
 
-def handle_specsfile(filename):
-    _log.info("Building from specsfile: '%s'" % filename)
+def handle_easystack(filename):
+    _log.info("Building from easystack: '%s'" % filename)
 
     # class instance which contains all info about planned build
     eb = YamlSpecParser.parse(filename)
@@ -145,6 +145,6 @@ def handle_specsfile(filename):
 
     general_options = eb.get_general_options()
 
-    _log.debug("Specsfile parsed. Proceeding to install these Easyconfigs: \n'%s'" % ',\n'.join(easyconfigs_full_paths))
+    _log.debug("Easystack parsed. Proceeding to install these Easyconfigs: \n'%s'" % ',\n'.join(easyconfigs_full_paths))
 
     return easyconfigs_full_paths, general_options
