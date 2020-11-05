@@ -18,7 +18,7 @@ class Easystack(object):
     def compose_ec_names(self):
         ec_names = []
         for sw in self.software_list:
-            ec_to_append = '%s-%s-%s-%s' % (str(sw.software), str(sw.version),
+            ec_to_append = '%s-%s-%s-%s.eb' % (str(sw.software), str(sw.version),
                                             str(sw.toolchain_name), str(sw.toolchain_version))
             if ec_to_append is None:
                 continue
@@ -29,8 +29,9 @@ class Easystack(object):
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
         general_options = {}
-        general_options['robot'] = self.robot
-        general_options['easybuild_version'] = self.easybuild_version
+        # TODO add support for general_options
+        # general_options['robot'] = self.robot
+        # general_options['easybuild_version'] = self.easybuild_version
         return general_options
 
 
@@ -108,14 +109,11 @@ class YamlSpecParser(GenericSpecsParser):
                         elif str(yaml_version) == 'exclude-labels' \
                                 or str(yaml_version) == 'include-labels':
                             continue
-
                         else:
-                            print('Software % s has wrong yaml structure!' % (str(software)))
-                            raise EasyBuildError('Wrong yaml structure')
+                            raise EasyBuildError('Software % s has wrong yaml structure!' % (str(software)))
 
             except (KeyError, TypeError, IndexError):
-                print('Software % s has wrong yaml structure!' % (str(software)))
-                raise EasyBuildError('Wrong yaml structure')
+                raise EasyBuildError('Software % s has wrong yaml structure!' % (str(software)))
 
         # assign general EB attributes
         eb.easybuild_version = spec_dict.get('easybuild_version', None)
@@ -123,13 +121,13 @@ class YamlSpecParser(GenericSpecsParser):
         return eb
 
 
-def handle_easystack(filename):
+def parse_easystack(filename):
     _log.info("Building from easystack: '%s'" % filename)
 
     # class instance which contains all info about planned build
     eb = YamlSpecParser.parse(filename)
 
-    easyconfigs_full_paths = eb.compose_full_paths()
+    easyconfigs_full_paths = eb.compose_ec_names()
 
     general_options = eb.get_general_options()
 

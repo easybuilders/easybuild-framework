@@ -395,6 +395,7 @@ def parse_easyconfigs(paths, validate=True):
     """
     easyconfigs = []
     generated_ecs = False
+
     for (path, generated) in paths:
         path = os.path.abspath(path)
         # keep track of whether any files were generated

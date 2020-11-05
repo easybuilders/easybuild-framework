@@ -605,7 +605,7 @@ class EasyBuildOptions(GeneralOption):
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
             'easystack': (
-                "Accepts file containing build specifications (i.e. yaml), parses it and prints all eb commands to run",
+                "Parses file containing build specifications (i.e. yaml) and initiates build accordingly",
                 None, 'store', None),
         })
 
