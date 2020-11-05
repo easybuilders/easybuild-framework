@@ -1,10 +1,40 @@
+# Copyright 2014-2020 Ghent University
+#
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# https://github.com/easybuilders/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+#
+"""
+Support for easybuild-ing from multiple easyconfigs based on
+information obtained from provided file (easystack) with build specifications.
+
+:author: Denis Kristak (Inuits)
+:author: Pavel Grochal (Inuits)
+"""
+
+
 import yaml
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.base import fancylogger
 
-
 _log = fancylogger.getLogger('easystack', fname=False)
-
 
 # general specs applicable to all commands
 class Easystack(object):
@@ -121,6 +151,8 @@ class YamlSpecParser(GenericSpecsParser):
 
 
 def parse_easystack(filename):
+    _log.experimental("Support for easybuild-ing from multiple easyconfigs based on \
+information obtained from provided file (easystack) with build specifications.")
     _log.info("Building from easystack: '%s'" % filename)
 
     # class instance which contains all info about planned build
