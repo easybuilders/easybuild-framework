@@ -2870,6 +2870,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
+            'mod_name': 'gzip/1.5-foss-2018a',
             'name': 'gzip',
             'namelower': 'gzip',
             'nameletter': 'g',
@@ -2938,6 +2939,7 @@ class EasyConfigTest(EnhancedTestCase):
             'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
+            'mod_name': None,
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
@@ -2978,6 +2980,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
         expected = {
+            'mod_name': None,
             'name': 'foo',
             'namelower': 'foo',
             'nameletter': 'f',
