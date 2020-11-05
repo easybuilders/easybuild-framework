@@ -5486,12 +5486,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.match(stdout) is not None)
 
     def test_easystack_wrong_structure(self):
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True 
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
-        args = [toy_easystack, '--experimental']
 
-        self.assertErrorRegex(EasyBuildError, "Software Bioconductor has wrong yaml structure!", parse_easystack, args)
+        self.assertErrorRegex(EasyBuildError, "Software Bioconductor has wrong yaml structure!", parse_easystack, toy_easystack)
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental 
 
 
 def suite():
