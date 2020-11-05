@@ -5493,7 +5493,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
         self.assertErrorRegex(EasyBuildError, "Software Bioconductor has wrong yaml structure!",
-        parse_easystack, toy_easystack)
+            parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
 
