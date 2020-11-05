@@ -36,15 +36,15 @@ from easybuild.base import fancylogger
 
 _log = fancylogger.getLogger('easystack', fname=False)
 
-# general specs applicable to all commands
 class Easystack(object):
+    """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
         self.software_list = []
 
-    # returns list of all easyconfig names - finished
     def compose_ec_names(self):
+        """Returns a list of all easyconfig names"""
         ec_names = []
         for sw in self.software_list:
             ec_to_append = '%s-%s-%s-%s.eb' % (str(sw.software), str(sw.version),
@@ -57,6 +57,7 @@ class Easystack(object):
 
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
+        """Returns general options (flags applicable to all sw (i.e. --robot))"""
         general_options = {}
         # TODO add support for general_options
         # general_options['robot'] = self.robot
@@ -64,8 +65,8 @@ class Easystack(object):
         return general_options
 
 
-# single sw command
 class SoftwareSpecs(object):
+    """Contains information about every SW that should be installed"""
     def __init__(self, software, version, toolchain, toolchain_version, toolchain_name):
         self.software = software
         self.version = version
@@ -73,24 +74,27 @@ class SoftwareSpecs(object):
         self.toolchain_version = toolchain_version
         self.toolchain_name = toolchain_name
         self.toolchain = toolchain
-
         self.versionsuffix = None
 
-    def get_versionsuffix(self):
-        return self.versionsuffix or ''
+    # to be implemented
+    # def get_versionsuffix(self):
+    #     return self.versionsuffix or ''
 
 
 # implement this to your own needs - to create custom yaml/json/xml parser
 class GenericSpecsParser(object):
+    """Parent of all implemented parser classes"""
     @ staticmethod
     def parse(filename):
+        """parent of all implemented parser functions (i.e. JSON, XML...)"""
         raise NotImplementedError
 
 
 class YamlSpecParser(GenericSpecsParser):
+    """YAML file parser"""
     @ staticmethod
     def parse(filename):
-
+    """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
         try:
             with open(filename, 'r') as f:
                 spec_dict = yaml.safe_load(f)
@@ -151,6 +155,7 @@ class YamlSpecParser(GenericSpecsParser):
 
 
 def parse_easystack(filename):
+    """Parses through easystack file, returns what EC are to be installed together with their options."""
     _log.experimental("Support for easybuild-ing from multiple easyconfigs based on \
 information obtained from provided file (easystack) with build specifications.")
     _log.info("Building from easystack: '%s'" % filename)
@@ -158,10 +163,10 @@ information obtained from provided file (easystack) with build specifications.")
     # class instance which contains all info about planned build
     eb = YamlSpecParser.parse(filename)
 
-    easyconfigs_full_paths = eb.compose_ec_names()
+    easyconfig_names = eb.compose_ec_names()
 
     general_options = eb.get_general_options()
 
-    _log.debug("Easystack parsed. Proceeding to install these Easyconfigs: \n'%s'" % ',\n'.join(easyconfigs_full_paths))
+    _log.debug("Easystack parsed. Proceeding to install these Easyconfigs: \n'%s'" % ',\n'.join(easyconfig_names))
 
-    return easyconfigs_full_paths, general_options
+    return easyconfig_names, general_options
