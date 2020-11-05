@@ -5493,6 +5493,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "Software Bioconductor has wrong yaml structure!", parse_easystack, args)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
