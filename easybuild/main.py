@@ -300,7 +300,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
-
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
@@ -329,6 +328,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+
     if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:

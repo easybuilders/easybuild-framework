@@ -5461,7 +5461,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
         args = ['--easystack', toy_easystack, '--experimental']
 
-        self.assertErrorRegex(EasyBuildError, "Could not read provided easystack", self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, "Could not read provided easystack.", self.eb_main, args, raise_error=True)
 
     # testing basics - end-to-end
     # expecting successful build
@@ -5493,7 +5493,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
         self.assertErrorRegex(
-            EasyBuildError, "Software Bioconductor has wrong yaml structure!",
+            EasyBuildError, "Specifications of 'Bioconductor' have wrong yaml structure.",
+            parse_easystack, toy_easystack
+        )
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_easystack_asterisk(self):
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
+
+        self.assertErrorRegex(
+            EasyBuildError, "Specifications of 'binutils' contain asterisk. Wildcard feature is not supported yet.",
+            parse_easystack, toy_easystack
+        )
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_easystack_labels(self):
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
+
+        self.assertErrorRegex(
+            EasyBuildError, "Specifications of 'binutils' contain labels. Labels aren't supported yet.",
             parse_easystack, toy_easystack
         )
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental

@@ -1,4 +1,4 @@
-# Copyright 2014-2020 Ghent University
+# Copyright 2020-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -100,7 +100,7 @@ class YamlSpecParser(GenericSpecsParser):
             with open(filename, 'r') as f:
                 spec_dict = yaml.safe_load(f)
 
-            eb = Easystack()
+                eb = Easystack()
         except Exception:
             raise EasyBuildError("Could not read provided easystack.")
 
@@ -108,15 +108,30 @@ class YamlSpecParser(GenericSpecsParser):
 
         # assign software-specific EB attributes
         for software in sw_dict:
+            asterisk_err="Specifications of '%s' contain asterisk. Wildcard feature is not supported yet." % (str(software))
+            wrong_structure_err="Specifications of '%s' have wrong yaml structure." % (str(software))
             try:
                 # iterates through toolchains to find out what sw version is needed
                 for yaml_toolchain in sw_dict[software]['toolchains']:
-                    # retrieves version number
-                    for yaml_version in sw_dict[software]['toolchains'][yaml_toolchain]['versions']:
+                    # if version string containts asterisk or labels, raise error (not implemented yet)
+                    if '*' in str(sw_dict[software]['toolchains'][yaml_toolchain]['versions']):
+                        raise EasyBuildError(asterisk_err)
+                    if 'exclude-labels' in sw_dict[software]['toolchains'][yaml_toolchain] or \
+                        'include-labels' in sw_dict[software]['toolchains'][yaml_toolchain]:
+                        raise EasyBuildError("Specifications of '%s' contain labels. Labels aren't supported yet." % (str(software)))
 
-                        # if among versions there is anything else than known flags or version flag itself, it is wrong
-                        # identification of version strings is vague
-                        if str(yaml_version)[0].isdigit() \
+                    for yaml_version in sw_dict[software]['toolchains'][yaml_toolchain]['versions']:
+                        if str(yaml_version) == 'versionsuffix':
+                            try:
+                                version_info = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
+                                if version_info['versionsuffix'] is not None:
+                                    sw.version_suffix = version_info['versionsuffix']
+                            except (KeyError, TypeError, IndexError):
+                                continue
+                        elif '*' in str(yaml_version):
+                            raise EasyBuildError(asterisk_err)
+                        # TODO - think of better ID of strings
+                        elif str(yaml_version)[0].isdigit() \
                                 or str(yaml_version)[-1].isdigit():
                             # creates a sw class instance
                             try:
@@ -132,22 +147,11 @@ class YamlSpecParser(GenericSpecsParser):
 
                             # append newly created class instance to the list inside EbFromSpecs class
                             eb.software_list.append(sw)
-
-                        elif str(yaml_version) == 'versionsuffix':
-                            try:
-                                version_info = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
-                                if version_info['versionsuffix'] is not None:
-                                    sw.version_suffix = version_info['versionsuffix']
-                            except (KeyError, TypeError, IndexError):
-                                continue
-                        elif str(yaml_version) == 'exclude-labels' \
-                                or str(yaml_version) == 'include-labels':
-                            continue
                         else:
-                            raise EasyBuildError('Software % s has wrong yaml structure!' % (str(software)))
+                            raise EasyBuildError(wrong_structure_err)
 
             except (KeyError, TypeError, IndexError):
-                raise EasyBuildError('Software % s has wrong yaml structure!' % (str(software)))
+                raise EasyBuildError(wrong_structure_err)
 
         # assign general EB attributes
         eb.easybuild_version = spec_dict.get('easybuild_version', None)
