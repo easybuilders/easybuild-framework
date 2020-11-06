@@ -47,7 +47,7 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
-    ('mod_name', "Module name"),
+    ('module_name', "Module name"),
     ('nameletter', "First letter of software name"),
     ('toolchain_name', "Toolchain name"),
     ('toolchain_version', "Toolchain version"),
@@ -210,8 +210,8 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
 
-        elif name[0] == 'mod_name':
-            template_values['mod_name'] = getattr(config, 'short_mod_name', None)
+        elif name[0] == 'module_name':
+            template_values['module_name'] = getattr(config, 'short_mod_name', None)
 
         else:
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
