@@ -5486,9 +5486,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.match(stdout) is not None)
 
     def test_easystack_wrong_structure(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
-        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
@@ -5499,9 +5499,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_asterisk(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
-        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
 
@@ -5512,9 +5512,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_labels(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
-        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
