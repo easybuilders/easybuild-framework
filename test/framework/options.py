@@ -5520,8 +5520,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertErrorRegex(
             EasyBuildError, "Easystack specifications of 'binutils' contain labels. Labels aren't supported yet.",
-            parse_easystack, toy_easystack
-        )
+            parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_versionsuffix(self):

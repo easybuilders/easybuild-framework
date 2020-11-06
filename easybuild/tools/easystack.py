@@ -109,25 +109,25 @@ class YamlSpecParser(GenericSpecsParser):
 
         # assign software-specific EB attributes
         for software in sw_dict:
-            asterisk_err="Easystack specifications of '%s' contain asterisk. " % (str(software))
-            asterisk_err+="Wildcard feature is not supported yet."
-            wrong_structure_err="Easystack specifications of '%s' have wrong yaml structure." % (str(software))
+            asterisk_err = "Easystack specifications of '%s' contain asterisk. " % (str(software))
+            asterisk_err += "Wildcard feature is not supported yet."
+            wrong_structure_err = "Easystack specifications of '%s' have wrong yaml structure." % (str(software))
             try:
-            # # iterates through toolchains to find out what sw version is needed
-                for yaml_toolchain in sw_dict[software]['toolchains']:
+                # iterates through toolchains to find out what sw version is needed
+                for yaml_tc in sw_dict[software]['toolchains']:
                     # if version string containts asterisk or labels, raise error (not implemented yet)
-                    if '*' in str(sw_dict[software]['toolchains'][yaml_toolchain]['versions']):
+                    if '*' in str(sw_dict[software]['toolchains'][yaml_tc]['versions']):
                         raise EasyBuildError(asterisk_err)
-                    for yaml_version in sw_dict[software]['toolchains'][yaml_toolchain]['versions']:
+                    for yaml_version in sw_dict[software]['toolchains'][yaml_tc]['versions']:
                         try:
-                            yaml_version_specs = sw_dict[software]['toolchains'][yaml_toolchain]['versions'][yaml_version]
+                            yaml_version_specs = sw_dict[software]['toolchains'][yaml_tc]['versions'][yaml_version]
                             if 'versionsuffix' in str(yaml_version_specs):
-                                ver_suf_err = "Easystack specifications of '%s' contain versionsuffix. "%str(software)
+                                ver_suf_err = "Easystack specifications of '%s' contain versionsuffix. " % str(software)
                                 ver_suf_err += "This isn't supported yet."
                                 raise EasyBuildError(ver_suf_err)
                             elif 'exclude-labels' in str(yaml_version_specs) or 'include-labels' in str(yaml_version_specs):
-                                lab_err="Easystack specifications of '%s' contain labels. "%str(software)
-                                lab_err+="Labels aren't supported yet."
+                                lab_err = "Easystack specifications of '%s' contain labels. " % str(software)
+                                lab_err += "Labels aren't supported yet."
                                 raise EasyBuildError(lab_err)
                         except TypeError:
                             pass
@@ -138,15 +138,16 @@ class YamlSpecParser(GenericSpecsParser):
                                 or str(yaml_version)[-1].isdigit():
                             # creates a sw class instance
                             try:
-                                yaml_toolchain_name = str(yaml_toolchain).split('-', 1)[0]
-                                yaml_toolchain_version = str(yaml_toolchain).split('-', 1)[1]
+                                yaml_toolchain_name = str(yaml_tc).split('-', 1)[0]
+                                yaml_toolchain_version = str(yaml_tc).split('-', 1)[1]
                             except IndexError:
-                                yaml_toolchain_name = str(yaml_toolchain)
+                                yaml_toolchain_name = str(yaml_tc)
                                 yaml_toolchain_version = ''
 
-                            sw = SoftwareSpecs(software=software, version=yaml_version,
-                                                toolchain=yaml_toolchain, toolchain_name=yaml_toolchain_name,
-                                                toolchain_version=yaml_toolchain_version)
+                            sw = SoftwareSpecs(
+                                software=software, version=yaml_version,
+                                toolchain=yaml_tc, toolchain_name=yaml_toolchain_name,
+                                toolchain_version=yaml_toolchain_version)
 
                             # append newly created class instance to the list inside EbFromSpecs class
                             eb.software_list.append(sw)
