@@ -120,16 +120,15 @@ class YamlSpecParser(GenericSpecsParser):
                         raise EasyBuildError(asterisk_err)
                     for yaml_version in sw_dict[software]['toolchains'][yaml_tc]['versions']:
                         try:
-                            yaml_version_specs = sw_dict[software]['toolchains'][yaml_tc]['versions'][yaml_version]
-                            if 'versionsuffix' in str(yaml_version_specs):
+                            yaml_ver_specs = sw_dict[software]['toolchains'][yaml_tc]['versions'][yaml_version]
+                            if 'versionsuffix' in str(yaml_ver_specs):
                                 ver_suf_err = "Easystack specifications of '%s' contain versionsuffix. " % str(software)
                                 ver_suf_err += "This isn't supported yet."
                                 raise EasyBuildError(ver_suf_err)
-                            elif 'exclude-labels' in str(yaml_version_specs) \
-                                or 'include-labels' in str(yaml_version_specs):
-                                    lab_err = "Easystack specifications of '%s' contain labels. " % str(software)
-                                    lab_err += "Labels aren't supported yet."
-                                    raise EasyBuildError(lab_err)
+                            elif 'exclude-labels' in str(yaml_ver_specs) or 'include-labels' in str(yaml_ver_specs):
+                                lab_err = "Easystack specifications of '%s' contain labels. " % str(software)
+                                lab_err += "Labels aren't supported yet."
+                                raise EasyBuildError(lab_err)
                         except TypeError:
                             pass
                         if '*' in str(yaml_version):
