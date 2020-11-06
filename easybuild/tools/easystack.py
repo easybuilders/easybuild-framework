@@ -125,7 +125,8 @@ class YamlSpecParser(GenericSpecsParser):
                                 ver_suf_err = "Easystack specifications of '%s' contain versionsuffix. " % str(software)
                                 ver_suf_err += "This isn't supported yet."
                                 raise EasyBuildError(ver_suf_err)
-                            elif 'exclude-labels' in str(yaml_version_specs) or 'include-labels' in str(yaml_version_specs):
+                            elif 'exclude-labels' in str(yaml_version_specs) \
+                            or 'include-labels' in str(yaml_version_specs):
                                 lab_err = "Easystack specifications of '%s' contain labels. " % str(software)
                                 lab_err += "Labels aren't supported yet."
                                 raise EasyBuildError(lab_err)

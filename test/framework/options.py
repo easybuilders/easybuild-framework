@@ -5460,8 +5460,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
         args = ['--easystack', toy_easystack, '--experimental']
-
-        self.assertErrorRegex(EasyBuildError, "Could not read provided easystack.", self.eb_main, args, raise_error=True)
+        expected_err = "Could not read provided easystack."
+        self.assertErrorRegex(EasyBuildError, expected_err, self.eb_main, args, raise_error=True)
 
     # testing basics - end-to-end
     # expecting successful build
@@ -5505,7 +5505,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
 
         self.assertErrorRegex(
-            EasyBuildError, 
+            EasyBuildError,
             "Easystack specifications of 'binutils' contain asterisk. Wildcard feature is not supported yet.",
             parse_easystack, toy_easystack
         )
