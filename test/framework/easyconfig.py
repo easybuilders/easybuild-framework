@@ -994,6 +994,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
+            'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1028,6 +1029,7 @@ class EasyConfigTest(EnhancedTestCase):
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
         self.assertEqual(eb['modloadmsg'], expected)
+        self.assertEqual(eb['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -2868,6 +2870,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
+            'module_name': 'gzip/1.5-foss-2018a',
             'name': 'gzip',
             'namelower': 'gzip',
             'nameletter': 'g',
@@ -2936,6 +2939,7 @@ class EasyConfigTest(EnhancedTestCase):
             'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
+            'module_name': None,
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
@@ -2976,6 +2980,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
         expected = {
+            'module_name': None,
             'name': 'foo',
             'namelower': 'foo',
             'nameletter': 'f',
