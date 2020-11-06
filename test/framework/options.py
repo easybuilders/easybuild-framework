@@ -62,7 +62,7 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
-from easybuild.tools.build_from_easystack import parse_easystack
+from easybuild.tools.easystack import parse_easystack
 
 try:
     import pycodestyle  # noqa
@@ -5472,7 +5472,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
         stdout, err = self.eb_main(args, do_build=True, return_error=True)
-
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
             r"[\S\s]*DEBUG Easystack parsed\. Proceeding to install these Easyconfigs: [\n]"
@@ -5493,7 +5492,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
         self.assertErrorRegex(
-            EasyBuildError, "Specifications of 'Bioconductor' have wrong yaml structure.",
+            EasyBuildError, "Easystack specifications of 'Bioconductor' have wrong yaml structure.",
             parse_easystack, toy_easystack
         )
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
@@ -5506,7 +5505,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
 
         self.assertErrorRegex(
-            EasyBuildError, "Specifications of 'binutils' contain asterisk. Wildcard feature is not supported yet.",
+            EasyBuildError, 
+            "Easystack specifications of 'binutils' contain asterisk. Wildcard feature is not supported yet.",
             parse_easystack, toy_easystack
         )
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
@@ -5519,7 +5519,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
         self.assertErrorRegex(
-            EasyBuildError, "Specifications of 'binutils' contain labels. Labels aren't supported yet.",
+            EasyBuildError, "Easystack specifications of 'binutils' contain labels. Labels aren't supported yet.",
+            parse_easystack, toy_easystack
+        )
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_easystack_versionsuffix(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains versionsuffix"""
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_versionsuffix.yaml')
+
+        self.assertErrorRegex(
+            EasyBuildError, "Easystack specifications of 'binutils' contain versionsuffix. This isn't supported yet.",
             parse_easystack, toy_easystack
         )
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental

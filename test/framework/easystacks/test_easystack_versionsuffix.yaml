@@ -1,0 +1,7 @@
+software:
+  binutils:
+    toolchains:
+      GCCcore-4.9.3:
+        versions:
+            3.11:
+              versionsuffix: '-R-4.0.0'

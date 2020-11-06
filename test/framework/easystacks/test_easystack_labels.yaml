@@ -2,6 +2,6 @@ software:
   binutils:
     toolchains:
       GCCcore-4.9.3:
-        exclude-labels: system:gpu
         versions:
-            3.11
+            3.11:
+              exclude-labels: arch:aarch64

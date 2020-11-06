@@ -70,7 +70,7 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.build_from_easystack import parse_easystack
+from easybuild.tools.easystack import parse_easystack
 
 _log = None
 
@@ -229,7 +229,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         # TODO add general_options (i.e. robot) to build options
         orig_paths, general_options = parse_easystack(options.easystack)
         if general_options:
-            raise EasyBuildError("Support for general options (flags) is not supported yet.")
+            raise EasyBuildError("Specifying general configuration options in easystack file is not supported yet.")
 
     # check whether packaging is supported when it's being used
     if options.package:
