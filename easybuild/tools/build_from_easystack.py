@@ -101,7 +101,7 @@ class YamlSpecParser(GenericSpecsParser):
                 spec_dict = yaml.safe_load(f)
 
             eb = Easystack()
-        except FileNotFoundError:
+        except Exception:
             raise EasyBuildError("Could not read provided easystack.")
 
         sw_dict = spec_dict["software"]
