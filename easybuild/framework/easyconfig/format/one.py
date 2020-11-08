@@ -135,7 +135,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
         """
-        super(FormatOneZero, self).parse(txt, strict_section_markers=True)
+        self.rawcontent = txt
+        super(FormatOneZero, self).parse(self.rawcontent, strict_section_markers=True)
 
     def _reformat_line(self, param_name, param_val, outer=False, addlen=0):
         """
@@ -356,6 +357,16 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return '\n'.join(dump)
 
+    @property
+    def comments(self):
+        """
+        Return comments (and extract them first if needed).
+        """
+        if not self._comments:
+            self.extract_comments(self.rawcontent)
+
+        return self._comments
+
     def extract_comments(self, rawtxt):
         """
         Extract comments from raw content.
@@ -363,7 +374,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Discriminates between comment header, comments above a line (parameter definition), and inline comments.
         Inline comments on items of iterable values are also extracted.
         """
-        self.comments = {
+        self._comments = {
             'above': {},  # comments above a parameter definition
             'header': [],  # header comment lines
             'inline': {},  # inline comments
