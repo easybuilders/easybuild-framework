@@ -726,20 +726,16 @@ def list_software_txt(software, detailed=False):
 def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
+
+    # filter deprecated 'dummy' toolchain
+    all_tcs = [x for x in all_tcs if x.NAME != DUMMY_TOOLCHAIN_NAME]
     all_tcs_names = [x.NAME for x in all_tcs]
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
     tcs = dict(zip(all_tcs_names, all_tcs))
 
-    for tcname in sorted(tcs.keys()):
-
+    for tcname in sorted(tcs):
         tcc = tcs[tcname]
-
-        # filter deprecated 'dummy' toolchain
-        if tcname == DUMMY_TOOLCHAIN_NAME:
-            del tcs[tcname]
-            continue
-
         tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
         tcs[tcname] = tc.definition()
 
