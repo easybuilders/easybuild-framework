@@ -5472,11 +5472,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
         stdout, err = self.eb_main(args, do_build=True, return_error=True)
-        print(stdout)
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
-            # r"[\S\s]*DEBUG Easystack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
-            # r"'binutils-2\.25-GCCcore-4\.9\.3\.eb'[\S\s]*",
+            r"[\S\s]*DEBUG Easystack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
+            r".*?'binutils-2\.25-GCCcore-4\.9\.3\.eb'[\S\s]*",
             r"[\S\s]*INFO building and installing binutils/2\.25-GCCcore-4\.9\.3[\S\s]*",
             r"[\S\s]*INFO COMPLETED: Installation STOPPED successfully[\S\s]*",
             r"[\S\s]*INFO Build succeeded for 1 out of 1[\S\s]*"
