@@ -727,13 +727,17 @@ def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
     all_tcs_names = [x.NAME for x in all_tcs]
-    tclist = sorted(zip(all_tcs_names, all_tcs))
 
-    tcs = dict()
-    for (tcname, tcc) in tclist:
+    # start with dict that maps toolchain name to corresponding subclass of Toolchain
+    tcs = dict(zip(all_tcs_names, all_tcs))
+
+    for tcname in sorted(tcs.keys()):
+
+        tcc = tcs[tcname]
 
         # filter deprecated 'dummy' toolchain
         if tcname == DUMMY_TOOLCHAIN_NAME:
+            del tcs[tcname]
             continue
 
         tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
