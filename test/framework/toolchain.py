@@ -621,6 +621,15 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
                 self.modtool.purge()
 
+        value = '--see-if-this-propagates'
+        for var in flag_vars:
+            opt = 'extra_' + var.lower()
+            tc = self.get_toolchain('foss', version='2018a')
+            tc.set_options({opt: value})
+            tc.prepare()
+            self.assertTrue(tc.get_variable(var).endswith(' ' + value))
+            self.modtool.purge()
+
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
 

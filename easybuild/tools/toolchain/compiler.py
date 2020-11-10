@@ -116,7 +116,10 @@ class Compiler(Toolchain):
         'unroll': 'unroll',
         'verbose': 'v',
         'extra_cflags': '%(value)s',
+        'extra_cxxflags': '%(value)s',
         'extra_fflags': '%(value)s',
+        'extra_fcflags': '%(value)s',
+        'extra_f90flags': '%(value)s',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
@@ -128,13 +131,13 @@ class Compiler(Toolchain):
 
     COMPILER_CC = None
     COMPILER_CXX = None
-    COMPILER_C_FLAGS = ['cstd', 'extra_cflags']
+    COMPILER_C_FLAGS = ['cstd']
     COMPILER_C_UNIQUE_FLAGS = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
-    COMPILER_F_FLAGS = ['i8', 'r8', 'extra_fflags']
+    COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
@@ -296,7 +299,7 @@ class Compiler(Toolchain):
                 flags = self.options.option(extra)
                 if not flags or flags[0] != '-':
                     raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, flags))
-                self.variables.nextend(var, self.options.option(extra[1:]))
+                self.variables.nappend_el(var, flags[1:])
 
     def _set_optimal_architecture(self, default_optarch=None):
         """
