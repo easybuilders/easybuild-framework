@@ -93,8 +93,11 @@ class Compiler(Toolchain):
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
-        'extra_cflags': (None, "Specify extra CFLAGS options. Do not specify a leading dash, one is prepended already."),
-        'extra_fflags': (None, "Specify extra FFLAGS options. Do not specify a leading dash, one is prepended already."),
+        'extra_cflags': (None, "Specify extra CFLAGS options."),
+        'extra_cxxflags': (None, "Specify extra CXXFLAGS options."),
+        'extra_fflags': (None, "Specify extra FFLAGS options."),
+        'extra_fcflags': (None, "Specify extra FCFLAGS options."),
+        'extra_f90flags': (None, "Specify extra F90FLAGS options."),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -281,15 +284,19 @@ class Compiler(Toolchain):
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
-        for var in ['CFLAGS', 'CXXFLAGS']:
+        for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
             self.variables.nextend(var, flags)
-            self.variables.nextend(var, cflags)
-
-        for var in ['FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-            self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
-            self.variables.nextend(var, flags)
-            self.variables.nextend(var, fflags)
+            if var.startswith('C'):
+                self.variables.nextend(var, cflags)
+            else:
+                self.variables.nextend(var, fflags)
+            extra = 'extra_' + var.lower()
+            if self.options.get(extra):
+                flags = self.options.option(extra)
+                if not flags or flags[0] != '-':
+                    raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, flags))
+                self.variables.nextend(var, self.options.option(extra[1:]))
 
     def _set_optimal_architecture(self, default_optarch=None):
         """
