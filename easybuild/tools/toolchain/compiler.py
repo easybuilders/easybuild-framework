@@ -93,8 +93,8 @@ class Compiler(Toolchain):
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
-        'extra_cflags': (None,"Specify extra CFLAGS options. Do not specify a leading dash, one is prepended already."),
-        'extra_fflags': (None,"Specify extra FFLAGS options. Do not specify a leading dash, one is prepended already."),
+        'extra_cflags': (None, "Specify extra CFLAGS options. Do not specify a leading dash, one is prepended already."),
+        'extra_fflags': (None, "Specify extra FFLAGS options. Do not specify a leading dash, one is prepended already."),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None
