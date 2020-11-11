@@ -84,7 +84,7 @@ class SoftwareSpecs(object):
 
 
 # implement this to your own needs - to create custom yaml/json/xml parser
-class GenericSpecsParser(object):
+class GenericEasystackParser(object):
     """Parent of all implemented parser classes"""
     @ staticmethod
     def parse(filepath):
@@ -92,7 +92,7 @@ class GenericSpecsParser(object):
         raise NotImplementedError
 
 
-class YamlSpecParser(GenericSpecsParser):
+class YamlEasystackParser(GenericEasystackParser):
     """YAML file parser"""
     @ staticmethod
     def parse(filepath):
@@ -171,7 +171,7 @@ def parse_easystack(filepath):
     _log.info("Building from easystack: '%s'" % filepath)
 
     # class instance which contains all info about planned build
-    eb = YamlSpecParser.parse(filepath)
+    eb = YamlEasystackParser.parse(filepath)
 
     easyconfig_names = eb.compose_ec_names()
 
