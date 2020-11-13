@@ -42,6 +42,7 @@ import easybuild.tools.options
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -62,7 +63,6 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
-from easybuild.tools.easystack import parse_easystack
 
 try:
     import pycodestyle  # noqa
@@ -5475,10 +5475,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
             r"[\S\s]*DEBUG Easystack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
-            r".*?'binutils-2\.25-GCCcore-4\.9\.3\.eb'[\S\s]*",
             r"[\S\s]*INFO building and installing binutils/2\.25-GCCcore-4\.9\.3[\S\s]*",
+            r"[\S\s]*INFO building and installing binutils/2\.26-GCCcore-4\.9\.3[\S\s]*",
+            r"[\S\s]*INFO building and installing toy/0\.0-gompi-2018a-test[\S\s]*",
             r"[\S\s]*INFO COMPLETED: Installation STOPPED successfully[\S\s]*",
-            r"[\S\s]*INFO Build succeeded for 1 out of 1[\S\s]*"
+            r"[\S\s]*INFO Build succeeded for 3 out of 3[\S\s]*"
         ]
         for pattern in patterns:
             regex = re.compile(pattern)
@@ -5521,19 +5522,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(
             EasyBuildError, "Easystack specifications of 'binutils' contain labels. Labels aren't supported yet.",
             parse_easystack, toy_easystack)
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
-
-    def test_easystack_versionsuffix(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains versionsuffix"""
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_versionsuffix.yaml')
-
-        self.assertErrorRegex(
-            EasyBuildError, "Easystack specifications of 'binutils' contain versionsuffix. This isn't supported yet.",
-            parse_easystack, toy_easystack
-        )
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
 
