@@ -1325,13 +1325,14 @@ def merge_pr(pr):
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
     print_msg(msg, prefix=False)
-    if pr_data['merged']:
-        raise EasyBuildError("This PR is already merged.")
-    elif pr_data['user']['login'] == github_user:
+    if pr_data['user']['login'] == github_user:
         raise EasyBuildError("Please do not merge your own PRs!")
 
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    if pr_data['merged'] and not dry_run:
+        raise EasyBuildError("This PR is already merged.")
 
     def merge_url(gh):
         """Utility function to fetch merge URL for a specific PR."""
