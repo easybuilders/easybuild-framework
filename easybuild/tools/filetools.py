@@ -2057,7 +2057,7 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
     elif len(paths) == 1 and target_single_file:
         copy_file(paths[0], target_path)
         if verbose:
-            print_msg("%s copied to %s" % (os.path.basename(paths[0]), target_path), prefix=False)
+            print_msg("%s copied to %s" % (paths[0], target_path), prefix=False)
 
     elif paths:
         # check target path: if it exists it should be a directory; if it doesn't exist, we create it
@@ -2076,7 +2076,7 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
             print_msg("%d file(s) copied to %s" % (len(paths), target_path), prefix=False)
 
     elif not allow_empty:
-        raise EasyBuildError("One of more files to copy should be specified!")
+        raise EasyBuildError("One or more files to copy should be specified!")
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
