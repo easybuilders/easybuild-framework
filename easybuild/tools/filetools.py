@@ -796,25 +796,28 @@ def locate_files(files, paths, ignore_subdirs=None):
     """
     Determine full path for list of files, in given list of paths (directories).
     """
-    # determine which easyconfigs files need to be found, if any
+    # determine which files need to be found, if any
     files_to_find = []
-    for idx, ec_file in enumerate(files):
-        if ec_file == os.path.basename(ec_file) and not os.path.exists(ec_file):
-            files_to_find.append((idx, ec_file))
-    _log.debug("List of files to find: %s" % files_to_find)
+    for idx, filepath in enumerate(files):
+        if filepath == os.path.basename(filepath) and not os.path.exists(filepath):
+            files_to_find.append((idx, filepath))
+    _log.debug("List of files to find: %s", files_to_find)
 
     # find missing easyconfigs by walking paths in robot search path
     for path in paths:
-        _log.debug("Looking for missing files (%d left) in %s..." % (len(files_to_find), path))
+
+        # skip non-existing paths
+        if not os.path.exists(path):
+            _log.debug("%s does not exist, skipping it...", path)
+            continue
+
+        _log.debug("Looking for missing files (%d left) in %s...", len(files_to_find), path)
 
         # try to load index for current path, or create one
         path_index = load_index(path, ignore_dirs=ignore_subdirs)
         if path_index is None or build_option('ignore_index'):
-            if os.path.exists(path):
-                _log.info("No index found for %s, creating one...", path)
-                path_index = create_index(path, ignore_dirs=ignore_subdirs)
-            else:
-                path_index = []
+            _log.info("No index found for %s, creating one (in memory)...", path)
+            path_index = create_index(path, ignore_dirs=ignore_subdirs)
         else:
             _log.info("Index found for %s, so using it...", path)
 
