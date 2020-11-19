@@ -60,7 +60,6 @@ class EasyStack(object):
             ec_filenames.append(ec_filename)
         return ec_filenames
 
-
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
         """Returns general options (flags applicable to all sw (i.e. --robot))"""
@@ -142,14 +141,14 @@ class EasyStackParser(object):
                             else:
                                 versionsuffix = ''
                             if 'exclude-labels' in str(version_spec) \
-                            or 'include-labels' in str(version_spec):
-                                lab_err = "EasyStack specifications of '%s' " % name
-                                lab_err += "contain labels. Labels aren't supported yet."
-                                raise EasyBuildError(lab_err)
+                                or 'include-labels' in str(version_spec):
+                                    lab_err = "EasyStack specifications of '%s' " % name
+                                    lab_err += "contain labels. Labels aren't supported yet."
+                                    raise EasyBuildError(lab_err)
                         else:
                             versionsuffix = ''
                         sw = SoftwareSpecs(
-                            name=name, version=version, versionsuffix = versionsuffix,
+                            name=name, version=version, versionsuffix=versionsuffix,
                             toolchain_name=toolchain_name, toolchain_version=toolchain_version)
                         # append newly created class instance to the list in instance of EasyStack class
                         easystack.software_list.append(sw)
