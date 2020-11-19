@@ -140,11 +140,10 @@ class EasyStackParser(object):
                                 versionsuffix = str(version_spec['versionsuffix'])
                             else:
                                 versionsuffix = ''
-                            if 'exclude-labels' in str(version_spec) \
-                                or 'include-labels' in str(version_spec):
-                                    lab_err = "EasyStack specifications of '%s' " % name
-                                    lab_err += "contain labels. Labels aren't supported yet."
-                                    raise EasyBuildError(lab_err)
+                            if 'exclude-labels' in str(version_spec) or 'include-labels' in str(version_spec):
+                                lab_err = "EasyStack specifications of '%s' " % name
+                                lab_err += "contain labels. Labels aren't supported yet."
+                                raise EasyBuildError(lab_err)
                         else:
                             versionsuffix = ''
                         sw = SoftwareSpecs(
