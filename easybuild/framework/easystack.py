@@ -31,6 +31,8 @@ information obtained from provided file (easystack) with build specifications.
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.base import fancylogger
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.filetools import read_file
 try:
     import yaml
 except ImportError:
@@ -38,18 +40,18 @@ except ImportError:
 _log = fancylogger.getLogger('easystack', fname=False)
 
 
-class Easystack(object):
+class EasyStack(object):
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
         self.software_list = []
 
-    def compose_ec_names(self):
+    def compose_ec_filenames(self):
         """Returns a list of all easyconfig names"""
         ec_filenames = []
         for sw in self.software_list:
-            full_ec_version = self.det_full_ec_version({
+            full_ec_version = det_full_ec_version({
                 'toolchain': {'name': sw.toolchain_name, 'version': sw.toolchain_version},
                 'version': sw.version,
                 'versionsuffix': sw.versionsuffix,
@@ -58,12 +60,6 @@ class Easystack(object):
             ec_filenames.append(ec_filename)
         return ec_filenames
 
-    def det_full_ec_version(self, version_specs):
-        ec_version_string = '%s-%s-%s%s' % (
-            version_specs['version'], version_specs['toolchain']['name'],
-            version_specs['toolchain']['version'], version_specs['versionsuffix']
-        )
-        return ec_version_string
 
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
@@ -76,148 +72,129 @@ class Easystack(object):
 
 
 class SoftwareSpecs(object):
-    """Contains information about every SW that should be installed"""
-    def __init__(self, name, version, versionsuffix, toolchain, toolchain_version, toolchain_name):
+    """Contains information about every software that should be installed"""
+    def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name):
         self.name = name
         self.version = version
-        self.toolchain = toolchain
         self.toolchain_version = toolchain_version
         self.toolchain_name = toolchain_name
-        self.toolchain = toolchain
         self.versionsuffix = versionsuffix
 
 
-# implement this to your own needs - to create custom yaml/json/xml parser
-class GenericEasystackParser(object):
-    """Parent of all implemented parser classes"""
-    @ staticmethod
-    def parse(filepath):
-        """Parent of all implemented parser functions (i.e. JSON, XML...)"""
-        raise NotImplementedError
-
-
-class YamlEasystackParser(GenericEasystackParser):
-    """YAML file parser"""
-    @ staticmethod
+class EasyStackParser(object):
+    """Parser for easystack files (in YAML syntax)."""
+    @staticmethod
     def parse(filepath):
         """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
-        try:
-            with open(filepath, 'r') as f:
-                spec_dict = yaml.safe_load(f)
-
-                eb = Easystack()
-        except Exception:
-            raise EasyBuildError("Could not read provided easystack.")
+        f = read_file(filepath)
+        easystack_raw = yaml.safe_load(f)
+        easystack = EasyStack()
 
         try:
-            sw_dict = spec_dict["software"]
-
-            # assign software-specific EB attributes
-            for software in sw_dict:
-                try:
-                    yaml_toolchains = sw_dict[software]['toolchains']
-                except (KeyError):
-                    raise EasyBuildError("Toolchains for software '%s' are not defined" % software)
-                try:
-                    for yaml_tc in yaml_toolchains:
-                        try:
-                            yaml_toolchain_name = str(yaml_tc).split('-', 1)[0]
-                            yaml_toolchain_version = str(yaml_tc).split('-', 1)[1]
-                        except IndexError:
-                            yaml_toolchain_name = str(yaml_tc)
-                            yaml_toolchain_version = ''
-
-                        try:
-                            # if version string containts asterisk or labels, raise error (asterisks not supported)
-                            yaml_versions = yaml_toolchains[yaml_tc]['versions']
-                        except TypeError:
-                            wrong_structure_err = "Easystack specifications of '%s' ." % software
-                            wrong_structure_err += "have wrong yaml structure."
-                            raise EasyBuildError(wrong_structure_err)
-                        if '*' in str(yaml_versions):
-                            asterisk_err = "Easystack specifications of '%s' contain asterisk. " % (str(software))
-                            asterisk_err += "Wildcard feature is not supported yet."
-                            raise EasyBuildError(asterisk_err)
-
-                        # yaml versions can be in different formats in yaml file
-                        # firstly, check if versions in yaml file are read as a dictionary. 
-                        # Example of yaml structure:
-                        # ========================================================================
-                        # versions:
-                        #   2.25:
-                        #   2.23:
-                        #     versionsuffix: '-R-4.0.0'
-                        # ========================================================================
-                        if isinstance(yaml_versions, dict):
-                            for yaml_version in yaml_versions:
-                                if yaml_versions[yaml_version] is not None:
-                                    yaml_ver_specs = yaml_versions[yaml_version]
-                                    if 'versionsuffix' in yaml_ver_specs:
-                                        yaml_versionsuffix = str(yaml_ver_specs['versionsuffix'])
-                                    else:
-                                        yaml_versionsuffix = ''
-                                    if 'exclude-labels' in str(yaml_ver_specs) \
-                                        or 'include-labels' in str(yaml_ver_specs):
-                                            lab_err = "Easystack specifications of '%s' " % str(software)
-                                            lab_err += "contain labels. Labels aren't supported yet."
-                                            raise EasyBuildError(lab_err)
-                                else:
-                                    yaml_versionsuffix = ''
-                                sw = SoftwareSpecs(
-                                    name=software, version=yaml_version, versionsuffix = yaml_versionsuffix,
-                                    toolchain=yaml_tc, toolchain_name=yaml_toolchain_name,
-                                    toolchain_version=yaml_toolchain_version)
-                                # append newly created class instance to the list in instance of Easystack class
-                                eb.software_list.append(sw)
-                            continue
-
-                        # is format read as a list of versions?
-                        # ========================================================================
-                        # versions:
-                        #   [2.24, 2.51]
-                        # ========================================================================
-                        elif isinstance(yaml_versions, list):
-                            yaml_versions_list = yaml_versions
-
-                        # format = multiple lines without ':' (read as a string)?
-                        # ========================================================================
-                        # versions:
-                        #   2.24
-                        #   2.51
-                        # ========================================================================
-                        elif isinstance(yaml_versions, str):
-                            yaml_versions_list = str(yaml_versions).split()
-
-                        # format read as float (containing one version only)?
-                        # ========================================================================
-                        # versions:
-                        #   2.24
-                        # ========================================================================
-                        elif isinstance(yaml_versions, float):
-                            yaml_versions_list = [str(yaml_versions)]
-
-                        # if no version is a dictionary, versionsuffix isn't specified
-                        yaml_versionsuffix = ''
-
-                        for yaml_version_string in yaml_versions_list:
-                            sw = SoftwareSpecs(
-                                name=software, version=yaml_version_string, versionsuffix = yaml_versionsuffix,
-                                toolchain=yaml_tc, toolchain_name=yaml_toolchain_name,
-                                toolchain_version=yaml_toolchain_version)
-                            # append newly created class instance to the list in instance of Easystack class
-                            eb.software_list.append(sw)
-                except (KeyError):
-                    wrong_structure_err = "Easystack specifications of '%s' have wrong yaml structure." % software
-                    raise EasyBuildError(wrong_structure_err)
-
-            # assign general EB attributes
-            eb.easybuild_version = spec_dict.get('easybuild_version', None)
-            eb.robot = spec_dict.get('robot', False)
+            software = easystack_raw["software"]
         except (KeyError):
-            wrong_structure_file = "Provided easystack has wrong structure"
+            wrong_structure_file = "Not a valid EasyStack YAML file: no 'software' key found"
             raise EasyBuildError(wrong_structure_file)
-        
-        return eb
+
+        # assign software-specific easystack attributes
+        for name in software:
+            name = str(name)
+            try:
+                toolchains = software[name]['toolchains']
+            except (KeyError):
+                raise EasyBuildError("Toolchains for software '%s' are not defined" % name)
+            for toolchain in toolchains:
+                toolchain = str(toolchain)
+                try:
+                    toolchain_name = toolchain.split('-', 1)[0]
+                    toolchain_version = toolchain.split('-', 1)[1]
+                except IndexError:
+                    toolchain_name = toolchain
+                    toolchain_version = ''
+
+                try:
+                    # if version string containts asterisk or labels, raise error (asterisks not supported)
+                    versions = toolchains[toolchain]['versions']
+                except TypeError as err:
+                    wrong_structure_err = "An error occurred when interpreting "
+                    wrong_structure_err += "the data for software %s: %s" % (name, err)
+                    raise EasyBuildError(wrong_structure_err)
+                if '*' in str(versions):
+                    asterisk_err = "EasyStack specifications of %s contain asterisk. " % (software)
+                    asterisk_err += "Wildcard feature is not supported yet."
+                    raise EasyBuildError(asterisk_err)
+
+                # yaml versions can be in different formats in yaml file
+                # firstly, check if versions in yaml file are read as a dictionary.
+                # Example of yaml structure:
+                # ========================================================================
+                # versions:
+                #   2.25:
+                #   2.23:
+                #     versionsuffix: '-R-4.0.0'
+                # ========================================================================
+                if isinstance(versions, dict):
+                    for version in versions:
+                        if versions[version] is not None:
+                            version_spec = versions[version]
+                            if 'versionsuffix' in version_spec:
+                                versionsuffix = str(version_spec['versionsuffix'])
+                            else:
+                                versionsuffix = ''
+                            if 'exclude-labels' in str(version_spec) \
+                            or 'include-labels' in str(version_spec):
+                                lab_err = "EasyStack specifications of '%s' " % name
+                                lab_err += "contain labels. Labels aren't supported yet."
+                                raise EasyBuildError(lab_err)
+                        else:
+                            versionsuffix = ''
+                        sw = SoftwareSpecs(
+                            name=name, version=version, versionsuffix = versionsuffix,
+                            toolchain_name=toolchain_name, toolchain_version=toolchain_version)
+                        # append newly created class instance to the list in instance of EasyStack class
+                        easystack.software_list.append(sw)
+                    continue
+
+                # is format read as a list of versions?
+                # ========================================================================
+                # versions:
+                #   [2.24, 2.51]
+                # ========================================================================
+                elif isinstance(versions, list):
+                    versions_list = versions
+
+                # format = multiple lines without ':' (read as a string)?
+                # ========================================================================
+                # versions:
+                #   2.24
+                #   2.51
+                # ========================================================================
+                elif isinstance(versions, str):
+                    versions_list = str(versions).split()
+
+                # format read as float (containing one version only)?
+                # ========================================================================
+                # versions:
+                #   2.24
+                # ========================================================================
+                elif isinstance(versions, float):
+                    versions_list = [str(versions)]
+
+                # if no version is a dictionary, versionsuffix isn't specified
+                versionsuffix = ''
+
+                for version in versions_list:
+                    sw = SoftwareSpecs(
+                        name=name, version=version, versionsuffix=versionsuffix,
+                        toolchain_name=toolchain_name, toolchain_version=toolchain_version)
+                    # append newly created class instance to the list in instance of EasyStack class
+                    easystack.software_list.append(sw)
+
+            # assign general easystack attributes
+            easystack.easybuild_version = easystack_raw.get('easybuild_version', None)
+            easystack.robot = easystack_raw.get('robot', False)
+
+        return easystack
 
 
 def parse_easystack(filepath):
@@ -228,13 +205,13 @@ def parse_easystack(filepath):
     _log.info("Building from easystack: '%s'" % filepath)
 
     # class instance which contains all info about planned build
-    eb = YamlEasystackParser.parse(filepath)
+    easystack = EasyStackParser.parse(filepath)
 
-    easyconfig_names = eb.compose_ec_names()
+    easyconfig_names = easystack.compose_ec_filenames()
 
-    general_options = eb.get_general_options()
+    general_options = easystack.get_general_options()
 
-    _log.debug("Easystack parsed. Proceeding to install these Easyconfigs: \n'%s'" % "',\n'".join(easyconfig_names))
+    _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: \n'%s'" % "',\n'".join(easyconfig_names))
     if len(general_options) != 0:
         _log.debug("General options for installation are: \n%s" % str(general_options))
     else:

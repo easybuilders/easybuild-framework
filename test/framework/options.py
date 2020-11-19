@@ -5460,7 +5460,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
         args = ['--easystack', toy_easystack, '--experimental']
-        expected_err = "Could not read provided easystack."
+        expected_err = "No such file or directory: '%s'" % toy_easystack
         self.assertErrorRegex(EasyBuildError, expected_err, self.eb_main, args, raise_error=True)
 
     # testing basics - end-to-end
@@ -5472,9 +5472,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
         stdout, err = self.eb_main(args, do_build=True, return_error=True)
+        print(stdout)
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
-            r"[\S\s]*DEBUG Easystack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
+            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
             r"[\S\s]*INFO building and installing binutils/2\.25-GCCcore-4\.9\.3[\S\s]*",
             r"[\S\s]*INFO building and installing binutils/2\.26-GCCcore-4\.9\.3[\S\s]*",
             r"[\S\s]*INFO building and installing toy/0\.0-gompi-2018a-test[\S\s]*",
@@ -5492,10 +5493,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
-        self.assertErrorRegex(
-            EasyBuildError, "Easystack specifications of 'Bioconductor' have wrong yaml structure.",
-            parse_easystack, toy_easystack
-        )
+        expected_err = "An error occurred when interpreting the data for software Bioconductor: "
+        expected_err += "'float' object is not subscriptable"
+        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_asterisk(self):
@@ -5505,11 +5505,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
 
-        self.assertErrorRegex(
-            EasyBuildError,
-            "Easystack specifications of 'binutils' contain asterisk. Wildcard feature is not supported yet.",
-            parse_easystack, toy_easystack
-        )
+        expected_err = "EasyStack specifications of {'binutils': {'toolchains': {'GCCcore-4.9.3': "
+        expected_err += "{'versions': '2.11.*'}}}} contain asterisk. Wildcard feature is not supported yet."
+
+        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_labels(self):
@@ -5520,7 +5519,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
         self.assertErrorRegex(
-            EasyBuildError, "Easystack specifications of 'binutils' contain labels. Labels aren't supported yet.",
+            EasyBuildError, "EasyStack specifications of 'binutils' contain labels. Labels aren't supported yet.",
             parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
