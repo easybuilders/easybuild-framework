@@ -2167,7 +2167,13 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
         else:
             return gh.repos[pr_target_account][pr_target_repo].pulls[pr]
 
-    status, pr_data = github_api_get_request(pr_url, github_user, **parameters)
+    try:
+        status, pr_data = github_api_get_request(pr_url, github_user, **parameters)
+    except HTTPError as err:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (%s)\n"
+                             "Please check PR #, account and repo.",
+                             pr, pr_target_account, pr_target_repo, err)
+
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
