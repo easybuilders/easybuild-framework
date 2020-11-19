@@ -117,7 +117,6 @@ class EasyStackParser(object):
                 except TypeError as err:
                     wrong_structure_err = "An error occurred when interpreting "
                     wrong_structure_err += "the data for software %s: %s" % (name, err)
-                    print(wrong_structure_err)
                     raise EasyBuildError(wrong_structure_err)
                 if '*' in str(versions):
                     asterisk_err = "EasyStack specifications of %s contain asterisk. " % (software)
