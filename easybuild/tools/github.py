@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, change_dir, copy_dir, copy_easyblocks, copy_framework_files
+from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
@@ -250,6 +250,12 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     if token is None:
         token = fetch_github_token(github_user)
 
+    # if we don't have a GitHub token, don't pass username either;
+    # this makes sense for read-only actions like fetching files from PRs
+    if token is None:
+        _log.info("Not specifying username since no GitHub token is available for %s", github_user)
+        github_user = None
+
     url = request_f(RestClient(GITHUB_API_URL, username=github_user, token=token))
 
     try:
@@ -365,7 +371,6 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
-    cwd = change_dir(base_dir)
     extracted_path = os.path.join(base_dir, extracted_dir_name)
 
     # check if extracted_path exists
@@ -373,9 +378,6 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
 
     write_file(latest_sha_path, latest_commit_sha, forced=True)
-
-    # go back to previous working directory
-    change_dir(cwd)
 
     _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path
@@ -388,28 +390,32 @@ def pr_files_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(pr, *args, **kwargs):
-        """Retrieve cached resul, or fetch files from PR & cache result."""
+    def cache_aware_func(pr, path=None, github_user=None, github_account=None, github_repo=None):
+        """Retrieve cached result, or fetch files from PR & cache result."""
         # cache key is combination of all function arguments (incl. optional ones)
-        key = tuple([pr] + [kwargs[key] for key in sorted(kwargs.keys())])
+        key = (pr, github_account, github_repo, path)
 
         if key in cache and all(os.path.exists(x) for x in cache[key]):
-            _log.debug("Using cached value for fetch_files_from_pr for PR #%s (%s)", pr, kwargs)
+            _log.info("Using cached value for fetch_files_from_pr for PR #%s (account=%s, repo=%s, path=%s)",
+                      pr, github_account, github_repo, path)
             return cache[key]
         else:
-            res = func(pr, *args, **kwargs)
+            res = func(pr, path=path, github_user=github_user, github_account=github_account, github_repo=github_repo)
             cache[key] = res
             return res
 
-    # expose clear/update methods of cache to wrapped function
+    # expose clear/update methods of cache + cache itself to wrapped function
+    cache_aware_func._cache = cache  # useful in tests
     cache_aware_func.clear_cache = cache.clear
     cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
 
+    return cache_aware_func
+
 
 @pr_files_cache
-def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
+def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, github_repo=None):
     """Fetch patched files for a particular PR."""
 
     if github_user is None:
@@ -432,7 +438,8 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_repo=None):
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
-    github_account = build_option('pr_target_account')
+    if github_account is None:
+        github_account = build_option('pr_target_account')
 
     if github_repo == GITHUB_EASYCONFIGS_REPO:
         easyfiles = 'easyconfigs'
@@ -1315,7 +1322,7 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
-    pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user

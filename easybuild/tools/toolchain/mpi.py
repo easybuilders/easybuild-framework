@@ -258,10 +258,15 @@ class Mpi(Toolchain):
     def mpi_cmd_prefix(self, nr_ranks=1):
         """Construct an MPI command prefix to precede an executable"""
 
-        # Verify that the command appears at the end of mpi_cmd_for
         test_cmd = 'xxx_command_xxx'
         mpi_cmd = self.mpi_cmd_for(test_cmd, nr_ranks)
-        if mpi_cmd.rstrip().endswith(test_cmd):
+
+        # take into account that result from mpi_cmd_for may be None,
+        # for example when it's called too early (before toolchain module is loaded)
+        if mpi_cmd is None:
+            result = None
+        # verify that the command appears at the end of mpi_cmd_for
+        elif mpi_cmd.rstrip().endswith(test_cmd):
             result = mpi_cmd.replace(test_cmd, '').rstrip()
         else:
             warning_msg = "mpi_cmd_for cannot be used by mpi_cmd_prefix, "
@@ -282,10 +287,19 @@ class Mpi(Toolchain):
 
         mpi_family = self.mpi_family()
 
+        mpi_version = None
+
         if mpi_family == toolchain.INTELMPI:
-            mpi_version = self.get_software_version(self.MPI_MODULE_NAME)[0]
-        else:
-            mpi_version = None
+            # for Intel MPI, try to determine impi version
+            # this fails when it's done too early (before modules for toolchain/dependencies are loaded),
+            # but it's safe to ignore this
+            try:
+                mpi_version = self.get_software_version(self.MPI_MODULE_NAME)[0]
+            except EasyBuildError as err:
+                self.log.debug("Ignoring error when trying to determine %s version: %s", self.MPI_MODULE_NAME, err)
+                # impi version is required to determine correct MPI command template,
+                # so we have to return early if we couldn't determine the impi version...
+                return None
 
         mpi_cmd_template, params = get_mpi_cmd_template(mpi_family, params, mpi_version=mpi_version)
         self.log.info("Using MPI command template '%s' (params: %s)", mpi_cmd_template, params)

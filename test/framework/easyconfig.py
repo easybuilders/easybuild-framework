@@ -995,6 +995,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
+            'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1029,6 +1030,7 @@ class EasyConfigTest(EnhancedTestCase):
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
         self.assertEqual(eb['modloadmsg'], expected)
+        self.assertEqual(eb['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -1480,6 +1482,7 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt += "  ('test/9.7.5', EXTERNAL_MODULE), "
         ectxt += "  ('pi/3.14', EXTERNAL_MODULE), "
         ectxt += "  ('hidden/.1.2.3', EXTERNAL_MODULE), "
+        ectxt += "  ('cray-netcdf-hdf5parallel/1.10.6', EXTERNAL_MODULE), "
         ectxt += "]"
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
         ectxt += "\ntoolchain = {'name': 'GCC', 'version': '6.4.0-2.28'}"
@@ -1494,13 +1497,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[0]['external_module'], True)
 
         deps = ec.dependencies()
-        self.assertEqual(len(deps), 7)
+        self.assertEqual(len(deps), 8)
         correct_deps = ['somebuilddep/0.1', 'intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3',
-                        'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3']
+                        'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3', 'cray-netcdf-hdf5parallel/1.10.6']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
-        self.assertEqual([d['external_module'] for d in deps], [True, False, True, True, True, True, True])
-        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, False, True])
+        self.assertEqual([d['external_module'] for d in deps], [True, False, True, True, True, True, True, True])
+        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, False, True, False])
         # no metadata available for deps
         expected = [{}] * len(deps)
         self.assertEqual([d['external_module_metadata'] for d in deps], expected)
@@ -1518,6 +1521,13 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(os.path.join(mod_dir, 'pi/3.14'), pi_mod_txt)
 
+        cray_netcdf_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv CRAY_NETCDF_HDF5PARALLEL_PREFIX /software/cray-netcdf-hdf5parallel/1.10.6",
+            "setenv CRAY_NETCDF_HDF5PARALLEL_VERSION 1.10.6",
+        ])
+        write_file(os.path.join(mod_dir, 'cray-netcdf-hdf5parallel/1.10.6'), cray_netcdf_mod_txt)
+
         # foobar module with different version than the one used as an external dep;
         # will still be used for probing (as a fallback)
         foobar_mod_txt = '\n'.join([
@@ -1530,7 +1540,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(toy_ec)
         deps = ec.dependencies()
 
-        self.assertEqual(len(deps), 7)
+        self.assertEqual(len(deps), 8)
 
         for idx in [0, 1, 2, 4, 6]:
             self.assertEqual(deps[idx]['external_module_metadata'], {})
@@ -1551,6 +1561,14 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
 
+        self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
+        cray_netcdf_metadata = {
+            'name': ['netcdf-hdf5parallel'],
+            'prefix': '/software/cray-netcdf-hdf5parallel/1.10.6',
+            'version': ['1.10.6'],
+        }
+        self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
+
         # provide file with partial metadata for some external modules;
         # metadata obtained from probing modules should be added to it...
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
@@ -1564,6 +1582,9 @@ class EasyConfigTest(EnhancedTestCase):
             'version = 1.2.3',
             '[test]',
             'name = TEST',
+            '[cray-netcdf-hdf5parallel/1.10.6]',
+            'name = HDF5',
+            'version = 1.10.6',
         ])
         write_file(metadata, metadatatxt)
         build_options = {
@@ -1574,7 +1595,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(toy_ec)
         deps = ec.dependencies()
 
-        self.assertEqual(len(deps), 7)
+        self.assertEqual(len(deps), 8)
 
         for idx in [0, 1, 2, 6]:
             self.assertEqual(deps[idx]['external_module_metadata'], {})
@@ -1601,6 +1622,14 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
 
+        self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
+        cray_netcdf_metadata = {
+            'name': ['HDF5'],
+            'prefix': '/software/cray-netcdf-hdf5parallel/1.10.6',
+            'version': ['1.10.6'],
+        }
+        self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
+
         # provide file with full metadata for external modules;
         # this data wins over probed metadata from modules (for backwards compatibility)
         metadatatxt = '\n'.join([
@@ -1616,6 +1645,10 @@ class EasyConfigTest(EnhancedTestCase):
             'name = foo,bar',
             'version = 1.2.3, 3.2.1',
             'prefix = /foo/bar',
+            '[cray-netcdf-hdf5parallel/1.10.6]',
+            'name = HDF5',
+            'version = 1.10.6-1',
+            'prefix = /netcdf-par/1.10.6',
         ])
         write_file(metadata, metadatatxt)
         build_options = {
@@ -1624,32 +1657,42 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
-        self.assertEqual(ec.dependencies()[3]['short_mod_name'], 'foobar/1.2.3')
-        self.assertEqual(ec.dependencies()[3]['external_module'], True)
+        deps = ec.dependencies()
+
+        self.assertEqual(deps[3]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(deps[3]['external_module'], True)
         metadata = {
             'name': ['foo', 'bar'],
             'version': ['1.2.3', '3.2.1'],
             'prefix': '/foo/bar',
         }
-        self.assertEqual(ec.dependencies()[3]['external_module_metadata'], metadata)
+        self.assertEqual(deps[3]['external_module_metadata'], metadata)
 
-        self.assertEqual(ec.dependencies()[4]['short_mod_name'], 'test/9.7.5')
-        self.assertEqual(ec.dependencies()[4]['external_module'], True)
+        self.assertEqual(deps[4]['short_mod_name'], 'test/9.7.5')
+        self.assertEqual(deps[4]['external_module'], True)
         metadata = {
             'name': ['test'],
             'version': ['9.7.5'],
             'prefix': 'TEST_INC/..',
         }
-        self.assertEqual(ec.dependencies()[4]['external_module_metadata'], metadata)
+        self.assertEqual(deps[4]['external_module_metadata'], metadata)
 
-        self.assertEqual(ec.dependencies()[5]['short_mod_name'], 'pi/3.14')
-        self.assertEqual(ec.dependencies()[5]['external_module'], True)
+        self.assertEqual(deps[5]['short_mod_name'], 'pi/3.14')
+        self.assertEqual(deps[5]['external_module'], True)
         metadata = {
             'name': ['PI'],
             'version': ['3.14'],
             'prefix': 'PI_PREFIX',
         }
-        self.assertEqual(ec.dependencies()[5]['external_module_metadata'], metadata)
+        self.assertEqual(deps[5]['external_module_metadata'], metadata)
+
+        self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
+        cray_netcdf_metadata = {
+            'name': ['HDF5'],
+            'prefix': '/netcdf-par/1.10.6',
+            'version': ['1.10.6-1'],
+        }
+        self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
         # get rid of modules first
         self.modtool.unuse(mod_dir)
@@ -1664,11 +1707,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBROOTBAR'), '/foo/bar')
         self.assertEqual(os.environ.get('EBROOTFOO'), '/foo/bar')
         self.assertEqual(os.environ.get('EBROOTHIDDEN'), None)
+        self.assertEqual(os.environ.get('EBROOTHDF5'), '/netcdf-par/1.10.6')
         self.assertEqual(os.environ.get('EBROOTPI'), '/test/prefix/PI')
         self.assertEqual(os.environ.get('EBROOTTEST'), '/test/prefix/test/include/../')
         self.assertEqual(os.environ.get('EBVERSIONBAR'), '3.2.1')
         self.assertEqual(os.environ.get('EBVERSIONFOO'), '1.2.3')
         self.assertEqual(os.environ.get('EBVERSIONHIDDEN'), None)
+        self.assertEqual(os.environ.get('EBVERSIONHDF5'), '1.10.6-1')
         self.assertEqual(os.environ.get('EBVERSIONPI'), '3.14')
         self.assertEqual(os.environ.get('EBVERSIONTEST'), '9.7.5')
 
@@ -2826,6 +2871,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
+            'module_name': 'gzip/1.5-foss-2018a',
             'name': 'gzip',
             'namelower': 'gzip',
             'nameletter': 'g',
@@ -2894,6 +2940,7 @@ class EasyConfigTest(EnhancedTestCase):
             'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
+            'module_name': None,
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
@@ -2934,6 +2981,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
         expected = {
+            'module_name': None,
             'name': 'foo',
             'namelower': 'foo',
             'nameletter': 'f',

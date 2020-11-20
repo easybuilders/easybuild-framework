@@ -43,6 +43,14 @@ jobs:
             python: 3.8
           - modules_tool: modules-4.1.4
             python: 3.9
+          - modules_tool: Lmod-7.8.22
+            python: 3.5
+          - modules_tool: Lmod-7.8.22
+            python: 3.7
+          - modules_tool: Lmod-7.8.22
+            python: 3.8
+          - modules_tool: Lmod-7.8.22
+            python: 3.9
       fail-fast: false
     steps:
     - uses: actions/checkout@v2

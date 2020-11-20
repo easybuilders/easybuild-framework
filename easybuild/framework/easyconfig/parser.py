@@ -110,8 +110,6 @@ class EasyConfigParser(object):
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
-        self._formatter.extract_comments(self.rawcontent)
-
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)

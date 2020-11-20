@@ -1553,12 +1553,23 @@ class FileToolsTest(EnhancedTestCase):
 
         # by default copy_files allows empty input list, but if allow_empty=False then an error is raised
         ft.copy_files([], self.test_prefix)
-        error_pattern = 'One of more files to copy should be specified!'
+        error_pattern = 'One or more files to copy should be specified!'
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [], self.test_prefix, allow_empty=False)
 
         # test special case: copying a single file to a file target via target_single_file=True
         target = os.path.join(self.test_prefix, 'target')
         self.assertFalse(os.path.exists(target))
+        ft.copy_files([toy_ec], target, target_single_file=True)
+        self.assertTrue(os.path.exists(target))
+        self.assertTrue(os.path.isfile(target))
+        self.assertEqual(toy_ec_txt, ft.read_file(target))
+
+        ft.remove_file(target)
+
+        # also test target_single_file=True with path including a missing subdirectory
+        target = os.path.join(self.test_prefix, 'target_parent', 'target_subdir', 'target.txt')
+        self.assertFalse(os.path.exists(target))
+        self.assertFalse(os.path.exists(os.path.dirname(target)))
         ft.copy_files([toy_ec], target, target_single_file=True)
         self.assertTrue(os.path.exists(target))
         self.assertTrue(os.path.isfile(target))
@@ -1597,14 +1608,13 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stderr, '')
-        regex = re.compile(r"^toy-0\.0\.eb copied to .*/target")
+        regex = re.compile(r"/.*/toy-0\.0\.eb copied to .*/target")
         self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         ft.remove_file(target)
 
         # check behaviour under -x: only printing, no actual copying
         init_config(build_options={'extended_dry_run': True})
-        self.assertFalse(os.path.exists(target))
         self.assertFalse(os.path.exists(os.path.join(target, 'test.eb')))
 
         self.mock_stderr(True)
@@ -2516,13 +2526,22 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^\nERROR: %s" % error_pattern)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
-        # no error if import was detected from pkgutil.py,
+        # no error if import was detected from pkgutil.py or pkg_resources/__init__.py,
         # since that may be triggered by a system-wide vsc-base installation
         # (even though no code is doing 'import vsc'...)
         ft.move_file(test_python_mod, os.path.join(os.path.dirname(test_python_mod), 'pkgutil.py'))
 
         from test_fake_vsc import pkgutil
         self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
+
+        pkg_resources_init = os.path.join(os.path.dirname(test_python_mod), 'pkg_resources', '__init__.py')
+        ft.write_file(pkg_resources_init, 'import vsc')
+
+        # cleanup to force new import of 'vsc', avoid using cached import from previous attempt
+        del sys.modules['vsc']
+
+        from test_fake_vsc import pkg_resources
+        self.assertTrue(pkg_resources.__file__.endswith('/test_fake_vsc/pkg_resources/__init__.py'))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""

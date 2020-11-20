@@ -3090,7 +3090,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--from-pr=10487',  # PR for CMake easyconfig
-            '--include-easyblocks-from-pr=1936',  # PR for EB_CMake easyblock
+            '--include-easyblocks-from-pr=1936,2204',  # PRs for EB_CMake and Siesta easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -3104,7 +3104,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n")
+        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n" +
+                         "== easyblock siesta.py included from PR #2204\n")
 
         # easyconfig from pr is found
         ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',

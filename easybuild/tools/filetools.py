@@ -796,25 +796,28 @@ def locate_files(files, paths, ignore_subdirs=None):
     """
     Determine full path for list of files, in given list of paths (directories).
     """
-    # determine which easyconfigs files need to be found, if any
+    # determine which files need to be found, if any
     files_to_find = []
-    for idx, ec_file in enumerate(files):
-        if ec_file == os.path.basename(ec_file) and not os.path.exists(ec_file):
-            files_to_find.append((idx, ec_file))
-    _log.debug("List of files to find: %s" % files_to_find)
+    for idx, filepath in enumerate(files):
+        if filepath == os.path.basename(filepath) and not os.path.exists(filepath):
+            files_to_find.append((idx, filepath))
+    _log.debug("List of files to find: %s", files_to_find)
 
     # find missing easyconfigs by walking paths in robot search path
     for path in paths:
-        _log.debug("Looking for missing files (%d left) in %s..." % (len(files_to_find), path))
+
+        # skip non-existing paths
+        if not os.path.exists(path):
+            _log.debug("%s does not exist, skipping it...", path)
+            continue
+
+        _log.debug("Looking for missing files (%d left) in %s...", len(files_to_find), path)
 
         # try to load index for current path, or create one
         path_index = load_index(path, ignore_dirs=ignore_subdirs)
         if path_index is None or build_option('ignore_index'):
-            if os.path.exists(path):
-                _log.info("No index found for %s, creating one...", path)
-                path_index = create_index(path, ignore_dirs=ignore_subdirs)
-            else:
-                path_index = []
+            _log.info("No index found for %s, creating one (in memory)...", path)
+            path_index = create_index(path, ignore_dirs=ignore_subdirs)
         else:
             _log.info("Index found for %s, so using it...", path)
 
@@ -2108,7 +2111,7 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
     elif len(paths) == 1 and target_single_file:
         copy_file(paths[0], target_path)
         if verbose:
-            print_msg("%s copied to %s" % (os.path.basename(paths[0]), target_path), prefix=False)
+            print_msg("%s copied to %s" % (paths[0], target_path), prefix=False)
 
     elif paths:
         # check target path: if it exists it should be a directory; if it doesn't exist, we create it
@@ -2127,7 +2130,7 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
             print_msg("%d file(s) copied to %s" % (len(paths), target_path), prefix=False)
 
     elif not allow_empty:
-        raise EasyBuildError("One of more files to copy should be specified!")
+        raise EasyBuildError("One or more files to copy should be specified!")
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
@@ -2349,10 +2352,11 @@ def install_fake_vsc():
         '        filename, lineno = cand_filename, cand_lineno',
         '        break',
         '',
-        '# ignore imports from pkgutil.py (part of Python standard library),',
+        '# ignore imports from pkgutil.py (part of Python standard library)',
+        '# or from pkg_resources/__init__.py (setuptools),',
         '# which may happen due to a system-wide installation of vsc-base',
         '# even if it is not actually actively used...',
-        'if os.path.basename(filename) != "pkgutil.py":',
+        'if os.path.basename(filename) != "pkgutil.py" and not filename.endswith("pkg_resources/__init__.py"):',
         '    error_msg = "\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno)',
         '    error_msg += "vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n"',
         '    error_msg += "The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n"',
