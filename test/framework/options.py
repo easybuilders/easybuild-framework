@@ -5493,8 +5493,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
         expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
-        expected_err += r" 'float' object is not subscriptable"
-        expected_err += r"[\S\s]*"
+        expected_err += r" 'float' object is not subscriptable[\S\s]*"
+        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*"
         self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
