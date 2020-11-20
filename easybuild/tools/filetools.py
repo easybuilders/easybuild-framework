@@ -2034,26 +2034,49 @@ def copy_file(path, target_path, force_in_dry_run=False):
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
 
-def copy_files(paths, target_dir, force_in_dry_run=False):
+def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=False, allow_empty=True, verbose=False):
     """
-    Copy list of files to specified target directory (which is created if it doesn't exist yet).
+    Copy list of files to specified target path.
+    Target directory is created if it doesn't exist yet.
 
-    :param filepaths: list of files to copy
-    :param target_dir: target directory to copy files into
+    :param paths: list of filepaths to copy
+    :param target_path: path to copy files to
     :param force_in_dry_run: force copying of files during dry run
+    :param target_single_file: if there's only a single file to copy, copy to a file at target path (not a directory)
+    :param allow_empty: allow empty list of paths to copy as input (if False: raise error on empty input list)
+    :param verbose: print a message to report copying of files
     """
+    # dry run: just report copying, don't actually copy
     if not force_in_dry_run and build_option('extended_dry_run'):
-        dry_run_msg("copied files %s to %s" % (paths, target_dir))
-    else:
-        if os.path.exists(target_dir):
-            if os.path.isdir(target_dir):
-                _log.info("Copying easyconfigs into existing directory %s...", target_dir)
-            else:
-                raise EasyBuildError("%s exists but is not a directory", target_dir)
+        if len(paths) == 1:
+            dry_run_msg("copied %s to %s" % (paths[0], target_path))
         else:
-            mkdir(target_dir, parents=True)
+            dry_run_msg("copied %d files to %s" % (len(paths), target_path))
+
+    # special case: single file to copy and target_single_file is True => copy to file
+    elif len(paths) == 1 and target_single_file:
+        copy_file(paths[0], target_path)
+        if verbose:
+            print_msg("%s copied to %s" % (paths[0], target_path), prefix=False)
+
+    elif paths:
+        # check target path: if it exists it should be a directory; if it doesn't exist, we create it
+        if os.path.exists(target_path):
+            if os.path.isdir(target_path):
+                _log.info("Copying easyconfigs into existing directory %s...", target_path)
+            else:
+                raise EasyBuildError("%s exists but is not a directory", target_path)
+        else:
+            mkdir(target_path, parents=True)
+
         for path in paths:
-            copy_file(path, target_dir)
+            copy_file(path, target_path)
+
+        if verbose:
+            print_msg("%d file(s) copied to %s" % (len(paths), target_path), prefix=False)
+
+    elif not allow_empty:
+        raise EasyBuildError("One or more files to copy should be specified!")
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
