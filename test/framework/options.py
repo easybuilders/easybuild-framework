@@ -2384,36 +2384,104 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --http-header-fields-urlpat."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
-
-        # define header fields:values that should (not) show up in the logs
-        test_applied_hdr = 'HeaderAPPLIED'
-        test_applied_hdr_regex = re.compile(test_applied_hdr)
-        test_applied_value = 'SECRETvalue'
-        test_applied_value_regex = re.compile(test_applied_value)
-        test_ignored_hdr = 'HeaderIGNORED'
-        test_ignored_hdr_regex = re.compile(test_ignored_hdr)
-        test_ignored_value = 'BOGUSvalue'
-        test_ignored_value_regex = re.compile(test_ignored_value)
-
-        args = [
+        common_args = [
             ec_file,
-            '--dry-run',
-            '--http-header-fields-urlpat="gnu.org::%s: %s"' % (test_applied_hdr, test_applied_value),
-            '--http-header-fields-urlpat="nomatch.com::%s: %s"' % (test_ignored_hdr, test_ignored_value),
             '--stop=fetch',
             '--debug',
             '--force',
+            '--force-download',
+            '--logtostdout',
         ]
 
-        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+        # define header fields:values that should (not) show up in the logs, either
+        # because they are secret or because they are not matched for the url
+        test_applied_hdr = 'HeaderAPPLIED'
+        test_applied_val = 'SECRETvalue'
+        test_nomatch_hdr = 'HeaderIGNORED'
+        test_nomatch_val = 'BOGUSvalue'
 
-        self.assertFalse(stderr)
+        # header fields (or its values) could be files to be read instead of literals
+        testcmdfile = os.path.join(self.test_prefix, 'testhttpheaderscmdline.txt')
+        testincfile = os.path.join(self.test_prefix, 'testhttpheadersvalinc.txt')
+        testexcfile = os.path.join(self.test_prefix, 'testhttpheadersvalexc.txt')
+        testinchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrinc.txt')
+        testexchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrexc.txt')
+        testurlpatfile = os.path.join(self.test_prefix, 'testhttpheadersurlpat.txt')
 
-        # Expect to find only the header key (not value) for the appropriate url pattern.
-        self.assertTrue(test_applied_hdr_regex.search(stdout))
-        self.assertFalse(test_applied_value_regex.search(stdout))
-        self.assertFalse(test_ignored_hdr_regex.search(stdout))
-        self.assertFalse(test_ignored_value_regex.search(stdout))
+        def run_and_assert(args, msg, words_expected=None, words_unexpected=None):
+            stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            if words_expected is not None:
+                for thestring in words_expected:
+                    self.assertTrue(re.compile(thestring).search(stdout), "Pattern '%s' missing from log (%s)" %
+                    (thestring, msg) )
+            if words_unexpected is not None:
+                for thestring in words_unexpected:
+                    self.assertFalse(re.compile(thestring).search(stdout), "Pattern '%s' leaked into log (%s)" %
+                    (thestring, msg) )
+
+        # A: simple direct case (all is logged)
+        args = [
+            *common_args,
+            '--http-header-fields-urlpat=gnu.org::%s:%s' % (test_applied_hdr, test_applied_val),
+            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (test_nomatch_hdr, test_nomatch_val),
+        ]
+        # expect to find everything passed on cmdline
+        run_and_assert(args, 'case A', [test_applied_hdr, test_applied_val, test_nomatch_hdr, test_nomatch_val])
+
+        # B: simple file case (secrets in file are not logged)
+        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
+        write_file(testcmdfile, '\n'.join([
+            'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
+            'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
+            ''
+        ]))
+        # expect to find only the header key (not its value) and only for the appropriate url
+        run_and_assert(args, 'case B',
+            [test_applied_hdr, testcmdfile],
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val]
+        )
+
+        # C: recursion one: header value is another file
+        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
+        write_file(testcmdfile, '\n'.join([
+            'gnu.org::%s: %s' % (test_applied_hdr, testincfile),
+            'nomatch.com::%s: %s' % (test_nomatch_hdr, testexcfile),
+            ''
+        ]))
+        write_file(testincfile, '%s\n' % (test_applied_val))
+        write_file(testexcfile, '%s\n' % (test_nomatch_val))
+        # expect to find only the header key (not its value and not the filename) and only for the appropriate url
+        run_and_assert(args, 'case C',
+            [test_applied_hdr, testcmdfile],
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val, testincfile, testexcfile])
+
+        # D: recursion two: header field+value is another file,
+        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
+        write_file(testcmdfile, '\n'.join([
+            'gnu.org::%s' % (testinchdrfile),
+            'nomatch.com::%s' % (testexchdrfile),
+            ''
+        ]))
+        write_file(testinchdrfile, '%s: %s\n' % (test_applied_hdr, test_applied_val))
+        write_file(testexchdrfile, '%s: %s\n' % (test_nomatch_hdr, test_nomatch_val))
+        # expect to find only the header key (and the literal filename) and only for the appropriate url
+        run_and_assert(args, 'case D',
+            [test_applied_hdr, testcmdfile, testinchdrfile, testexchdrfile],
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val])
+
+        # E: recursion three: url pattern + header field + value in another file
+        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
+        write_file(testcmdfile, '%s\n' % (testurlpatfile))
+        write_file(testurlpatfile, '\n'.join([
+            'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
+            'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
+            ''
+        ]))
+        # expect to find only the header key (but not the literal filename) and only for the appropriate url
+        run_and_assert(args, 'case E',
+            [test_applied_hdr, testcmdfile, testurlpatfile],
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val])
+
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
