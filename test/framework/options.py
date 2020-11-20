@@ -2430,58 +2430,76 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # B: simple file case (secrets in file are not logged)
         args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
-        write_file(testcmdfile, '\n'.join([
-            'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
-            'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
-            ''
-        ]))
+        write_file(
+            testcmdfile,
+            '\n'.join(
+                [
+                    'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
+                    'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
+                    '',
+                ]
+            ),
+        )
         # expect to find only the header key (not its value) and only for the appropriate url
-        run_and_assert(args, 'case B',
-            [test_applied_hdr, testcmdfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val]
+        run_and_assert(
+            args, 'case B', [test_applied_hdr, testcmdfile], [test_applied_val, test_nomatch_hdr, test_nomatch_val]
         )
 
         # C: recursion one: header value is another file
         args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
-        write_file(testcmdfile, '\n'.join([
-            'gnu.org::%s: %s' % (test_applied_hdr, testincfile),
-            'nomatch.com::%s: %s' % (test_nomatch_hdr, testexcfile),
-            ''
-        ]))
+        write_file(
+            testcmdfile,
+            '\n'.join(
+                [
+                    'gnu.org::%s: %s' % (test_applied_hdr, testincfile),
+                    'nomatch.com::%s: %s' % (test_nomatch_hdr, testexcfile),
+                    '',
+                ]
+            ),
+        )
         write_file(testincfile, '%s\n' % (test_applied_val))
         write_file(testexcfile, '%s\n' % (test_nomatch_val))
         # expect to find only the header key (not its value and not the filename) and only for the appropriate url
-        run_and_assert(args, 'case C',
+        run_and_assert(
+            args,
+            'case C',
             [test_applied_hdr, testcmdfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val, testincfile, testexcfile])
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val, testincfile, testexcfile],
+        )
 
         # D: recursion two: header field+value is another file,
         args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
-        write_file(testcmdfile, '\n'.join([
-            'gnu.org::%s' % (testinchdrfile),
-            'nomatch.com::%s' % (testexchdrfile),
-            ''
-        ]))
+        write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
         write_file(testinchdrfile, '%s: %s\n' % (test_applied_hdr, test_applied_val))
         write_file(testexchdrfile, '%s: %s\n' % (test_nomatch_hdr, test_nomatch_val))
         # expect to find only the header key (and the literal filename) and only for the appropriate url
-        run_and_assert(args, 'case D',
+        run_and_assert(
+            args,
+            'case D',
             [test_applied_hdr, testcmdfile, testinchdrfile, testexchdrfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val])
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val],
+        )
 
         # E: recursion three: url pattern + header field + value in another file
         args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
-        write_file(testurlpatfile, '\n'.join([
-            'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
-            'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
-            ''
-        ]))
+        write_file(
+            testurlpatfile,
+            '\n'.join(
+                [
+                    'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
+                    'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
+                    '',
+                ]
+            ),
+        )
         # expect to find only the header key (but not the literal filename) and only for the appropriate url
-        run_and_assert(args, 'case E',
+        run_and_assert(
+            args,
+            'case E',
             [test_applied_hdr, testcmdfile, testurlpatfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val])
-
+            [test_applied_val, test_nomatch_hdr, test_nomatch_val],
+        )
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
