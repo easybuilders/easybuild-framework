@@ -5492,8 +5492,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
-        expected_err = "An error occurred when interpreting the data for software Bioconductor: "
-        expected_err += "'float' object has no attribute '__getitem__'"
+        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor: 'float' object is not subscriptable[\S\s]*"
         self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
