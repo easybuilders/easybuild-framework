@@ -792,6 +792,60 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
+def locate_files(files, paths, ignore_subdirs=None):
+    """
+    Determine full path for list of files, in given list of paths (directories).
+    """
+    # determine which files need to be found, if any
+    files_to_find = []
+    for idx, filepath in enumerate(files):
+        if filepath == os.path.basename(filepath) and not os.path.exists(filepath):
+            files_to_find.append((idx, filepath))
+    _log.debug("List of files to find: %s", files_to_find)
+
+    # find missing easyconfigs by walking paths in robot search path
+    for path in paths:
+
+        # skip non-existing paths
+        if not os.path.exists(path):
+            _log.debug("%s does not exist, skipping it...", path)
+            continue
+
+        _log.debug("Looking for missing files (%d left) in %s...", len(files_to_find), path)
+
+        # try to load index for current path, or create one
+        path_index = load_index(path, ignore_dirs=ignore_subdirs)
+        if path_index is None or build_option('ignore_index'):
+            _log.info("No index found for %s, creating one (in memory)...", path)
+            path_index = create_index(path, ignore_dirs=ignore_subdirs)
+        else:
+            _log.info("Index found for %s, so using it...", path)
+
+        for filepath in path_index:
+            for idx, file_to_find in files_to_find[:]:
+                if os.path.basename(filepath) == file_to_find:
+                    full_path = os.path.join(path, filepath)
+                    _log.info("Found %s in %s: %s", file_to_find, path, full_path)
+                    files[idx] = full_path
+                    # if file was found, stop looking for it (first hit wins)
+                    files_to_find.remove((idx, file_to_find))
+
+            # stop as soon as we have all we need (path index loop)
+            if not files_to_find:
+                break
+
+        # stop as soon as we have all we need (paths loop)
+        if not files_to_find:
+            break
+
+    if files_to_find:
+        filenames = ', '.join([f for (_, f) in files_to_find])
+        paths = ', '.join(paths)
+        raise EasyBuildError("One or more files not found: %s (search paths: %s)", filenames, paths)
+
+    return [os.path.abspath(f) for f in files]
+
+
 def find_glob_pattern(glob_pattern, fail_on_no_match=True):
     """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
     if build_option('extended_dry_run'):
