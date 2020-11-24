@@ -2413,11 +2413,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if words_expected is not None:
                 for thestring in words_expected:
                     self.assertTrue(re.compile(thestring).search(stdout), "Pattern '%s' missing from log (%s)" %
-                    (thestring, msg) )
+                                    (thestring, msg) )
             if words_unexpected is not None:
                 for thestring in words_unexpected:
                     self.assertFalse(re.compile(thestring).search(stdout), "Pattern '%s' leaked into log (%s)" %
-                    (thestring, msg) )
+                                     (thestring, msg) )
 
         # A: simple direct case (all is logged)
         args = [
