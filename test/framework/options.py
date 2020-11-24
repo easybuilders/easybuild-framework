@@ -2413,23 +2413,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if words_expected is not None:
                 for thestring in words_expected:
                     self.assertTrue(re.compile(thestring).search(stdout), "Pattern '%s' missing from log (%s)" %
-                                    (thestring, msg) )
+                                    (thestring, msg))
             if words_unexpected is not None:
                 for thestring in words_unexpected:
                     self.assertFalse(re.compile(thestring).search(stdout), "Pattern '%s' leaked into log (%s)" %
-                                     (thestring, msg) )
+                                     (thestring, msg))
 
         # A: simple direct case (all is logged)
-        args = [
-            *common_args,
+        args = list(common_args)
+        args.extend([
             '--http-header-fields-urlpat=gnu.org::%s:%s' % (test_applied_hdr, test_applied_val),
             '--http-header-fields-urlpat=nomatch.com::%s:%s' % (test_nomatch_hdr, test_nomatch_val),
-        ]
+        ])
         # expect to find everything passed on cmdline
         run_and_assert(args, 'case A', [test_applied_hdr, test_applied_val, test_nomatch_hdr, test_nomatch_val])
 
+        # all subsequent tests share this argument list
+        args = common_args
+        args.append('--http-header-fields-urlpat=%s' % (testcmdfile))
+
         # B: simple file case (secrets in file are not logged)
-        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
         write_file(
             testcmdfile,
             '\n'.join(
@@ -2446,7 +2449,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         )
 
         # C: recursion one: header value is another file
-        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
         write_file(
             testcmdfile,
             '\n'.join(
@@ -2468,7 +2470,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         )
 
         # D: recursion two: header field+value is another file,
-        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
         write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
         write_file(testinchdrfile, '%s: %s\n' % (test_applied_hdr, test_applied_val))
         write_file(testexchdrfile, '%s: %s\n' % (test_nomatch_hdr, test_nomatch_val))
@@ -2481,7 +2482,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         )
 
         # E: recursion three: url pattern + header field + value in another file
-        args = [*common_args, '--http-header-fields-urlpat=%s' % (testcmdfile)]
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
         write_file(
             testurlpatfile,
