@@ -38,6 +38,6 @@ TC_CONSTANT_FLAME = 'FLAME'
 
 class Flame(Lapack):
     """Less trivial module, provides FLAME support."""
-    LAPACK_MODULE_NAME = ['libFLAME'] # + Lapack.LAPACK_MODULE_NAME  # no super()
-    LAPACK_LIB = ['flame'] # + Lapack.LAPACK_LIB  # no super()
+    LAPACK_MODULE_NAME = ['libFLAME']  # + Lapack.LAPACK_MODULE_NAME  # no super()
+    LAPACK_LIB = ['flame']  # + Lapack.LAPACK_LIB  # no super()
     LAPACK_FAMILY = TC_CONSTANT_FLAME
