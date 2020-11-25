@@ -23,36 +23,19 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for BLIS as toolchain linear algebra library.
+EasyBuild support for gobff compiler toolchain (includes GCC, OpenMPI, BLIS, libFLAME, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
-from distutils.version import LooseVersion
 
-from easybuild.tools.toolchain.linalg import LinAlg
+from easybuild.toolchains.gompi import Gompi
+from easybuild.toolchains.linalg.blis import Blis
+from easybuild.toolchains.linalg.flame import Flame
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.fft.fftw import Fftw
 
 
-TC_CONSTANT_BLIS = 'BLIS'
-
-
-class Blis(LinAlg):
-    """
-    Trivial class, provides BLIS support.
-    """
-    BLAS_MODULE_NAME = ['BLIS']
-    BLAS_LIB = ['blis']
-    BLAS_FAMILY = TC_CONSTANT_BLIS
-    
-    def _set_blas_variables(self):
-        """AMD's fork with version number > 2.1 names the MT library blis-mt, while vanilla BLIS doesn't."""
-        
-        # This assumes that AMD's BLIS has ver > 2.1 and vanilla BLIS < 2.1
-        
-        found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
-        ver = LooseVersion(found_version)
-        if ver > LooseVersion('2.1'):
-            self.BLAS_LIB_MT = ['blis-mt']
-    
-        super(Blis, self)._set_blas_variables()
+class Gobff(Gompi, Blis, Flame, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, OpenMPI, BLIS, libFLAME, ScaLAPACK and FFTW."""
+    NAME = 'gobff'
+    SUBTOOLCHAIN = Gompi.NAME
