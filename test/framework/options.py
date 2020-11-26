@@ -989,7 +989,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = ['--copy-ec', 'toy-0.0.eb', test_ec]
         stdout = self.mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_ec)
+        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_ec)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertTrue(os.path.exists(test_ec))
         self.assertEqual(toy_ec_txt, read_file(test_ec))
@@ -1003,7 +1004,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
         stdout = self.mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to test.eb')
+        regex = re.compile(r'.*/toy-0.0.eb copied to test.eb')
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         change_dir(cwd)
 
@@ -1015,7 +1017,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mkdir(test_target_dir)
         args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
         stdout = self.mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_target_dir)
+        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_target_dir)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_ec))
@@ -1067,7 +1070,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(len(os.listdir(os.getcwd())), 0)
         args = ['--copy-ec', 'toy-0.0.eb']
         stdout = self.mocked_main(args)
-        regex = re.compile('toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
+        regex = re.compile('.*/toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
         self.assertTrue(regex.match(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         copied_toy_cwd = os.path.join(test_working_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_cwd))
@@ -1075,7 +1078,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # --copy-ec without arguments results in a proper error
         args = ['--copy-ec']
-        error_pattern = "One of more files to copy should be specified!"
+        error_pattern = "One or more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
     def test_copy_ec_from_pr(self):
@@ -1191,7 +1194,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '11521', test_ec]
         ec_pr11521 = "ExifTool-12.00-GCCcore-9.3.0.eb"
         stdout = self.mocked_main(args)
-        self.assertEqual(stdout, '%s copied to %s' % (ec_pr11521, test_ec))
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertTrue(os.path.exists(test_ec))
         remove_file(test_ec)
 
