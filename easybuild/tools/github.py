@@ -411,8 +411,6 @@ def pr_files_cache(func):
 
     return cache_aware_func
 
-    return cache_aware_func
-
 
 @pr_files_cache
 def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, github_repo=None):
