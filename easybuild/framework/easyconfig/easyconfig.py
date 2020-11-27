@@ -702,10 +702,10 @@ class EasyConfig(object):
             # parse dependency specifications
             # it's important that templating is still disabled at this stage!
             self.log.info("Parsing dependency specifications...")
-            self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
-            self['hiddendependencies'] = [
-                self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']
-            ]
+            deps = [self._parse_dependency(dep) for dep in self['dependencies']]
+            self['dependencies'] = [x for x in deps if x['version'] is not False]
+            hiddendeps = [self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']]
+            self['hiddendependencies'] = [x for x in hiddendeps if x['version'] is not False]
 
             # need to take into account that builddependencies may need to be iterated over,
             # i.e. when the value is a list of lists of tuples
@@ -715,7 +715,7 @@ class EasyConfig(object):
                 builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
             else:
                 builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
-            self['builddependencies'] = builddeps
+            self['builddependencies'] = [x for x in builddeps if x['version'] is not False]
 
             # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
             self.multi_deps = self.get_parsed_multi_deps()
