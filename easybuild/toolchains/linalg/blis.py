@@ -51,8 +51,7 @@ class Blis(LinAlg):
         # This assumes that AMD's BLIS has ver > 2.1 and vanilla BLIS < 2.1
 
         found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
-        ver = LooseVersion(found_version)
-        if ver > LooseVersion('2.1'):
+        if LooseVersion(found_version) > LooseVersion('2.1'):
             self.BLAS_LIB_MT = ['blis-mt']
 
         super(Blis, self)._set_blas_variables()
