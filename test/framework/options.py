@@ -3985,6 +3985,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Skipping test_merge_pr, no GitHub token available?")
             return
 
+        # start by making sure --merge-pr without dry-run errors out for a closed PR
+        args = [
+            '--merge-pr',
+            '11753',  # closed PR
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        error_msg = r"This PR is closed."
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
+
+        # and also for an already merged PR
+        args = [
+            '--merge-pr',
+            '11769',  # already merged PR
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        error_msg = r"This PR is already merged."
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
+
+        # merged PR for EasyBuild-3.3.0.eb, is missing approved review
         args = [
             '--merge-pr',
             '4781',  # PR for easyconfig for EasyBuild-3.3.0.eb
@@ -3993,7 +4016,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--pr-target-branch=some_branch',
         ]
 
-        # merged PR for EasyBuild-3.3.0.eb, is missing approved review
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
