@@ -702,10 +702,11 @@ class EasyConfig(object):
             # parse dependency specifications
             # it's important that templating is still disabled at this stage!
             self.log.info("Parsing dependency specifications...")
+
             def remove_false_versions(deps):
                 ret = []
                 for dep in deps:
-                    if isinstance(dep, dict) and dep['version'] == False:
+                    if isinstance(dep, dict) and dep['version'] is False:
                         continue
                     ret.append(dep)
                 return ret
