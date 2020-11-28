@@ -1219,6 +1219,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(txt.startswith('FOO '))
         self.assertTrue(txt.endswith(' bar'))
 
+        # also test apply_regex_substitutions with a *list* of paths
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3493
+        test_dir = os.path.join(self.test_prefix, 'test_dir')
+        test_file1 = os.path.join(test_dir, 'one.txt')
+        test_file2 = os.path.join(test_dir, 'two.txt')
+        ft.write_file(test_file1, "Donald is an elephant")
+        ft.write_file(test_file2, "2 + 2 = 5")
+        regexs = [
+            ('Donald', 'Dumbo'),
+            ('= 5', '= 4'),
+        ]
+        ft.apply_regex_substitutions([test_file1, test_file2], regexs)
+
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
         lic_file1 = os.path.join(self.test_prefix, 'one.lic')
