@@ -2460,7 +2460,7 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False)
+                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
                         fails.append("Failed to run 'file %s': %s" % (path, out))
 
@@ -2470,7 +2470,7 @@ class EasyBlock(object):
                     # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
                     if "dynamically linked" in out:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False)
+                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -2483,7 +2483,7 @@ class EasyBlock(object):
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False)
+                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
                             self.log.warning(fail_msg)
