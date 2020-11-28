@@ -1331,6 +1331,12 @@ def merge_pr(pr):
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
+    if not dry_run:
+        if pr_data['merged']:
+            raise EasyBuildError("This PR is already merged.")
+        elif pr_data['state'] == GITHUB_STATE_CLOSED:
+            raise EasyBuildError("This PR is closed.")
+
     def merge_url(gh):
         """Utility function to fetch merge URL for a specific PR."""
         return gh.repos[pr_target_account][pr_target_repo].pulls[pr].merge
