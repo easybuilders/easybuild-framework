@@ -1333,25 +1333,30 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
     """
     Apply specified list of regex substitutions.
 
-    :param path: path to file to patch
+    :param paths: list of paths to files to patch (or just a single filepath)
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     """
+    if isinstance(paths, string_type):
+        paths = [paths]
+
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
-        dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
+        paths_str = ', '.join(paths)
+        dry_run_msg("applying regex substitutions to file(s): %s" % paths_str, silent=build_option('silent'))
         for regex, subtxt in regex_subs:
             dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
 
     else:
-        _log.info("Applying following regex substitutions to %s: %s", path, regex_subs)
+        _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        for i, (regex, subtxt) in enumerate(regex_subs):
-            regex_subs[i] = (re.compile(regex), subtxt)
+        compiled_regex_subs = []
+        for regex, subtxt in regex_subs:
+            compiled_regex_subs.append((re.compile(regex), subtxt))
 
         if backup:
             backup_ext = backup
@@ -1359,30 +1364,32 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
             backup_ext = ''
 
-        try:
-            # make sure that file can be opened in text mode;
-            # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
+        for path in paths:
             try:
-                with open(path, 'r') as fp:
-                    _ = fp.read()
-            except UnicodeDecodeError as err:
-                _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
-                path_backup = back_up_file(path)
-                _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
-                txt = read_file(path, mode='rb')
-                txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
-                write_file(path, txt_utf8)
+                # make sure that file can be opened in text mode;
+                # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
+                try:
+                    with open(path, 'r') as fp:
+                        _ = fp.read()
+                except UnicodeDecodeError as err:
+                    _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
+                    path_backup = back_up_file(path)
+                    _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
+                    txt = read_file(path, mode='rb')
+                    txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
+                    write_file(path, txt_utf8)
 
-            for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
-                for regex, subtxt in regex_subs:
-                    match = regex.search(line)
-                    if match:
-                        _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, match.group(0), subtxt)
-                    line = regex.sub(subtxt, line)
-                sys.stdout.write(line)
+                for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
+                    for regex, subtxt in compiled_regex_subs:
+                        match = regex.search(line)
+                        if match:
+                            origtxt = match.group(0)
+                            _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, origtxt, subtxt)
+                        line = regex.sub(subtxt, line)
+                    sys.stdout.write(line)
 
-        except (IOError, OSError) as err:
-            raise EasyBuildError("Failed to patch %s: %s", path, err)
+            except (IOError, OSError) as err:
+                raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):
