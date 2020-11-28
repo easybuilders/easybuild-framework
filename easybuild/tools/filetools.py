@@ -1346,16 +1346,17 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
 
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
-        for path in paths:
-            dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
-            for regex, subtxt in regex_subs:
-                dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
+        paths_str = ', '.join(paths)
+        dry_run_msg("applying regex substitutions to file(s): %s" % paths_str, silent=build_option('silent'))
+        for regex, subtxt in regex_subs:
+            dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
 
     else:
         _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        for i, (regex, subtxt) in enumerate(regex_subs):
-            regex_subs[i] = (re.compile(regex), subtxt)
+        compiled_regex_subs = []
+        for regex, subtxt in regex_subs:
+            compiled_regex_subs.append((re.compile(regex), subtxt))
 
         if backup:
             backup_ext = backup
@@ -1379,7 +1380,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                     write_file(path, txt_utf8)
 
                 for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
-                    for regex, subtxt in regex_subs:
+                    for regex, subtxt in compiled_regex_subs:
                         match = regex.search(line)
                         if match:
                             origtxt = match.group(0)

@@ -1232,6 +1232,24 @@ class FileToolsTest(EnhancedTestCase):
         ]
         ft.apply_regex_substitutions([test_file1, test_file2], regexs)
 
+        # also check dry run mode
+        init_config(build_options={'extended_dry_run': True})
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.apply_regex_substitutions([test_file1, test_file2], regexs)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile('\n'.join([
+            r"applying regex substitutions to file\(s\): .*/test_dir/one.txt, .*/test_dir/two.txt",
+            r"  \* regex pattern 'Donald', replacement string 'Dumbo'",
+            r"  \* regex pattern '= 5', replacement string '= 4'",
+            '',
+        ]))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
         lic_file1 = os.path.join(self.test_prefix, 'one.lic')
