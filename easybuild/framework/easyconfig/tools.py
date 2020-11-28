@@ -736,7 +736,7 @@ def det_copy_ec_specs(orig_paths, from_pr):
             # check files touched by PR and see if the target directory for --copy-ec
             # corresponds to the name of one of these files;
             # if so we should copy the specified file(s) to the current working directory,
-            # since interpreting the last argument as target location is very unlikely incorrect in this case
+            # since interpreting the last argument as target location is very unlikely to be correct in this case
             pr_filenames = [os.path.basename(p) for p in pr_paths]
             if last_path in pr_filenames:
                 paths = orig_paths[:]
