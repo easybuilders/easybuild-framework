@@ -56,7 +56,8 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parame
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
-from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import det_copy_ec_specs, find_related_easyconfigs, get_paths_for
+from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
@@ -4022,6 +4023,84 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['installopts'], '4.2,6.3')
         self.assertEqual(ec['configopts'], 'sm_42,sm_63')
         self.assertEqual(ec['preconfigopts'], 'sm_42 sm_63')
+
+    def test_det_copy_ec_specs(self):
+        """Test det_copy_ec_specs function."""
+
+        cwd = os.getcwd()
+
+        # no problems on empty list as input
+        paths, target_path = det_copy_ec_specs([], None)
+        self.assertEqual(paths, [])
+        self.assertEqual(target_path, None)
+
+        # single-element list, no --from-pr => use current directory as target location
+        paths, target_path = det_copy_ec_specs(['test.eb'], None)
+        self.assertEqual(paths, ['test.eb'])
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        # multi-element list, no --from-pr => last element is used as target location
+        for args in (['test.eb', 'dir'], ['test1.eb', 'test2.eb', 'dir']):
+            paths, target_path = det_copy_ec_specs(args, None)
+            self.assertEqual(paths, args[:-1])
+            self.assertEqual(target_path, args[-1])
+
+        # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
+        from_pr = 8007
+        arrow_ec_fn = 'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb'
+        bat_ec_fn = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
+        bat_patch_fn = 'bat-0.3.3-fix-pyspark.patch'
+        pr_files = [
+            arrow_ec_fn,
+            bat_ec_fn,
+            bat_patch_fn,
+        ]
+
+        # if no paths are specified, default is to copy all files touched by PR to current working directory
+        paths, target_path = det_copy_ec_specs([], from_pr)
+        self.assertEqual(len(paths), 3)
+        filenames = sorted([os.path.basename(x) for x in paths])
+        self.assertEqual(filenames, sorted(pr_files))
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        # last argument is used as target directory,
+        # unless it corresponds to a file touched by PR
+        args = [bat_ec_fn, 'target_dir']
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(target_path, 'target_dir')
+
+        args = [bat_ec_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        args = [arrow_ec_fn, bat_ec_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), bat_ec_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        args = [bat_ec_fn, bat_patch_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), bat_patch_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        # also test with combination of local files and files from PR
+        args = [arrow_ec_fn, 'test.eb', 'test.patch', bat_patch_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 4)
+        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
+        self.assertEqual(paths[1], 'test.eb')
+        self.assertEqual(paths[2], 'test.patch')
+        self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
 
 
 def suite():

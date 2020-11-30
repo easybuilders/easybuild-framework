@@ -50,8 +50,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, mkdir, read_file
-from easybuild.tools.filetools import remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -965,18 +965,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
+    def mocked_main(self, args):
+        """Run eb_main with mocked stdout/stderr."""
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        return stdout.strip()
+
     def test_copy_ec(self):
         """Test --copy-ec."""
-
-        def mocked_main(args):
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            self.eb_main(args, raise_error=True)
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-            self.assertEqual(stderr, '')
-            return stdout.strip()
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
@@ -987,8 +988,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # basic test: copying one easyconfig file to a non-existing absolute path
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = ['--copy-ec', 'toy-0.0.eb', test_ec]
-        stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_ec)
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_ec)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertTrue(os.path.exists(test_ec))
         self.assertEqual(toy_ec_txt, read_file(test_ec))
@@ -1001,8 +1003,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(target_fn))
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
-        stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to test.eb')
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/toy-0.0.eb copied to test.eb')
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         change_dir(cwd)
 
@@ -1013,8 +1016,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
         mkdir(test_target_dir)
         args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
-        stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_target_dir)
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_target_dir)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_ec))
@@ -1035,7 +1039,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
-        stdout = mocked_main(args)
+        stdout = self.mocked_main(args)
         self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
 
         check_copied_files()
@@ -1047,12 +1051,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[-1] = os.path.basename(test_target_dir)
         self.assertFalse(os.path.exists(args[-1]))
 
-        stdout = mocked_main(args)
+        stdout = self.mocked_main(args)
         self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
 
         check_copied_files()
 
-        # copying multiple easyconfig to an existing target file resuts in an error
+        # copying multiple easyconfig to an existing target file results in an error
         target = os.path.join(self.test_prefix, 'test.eb')
         self.assertTrue(os.path.isfile(target))
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
@@ -1065,8 +1069,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         change_dir(test_working_dir)
         self.assertEqual(len(os.listdir(os.getcwd())), 0)
         args = ['--copy-ec', 'toy-0.0.eb']
-        stdout = mocked_main(args)
-        regex = re.compile('toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
+        stdout = self.mocked_main(args)
+        regex = re.compile('.*/toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
         self.assertTrue(regex.match(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         copied_toy_cwd = os.path.join(test_working_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_cwd))
@@ -1074,8 +1078,127 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # --copy-ec without arguments results in a proper error
         args = ['--copy-ec']
-        error_pattern = "One of more files to copy should be specified!"
+        error_pattern = "One or more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+    def test_copy_ec_from_pr(self):
+        """Test combination of --copy-ec with --from-pr."""
+        if self.github_token is None:
+            print("Skipping test_copy_ec_from_pr, no GitHub token available?")
+            return
+
+        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
+        mkdir(test_working_dir)
+        test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
+        # Make sure the test target directory doesn't exist
+        remove_dir(test_target_dir)
+
+        all_files_pr8007 = [
+            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
+            'bat-0.3.3-fix-pyspark.patch',
+            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        ]
+
+        # test use of --copy-ec with --from-pr to the current working directory
+        cwd = change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007']
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # check that the files exist
+        for pr_file in all_files_pr8007:
+            self.assertTrue(os.path.exists(os.path.join(test_working_dir, pr_file)))
+            remove_file(os.path.join(test_working_dir, pr_file))
+
+        # copying all files touched by PR to a non-existing target directory (which is created automatically)
+        self.assertFalse(os.path.exists(test_target_dir))
+        args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        for pr_file in all_files_pr8007:
+            self.assertTrue(os.path.exists(os.path.join(test_target_dir, pr_file)))
+        remove_dir(test_target_dir)
+
+        # test where we select a single easyconfig file from a PR
+        mkdir(test_target_dir)
+        ec_filename = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
+        args = ['--copy-ec', '--from-pr', '8007', ec_filename, test_target_dir]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_target_dir)))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(os.listdir(test_target_dir), [ec_filename])
+        self.assertTrue("name = 'bat'" in read_file(os.path.join(test_target_dir, ec_filename)))
+        remove_dir(test_target_dir)
+
+        # test copying of a single easyconfig file from a PR to a non-existing path
+        bat_ec = os.path.join(self.test_prefix, 'bat.eb')
+        args[-1] = bat_ec
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/bat.eb" % ec_filename)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertTrue(os.path.exists(bat_ec))
+        self.assertTrue("name = 'bat'" in read_file(bat_ec))
+
+        change_dir(cwd)
+        remove_dir(test_working_dir)
+        mkdir(test_working_dir)
+        change_dir(test_working_dir)
+
+        # test copying of a patch file from a PR via --copy-ec to current directory
+        patch_fn = 'bat-0.3.3-fix-pyspark.patch'
+        args = ['--copy-ec', '--from-pr', '8007', patch_fn, '.']
+        stdout = self.mocked_main(args)
+
+        self.assertEqual(os.listdir(test_working_dir), [patch_fn])
+        patch_path = os.path.join(test_working_dir, patch_fn)
+        self.assertTrue(os.path.exists(patch_path))
+        self.assertTrue(is_patch_file(patch_path))
+        remove_file(patch_path)
+
+        # test the same thing but where we don't provide a target location
+        change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007', ec_filename]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_working_dir)))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(os.listdir(test_working_dir), [ec_filename])
+        self.assertTrue("name = 'bat'" in read_file(os.path.join(test_working_dir, ec_filename)))
+
+        # also test copying of patch file to current directory (without specifying target location)
+        change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007', patch_fn]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/%s" % (patch_fn, os.path.basename(test_working_dir)))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(sorted(os.listdir(test_working_dir)), sorted([ec_filename, patch_fn]))
+        self.assertTrue(is_patch_file(os.path.join(test_working_dir, patch_fn)))
+
+        change_dir(cwd)
+        remove_dir(test_working_dir)
+
+        # test with only one ec in the PR (final argument is taken as a filename)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = ['--copy-ec', '--from-pr', '11521', test_ec]
+        ec_pr11521 = "ExifTool-12.00-GCCcore-9.3.0.eb"
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertTrue("name = 'ExifTool'" in read_file(test_ec))
+        remove_file(test_ec)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
@@ -2519,7 +2642,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # different error when a non-existing easyconfig file is specified to --robot
         args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
-        self.assertErrorRegex(EasyBuildError, "Can't find path", self.eb_main, args, raise_error=True)
+        error_pattern = "One or more files not found: no_such_easyconfig_file_in_robot_search_path.eb"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
             args = ['toy-0.0.eb', '--dry-run', robot]
