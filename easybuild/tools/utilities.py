@@ -173,7 +173,7 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
                     pass
 
             if imported is None:
-                raise ImportError("None of the specified modules %s is available" % ', '.join(modnames))
+                raise ImportError("None of the specified modules (%s) is available" % ', '.join(modnames))
             else:
                 return orig
 
