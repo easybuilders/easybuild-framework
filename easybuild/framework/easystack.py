@@ -108,7 +108,7 @@ class EasyStackParser(object):
             try:
                 toolchains = software[name]['toolchains']
             except KeyError:
-                raise EasyBuildError("Toolchains for software '%s' are not defined" % name)
+                raise EasyBuildError("Toolchains for software '%s' are not defined in %s", name, filepath)
             for toolchain in toolchains:
                 toolchain = str(toolchain)
                 toolchain_parts = toolchain.split('-', 1)
@@ -117,7 +117,8 @@ class EasyStackParser(object):
                 elif len(toolchain_parts) == 1:
                     toolchain_name, toolchain_version = toolchain, ''
                 else:
-                    raise EasyBuildError("Incorrect toolchain specification, too many parts: %s", toolchain_parts)
+                    raise EasyBuildError("Incorrect toolchain specification for '%s' in %s, too many parts: %s",
+                                         name, filepath, toolchain_parts)
 
                 try:
                     # if version string containts asterisk or labels, raise error (asterisks not supported)
@@ -127,9 +128,9 @@ class EasyStackParser(object):
                     wrong_structure_err += "the data for software %s: %s" % (name, err)
                     raise EasyBuildError(wrong_structure_err)
                 if '*' in str(versions):
-                    asterisk_err = "EasyStack specifications of %s contain asterisk. " % (software)
+                    asterisk_err = "EasyStack specifications of '%s' in %s contain asterisk. "
                     asterisk_err += "Wildcard feature is not supported yet."
-                    raise EasyBuildError(asterisk_err)
+                    raise EasyBuildError(asterisk_err, name, filepath)
 
                 # yaml versions can be in different formats in yaml file
                 # firstly, check if versions in yaml file are read as a dictionary.
@@ -149,14 +150,21 @@ class EasyStackParser(object):
                             else:
                                 versionsuffix = ''
                             if 'exclude-labels' in str(version_spec) or 'include-labels' in str(version_spec):
-                                lab_err = "EasyStack specifications of '%s' " % name
+                                lab_err = "EasyStack specifications of '%s' in %s "
                                 lab_err += "contain labels. Labels aren't supported yet."
-                                raise EasyBuildError(lab_err)
+                                raise EasyBuildError(lab_err, name, filepath)
                         else:
                             versionsuffix = ''
-                        sw = SoftwareSpecs(
-                            name=name, version=version, versionsuffix=versionsuffix,
-                            toolchain_name=toolchain_name, toolchain_version=toolchain_version)
+
+                        specs = {
+                            'name': name,
+                            'toolchain_name': toolchain_name,
+                            'toolchain_version': toolchain_version,
+                            'version': version,
+                            'versionsuffix': versionsuffix,
+                        }
+                        sw = SoftwareSpecs(**specs)
+
                         # append newly created class instance to the list in instance of EasyStack class
                         easystack.software_list.append(sw)
                     continue

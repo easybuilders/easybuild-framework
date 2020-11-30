@@ -108,11 +108,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
         self.orig_os_getuid = easybuild.main.os.getuid
+        self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
 
     def tearDown(self):
         """Clean up after test."""
         easybuild.main.os.getuid = self.orig_os_getuid
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
+        easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
+
         super(CommandLineOptionsTest, self).tearDown()
 
     def purge_environment(self):
@@ -5487,7 +5490,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_easystack_wrong_structure(self):
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
@@ -5496,32 +5498,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected_err += r" 'float' object is not subscriptable[\S\s]*"
         expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*"
         self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_asterisk(self):
         """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
 
-        expected_err = "EasyStack specifications of {'binutils': {'toolchains': {'GCCcore-4.9.3': "
-        expected_err += "{'versions': '2.11.*'}}}} contain asterisk. Wildcard feature is not supported yet."
+        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
+        expected_err += "Wildcard feature is not supported yet."
 
         self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_easystack_labels(self):
         """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
-        self.assertErrorRegex(
-            EasyBuildError, "EasyStack specifications of 'binutils' contain labels. Labels aren't supported yet.",
-            parse_easystack, toy_easystack)
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
+        error_msg += "Labels aren't supported yet."
+        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, toy_easystack)
 
 
 def suite():
