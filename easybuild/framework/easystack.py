@@ -29,10 +29,10 @@ information obtained from provided file (easystack) with build specifications.
 :author: Pavel Grochal (Inuits)
 """
 
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.base import fancylogger
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 try:
     import yaml
 except ImportError:
@@ -42,6 +42,7 @@ _log = fancylogger.getLogger('easystack', fname=False)
 
 class EasyStack(object):
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
+
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
@@ -72,6 +73,7 @@ class EasyStack(object):
 
 class SoftwareSpecs(object):
     """Contains information about every software that should be installed"""
+
     def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name):
         self.name = name
         self.version = version
@@ -85,31 +87,34 @@ class EasyStackParser(object):
     @staticmethod
     def parse(filepath):
         """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
-        f = read_file(filepath)
-        easystack_raw = yaml.safe_load(f)
+        yaml_txt = read_file(filepath)
+        easystack_raw = yaml.safe_load(yaml_txt)
         easystack = EasyStack()
 
         try:
             software = easystack_raw["software"]
-        except (KeyError):
+        except KeyError:
             wrong_structure_file = "Not a valid EasyStack YAML file: no 'software' key found"
             raise EasyBuildError(wrong_structure_file)
 
         # assign software-specific easystack attributes
         for name in software:
+            # ensure we have a string value (YAML parser returns type = dict 
+            # if levels under the current attribute are present)
             name = str(name)
             try:
                 toolchains = software[name]['toolchains']
-            except (KeyError):
+            except KeyError:
                 raise EasyBuildError("Toolchains for software '%s' are not defined" % name)
             for toolchain in toolchains:
                 toolchain = str(toolchain)
-                try:
-                    toolchain_name = toolchain.split('-', 1)[0]
-                    toolchain_version = toolchain.split('-', 1)[1]
-                except IndexError:
-                    toolchain_name = toolchain
-                    toolchain_version = ''
+                toolchain_parts = toolchain.split('-', 1)
+                if len(toolchain_parts) == 2:
+                    toolchain_name, toolchain_version = toolchain_parts
+                elif len(toolchain_parts) == 1:
+                    toolchain_name, toolchain_version = toolchain, ''
+                else:
+                    raise EasyBuildError("Incorrect toolchain specification, too many parts: %s", toolchain_parts)
 
                 try:
                     # if version string containts asterisk or labels, raise error (asterisks not supported)
