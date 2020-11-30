@@ -314,13 +314,6 @@ class SingularityContainer(ContainerGenerator):
                 "# install EasyBuild using pip",
                 # upgrade pip
                 "pip install -U pip",
-                "pip install wheel",
-                # EasyBuild 3.x requires setuptools as runtime dependency
-                "pip install -U setuptools",
-                # stick to previous version of vsc-install to avoid requiring mock (which causes installation problems)
-                # stick to previous version of vsc-base to avoid requiring 'future' (irrelevant for EasyBuild)
-                # this is just a temporary measure, since vsc-install & vsc-base have been ingested for EasyBuild 4.x
-                "pip install 'vsc-install<0.11.4' 'vsc-base<2.9.0'",
                 "pip install easybuild",
             ])
 
