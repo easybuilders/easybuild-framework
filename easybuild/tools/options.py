@@ -356,8 +356,9 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
-            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software",
-                                          'strlist', 'extend', None),
+            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
+                                          "values should be specified as digits separated by a dot, "
+                                          "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
