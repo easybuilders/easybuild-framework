@@ -33,6 +33,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.utilities import only_if_module_is_available
 try:
     import yaml
 except ImportError:
@@ -84,6 +85,8 @@ class SoftwareSpecs(object):
 
 class EasyStackParser(object):
     """Parser for easystack files (in YAML syntax)."""
+
+    @only_if_module_is_available('yaml', pkgname='PyYAML')
     @staticmethod
     def parse(filepath):
         """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
