@@ -1197,6 +1197,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertTrue(os.path.exists(test_ec))
+        self.assertTrue("name = 'ExifTool'" in read_file(test_ec))
         remove_file(test_ec)
 
     def test_dry_run(self):
