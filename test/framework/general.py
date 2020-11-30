@@ -88,7 +88,7 @@ class GeneralTest(EnhancedTestCase):
         def bar2():
             pass
 
-        err_pat = "ImportError: None of the specified modules nosuchmodule, anothernosuchmodule is available"
+        err_pat = r"ImportError: None of the specified modules \(nosuchmodule, anothernosuchmodule\) is available"
         self.assertErrorRegex(EasyBuildError, err_pat, bar2)
 
         class Foo():

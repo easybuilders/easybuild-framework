@@ -1,0 +1,13 @@
+software:
+  binutils:
+    toolchains:
+      GCCcore-4.9.3:
+        versions:
+          2.25:
+          2.26:
+  toy:
+    toolchains:
+      gompi-2018a:
+        versions:
+          0.0:
+            versionsuffix: '-test'

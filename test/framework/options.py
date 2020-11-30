@@ -42,6 +42,7 @@ import easybuild.tools.options
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -107,11 +108,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
         self.orig_os_getuid = easybuild.main.os.getuid
+        self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
 
     def tearDown(self):
         """Clean up after test."""
         easybuild.main.os.getuid = self.orig_os_getuid
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
+        easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
+
         super(CommandLineOptionsTest, self).tearDown()
 
     def purge_environment(self):
@@ -5599,6 +5603,69 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
+
+    # end-to-end testing of unknown filename
+    def test_easystack_wrong_read(self):
+        """Test for --easystack <easystack.yaml> when wrong name is provided"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
+        args = ['--easystack', toy_easystack, '--experimental']
+        expected_err = "No such file or directory: '%s'" % toy_easystack
+        self.assertErrorRegex(EasyBuildError, expected_err, self.eb_main, args, raise_error=True)
+
+    # testing basics - end-to-end
+    # expecting successful build
+    def test_easystack_basic(self):
+        """Test for --easystack <easystack.yaml> -> success case"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
+
+        args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
+        stdout, err = self.eb_main(args, do_build=True, return_error=True)
+        patterns = [
+            r"[\S\s]*INFO Building from easystack:[\S\s]*",
+            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
+            r"[\S\s]*INFO building and installing binutils/2\.25-GCCcore-4\.9\.3[\S\s]*",
+            r"[\S\s]*INFO building and installing binutils/2\.26-GCCcore-4\.9\.3[\S\s]*",
+            r"[\S\s]*INFO building and installing toy/0\.0-gompi-2018a-test[\S\s]*",
+            r"[\S\s]*INFO COMPLETED: Installation STOPPED successfully[\S\s]*",
+            r"[\S\s]*INFO Build succeeded for 3 out of 3[\S\s]*"
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.match(stdout) is not None)
+
+    def test_easystack_wrong_structure(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
+
+        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
+        expected_err += r" 'float' object is not subscriptable[\S\s]*"
+        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*"
+        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
+
+    def test_easystack_asterisk(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
+
+        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
+        expected_err += "Wildcard feature is not supported yet."
+
+        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
+
+    def test_easystack_labels(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
+
+        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
+        error_msg += "Labels aren't supported yet."
+        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, toy_easystack)
 
 
 def suite():

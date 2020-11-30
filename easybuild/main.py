@@ -47,6 +47,7 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, st
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
@@ -223,6 +224,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         # print location to last log file, and exit
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
+
+    # if easystack is provided with the command, commands with arguments from it will be executed
+    if options.easystack:
+        # TODO add general_options (i.e. robot) to build options
+        orig_paths, general_options = parse_easystack(options.easystack)
+        if general_options:
+            raise EasyBuildError("Specifying general configuration options in easystack file is not supported yet.")
 
     # check whether packaging is supported when it's being used
     if options.package:
