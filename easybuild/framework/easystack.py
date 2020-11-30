@@ -99,7 +99,7 @@ class EasyStackParser(object):
 
         # assign software-specific easystack attributes
         for name in software:
-            # ensure we have a string value (YAML parser returns type = dict 
+            # ensure we have a string value (YAML parser returns type = dict
             # if levels under the current attribute are present)
             name = str(name)
             try:
