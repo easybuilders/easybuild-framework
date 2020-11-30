@@ -43,7 +43,7 @@ from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.testing import post_easyconfigs_pr_test_report, session_state
+from easybuild.tools.testing import post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -345,6 +345,8 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_download_repo, no GitHub token available?")
             return
 
+        cwd = os.getcwd()
+
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
@@ -353,6 +355,9 @@ class GithubTest(EnhancedTestCase):
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
+
+        # current directory should not have changed after calling download_repo
+        self.assertTrue(os.path.samefile(cwd, os.getcwd()))
 
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
@@ -828,10 +833,10 @@ class GithubTest(EnhancedTestCase):
         regex = re.compile(pattern)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
-    def test_post_easyconfigs_pr_test_report(self):
-        """Test for post_easyconfigs_pr_test_report function."""
+    def test_pr_test_report(self):
+        """Test for post_pr_test_report function."""
         if self.skip_github_tests:
-            print("Skipping test_post_easyconfigs_pr_test_report, no GitHub token available?")
+            print("Skipping test_post_pr_test_report, no GitHub token available?")
             return
 
         init_config(build_options={
@@ -839,14 +844,13 @@ class GithubTest(EnhancedTestCase):
             'github_user': GITHUB_TEST_ACCOUNT,
         })
 
-        test_report = os.path.join(self.test_prefix, 'test_report.txt')
-        write_file(test_report, "This is a test report!")
+        test_report = {'full': "This is a test report!"}
 
         init_session_state = session_state()
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        post_easyconfigs_pr_test_report('1234', test_report, "OK!", init_session_state, True)
+        post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
         stderr, stdout = self.get_stderr(), self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -855,6 +859,23 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
+            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        post_pr_test_report('1234', gh.GITHUB_EASYBLOCKS_REPO, test_report, "OK!", init_session_state, True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
             r"^See https://gist.github.com/DRY_RUN for a full test report.'",
         ]
         for pattern in patterns:

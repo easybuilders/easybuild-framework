@@ -1210,6 +1210,15 @@ class FileToolsTest(EnhancedTestCase):
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
 
+        # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
+        testtxt = b"foo \xe2 bar"
+        ft.write_file(testfile, testtxt)
+        ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
+        txt = ft.read_file(testfile)
+        # avoid checking problematic character itself, since it's treated differently in Python 2 vs 3
+        self.assertTrue(txt.startswith('FOO '))
+        self.assertTrue(txt.endswith(' bar'))
+
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
         lic_file1 = os.path.join(self.test_prefix, 'one.lic')

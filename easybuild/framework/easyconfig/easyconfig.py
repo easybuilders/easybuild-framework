@@ -1251,9 +1251,9 @@ class EasyConfig(object):
                 soft_name = soft_name[len(cray_prefix):]
 
         # determine software name to use in names of environment variables (upper case, '-' becomes '_')
-        soft_name_in_mod_name = convert_name(soft_name.replace('-', '_'), upper=True)
+        soft_name_env_var_infix = convert_name(soft_name.replace('-', '_'), upper=True)
 
-        var_name_pairs = [
+        var_name_pairs_templates = [
             ('CRAY_%s_PREFIX', 'CRAY_%s_VERSION'),
             ('CRAY_%s_PREFIX_DIR', 'CRAY_%s_VERSION'),
             ('CRAY_%s_DIR', 'CRAY_%s_VERSION'),
@@ -1264,10 +1264,20 @@ class EasyConfig(object):
             ('%s_HOME', '%s_VERSION'),
         ]
 
-        for prefix_var_name, version_var_name in var_name_pairs:
-            prefix_var_name = prefix_var_name % soft_name_in_mod_name
-            version_var_name = version_var_name % soft_name_in_mod_name
+        def mk_var_name_pair(var_name_pair, name):
+            """Complete variable name pair template using provided name."""
+            return (var_name_pair[0] % name, var_name_pair[1] % name)
 
+        var_name_pairs = [mk_var_name_pair(x, soft_name_env_var_infix) for x in var_name_pairs_templates]
+
+        # also consider name based on module name for environment variables to check
+        # for example, for the cray-netcdf-hdf5parallel module we should also check $CRAY_NETCDF_HDF5PARALLEL_VERSION
+        mod_name_env_var_infix = convert_name(mod_name.split('/')[0].replace('-', '_'), upper=True)
+
+        if mod_name_env_var_infix != soft_name_env_var_infix:
+            var_name_pairs.extend([mk_var_name_pair(x, mod_name_env_var_infix) for x in var_name_pairs_templates])
+
+        for prefix_var_name, version_var_name in var_name_pairs:
             prefix = self.modules_tool.get_setenv_value_from_modulefile(mod_name, prefix_var_name)
             version = self.modules_tool.get_setenv_value_from_modulefile(mod_name, version_var_name)
 

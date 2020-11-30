@@ -3,6 +3,33 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.3.1 (October 29th 2020)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - further GCC toolchain fixes for aarch64 (#3433)
+  - take into account --include-easyblocks-from-pr when uploading test reports (#3446)
+  - add path to pkg-config files in sysroot to $PKG_CONFIG_PATH when --sysroot is specified (#3451)
+  - add support for NVHPC compiler + toolchain (based on PGI) (#3454)
+  - check for _VERSION and _PREFIX Cray environment variables with both software and module name (#3460)
+  - allow including easyblocks from multiple PRs (#3480, #3481)
+- various bug fixes, including:
+  - avoid UnicodeDecodeError in apply_regex_substitutions when patching files that include non-UTF-8 characters (#3450)
+  - avoid appending lib stubs pattern to RPATH filter over and over again (#3452)
+  - fix missing string template on error for incorrect extension 'sources' value (#3461)
+  - fix compatibility with Python 3.9 by renaming fancy root logger (#3465)
+  - also remove empty checksums list specified in easyconfig file when using --inject-checksums (#3466)
+  - avoid confusing error log message when determining impi version while trying to define value for %(mpi_cmd_prefix)s template (#3474)
+  - unset $LD_LIBRARY_PATH when checking for OS dependencies with 'rpm' & co (#3477)
+  - don't change directory in download_repo function in tools.github (#3486)
+  - take source_urls, checksums, patches into account when extension source is specified via 'sources' (#3487)
+- other changes:
+  - consider $EB_INSTALLPYTHON in 'eb' command to specify 'python' command to use for running EasyBuild (#3428)
+  - use only the sub folder name for createSubmoduleDeps script (#3464)
+
+
 v4.3.0 (September 13th 2020)
 ----------------------------
 

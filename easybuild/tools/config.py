@@ -184,6 +184,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group',
         'hooks',
         'ignore_dirs',
+        'include_easyblocks_from_pr',
         'job_backend_config',
         'job_cores',
         'job_deps_type',

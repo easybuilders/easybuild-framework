@@ -677,8 +677,15 @@ def check_os_dependency(dep):
 
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
-            cmd = ' '.join([pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep])
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False,
+            cmd = [
+                # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded dependencies
+                # see https://github.com/easybuilders/easybuild-easyconfigs/pull/4179
+                'unset LD_LIBRARY_PATH &&',
+                pkg_cmd,
+                pkg_cmd_flag.get(pkg_cmd),
+                dep,
+            ]
+            found = run_cmd(' '.join(cmd), simple=True, log_all=False, log_ok=False,
                             force_in_dry_run=True, trace=False, stream_output=False)
             if found:
                 break
