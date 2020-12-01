@@ -48,6 +48,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import std_urllib
+from easybuild.base import fancylogger
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -1264,16 +1265,22 @@ class FileToolsTest(EnhancedTestCase):
         # Error
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
                               on_missing_match=run.ERROR)
+
+        fancylogger.logToFile(self.logfile)
+
         # Warn
-        self.mock_stderr(True)
         ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
-        self.assertTrue(error_pat in self.get_stderr())
-        self.mock_stderr(False)
+        with open(self.logfile, 'r') as f:
+            logtxt = f.read()
+        self.assertTrue('WARNING ' + error_pat in logtxt)
+
         # Ignore
-        self.mock_stderr(True)
         ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
-        self.assertFalse(error_pat in self.get_stderr())
-        self.mock_stderr(False)
+        with open(self.logfile, 'r') as f:
+            logtxt = f.read()
+        self.assertTrue('INFO ' + error_pat in logtxt)
+
+        fancylogger.logToFile(self.logfile, enable=False)
 
         # clean error on non-existing file
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
