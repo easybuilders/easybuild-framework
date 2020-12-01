@@ -5621,7 +5621,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
         args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
-        stdout, err = self.eb_main(args, do_build=True, return_error=True)
+        stdout = self.eb_main(args, do_build=True, raise_error=True)
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
             r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
