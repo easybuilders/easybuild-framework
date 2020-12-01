@@ -5633,7 +5633,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         for pattern in patterns:
             regex = re.compile(pattern)
-            self.assertTrue(regex.match(stdout) is not None)
+            self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
     def test_easystack_wrong_structure(self):
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
