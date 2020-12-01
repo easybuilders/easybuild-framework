@@ -64,11 +64,11 @@ from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAU
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
-from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
-from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT, EBROOT_ENV_VAR_ACTIONS
-from easybuild.tools.config import ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
-from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, LOCAL_VAR_NAMING_CHECK_WARN
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECKS, WARN
+from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_PR_TARGET_ACCOUNT
+from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
+from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
+from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -78,7 +78,7 @@ from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
 from easybuild.tools.filetools import move_file, which
-from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
+from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
@@ -356,8 +356,9 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
-            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software",
-                                          'strlist', 'extend', None),
+            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
+                                          "values should be specified as digits separated by a dot, "
+                                          "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
@@ -604,6 +605,8 @@ class EasyBuildOptions(GeneralOption):
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
+            'easystack': ("Path to easystack file in YAML format, specifying details of a software stack",
+                          None, 'store', None),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
@@ -625,7 +628,7 @@ class EasyBuildOptions(GeneralOption):
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
-            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", int, 'store', None,
+            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", 'strlist', 'store', [],
                                            {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
@@ -643,7 +646,7 @@ class EasyBuildOptions(GeneralOption):
                                str, 'store', None),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
-            'pr-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
+            'pr-target-account': ("Target account for new PRs", str, 'store', DEFAULT_PR_TARGET_ACCOUNT),
             'pr-target-branch': ("Target branch for new PRs", str, 'store', DEFAULT_BRANCH),
             'pr-target-repo': ("Target repository for new/updating PRs (default: auto-detect based on provided files)",
                                str, 'store', None),
@@ -1455,25 +1458,33 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    pr_easyblocks = eb_go.options.include_easyblocks_from_pr
-    if pr_easyblocks:
-        easyblocks_from_pr = fetch_easyblocks_from_pr(pr_easyblocks)
-        included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+    if eb_go.options.include_easyblocks_from_pr:
+        try:
+            easyblock_prs = map(int, eb_go.options.include_easyblocks_from_pr)
+        except ValueError:
+            raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
 
         if eb_go.options.include_easyblocks:
             # check if you are including the same easyblock twice
             included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
             included_from_file = set([os.path.basename(eb) for eb in included_paths])
-            included_twice = included_from_pr & included_from_file
-            if included_twice:
-                warning_msg = "One or more easyblocks included from multiple locations: %s " % ', '.join(included_twice)
-                warning_msg += "(the one(s) from PR #%s will be used)" % pr_easyblocks
-                print_warning(warning_msg)
 
-        for easyblock in included_from_pr:
-            print_msg("easyblock %s included from PR #%s" % (easyblock, pr_easyblocks), log=log)
+        for easyblock_pr in easyblock_prs:
+            easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
+            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
 
-        include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+            if eb_go.options.include_easyblocks:
+                included_twice = included_from_pr & included_from_file
+                if included_twice:
+                    warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                                  % ', '.join(included_twice)
+                    warning_msg += "(the one(s) from PR #%s will be used)" % easyblock_pr
+                    print_warning(warning_msg)
+
+            for easyblock in included_from_pr:
+                print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+
+            include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
 
         if eb_go.options.list_easyblocks:
             msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)

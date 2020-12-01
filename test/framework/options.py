@@ -42,6 +42,7 @@ import easybuild.tools.options
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -50,8 +51,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, mkdir, read_file
-from easybuild.tools.filetools import remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -107,11 +108,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
         self.orig_os_getuid = easybuild.main.os.getuid
+        self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
 
     def tearDown(self):
         """Clean up after test."""
         easybuild.main.os.getuid = self.orig_os_getuid
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
+        easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
+
         super(CommandLineOptionsTest, self).tearDown()
 
     def purge_environment(self):
@@ -967,18 +971,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
+    def mocked_main(self, args):
+        """Run eb_main with mocked stdout/stderr."""
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        return stdout.strip()
+
     def test_copy_ec(self):
         """Test --copy-ec."""
-
-        def mocked_main(args):
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            self.eb_main(args, raise_error=True)
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-            self.assertEqual(stderr, '')
-            return stdout.strip()
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs_dir = os.path.join(topdir, 'easyconfigs', 'test_ecs')
@@ -989,8 +994,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # basic test: copying one easyconfig file to a non-existing absolute path
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = ['--copy-ec', 'toy-0.0.eb', test_ec]
-        stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_ec)
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_ec)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertTrue(os.path.exists(test_ec))
         self.assertEqual(toy_ec_txt, read_file(test_ec))
@@ -1003,8 +1009,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(target_fn))
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
-        stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to test.eb')
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/toy-0.0.eb copied to test.eb')
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         change_dir(cwd)
 
@@ -1015,8 +1022,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
         mkdir(test_target_dir)
         args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
-        stdout = mocked_main(args)
-        self.assertEqual(stdout, 'toy-0.0.eb copied to %s' % test_target_dir)
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_target_dir)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_ec))
@@ -1037,7 +1045,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', test_target_dir]
-        stdout = mocked_main(args)
+        stdout = self.mocked_main(args)
         self.assertEqual(stdout, '2 file(s) copied to %s' % test_target_dir)
 
         check_copied_files()
@@ -1049,12 +1057,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[-1] = os.path.basename(test_target_dir)
         self.assertFalse(os.path.exists(args[-1]))
 
-        stdout = mocked_main(args)
+        stdout = self.mocked_main(args)
         self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
 
         check_copied_files()
 
-        # copying multiple easyconfig to an existing target file resuts in an error
+        # copying multiple easyconfig to an existing target file results in an error
         target = os.path.join(self.test_prefix, 'test.eb')
         self.assertTrue(os.path.isfile(target))
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
@@ -1067,8 +1075,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         change_dir(test_working_dir)
         self.assertEqual(len(os.listdir(os.getcwd())), 0)
         args = ['--copy-ec', 'toy-0.0.eb']
-        stdout = mocked_main(args)
-        regex = re.compile('toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
+        stdout = self.mocked_main(args)
+        regex = re.compile('.*/toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
         self.assertTrue(regex.match(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         copied_toy_cwd = os.path.join(test_working_dir, 'toy-0.0.eb')
         self.assertTrue(os.path.exists(copied_toy_cwd))
@@ -1076,8 +1084,127 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # --copy-ec without arguments results in a proper error
         args = ['--copy-ec']
-        error_pattern = "One of more files to copy should be specified!"
+        error_pattern = "One or more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+    def test_copy_ec_from_pr(self):
+        """Test combination of --copy-ec with --from-pr."""
+        if self.github_token is None:
+            print("Skipping test_copy_ec_from_pr, no GitHub token available?")
+            return
+
+        test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
+        mkdir(test_working_dir)
+        test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
+        # Make sure the test target directory doesn't exist
+        remove_dir(test_target_dir)
+
+        all_files_pr8007 = [
+            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
+            'bat-0.3.3-fix-pyspark.patch',
+            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        ]
+
+        # test use of --copy-ec with --from-pr to the current working directory
+        cwd = change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007']
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # check that the files exist
+        for pr_file in all_files_pr8007:
+            self.assertTrue(os.path.exists(os.path.join(test_working_dir, pr_file)))
+            remove_file(os.path.join(test_working_dir, pr_file))
+
+        # copying all files touched by PR to a non-existing target directory (which is created automatically)
+        self.assertFalse(os.path.exists(test_target_dir))
+        args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        for pr_file in all_files_pr8007:
+            self.assertTrue(os.path.exists(os.path.join(test_target_dir, pr_file)))
+        remove_dir(test_target_dir)
+
+        # test where we select a single easyconfig file from a PR
+        mkdir(test_target_dir)
+        ec_filename = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
+        args = ['--copy-ec', '--from-pr', '8007', ec_filename, test_target_dir]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_target_dir)))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(os.listdir(test_target_dir), [ec_filename])
+        self.assertTrue("name = 'bat'" in read_file(os.path.join(test_target_dir, ec_filename)))
+        remove_dir(test_target_dir)
+
+        # test copying of a single easyconfig file from a PR to a non-existing path
+        bat_ec = os.path.join(self.test_prefix, 'bat.eb')
+        args[-1] = bat_ec
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/bat.eb" % ec_filename)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertTrue(os.path.exists(bat_ec))
+        self.assertTrue("name = 'bat'" in read_file(bat_ec))
+
+        change_dir(cwd)
+        remove_dir(test_working_dir)
+        mkdir(test_working_dir)
+        change_dir(test_working_dir)
+
+        # test copying of a patch file from a PR via --copy-ec to current directory
+        patch_fn = 'bat-0.3.3-fix-pyspark.patch'
+        args = ['--copy-ec', '--from-pr', '8007', patch_fn, '.']
+        stdout = self.mocked_main(args)
+
+        self.assertEqual(os.listdir(test_working_dir), [patch_fn])
+        patch_path = os.path.join(test_working_dir, patch_fn)
+        self.assertTrue(os.path.exists(patch_path))
+        self.assertTrue(is_patch_file(patch_path))
+        remove_file(patch_path)
+
+        # test the same thing but where we don't provide a target location
+        change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007', ec_filename]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_working_dir)))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(os.listdir(test_working_dir), [ec_filename])
+        self.assertTrue("name = 'bat'" in read_file(os.path.join(test_working_dir, ec_filename)))
+
+        # also test copying of patch file to current directory (without specifying target location)
+        change_dir(test_working_dir)
+        args = ['--copy-ec', '--from-pr', '8007', patch_fn]
+        stdout = self.mocked_main(args)
+
+        regex = re.compile(r"%s copied to .*/%s" % (patch_fn, os.path.basename(test_working_dir)))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(sorted(os.listdir(test_working_dir)), sorted([ec_filename, patch_fn]))
+        self.assertTrue(is_patch_file(os.path.join(test_working_dir, patch_fn)))
+
+        change_dir(cwd)
+        remove_dir(test_working_dir)
+
+        # test with only one ec in the PR (final argument is taken as a filename)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = ['--copy-ec', '--from-pr', '11521', test_ec]
+        ec_pr11521 = "ExifTool-12.00-GCCcore-9.3.0.eb"
+        stdout = self.mocked_main(args)
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertTrue(os.path.exists(test_ec))
+        self.assertTrue("name = 'ExifTool'" in read_file(test_ec))
+        remove_file(test_ec)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
@@ -2521,7 +2648,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # different error when a non-existing easyconfig file is specified to --robot
         args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
-        self.assertErrorRegex(EasyBuildError, "Can't find path", self.eb_main, args, raise_error=True)
+        error_pattern = "One or more files not found: no_such_easyconfig_file_in_robot_search_path.eb"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
             args = ['toy-0.0.eb', '--dry-run', robot]
@@ -2973,7 +3101,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--from-pr=10487',  # PR for CMake easyconfig
-            '--include-easyblocks-from-pr=1936',  # PR for EB_CMake easyblock
+            '--include-easyblocks-from-pr=1936,2204',  # PRs for EB_CMake and Siesta easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -2987,7 +3115,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n")
+        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n" +
+                         "== easyblock siesta.py included from PR #2204\n")
 
         # easyconfig from pr is found
         ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',
@@ -4001,6 +4130,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Skipping test_merge_pr, no GitHub token available?")
             return
 
+        # start by making sure --merge-pr without dry-run errors out for a closed PR
+        args = [
+            '--merge-pr',
+            '11753',  # closed PR
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        error_msg = r"This PR is closed."
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
+
+        # and also for an already merged PR
+        args = [
+            '--merge-pr',
+            '11769',  # already merged PR
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        error_msg = r"This PR is already merged."
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
+
+        # merged PR for EasyBuild-3.3.0.eb, is missing approved review
         args = [
             '--merge-pr',
             '4781',  # PR for easyconfig for EasyBuild-3.3.0.eb
@@ -4009,7 +4161,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--pr-target-branch=some_branch',
         ]
 
-        # merged PR for EasyBuild-3.3.0.eb, is missing approved review
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
@@ -5469,6 +5620,69 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
+
+    # end-to-end testing of unknown filename
+    def test_easystack_wrong_read(self):
+        """Test for --easystack <easystack.yaml> when wrong name is provided"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_nonexistent.yaml')
+        args = ['--easystack', toy_easystack, '--experimental']
+        expected_err = "No such file or directory: '%s'" % toy_easystack
+        self.assertErrorRegex(EasyBuildError, expected_err, self.eb_main, args, raise_error=True)
+
+    # testing basics - end-to-end
+    # expecting successful build
+    def test_easystack_basic(self):
+        """Test for --easystack <easystack.yaml> -> success case"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
+
+        args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
+        stdout, err = self.eb_main(args, do_build=True, return_error=True)
+        patterns = [
+            r"[\S\s]*INFO Building from easystack:[\S\s]*",
+            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
+            r"[\S\s]*INFO building and installing binutils/2\.25-GCCcore-4\.9\.3[\S\s]*",
+            r"[\S\s]*INFO building and installing binutils/2\.26-GCCcore-4\.9\.3[\S\s]*",
+            r"[\S\s]*INFO building and installing toy/0\.0-gompi-2018a-test[\S\s]*",
+            r"[\S\s]*INFO COMPLETED: Installation STOPPED successfully[\S\s]*",
+            r"[\S\s]*INFO Build succeeded for 3 out of 3[\S\s]*"
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.match(stdout) is not None)
+
+    def test_easystack_wrong_structure(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
+
+        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
+        expected_err += r" 'float' object is not subscriptable[\S\s]*"
+        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*"
+        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
+
+    def test_easystack_asterisk(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
+
+        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
+        expected_err += "Wildcard feature is not supported yet."
+
+        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
+
+    def test_easystack_labels(self):
+        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
+        easybuild.tools.build_log.EXPERIMENTAL = True
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
+
+        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
+        error_msg += "Labels aren't supported yet."
+        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, toy_easystack)
 
 
 def suite():
