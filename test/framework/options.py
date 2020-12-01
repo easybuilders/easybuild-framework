@@ -5638,7 +5638,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
         args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
-        stdout, err = self.eb_main(args, do_build=True, return_error=True)
+        stdout = self.eb_main(args, do_build=True, raise_error=True)
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
             r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
@@ -5650,7 +5650,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         for pattern in patterns:
             regex = re.compile(pattern)
-            self.assertTrue(regex.match(stdout) is not None)
+            self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
     def test_easystack_wrong_structure(self):
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
