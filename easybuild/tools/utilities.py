@@ -173,18 +173,18 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
                     pass
 
             if imported is None:
-                raise ImportError("None of the specified modules (%s) is available" % ', '.join(modnames))
+                raise ImportError
             else:
                 return orig
 
-        except ImportError as err:
-            # need to pass down 'err' via named argument to ensure it's in scope when using Python 3.x
-            def error(err=err, *args, **kwargs):
-                msg = "%s; required module '%s' is not available" % (err, modname)
+        except ImportError:
+            def error(*args, **kwargs):
+                msg = "None of the specified modules (%s) is available" % ', '.join(modnames)
                 if pkgname:
                     msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
                 elif url:
                     msg += " (available from %s)" % url
+                msg += ", yet one of them is required!"
                 raise EasyBuildError("ImportError: %s", msg)
             return error
 

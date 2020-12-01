@@ -81,7 +81,8 @@ class GeneralTest(EnhancedTestCase):
         def bar():
             pass
 
-        err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
+        err_pat = r"None of the specified modules \(nosuchmoduleoutthere\) is available.*"
+        err_pat += r"package nosuchpkg.*pypi/nosuchpkg"
         self.assertErrorRegex(EasyBuildError, err_pat, bar)
 
         @only_if_module_is_available(('nosuchmodule', 'anothernosuchmodule'))
@@ -96,7 +97,8 @@ class GeneralTest(EnhancedTestCase):
             def foobar(self):
                 pass
 
-        err_pat = r"required module 'thisdoesnotexist' is not available \(available from http://example.com\)"
+        err_pat = r"None of the specified modules \(thisdoesnotexist\) is available "
+        err_pat += r"\(available from http://example.com\)"
         self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
 
     def test_docstrings(self):

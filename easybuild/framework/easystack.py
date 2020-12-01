@@ -86,7 +86,6 @@ class SoftwareSpecs(object):
 class EasyStackParser(object):
     """Parser for easystack files (in YAML syntax)."""
 
-    @only_if_module_is_available('yaml', pkgname='PyYAML')
     @staticmethod
     def parse(filepath):
         """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
@@ -211,6 +210,7 @@ class EasyStackParser(object):
         return easystack
 
 
+@only_if_module_is_available('yaml', pkgname='PyYAML')
 def parse_easystack(filepath):
     """Parses through easystack file, returns what EC are to be installed together with their options."""
     log_msg = "Support for easybuild-ing from multiple easyconfigs based on "
