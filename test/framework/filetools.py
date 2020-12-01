@@ -48,7 +48,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import std_urllib
-from easybuild.base import fancylogger
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -1266,21 +1265,17 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
                               on_missing_match=run.ERROR)
 
-        fancylogger.logToFile(self.logfile)
-
         # Warn
-        ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
-        with open(self.logfile, 'r') as f:
-            logtxt = f.read()
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+        logtxt = ft.read_file(self.logfile)
         self.assertTrue('WARNING ' + error_pat in logtxt)
 
         # Ignore
-        ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
-        with open(self.logfile, 'r') as f:
-            logtxt = f.read()
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
+        logtxt = ft.read_file(self.logfile)
         self.assertTrue('INFO ' + error_pat in logtxt)
-
-        fancylogger.logToFile(self.logfile, enable=False)
 
         # clean error on non-existing file
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"

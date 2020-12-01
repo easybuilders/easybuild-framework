@@ -1475,7 +1475,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_m
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     :param on_missing_match: Define what to do when no match was found in the file.
                              Can be 'error' to raise an error, 'warn' to print a warning or 'ignore' to do nothing
-                             Defaults to value of --strict
+                             Defaults to the value of --strict
     """
     if on_missing_match is None:
         on_missing_match = build_option('strict')
@@ -1540,13 +1540,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_m
                     elif on_missing_match == run.WARN:
                         _log.warning(msg)
                     else:
-                        msg = 'Nothing found to replace in %s' % path
-                        if on_missing_match == run.ERROR:
-                            raise EasyBuildError(msg)
-                        elif on_missing_match == run.WARN:
-                            print_warning(msg)
-                        else:
-                            _log.info(msg)
+                        _log.info(msg)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
