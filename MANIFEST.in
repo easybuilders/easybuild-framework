@@ -4,7 +4,7 @@ include optcomplete.bash
 recursive-include etc *
 recursive-include easybuild *py
 recursive-include easybuild/scripts *
-recursive-include test *py *eb
+recursive-include test *py *eb *yaml
 recursive-include test/framework/modules *
 recursive-include test/framework/sandbox/sources *
 include CONTRIBUTING.md
