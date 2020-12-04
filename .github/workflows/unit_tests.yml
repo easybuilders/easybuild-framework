@@ -130,6 +130,9 @@ jobs:
         EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
         TEST_EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
       run: |
+          # run tests *outside* of checked out easybuild-framework directory,
+          # to ensure we're testing installed version (see previous step)
+          cd $HOME
           # initialize environment for modules tool
           if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
           source $(cat $HOME/mod_init); type module
