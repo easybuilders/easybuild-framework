@@ -5620,20 +5620,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
-        args = ['--easystack', toy_easystack, '--stop', '--debug', '--experimental']
+        args = ['--easystack', toy_easystack, '--debug', '--experimental', '--dry-run']
         stdout = self.eb_main(args, do_build=True, raise_error=True)
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
-            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs:.*?[\n]"
-            r"[\S\s]*INFO building and installing binutils/2\.25-GCCcore-4\.9\.3[\S\s]*",
-            r"[\S\s]*INFO building and installing binutils/2\.26-GCCcore-4\.9\.3[\S\s]*",
-            r"[\S\s]*INFO building and installing toy/0\.0-gompi-2018a-test[\S\s]*",
-            r"[\S\s]*INFO COMPLETED: Installation STOPPED successfully[\S\s]*",
-            r"[\S\s]*INFO Build succeeded for 3 out of 3[\S\s]*"
+            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs: "
+            r"binutils-2.25-GCCcore-4.9.3.eb, binutils-2.26-GCCcore-4.9.3.eb, toy-0.0-gompi-2018a-test.eb",
+            r"\* \[ \] .*/test_ecs/b/binutils/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils/2.25-GCCcore-4.9.3\)",
+            r"\* \[ \] .*/test_ecs/b/binutils/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils/2.26-GCCcore-4.9.3\)",
+            r"\* \[ \] .*/test_ecs/t/toy/toy-0.0-gompi-2018a-test.eb \(module: toy/0.0-gompi-2018a-test\)",
         ]
         for pattern in patterns:
             regex = re.compile(pattern)
-            self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
     def test_easystack_wrong_structure(self):
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
