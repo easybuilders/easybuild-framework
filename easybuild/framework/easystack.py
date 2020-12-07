@@ -225,7 +225,7 @@ def parse_easystack(filepath):
 
     general_options = easystack.get_general_options()
 
-    _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ", ".join(easyconfig_names))
+    _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ', '.join(sorted(easyconfig_names)))
     if len(general_options) != 0:
         _log.debug("General options for installation are: \n%s" % str(general_options))
     else:
