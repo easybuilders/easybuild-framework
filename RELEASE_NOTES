@@ -8,34 +8,30 @@ v4.3.2 (December 10th 2020)
 
 update/bugfix release
 
-- add (experimental) support for specifying easyconfig files via "easystack" file (#3479)
-- add definition for new gobff toolchain using BLIS and LibFLAME (#3505)
+- add (experimental) support for specifying easyconfig files via an "easystack" file (#3479, #3511, #3515, #3517, #3520, #3521)
+  - see also https://easybuild.readthedocs.io/en/latest/Easystack-files.html
+- add definition for new 'gobff' toolchain using BLIS and LibFLAME (#3505)
 - various enhancements, including:
   - add support for toolchain options like 'extra_cxxflags' to specify extra compiler options (#2193)
   - fix combination of --copy-ec and --from-pr (#3482)
-  - enhance copy_files: single file target, error on empty input list, verbose mode (#3483)
-  - cache result of fetch_files_from_pr function (#3484)
+  - enhance copy_files function: support single file target, error on empty input list, support verbose mode (#3483)
+  - cache result of fetch_files_from_pr function (mainly to speed up framework test suite) (#3484)
   - add locate_files function to filetools module (#3485)
   - add support for %(module_name)s template value (#3497)
-  - clarify input format for --cuda-compute-capabilities (#3509)
+  - clarify input format for --cuda-compute-capabilities in 'eb --help' output (#3509)
 - various bug fixes, including:
   - also ignore vsc.* imports coming from from pkg_resources/__init__.py (setuptools) in fake vsc namespace (#3491)
   - don't pass username in github_api_get_request when no GitHub token is available (#3494)
   - also inject -rpath options for all entries in $LIBRARY_PATH in RPATH wrappers (#3495)
   - avoid TypeError being raised by list_toolchains (#3499)
   - check if PR is already merged in --merge-pr (#3502)
-  - graciously handle wrong PR # in fetch_pr_data (#3503)
+  - graciously handle wrong PR id in fetch_pr_data (#3503)
   - fix regression in apply_regex_substitutions: also accept list of paths to patch (#3507)
   - update installation procedure for EasyBuild in generated Singularity container recipes (#3510)
-  - tweak test_easystack_basic to get better error reporting if it fails (#3511)
-  - fix error when --easystack is used without having PyYAML installed (#3515)
-  - also include *.yaml files from test/ dir in package (#3517)
   - fix GitHub Actions workflow for test suite: run outside of repo checkout + also test bootstrap script with Python 3.9 (#3518)
-  - bump cryptography from 2.9.2 to 3.2 (#3519)
-  - take into account slightly different error with Python 2.6 in test_easystack_wrong_structure (#3520)
-  - use --dry-run in test_easystack_basic to avoid downloading of binutils sources (#3521)
+  - bump cryptography from 2.9.2 to 3.2 for Python 2 in requirements.txt (#3519)
 - other changes:
-  - exclude test configuration with Lmod 7 and Python 3, except for Python 3.6 (#3496)
+  - exclude test configurations with Lmod 7 and Python 3, except for Python 3.6 (#3496)
   - significantly speed up parsing of easyconfig files by only extracting comments from an easyconfig file when they're actually needed (#3498)
   - don't include file/ldd/readelf commands run during RPATH sanity check in --trace output (#3508)
 
