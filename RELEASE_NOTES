@@ -19,6 +19,7 @@ update/bugfix release
   - add locate_files function to filetools module (#3485)
   - add support for %(module_name)s template value (#3497)
   - clarify input format for --cuda-compute-capabilities in 'eb --help' output (#3509)
+  - add support for skiping unit tests (test step) via --skip-test-step (#3524)
 - various bug fixes, including:
   - also ignore vsc.* imports coming from from pkg_resources/__init__.py (setuptools) in fake vsc namespace (#3491)
   - don't pass username in github_api_get_request when no GitHub token is available (#3494)
