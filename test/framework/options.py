@@ -174,6 +174,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile("default: True; disable with --disable-cleanup-builddir", re.M)
         self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
+    def test_help_rst(self):
+        """Test generating --help in RST output format."""
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(['--help=rst'], raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+
+        patterns = [
+            r"^Basic options\n-------------",
+            r"^``--fetch``[ ]*Allow downloading sources",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_no_args(self):
         """Test using no arguments."""
 
