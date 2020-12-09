@@ -258,6 +258,10 @@ def mk_rst_table(titles, columns):
     """
     Returns an rst table with given titles and columns (a nested list of string columns for each column)
     """
+    # take into account that passed values may be iterators produced via 'map'
+    titles = list(titles)
+    columns = list(columns)
+
     title_cnt, col_cnt = len(titles), len(columns)
     if title_cnt != col_cnt:
         msg = "Number of titles/columns should be equal, found %d titles and %d columns" % (title_cnt, col_cnt)
