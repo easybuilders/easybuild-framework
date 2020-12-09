@@ -31,6 +31,7 @@ update/bugfix release
   - update installation procedure for EasyBuild in generated Singularity container recipes (#3510)
   - fix GitHub Actions workflow for test suite: run outside of repo checkout + also test bootstrap script with Python 3.9 (#3518)
   - bump cryptography from 2.9.2 to 3.2 for Python 2 in requirements.txt (#3519)
+  - fix 'eb --help=rst' when running with Python 3 (#3525)
 - other changes:
   - exclude test configurations with Lmod 7 and Python 3, except for Python 3.6 (#3496)
   - significantly speed up parsing of easyconfig files by only extracting comments from an easyconfig file when they're actually needed (#3498)
