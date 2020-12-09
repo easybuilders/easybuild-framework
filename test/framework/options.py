@@ -353,7 +353,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--debug',
         ]
+        self.mock_stdout(True)
         outtxt = self.eb_main(args, do_build=True)
+        self.mock_stdout(False)
         found_msg = "Running method test_step part of step test"
         found = re.search(found_msg, outtxt)
         test_run_msg = "execute make_test dummy_cmd as a command for running unit tests"
@@ -363,7 +365,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # And now with the argument
         args.append('--skip-test-step')
+        self.mock_stdout(True)
         outtxt = self.eb_main(args, do_build=True)
+        self.mock_stdout(False)
         found_msg = "Skipping test step"
         found = re.search(found_msg, outtxt)
         self.assertTrue(found, "Message about test step being skipped is present, outtxt: %s" % outtxt)
