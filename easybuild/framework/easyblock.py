@@ -2139,10 +2139,11 @@ class EasyBlock(object):
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        if self.cfg['runtest']:
+        unit_test_cmd = self.cfg['runtest']
+        if unit_test_cmd:
 
-            self.log.debug("Trying to execute %s as a command for running unit tests...")
-            (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
+            self.log.debug("Trying to execute %s as a command for running unit tests...", unit_test_cmd)
+            (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
 
             return out
 
@@ -3309,6 +3310,10 @@ def build_and_install_one(ecdict, init_env):
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
+
+    if build_option('skip_test_step'):
+        _log.debug('Adding test_step to skipped steps')
+        app.cfg.update('skipsteps', TEST_STEP, allow_duplicate=False)
 
     # build easyconfig
     errormsg = '(no error)'

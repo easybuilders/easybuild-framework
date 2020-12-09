@@ -340,6 +340,40 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
+    def test_skip_test_step(self):
+        """Test skipping testing the build (--skip-test-step)."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
+
+        # check log message without --skip-test-step
+        args = [
+            toy_ec,
+            '--extended-dry-run',
+            '--force',
+            '--debug',
+        ]
+        self.mock_stdout(True)
+        outtxt = self.eb_main(args, do_build=True)
+        self.mock_stdout(False)
+        found_msg = "Running method test_step part of step test"
+        found = re.search(found_msg, outtxt)
+        test_run_msg = "execute make_test dummy_cmd as a command for running unit tests"
+        self.assertTrue(found, "Message about test step being run is present, outtxt: %s" % outtxt)
+        found = re.search(test_run_msg, outtxt)
+        self.assertTrue(found, "Test execution command is present, outtxt: %s" % outtxt)
+
+        # And now with the argument
+        args.append('--skip-test-step')
+        self.mock_stdout(True)
+        outtxt = self.eb_main(args, do_build=True)
+        self.mock_stdout(False)
+        found_msg = "Skipping test step"
+        found = re.search(found_msg, outtxt)
+        self.assertTrue(found, "Message about test step being skipped is present, outtxt: %s" % outtxt)
+        found = re.search(test_run_msg, outtxt)
+        self.assertFalse(found, "Test execution command is NOT present, outtxt: %s" % outtxt)
+
     def test_job(self):
         """Test submitting build as a job."""
 
