@@ -1219,6 +1219,37 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(txt.startswith('FOO '))
         self.assertTrue(txt.endswith(' bar'))
 
+        # also test apply_regex_substitutions with a *list* of paths
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3493
+        test_dir = os.path.join(self.test_prefix, 'test_dir')
+        test_file1 = os.path.join(test_dir, 'one.txt')
+        test_file2 = os.path.join(test_dir, 'two.txt')
+        ft.write_file(test_file1, "Donald is an elephant")
+        ft.write_file(test_file2, "2 + 2 = 5")
+        regexs = [
+            ('Donald', 'Dumbo'),
+            ('= 5', '= 4'),
+        ]
+        ft.apply_regex_substitutions([test_file1, test_file2], regexs)
+
+        # also check dry run mode
+        init_config(build_options={'extended_dry_run': True})
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.apply_regex_substitutions([test_file1, test_file2], regexs)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+        regex = re.compile('\n'.join([
+            r"applying regex substitutions to file\(s\): .*/test_dir/one.txt, .*/test_dir/two.txt",
+            r"  \* regex pattern 'Donald', replacement string 'Dumbo'",
+            r"  \* regex pattern '= 5', replacement string '= 4'",
+            '',
+        ]))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
         lic_file1 = os.path.join(self.test_prefix, 'one.lic')
@@ -1485,7 +1516,7 @@ class FileToolsTest(EnhancedTestCase):
         else:
             # printing this message will make test suite fail in Travis/GitHub CI,
             # since we check for unexpected output produced by the tests
-            print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)", test_file_to_overwrite)
+            print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)" % test_file_to_overwrite)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1550,6 +1581,99 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(copied_toy_ec))
         error_pattern = "/toy-0.0.eb exists but is not a directory"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [bzip2_ec], copied_toy_ec)
+
+        # by default copy_files allows empty input list, but if allow_empty=False then an error is raised
+        ft.copy_files([], self.test_prefix)
+        error_pattern = 'One or more files to copy should be specified!'
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_files, [], self.test_prefix, allow_empty=False)
+
+        # test special case: copying a single file to a file target via target_single_file=True
+        target = os.path.join(self.test_prefix, 'target')
+        self.assertFalse(os.path.exists(target))
+        ft.copy_files([toy_ec], target, target_single_file=True)
+        self.assertTrue(os.path.exists(target))
+        self.assertTrue(os.path.isfile(target))
+        self.assertEqual(toy_ec_txt, ft.read_file(target))
+
+        ft.remove_file(target)
+
+        # also test target_single_file=True with path including a missing subdirectory
+        target = os.path.join(self.test_prefix, 'target_parent', 'target_subdir', 'target.txt')
+        self.assertFalse(os.path.exists(target))
+        self.assertFalse(os.path.exists(os.path.dirname(target)))
+        ft.copy_files([toy_ec], target, target_single_file=True)
+        self.assertTrue(os.path.exists(target))
+        self.assertTrue(os.path.isfile(target))
+        self.assertEqual(toy_ec_txt, ft.read_file(target))
+
+        ft.remove_file(target)
+
+        # default behaviour is to copy single file list to target *directory*
+        self.assertFalse(os.path.exists(target))
+        ft.copy_files([toy_ec], target)
+        self.assertTrue(os.path.exists(target))
+        self.assertTrue(os.path.isdir(target))
+        copied_toy_ec = os.path.join(target, 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertEqual(toy_ec_txt, ft.read_file(copied_toy_ec))
+
+        ft.remove_dir(target)
+
+        # test enabling verbose mode
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files([toy_ec], target, verbose=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        regex = re.compile(r"^1 file\(s\) copied to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        ft.remove_dir(target)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files([toy_ec], target, target_single_file=True, verbose=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        regex = re.compile(r"/.*/toy-0\.0\.eb copied to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        ft.remove_file(target)
+
+        # check behaviour under -x: only printing, no actual copying
+        init_config(build_options={'extended_dry_run': True})
+        self.assertFalse(os.path.exists(os.path.join(target, 'test.eb')))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files(['test.eb'], target)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(target, 'test.eb')))
+        self.assertEqual(stderr, '')
+
+        regex = re.compile("^copied test.eb to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        ft.copy_files(['bar.eb', 'foo.eb'], target)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(target, 'bar.eb')))
+        self.assertFalse(os.path.exists(os.path.join(target, 'foo.eb')))
+        self.assertEqual(stderr, '')
+
+        regex = re.compile("^copied 2 files to .*/target")
+        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
     def test_copy_dir(self):
         """Test copy_dir function."""
@@ -1889,7 +2013,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 82)
+            self.assertEqual(len(index), 83)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2433,13 +2557,22 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^\nERROR: %s" % error_pattern)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
-        # no error if import was detected from pkgutil.py,
+        # no error if import was detected from pkgutil.py or pkg_resources/__init__.py,
         # since that may be triggered by a system-wide vsc-base installation
         # (even though no code is doing 'import vsc'...)
         ft.move_file(test_python_mod, os.path.join(os.path.dirname(test_python_mod), 'pkgutil.py'))
 
         from test_fake_vsc import pkgutil
         self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
+
+        pkg_resources_init = os.path.join(os.path.dirname(test_python_mod), 'pkg_resources', '__init__.py')
+        ft.write_file(pkg_resources_init, 'import vsc')
+
+        # cleanup to force new import of 'vsc', avoid using cached import from previous attempt
+        del sys.modules['vsc']
+
+        from test_fake_vsc import pkg_resources
+        self.assertTrue(pkg_resources.__file__.endswith('/test_fake_vsc/pkg_resources/__init__.py'))
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
@@ -2679,6 +2812,79 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.global_lock_names)
         self.assertFalse(os.path.exists(lock_path))
         self.assertEqual(os.listdir(locks_dir), [])
+
+    def test_locate_files(self):
+        """Test locate_files function."""
+
+        # create some files to find
+        one = os.path.join(self.test_prefix, '1.txt')
+        ft.write_file(one, 'one')
+        two = os.path.join(self.test_prefix, 'subdirA', '2.txt')
+        ft.write_file(two, 'two')
+        three = os.path.join(self.test_prefix, 'subdirB', '3.txt')
+        ft.write_file(three, 'three')
+        ft.mkdir(os.path.join(self.test_prefix, 'empty_subdir'))
+
+        # empty list of files yields empty result
+        self.assertEqual(ft.locate_files([], []), [])
+        self.assertEqual(ft.locate_files([], [self.test_prefix]), [])
+
+        # error is raised if files could not be found
+        error_pattern = r"One or more files not found: nosuchfile.txt \(search paths: \)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['nosuchfile.txt'], [])
+
+        # files specified via absolute path don't have to be found
+        res = ft.locate_files([one], [])
+        self.assertTrue(len(res) == 1)
+        self.assertTrue(os.path.samefile(res[0], one))
+
+        # note: don't compare file paths directly but use os.path.samefile instead,
+        # which is required to avoid failing tests in case temporary directory is a symbolic link (e.g. on macOS)
+        res = ft.locate_files(['1.txt'], [self.test_prefix])
+        self.assertEqual(len(res), 1)
+        self.assertTrue(os.path.samefile(res[0], one))
+
+        res = ft.locate_files(['2.txt'], [self.test_prefix])
+        self.assertEqual(len(res), 1)
+        self.assertTrue(os.path.samefile(res[0], two))
+
+        res = ft.locate_files(['1.txt', '3.txt'], [self.test_prefix])
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], one))
+        self.assertTrue(os.path.samefile(res[1], three))
+
+        # search in multiple paths
+        files = ['2.txt', '3.txt']
+        paths = [os.path.dirname(three), os.path.dirname(two)]
+        res = ft.locate_files(files, paths)
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], two))
+        self.assertTrue(os.path.samefile(res[1], three))
+
+        # same file specified multiple times works fine
+        files = ['1.txt', '2.txt', '1.txt', '3.txt', '2.txt']
+        res = ft.locate_files(files, [self.test_prefix])
+        self.assertEqual(len(res), 5)
+        for idx, expected in enumerate([one, two, one, three, two]):
+            self.assertTrue(os.path.samefile(res[idx], expected))
+
+        # only some files found yields correct warning
+        files = ['2.txt', '3.txt', '1.txt']
+        error_pattern = r"One or more files not found: 3\.txt, 1.txt \(search paths: .*/subdirA\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, files, [os.path.dirname(two)])
+
+        # check that relative paths are found in current working dir
+        ft.change_dir(self.test_prefix)
+        rel_paths = ['subdirA/2.txt', '1.txt']
+        # result is still absolute paths to those files
+        res = ft.locate_files(rel_paths, [])
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], two))
+        self.assertTrue(os.path.samefile(res[1], one))
+
+        # no recursive search in current working dir (which would potentially be way too expensive)
+        error_pattern = r"One or more files not found: 2\.txt \(search paths: \)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['2.txt'], [])
 
 
 def suite():

@@ -81,7 +81,6 @@ while idx < len(args):
             add_rpath_args = False
         cmd_args.append(arg)
 
-    # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
     # FIXME skip paths in /tmp, build dir, etc.?
@@ -96,14 +95,15 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        if os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+        if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
             # inject -rpath flag in front for every -L with an absolute path,
             # also retain the -L flag (without reordering!)
             cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
             cmd_args.append('-L%s' % lib_path)
         else:
-            # don't RPATH in relative paths;
-            # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
+            # don't RPATH in empty or relative paths, or paths that are filtered out;
+            # linking relative paths via RPATH doesn't make much sense,
+            # and it can also break the build because it may result in reordering lib paths
             cmd_args.append('-L%s' % lib_path)
 
     # replace --enable-new-dtags with --disable-new-dtags if it's used;
@@ -118,6 +118,14 @@ while idx < len(args):
         cmd_args.append(arg)
 
     idx += 1
+
+# also inject -rpath options for all entries in $LIBRARY_PATH,
+# unless they are there already
+for lib_path in os.getenv('LIBRARY_PATH', '').split(os.pathsep):
+    if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+        rpath_arg = flag_prefix + '-rpath=%s' % lib_path
+        if rpath_arg not in cmd_args_rpath:
+            cmd_args_rpath.append(rpath_arg)
 
 if add_rpath_args:
     # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags

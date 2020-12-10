@@ -2139,10 +2139,11 @@ class EasyBlock(object):
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        if self.cfg['runtest']:
+        unit_test_cmd = self.cfg['runtest']
+        if unit_test_cmd:
 
-            self.log.debug("Trying to execute %s as a command for running unit tests...")
-            (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
+            self.log.debug("Trying to execute %s as a command for running unit tests...", unit_test_cmd)
+            (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
 
             return out
 
@@ -2460,7 +2461,7 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False)
+                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
                         fails.append("Failed to run 'file %s': %s" % (path, out))
 
@@ -2470,7 +2471,7 @@ class EasyBlock(object):
                     # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
                     if "dynamically linked" in out:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False)
+                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -2483,7 +2484,7 @@ class EasyBlock(object):
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False)
+                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -3309,6 +3310,10 @@ def build_and_install_one(ecdict, init_env):
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
+
+    if build_option('skip_test_step'):
+        _log.debug('Adding test_step to skipped steps')
+        app.cfg.update('skipsteps', TEST_STEP, allow_duplicate=False)
 
     # build easyconfig
     errormsg = '(no error)'

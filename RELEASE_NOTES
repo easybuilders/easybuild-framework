@@ -3,6 +3,41 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.3.2 (December 10th 2020)
+---------------------------
+
+update/bugfix release
+
+- add (experimental) support for specifying easyconfig files via an "easystack" file (#3479, #3511, #3515, #3517, #3520, #3521)
+  - see also https://easybuild.readthedocs.io/en/latest/Easystack-files.html
+- add definition for new 'gobff' toolchain using BLIS and LibFLAME (#3505)
+- various enhancements, including:
+  - add support for toolchain options like 'extra_cxxflags' to specify extra compiler options (#2193)
+  - fix combination of --copy-ec and --from-pr (#3482)
+  - enhance copy_files function: support single file target, error on empty input list, support verbose mode (#3483)
+  - cache result of fetch_files_from_pr function (mainly to speed up framework test suite) (#3484)
+  - add locate_files function to filetools module (#3485)
+  - add support for %(module_name)s template value (#3497)
+  - clarify input format for --cuda-compute-capabilities in 'eb --help' output (#3509)
+  - add support for skiping unit tests (test step) via --skip-test-step (#3524)
+- various bug fixes, including:
+  - also ignore vsc.* imports coming from from pkg_resources/__init__.py (setuptools) in fake vsc namespace (#3491)
+  - don't pass username in github_api_get_request when no GitHub token is available (#3494)
+  - also inject -rpath options for all entries in $LIBRARY_PATH in RPATH wrappers (#3495)
+  - avoid TypeError being raised by list_toolchains (#3499)
+  - check if PR is already merged in --merge-pr (#3502)
+  - graciously handle wrong PR id in fetch_pr_data (#3503)
+  - fix regression in apply_regex_substitutions: also accept list of paths to patch (#3507)
+  - update installation procedure for EasyBuild in generated Singularity container recipes (#3510)
+  - fix GitHub Actions workflow for test suite: run outside of repo checkout + also test bootstrap script with Python 3.9 (#3518)
+  - bump cryptography from 2.9.2 to 3.2 for Python 2 in requirements.txt (#3519)
+  - fix 'eb --help=rst' when running with Python 3 (#3525)
+- other changes:
+  - exclude test configurations with Lmod 7 and Python 3, except for Python 3.6 (#3496)
+  - significantly speed up parsing of easyconfig files by only extracting comments from an easyconfig file when they're actually needed (#3498)
+  - don't include file/ldd/readelf commands run during RPATH sanity check in --trace output (#3508)
+
+
 v4.3.1 (October 29th 2020)
 --------------------------
 

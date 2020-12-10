@@ -57,7 +57,7 @@ def find_rel_test():
     current = os.getcwd()
     os.chdir(basedir)
     res = []
-    for subdir in ["sandbox", "easyconfigs", "modules"]:
+    for subdir in ["easyconfigs", "easystacks", "modules", "sandbox"]:
         res.extend([os.path.join(root, filename)
                     for root, dirnames, filenames in os.walk(subdir)
                     for filename in filenames if os.path.isfile(os.path.join(root, filename))])
