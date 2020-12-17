@@ -49,6 +49,7 @@ from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, m
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
+from easybuild.tools.modules import get_software_version_major_minor
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
 
@@ -660,11 +661,12 @@ class ModulesTest(EnhancedTestCase):
             root = os.path.join(tmpdir, name)
             mkdir(os.path.join(root, 'lib'), parents=True)
             os.environ['EBROOT%s' % env_var_name] = root
-            version = '0.0-%s' % root
+            version = '0.0.1-%s' % root
             os.environ['EBVERSION%s' % env_var_name] = version
 
             self.assertEqual(get_software_root(name), root)
             self.assertEqual(get_software_version(name), version)
+            self.assertEqual(get_software_version_major_minor(name), '0.0')
             self.assertEqual(get_software_libdir(name), 'lib')
 
             os.environ.pop('EBROOT%s' % env_var_name)
@@ -700,6 +702,7 @@ class ModulesTest(EnhancedTestCase):
         # if root/version for specified software package can not be found, these functions should return None
         self.assertEqual(get_software_root('foo'), None)
         self.assertEqual(get_software_version('foo'), None)
+        self.assertEqual(get_software_version_major_minor('foo'), None)
         self.assertEqual(get_software_libdir('foo'), None)
 
         # if no library subdir is found, get_software_libdir should return None

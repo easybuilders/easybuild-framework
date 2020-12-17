@@ -1575,6 +1575,17 @@ def get_software_version(name):
     return version
 
 
+def get_software_version_major_minor(name):
+    """
+    Return the software version with only major and minor digits.
+    """
+    version = get_software_version(name)
+    if version:
+        return '.'.join(version.split('.')[:2])
+    else:
+        return None
+
+
 def curr_module_paths():
     """
     Return a list of current module paths.
