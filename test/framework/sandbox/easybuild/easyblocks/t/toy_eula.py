@@ -28,8 +28,6 @@ EasyBuild support for building and installing toy with EULA, implemented as an e
 @author: Kenneth Hoste (Ghent University)
 """
 from easybuild.easyblocks.toy import EB_toy
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 
 
 class EB_toy_eula(EB_toy):
@@ -39,6 +37,6 @@ class EB_toy_eula(EB_toy):
         """Constructor"""
         super(EB_toy_eula, self).prepare_step(*args, **kwargs)
 
-        accept_eula_for = build_option('accept_eula') or []
-        if 'toy' not in accept_eula_for:
-            raise EasyBuildError("EULA not accepted for toy!")
+        # EULA for toy must be accepted via --accept-eula EasyBuild configuration option,
+        # or via 'accept_eula = True' in easyconfig file
+        self.check_accepted_eula(more_info='https://example.com/toy_eula.txt')

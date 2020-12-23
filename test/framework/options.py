@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
-from easybuild.tools.config import build_option, find_last_log, get_build_log_path, get_module_syntax, module_classes
+from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
@@ -5674,10 +5674,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # by default, no EULAs are accepted at all
         args = [test_ec, '--force']
-        error_pattern = "EULA not accepted for toy!"
+        error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
-        # installation proceeds if EasyBuild is configured to accept EULA for specified software
+        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula
         self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
 
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
@@ -5688,8 +5688,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         remove_dir(self.test_installpath)
         self.assertFalse(os.path.exists(toy_modfile))
 
-        # installation proceeds if EasyBuild is configured to accept EULA for specified software
+        # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
         os.environ['EASYBUILD_ACCEPT_EULA'] = 'toy'
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_modfile))
+
+        remove_dir(self.test_installpath)
+        self.assertFalse(os.path.exists(toy_modfile))
+
+        # also check accepting EULA via 'accept_eula = True' in easyconfig file
+        del os.environ['EASYBUILD_ACCEPT_EULA']
+        write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_modfile))
 

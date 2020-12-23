@@ -1636,6 +1636,28 @@ class EasyBlock(object):
         change_dir(self.start_dir)
         self.log.debug("Changed to real build directory %s (start_dir)", self.start_dir)
 
+    def check_accepted_eula(self, more_info=None):
+        """Check whether EULA for this software is accepted in current EasyBuild configuration."""
+
+        accepted_eulas = build_option('accept_eula') or []
+        if self.cfg['accept_eula'] or self.name in accepted_eulas:
+            self.log.info("EULA for %s is accepted", self.name)
+        else:
+            error_lines = [
+                "The End User License Argreement (EULA) for %(name)s is currently not accepted!",
+            ]
+            if more_info:
+                error_lines.append("(see %s for more information)" % more_info)
+
+            error_lines.extend([
+                "You should either:",
+                "- add --accept-eula-for=%(name)s to the 'eb' command;",
+                "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
+                "- add 'accept_eula = True' to the easyconfig file you are using;",
+                '',
+            ])
+            raise EasyBuildError('\n'.join(error_lines) % {'name': self.name})
+
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
 
