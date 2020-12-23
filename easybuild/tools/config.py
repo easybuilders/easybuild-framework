@@ -161,6 +161,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
+        'accept_eula',
         'aggregate_regtest',
         'backup_modules',
         'container_config',
