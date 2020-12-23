@@ -765,6 +765,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toy_eula',
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
@@ -773,6 +774,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toy_eula',
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
             ])
