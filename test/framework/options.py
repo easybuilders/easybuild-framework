@@ -765,6 +765,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toy_eula',
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
@@ -773,6 +774,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toy_eula',
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
             ])
@@ -5657,6 +5659,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
+
+    def test_accept_eula_for(self):
+        """Test --accept-eula configuration option."""
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            "easyblock = 'EB_toy_eula'",
+            '',
+            read_file(toy_ec),
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        # by default, no EULAs are accepted at all
+        args = [test_ec, '--force']
+        error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula
+        self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
+
+        toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_modfile += '.lua'
+        self.assertTrue(os.path.exists(toy_modfile))
+
+        remove_dir(self.test_installpath)
+        self.assertFalse(os.path.exists(toy_modfile))
+
+        # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
+        os.environ['EASYBUILD_ACCEPT_EULA'] = 'toy'
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_modfile))
+
+        remove_dir(self.test_installpath)
+        self.assertFalse(os.path.exists(toy_modfile))
+
+        # also check accepting EULA via 'accept_eula = True' in easyconfig file
+        del os.environ['EASYBUILD_ACCEPT_EULA']
+        write_file(test_ec, test_ec_txt + '\naccept_eula = True')
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_modfile))
 
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):
