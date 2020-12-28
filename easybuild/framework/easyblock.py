@@ -1651,7 +1651,7 @@ class EasyBlock(object):
 
             error_lines.extend([
                 "You should either:",
-                "- add --accept-eula-for=%(name)s to the 'eb' command;",
+                "- add --accept-eula=%(name)s to the 'eb' command;",
                 "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
                 "- add 'accept_eula = True' to the easyconfig file you are using;",
                 '',
