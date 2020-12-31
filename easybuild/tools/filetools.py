@@ -2287,7 +2287,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     if commit:
         checkout_cmd = ['git', 'checkout', commit]
         if recursive:
-            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
+            checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
         run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
