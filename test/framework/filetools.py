@@ -2475,7 +2475,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update"',
+            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
