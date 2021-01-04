@@ -704,12 +704,7 @@ class EasyConfig(object):
             self.log.info("Parsing dependency specifications...")
 
             def remove_false_versions(deps):
-                ret = []
-                for dep in deps:
-                    if isinstance(dep, dict) and dep['version'] is False:
-                        continue
-                    ret.append(dep)
-                return ret
+                return [dep for dep in deps if not (isinstance(dep, dict) and dep['version'] is False)]
 
             self['dependencies'] = remove_false_versions(self._parse_dependency(dep) for dep in self['dependencies'])
             self['hiddendependencies'] = remove_false_versions(self._parse_dependency(dep, hidden=True) for dep in
