@@ -38,7 +38,7 @@ import sys
 
 def is_new_existing_path(new_path, paths):
     """
-    Check whether specified path exsits and is a new path compared to provided list of paths.
+    Check whether specified path exists and is a new path compared to provided list of paths.
     """
 
     # assume path is new, until proven otherwise
