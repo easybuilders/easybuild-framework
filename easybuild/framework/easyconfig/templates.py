@@ -243,9 +243,9 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             else:
                 deps += config.get('builddependencies', [])
 
-        # Include all toolchain deps (e.g. CUDAcore template in fosscuda)
-        if config.toolchain.tcdeps is not None:
-            deps += config.toolchain.tcdeps
+            # Include all toolchain deps (e.g. CUDAcore template in fosscuda)
+            if config.toolchain.tcdeps is not None:
+                deps += config.toolchain.tcdeps
 
         for dep in deps:
             if isinstance(dep, dict):
