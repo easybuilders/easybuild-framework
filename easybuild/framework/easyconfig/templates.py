@@ -80,6 +80,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 TEMPLATE_SOFTWARE_VERSIONS = [
     # software name, prefix for *ver and *shortver
     ('CUDA', 'cuda'),
+    ('CUDAcore', 'cuda'),
     ('Java', 'java'),
     ('Perl', 'perl'),
     ('Python', 'py'),
@@ -241,6 +242,10 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                     deps += config.get('builddependencies', [])
             else:
                 deps += config.get('builddependencies', [])
+
+        # Include all toolchain deps (e.g. CUDAcore template in fosscuda)
+        if config.toolchain.tcdeps is not None:
+            deps += config.toolchain.tcdeps
 
         for dep in deps:
             if isinstance(dep, dict):
