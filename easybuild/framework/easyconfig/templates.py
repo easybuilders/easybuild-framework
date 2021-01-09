@@ -239,13 +239,13 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             # only consider build dependencies when we're actually in iterative mode!
             if 'builddependencies' in config.iterate_options:
                 if config.iterating:
-                    deps += config.get('builddependencies', [])
+                    deps.extend(config.get('builddependencies', []))
             else:
-                deps += config.get('builddependencies', [])
+                deps.extend(config.get('builddependencies', []))
 
             # Include all toolchain deps (e.g. CUDAcore template in fosscuda)
             if config.toolchain.tcdeps is not None:
-                deps += config.toolchain.tcdeps
+                deps.extend(config.toolchain.tcdeps)
 
         for dep in deps:
             if isinstance(dep, dict):
