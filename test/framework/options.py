@@ -5725,10 +5725,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
             r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs: "
-            r"binutils-2.25-GCCcore-4.9.3.eb, binutils-2.26-GCCcore-4.9.3.eb, toy-0.0-gompi-2018a-test.eb",
+            r"binutils-2.25-GCCcore-4.9.3.eb, binutils-2.26-GCCcore-4.9.3.eb, "
+            r"foss-2018a.eb, toy-0.0-gompi-2018a-test.eb",
             r"\* \[ \] .*/test_ecs/b/binutils/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils/2.25-GCCcore-4.9.3\)",
             r"\* \[ \] .*/test_ecs/b/binutils/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils/2.26-GCCcore-4.9.3\)",
             r"\* \[ \] .*/test_ecs/t/toy/toy-0.0-gompi-2018a-test.eb \(module: toy/0.0-gompi-2018a-test\)",
+            r"\* \[x\] .*/test_ecs/f/foss/foss-2018a.eb \(module: foss/2018a\)",
         ]
         for pattern in patterns:
             regex = re.compile(pattern)
