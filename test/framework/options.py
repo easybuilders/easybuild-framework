@@ -3047,6 +3047,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         orig_local_sys_path = sys.path[:]
+        orig_sys_modules = sys.modules.copy()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -3091,14 +3093,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of easyblocks
-        del sys.modules['easybuild.easyblocks.foo']
-        del sys.modules['easybuild.easyblocks.generic.cmakemake']
+        sys.modules.clear()
+        sys.modules.update(orig_sys_modules)
         os.remove(os.path.join(self.test_prefix, 'foo.py'))
         sys.path = orig_local_sys_path
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
 
         # include test cmakemake easyblock
         cmm_txt = '\n'.join([
