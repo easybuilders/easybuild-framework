@@ -95,6 +95,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
+            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -125,6 +126,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', '.txz'),
             ('test.iso', '.iso'),
             ('test.tar.Z', '.tar.Z'),
+            ('test.foo.bar.sh', '.sh'),
         ]
         for (fn, expected_ext) in tests:
             cmd = ft.find_extension(fn)
