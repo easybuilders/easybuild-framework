@@ -153,7 +153,7 @@ EXTRACT_CMDS = {
     '.iso': "7z x %(filepath)s",
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
-    # shell scripts don't need unpacked, just copy there
+    # shell scripts don't need to be unpacked, just copy there
     '.sh': "cp -a %(filepath)s .",
 }
 
