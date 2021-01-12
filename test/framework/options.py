@@ -3047,6 +3047,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         orig_local_sys_path = sys.path[:]
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -3095,10 +3096,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.generic.cmakemake']
         os.remove(os.path.join(self.test_prefix, 'foo.py'))
         sys.path = orig_local_sys_path
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
 
         # include test cmakemake easyblock
         cmm_txt = '\n'.join([
