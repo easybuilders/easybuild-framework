@@ -71,8 +71,9 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
 
         if ec['toolchain']['name'] == 'foss':
             release_date = ec['toolchain']['version']
-        elif ec['toolchain']['name'] == 'GCCcore': 
-        # please add a new GCCcore version if you want to use a new toolchain version.
+        elif ec['toolchain']['name'] == 'GCCcore':
+            # please add a new GCCcore version
+            # if you want to use a new toolchain version.
             if ec['toolchain']['version'] == '7.3.0':
                 release_date = '2018b'
             elif ec['toolchain']['version'] == '6.3.0':
@@ -85,8 +86,9 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
                 release_date = '2019b'
             elif ec['toolchain']['version'] == '10.2.0':
                 release_date = '2020b'
-        elif ec['toolchain']['name'] == 'GCC': 
-        # please add a new GCC version if you want to use a new toolchain version.
+        elif ec['toolchain']['name'] == 'GCC':
+            # please add a new GCC version
+            # if you want to use a new toolchain version.
             if ec['toolchain']['version'] == '7.3.0-2.30':
                 release_date = '2018b'
             elif ec['toolchain']['version'] == '6.3.0-2.27':
