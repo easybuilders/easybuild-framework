@@ -2888,6 +2888,24 @@ class FileToolsTest(EnhancedTestCase):
         error_pattern = r"One or more files not found: 2\.txt \(search paths: \)"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['2.txt'], [])
 
+    def test_create_unused_dir(self):
+        path = ft.create_unused_dir(self.test_prefix, 'folder')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'folder'))
+        self.assertTrue(os.path.exists(path))
+        # Repeat with existing folder(s) should create new ones
+        for i in range(10):
+            path = ft.create_unused_dir(self.test_prefix, 'folder')
+            self.assertEqual(path, os.path.join(self.test_prefix, 'folder_%s' % i))
+            self.assertTrue(os.path.exists(path))
+        # Not influenced by similar folder
+        path = ft.create_unused_dir(self.test_prefix, 'folder2')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'folder2'))
+        self.assertTrue(os.path.exists(path))
+        for i in range(10):
+            path = ft.create_unused_dir(self.test_prefix, 'folder2')
+            self.assertEqual(path, os.path.join(self.test_prefix, 'folder2_%s' % i))
+            self.assertTrue(os.path.exists(path))
+
 
 def suite():
     """ returns all the testcases in this module """
