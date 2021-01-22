@@ -78,8 +78,8 @@ class Cuda(Compiler):
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
         root = get_software_root('CUDAcore')
         if not root:
-            root = self.get_software_root('CUDA')
-        self.variables.append_subdirs("LDFLAGS", root[0], subdirs=["lib64", "lib"])
+            root = self.get_software_root('CUDA')[0]
+        self.variables.append_subdirs("LDFLAGS", root, subdirs=["lib64", "lib"])
         super(Cuda, self)._set_compiler_vars()
 
     def _set_compiler_flags(self):
