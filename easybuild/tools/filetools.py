@@ -2588,3 +2588,43 @@ def copy_framework_files(paths, target_dir):
             raise EasyBuildError("Couldn't find parent folder of updated file: %s", path)
 
     return file_info
+
+
+def create_unused_dir(parent_folder, name):
+    """
+    Create a new folder in parent_folder using name as the name.
+    When a folder of that name already exists, '_0' is appended which is retried for increasing numbers until
+    an unused name was found
+    """
+    if not os.path.isabs(parent_folder):
+        parent_folder = os.path.abspath(parent_folder)
+
+    start_path = os.path.join(parent_folder, name)
+    number = None
+    while True:
+        if number is None:
+            path = start_path
+            number = 0
+        else:
+            path = start_path + '_' + str(number)
+            number += 1
+        try:
+            os.mkdir(path)
+            break
+        except OSError as err:
+            # Distinguish between error due to existing folder and anything else
+            if not os.path.exists(path):
+                raise EasyBuildError("Failed to create directory %s: %s", path, err)
+
+    # set group ID and sticky bits, if desired
+    bits = 0
+    if build_option('set_gid_bit'):
+        bits |= stat.S_ISGID
+    if build_option('sticky_bit'):
+        bits |= stat.S_ISVTX
+    if bits:
+        try:
+            adjust_permissions(path, bits, add=True, relative=True, recursive=True, onlydirs=True)
+        except OSError as err:
+            raise EasyBuildError("Failed to set group ID/sticky bit: %s", err)
+    return path
