@@ -420,7 +420,8 @@ class Toolchain(object):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
-            raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
+            if required:
+                raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment", root, name)
         return root
