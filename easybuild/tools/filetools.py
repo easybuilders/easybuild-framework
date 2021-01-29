@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -153,6 +153,8 @@ EXTRACT_CMDS = {
     '.iso': "7z x %(filepath)s",
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
+    # shell scripts don't need to be unpacked, just copy there
+    '.sh': "cp -a %(filepath)s .",
 }
 
 # global set of names of locks that were created in this session
@@ -861,6 +863,60 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
+def locate_files(files, paths, ignore_subdirs=None):
+    """
+    Determine full path for list of files, in given list of paths (directories).
+    """
+    # determine which files need to be found, if any
+    files_to_find = []
+    for idx, filepath in enumerate(files):
+        if filepath == os.path.basename(filepath) and not os.path.exists(filepath):
+            files_to_find.append((idx, filepath))
+    _log.debug("List of files to find: %s", files_to_find)
+
+    # find missing easyconfigs by walking paths in robot search path
+    for path in paths:
+
+        # skip non-existing paths
+        if not os.path.exists(path):
+            _log.debug("%s does not exist, skipping it...", path)
+            continue
+
+        _log.debug("Looking for missing files (%d left) in %s...", len(files_to_find), path)
+
+        # try to load index for current path, or create one
+        path_index = load_index(path, ignore_dirs=ignore_subdirs)
+        if path_index is None or build_option('ignore_index'):
+            _log.info("No index found for %s, creating one (in memory)...", path)
+            path_index = create_index(path, ignore_dirs=ignore_subdirs)
+        else:
+            _log.info("Index found for %s, so using it...", path)
+
+        for filepath in path_index:
+            for idx, file_to_find in files_to_find[:]:
+                if os.path.basename(filepath) == file_to_find:
+                    full_path = os.path.join(path, filepath)
+                    _log.info("Found %s in %s: %s", file_to_find, path, full_path)
+                    files[idx] = full_path
+                    # if file was found, stop looking for it (first hit wins)
+                    files_to_find.remove((idx, file_to_find))
+
+            # stop as soon as we have all we need (path index loop)
+            if not files_to_find:
+                break
+
+        # stop as soon as we have all we need (paths loop)
+        if not files_to_find:
+            break
+
+    if files_to_find:
+        filenames = ', '.join([f for (_, f) in files_to_find])
+        paths = ', '.join(paths)
+        raise EasyBuildError("One or more files not found: %s (search paths: %s)", filenames, paths)
+
+    return [os.path.abspath(f) for f in files]
+
+
 def find_glob_pattern(glob_pattern, fail_on_no_match=True):
     """Find unique file/dir matching glob_pattern (raises error if more than one match is found)"""
     if build_option('extended_dry_run'):
@@ -1348,25 +1404,30 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
     """
     Apply specified list of regex substitutions.
 
-    :param path: path to file to patch
+    :param paths: list of paths to files to patch (or just a single filepath)
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     """
+    if isinstance(paths, string_type):
+        paths = [paths]
+
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
-        dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
+        paths_str = ', '.join(paths)
+        dry_run_msg("applying regex substitutions to file(s): %s" % paths_str, silent=build_option('silent'))
         for regex, subtxt in regex_subs:
             dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
 
     else:
-        _log.info("Applying following regex substitutions to %s: %s", path, regex_subs)
+        _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        for i, (regex, subtxt) in enumerate(regex_subs):
-            regex_subs[i] = (re.compile(regex), subtxt)
+        compiled_regex_subs = []
+        for regex, subtxt in regex_subs:
+            compiled_regex_subs.append((re.compile(regex), subtxt))
 
         if backup:
             backup_ext = backup
@@ -1374,30 +1435,32 @@ def apply_regex_substitutions(path, regex_subs, backup='.orig.eb'):
             # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
             backup_ext = ''
 
-        try:
-            # make sure that file can be opened in text mode;
-            # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
+        for path in paths:
             try:
-                with open(path, 'r') as fp:
-                    _ = fp.read()
-            except UnicodeDecodeError as err:
-                _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
-                path_backup = back_up_file(path)
-                _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
-                txt = read_file(path, mode='rb')
-                txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
-                write_file(path, txt_utf8)
+                # make sure that file can be opened in text mode;
+                # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
+                try:
+                    with open(path, 'r') as fp:
+                        _ = fp.read()
+                except UnicodeDecodeError as err:
+                    _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
+                    path_backup = back_up_file(path)
+                    _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
+                    txt = read_file(path, mode='rb')
+                    txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
+                    write_file(path, txt_utf8)
 
-            for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
-                for regex, subtxt in regex_subs:
-                    match = regex.search(line)
-                    if match:
-                        _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, match.group(0), subtxt)
-                    line = regex.sub(subtxt, line)
-                sys.stdout.write(line)
+                for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
+                    for regex, subtxt in compiled_regex_subs:
+                        match = regex.search(line)
+                        if match:
+                            origtxt = match.group(0)
+                            _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, origtxt, subtxt)
+                        line = regex.sub(subtxt, line)
+                    sys.stdout.write(line)
 
-        except (IOError, OSError) as err:
-            raise EasyBuildError("Failed to patch %s: %s", path, err)
+            except (IOError, OSError) as err:
+                raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):
@@ -2103,26 +2166,49 @@ def copy_file(path, target_path, force_in_dry_run=False):
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
 
-def copy_files(paths, target_dir, force_in_dry_run=False):
+def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=False, allow_empty=True, verbose=False):
     """
-    Copy list of files to specified target directory (which is created if it doesn't exist yet).
+    Copy list of files to specified target path.
+    Target directory is created if it doesn't exist yet.
 
-    :param filepaths: list of files to copy
-    :param target_dir: target directory to copy files into
+    :param paths: list of filepaths to copy
+    :param target_path: path to copy files to
     :param force_in_dry_run: force copying of files during dry run
+    :param target_single_file: if there's only a single file to copy, copy to a file at target path (not a directory)
+    :param allow_empty: allow empty list of paths to copy as input (if False: raise error on empty input list)
+    :param verbose: print a message to report copying of files
     """
+    # dry run: just report copying, don't actually copy
     if not force_in_dry_run and build_option('extended_dry_run'):
-        dry_run_msg("copied files %s to %s" % (paths, target_dir))
-    else:
-        if os.path.exists(target_dir):
-            if os.path.isdir(target_dir):
-                _log.info("Copying easyconfigs into existing directory %s...", target_dir)
-            else:
-                raise EasyBuildError("%s exists but is not a directory", target_dir)
+        if len(paths) == 1:
+            dry_run_msg("copied %s to %s" % (paths[0], target_path))
         else:
-            mkdir(target_dir, parents=True)
+            dry_run_msg("copied %d files to %s" % (len(paths), target_path))
+
+    # special case: single file to copy and target_single_file is True => copy to file
+    elif len(paths) == 1 and target_single_file:
+        copy_file(paths[0], target_path)
+        if verbose:
+            print_msg("%s copied to %s" % (paths[0], target_path), prefix=False)
+
+    elif paths:
+        # check target path: if it exists it should be a directory; if it doesn't exist, we create it
+        if os.path.exists(target_path):
+            if os.path.isdir(target_path):
+                _log.info("Copying easyconfigs into existing directory %s...", target_path)
+            else:
+                raise EasyBuildError("%s exists but is not a directory", target_path)
+        else:
+            mkdir(target_path, parents=True)
+
         for path in paths:
-            copy_file(path, target_dir)
+            copy_file(path, target_path)
+
+        if verbose:
+            print_msg("%d file(s) copied to %s" % (len(paths), target_path), prefix=False)
+
+    elif not allow_empty:
+        raise EasyBuildError("One or more files to copy should be specified!")
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
@@ -2272,7 +2358,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     if commit:
         checkout_cmd = ['git', 'checkout', commit]
         if recursive:
-            checkout_cmd.extend(['&&', 'git', 'submodule', 'update'])
+            checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
         run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
 
@@ -2344,10 +2430,11 @@ def install_fake_vsc():
         '        filename, lineno = cand_filename, cand_lineno',
         '        break',
         '',
-        '# ignore imports from pkgutil.py (part of Python standard library),',
+        '# ignore imports from pkgutil.py (part of Python standard library)',
+        '# or from pkg_resources/__init__.py (setuptools),',
         '# which may happen due to a system-wide installation of vsc-base',
         '# even if it is not actually actively used...',
-        'if os.path.basename(filename) != "pkgutil.py":',
+        'if os.path.basename(filename) != "pkgutil.py" and not filename.endswith("pkg_resources/__init__.py"):',
         '    error_msg = "\\nERROR: Detected import from \'vsc\' namespace in %s (line %s)\\n" % (filename, lineno)',
         '    error_msg += "vsc-base & vsc-install were ingested into the EasyBuild framework in EasyBuild v4.0\\n"',
         '    error_msg += "The functionality you need may be available in the \'easybuild.base.*\' namespace.\\n"',

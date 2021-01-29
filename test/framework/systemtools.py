@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,21 +29,23 @@ Unit tests for systemtools.py
 @author: Ward Poelmans (Ghent University)
 """
 import re
+import os
 import sys
+import stat
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
+from easybuild.tools.filetools import adjust_permissions, read_file, which, write_file
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import check_python_version, pick_dep_version
+from easybuild.tools.systemtools import check_os_dependency, check_python_version, pick_dep_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_arch_name, get_cpu_architecture
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
@@ -357,6 +359,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Set up systemtools test."""
         super(SystemToolsTest, self).setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
+        self.orig_get_os_name = st.get_os_name
         self.orig_get_os_type = st.get_os_type
         self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
@@ -375,6 +378,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.is_readable = self.orig_is_readable
         st.read_file = self.orig_read_file
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+        st.get_os_name = self.orig_get_os_name
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
         st.platform.uname = self.orig_platform_uname
@@ -911,6 +915,49 @@ class SystemToolsTest(EnhancedTestCase):
 
         error_pattern = "Unknown value type for version"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
+
+    def test_check_os_dependency(self):
+        """Test check_os_dependency."""
+
+        # mock get_os_name in systemtools module to get control over command used to check OS dep
+        st.get_os_name = lambda: 'centos'
+
+        # add fake 'rpm' command that fails when $LD_LIBRARY_PATH is set
+        rpm = os.path.join(self.test_prefix, 'rpm')
+        rpm_txt = '\n'.join([
+            "#!/bin/bash",
+            "if [[ -z $LD_LIBRARY_PATH ]]; then",
+            '    echo "OK: $@ (LD_LIBRARY_PATH: $LD_LIBRARY_PATH)"',
+            "    exit 0",
+            "else",
+            '    echo "LD_LIBRARY_PATH set ($LD_LIBRARY_PATH), fail!"',
+            "    exit 1",
+            "fi",
+        ])
+        write_file(rpm, rpm_txt)
+        adjust_permissions(rpm, stat.S_IXUSR, add=True)
+
+        # also create fake 'locate' command, which is used as fallback
+        locate = os.path.join(self.test_prefix, 'locate')
+        write_file(locate, 'exit 1')
+        adjust_permissions(locate, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = self.test_prefix + ':' + os.getenv('PATH')
+
+        self.assertTrue(os.path.samefile(which('rpm'), rpm))
+
+        # redefine $HOME to put .bash_profile startup script to control $LD_LIBRARY_PATH value
+        # we can't directly control the $LD_LIBRARY_PATH via os.environ, doesn't work...
+        os.environ['HOME'] = self.test_prefix
+        bash_profile = os.path.join(self.test_prefix, '.bash_profile')
+        write_file(bash_profile, 'unset LD_LIBRARY_PATH')
+
+        # mocked rpm always exits with exit code 0 (unless $LD_LIBRARY_PATH is set)
+        self.assertTrue(check_os_dependency('foo'))
+
+        # still works fine if $LD_LIBRARY_PATH is set
+        write_file(bash_profile, 'export LD_LIBRARY_PATH=%s' % self.test_prefix)
+        self.assertTrue(check_os_dependency('bar'))
 
 
 def suite():

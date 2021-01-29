@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -47,20 +47,22 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, st
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, det_copy_ec_specs
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, copy_file, copy_files, dump_index, load_index
-from easybuild.tools.filetools import read_file, register_lock_cleanup_signal_handlers, write_file
-from easybuild.tools.github import check_github, close_pr, new_branch_github, find_easybuild_easyconfig
-from easybuild.tools.github import install_github_token, list_prs, new_pr, new_pr_from_branch, merge_pr
+from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
+from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
+from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
+from easybuild.tools.github import install_github_token, list_prs, merge_pr, new_branch_github, new_pr
+from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
@@ -223,6 +225,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
 
+    # if easystack is provided with the command, commands with arguments from it will be executed
+    if options.easystack:
+        # TODO add general_options (i.e. robot) to build options
+        orig_paths, general_options = parse_easystack(options.easystack)
+        if general_options:
+            raise EasyBuildError("Specifying general configuration options in easystack file is not supported yet.")
+
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
@@ -303,12 +312,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
-    if len(orig_paths) == 1:
-        # if only one easyconfig file is specified, use current directory as target directory
-        target_path = os.getcwd()
-    elif orig_paths:
-        # last path is target when --copy-ec is used, so remove that from the list
-        target_path = orig_paths.pop() if options.copy_ec else None
+    if options.copy_ec:
+        # figure out list of files to copy + target location (taking into account --from-pr)
+        orig_paths, target_path = det_copy_ec_specs(orig_paths, options.from_pr)
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
@@ -321,17 +327,17 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
 
-    if (options.copy_ec and not tweaked_ecs_paths) or options.fix_deprecated_easyconfigs or options.show_ec:
+    # only copy easyconfigs here if we're not using --try-* (that's handled below)
+    copy_ec = options.copy_ec and not tweaked_ecs_paths
+
+    if copy_ec or options.fix_deprecated_easyconfigs or options.show_ec:
 
         if options.copy_ec:
-            if len(determined_paths) == 1:
-                copy_file(determined_paths[0], target_path)
-                print_msg("%s copied to %s" % (os.path.basename(determined_paths[0]), target_path), prefix=False)
-            elif len(determined_paths) > 1:
-                copy_files(determined_paths, target_path)
-                print_msg("%d file(s) copied to %s" % (len(determined_paths), target_path), prefix=False)
-            else:
-                raise EasyBuildError("One of more files to copy should be specified!")
+            # at this point some paths may still just be filenames rather than absolute paths,
+            # so try to determine full path for those too via robot search path
+            paths = locate_files(orig_paths, robot_path)
+
+            copy_files(paths, target_path, target_single_file=True, allow_empty=False, verbose=True)
 
         elif options.fix_deprecated_easyconfigs:
             fix_deprecated_easyconfigs(determined_paths)
@@ -361,7 +367,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         # fallback: easybuild-easyconfigs install path
-        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths, modtool)
+        regtest_ok = regtest([x for (x, _) in paths] or easyconfigs_pkg_paths, modtool)
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
@@ -429,8 +435,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if tweaked_ecs_in_all_ecs:
             # Clean them, then copy them
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
-            copy_files(tweaked_ecs_in_all_ecs, target_path)
-            print_msg("%d file(s) copied to %s" % (len(tweaked_ecs_in_all_ecs), target_path), prefix=False)
+            copy_files(tweaked_ecs_in_all_ecs, target_path, allow_empty=False, verbose=True)
+
+        clean_exit(logfile, eb_tmpdir, testing)
 
     # creating/updating PRs
     if pr_options:

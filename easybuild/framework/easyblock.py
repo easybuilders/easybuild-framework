@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -502,6 +502,8 @@ class EasyBlock(object):
         if self.dry_run:
             self.dry_run_msg("\nList of sources/patches for extensions:")
 
+        force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
+
         for ext in exts_list:
             if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
 
@@ -539,18 +541,17 @@ class EasyBlock(object):
                     # resolve templates in extension options
                     ext_options = resolve_template(ext_options, template_values)
 
+                    source_urls = ext_options.get('source_urls', [])
                     checksums = ext_options.get('checksums', [])
 
-                    # use default template for name of source file if none is specified
-                    default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
-                    fn = ext_options.get('source_tmpl', default_source_tmpl)
-
                     if ext_options.get('nosource', None):
-                        exts_sources.append(ext_src)
+                        self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
 
                     elif ext_options.get('sources', None):
                         sources = ext_options['sources']
 
+                        # only a single source file is supported for extensions currently,
+                        # see https://github.com/easybuilders/easybuild-framework/issues/3463
                         if isinstance(sources, list):
                             if len(sources) == 1:
                                 source = sources[0]
@@ -560,67 +561,90 @@ class EasyBlock(object):
                         else:
                             source = sources
 
+                        # always pass source spec as dict value to fetch_source method,
+                        # mostly so we can inject stuff like source URLs
+                        if isinstance(source, string_type):
+                            source = {'filename': source}
+                        elif not isinstance(source, dict):
+                            raise EasyBuildError("Incorrect value type for source of extension %s: %s",
+                                                 ext_name, source)
+
+                        # if no custom source URLs are specified in sources spec,
+                        # inject the ones specified for this extension
+                        if 'source_urls' not in source:
+                            source['source_urls'] = source_urls
+
                         src = self.fetch_source(source, checksums, extension=True)
-                        # Copy 'path' entry to 'src' for use with extensions
+
+                        # copy 'path' entry to 'src' for use with extensions
                         ext_src.update({'src': src['path']})
-                        exts_sources.append(ext_src)
+
                     else:
-                        source_urls = ext_options.get('source_urls', [])
-                        force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
+                        # use default template for name of source file if none is specified
+                        default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
 
-                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
-
-                        if src_fn:
-                            ext_src.update({'src': src_fn})
-
-                            if not skip_checksums:
-                                # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                                for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                    src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
-                                    self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
-
-                                # verify checksum (if provided)
-                                self.log.debug('Verifying checksums for extension source...')
-                                fn_checksum = self.get_checksum_for(checksums, index=0)
-                                if verify_checksum(src_fn, fn_checksum):
-                                    self.log.info('Checksum for extension source %s verified', fn)
-                                elif build_option('ignore_checksums'):
-                                    print_warning("Ignoring failing checksum verification for %s" % fn)
-                                else:
-                                    raise EasyBuildError('Checksum verification for extension source %s failed', fn)
-
-                            ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
-                            if ext_patches:
-                                self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
-                                ext_src.update({'patches': ext_patches})
-
-                                if not skip_checksums:
-                                    for patch in ext_patches:
-                                        patch = patch['path']
-                                        # report both MD5 and SHA256 checksums,
-                                        # since both are valid default checksum types
-                                        for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                            checksum = compute_checksum(patch, checksum_type=checksum_type)
-                                            self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
-
-                                    # verify checksum (if provided)
-                                    self.log.debug('Verifying checksums for extension patches...')
-                                    for idx, patch in enumerate(ext_patches):
-                                        patch = patch['path']
-                                        checksum = self.get_checksum_for(checksums[1:], index=idx)
-                                        if verify_checksum(patch, checksum):
-                                            self.log.info('Checksum for extension patch %s verified', patch)
-                                        elif build_option('ignore_checksums'):
-                                            print_warning("Ignoring failing checksum verification for %s" % patch)
-                                        else:
-                                            raise EasyBuildError('Checksum for extension patch %s failed', patch)
-                            else:
-                                self.log.debug('No patches found for extension %s.' % ext_name)
-
-                            exts_sources.append(ext_src)
-
+                        # if no sources are specified via 'sources', fall back to 'source_tmpl'
+                        src_fn = ext_options.get('source_tmpl', default_source_tmpl)
+                        src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
+                                                    force_download=force_download)
+                        if src_path:
+                            ext_src.update({'src': src_path})
                         else:
                             raise EasyBuildError("Source for extension %s not found.", ext)
+
+                    # verify checksum for extension sources
+                    if 'src' in ext_src and not skip_checksums:
+                        src_path = ext_src['src']
+                        src_fn = os.path.basename(src_path)
+
+                        # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                        for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                            src_checksum = compute_checksum(src_path, checksum_type=checksum_type)
+                            self.log.info("%s checksum for %s: %s", checksum_type, src_path, src_checksum)
+
+                        # verify checksum (if provided)
+                        self.log.debug('Verifying checksums for extension source...')
+                        fn_checksum = self.get_checksum_for(checksums, index=0)
+                        if verify_checksum(src_path, fn_checksum):
+                            self.log.info('Checksum for extension source %s verified', src_fn)
+                        elif build_option('ignore_checksums'):
+                            print_warning("Ignoring failing checksum verification for %s" % src_fn)
+                        else:
+                            raise EasyBuildError('Checksum verification for extension source %s failed', src_fn)
+
+                    # locate extension patches (if any), and verify checksums
+                    ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
+                    if ext_patches:
+                        self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
+                        ext_src.update({'patches': ext_patches})
+
+                        if not skip_checksums:
+                            for patch in ext_patches:
+                                patch = patch['path']
+                                # report both MD5 and SHA256 checksums,
+                                # since both are valid default checksum types
+                                for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                    checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                    self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
+
+                            # verify checksum (if provided)
+                            self.log.debug('Verifying checksums for extension patches...')
+                            for idx, patch in enumerate(ext_patches):
+                                patch = patch['path']
+                                patch_fn = os.path.basename(patch)
+
+                                checksum = self.get_checksum_for(checksums[1:], index=idx)
+                                if verify_checksum(patch, checksum):
+                                    self.log.info('Checksum for extension patch %s verified', patch_fn)
+                                elif build_option('ignore_checksums'):
+                                    print_warning("Ignoring failing checksum verification for %s" % patch_fn)
+                                else:
+                                    raise EasyBuildError("Checksum verification for extension patch %s failed",
+                                                         patch_fn)
+                    else:
+                        self.log.debug('No patches found for extension %s.' % ext_name)
+
+                    exts_sources.append(ext_src)
 
             elif isinstance(ext, string_type):
                 exts_sources.append({'name': ext})
@@ -1612,6 +1636,31 @@ class EasyBlock(object):
         change_dir(self.start_dir)
         self.log.debug("Changed to real build directory %s (start_dir)", self.start_dir)
 
+    def check_accepted_eula(self, name=None, more_info=None):
+        """Check whether EULA for this software is accepted in current EasyBuild configuration."""
+
+        if name is None:
+            name = self.name
+
+        accepted_eulas = build_option('accept_eula') or []
+        if self.cfg['accept_eula'] or name in accepted_eulas:
+            self.log.info("EULA for %s is accepted", name)
+        else:
+            error_lines = [
+                "The End User License Argreement (EULA) for %(name)s is currently not accepted!",
+            ]
+            if more_info:
+                error_lines.append("(see %s for more information)" % more_info)
+
+            error_lines.extend([
+                "You should either:",
+                "- add --accept-eula=%(name)s to the 'eb' command;",
+                "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
+                "- add 'accept_eula = True' to the easyconfig file you are using;",
+                '',
+            ])
+            raise EasyBuildError('\n'.join(error_lines) % {'name': name})
+
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
 
@@ -2115,10 +2164,11 @@ class EasyBlock(object):
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        if self.cfg['runtest']:
+        unit_test_cmd = self.cfg['runtest']
+        if unit_test_cmd:
 
-            self.log.debug("Trying to execute %s as a command for running unit tests...")
-            (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
+            self.log.debug("Trying to execute %s as a command for running unit tests...", unit_test_cmd)
+            (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
 
             return out
 
@@ -2436,7 +2486,7 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False)
+                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
                         fails.append("Failed to run 'file %s': %s" % (path, out))
 
@@ -2446,7 +2496,7 @@ class EasyBlock(object):
                     # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
                     if "dynamically linked" in out:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False)
+                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -2459,7 +2509,7 @@ class EasyBlock(object):
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False)
+                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -3285,6 +3335,10 @@ def build_and_install_one(ecdict, init_env):
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
+
+    if build_option('skip_test_step'):
+        _log.debug('Adding test_step to skipped steps')
+        app.cfg.update('skipsteps', TEST_STEP, allow_duplicate=False)
 
     # build easyconfig
     errormsg = '(no error)'

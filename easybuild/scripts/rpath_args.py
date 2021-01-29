@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2016-2020 Ghent University
+# Copyright 2016-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,26 @@ import re
 import sys
 
 
+def is_new_existing_path(new_path, paths):
+    """
+    Check whether specified path exists and is a new path compared to provided list of paths.
+    """
+
+    # assume path is new, until proven otherwise
+    res = True
+
+    if os.path.exists(new_path):
+        for path in paths:
+            if os.path.exists(path) and os.path.samefile(new_path, path):
+                res = False
+                break
+    else:
+        # path doesn't exist
+        res = False
+
+    return res
+
+
 cmd = sys.argv[1]
 rpath_filter = sys.argv[2]
 rpath_include = sys.argv[3]
@@ -60,6 +80,7 @@ else:
 
 add_rpath_args = True
 cmd_args, cmd_args_rpath = [], []
+rpath_lib_paths = []
 
 # process list of original command line arguments
 idx = 0
@@ -81,7 +102,6 @@ while idx < len(args):
             add_rpath_args = False
         cmd_args.append(arg)
 
-    # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
     # FIXME skip paths in /tmp, build dir, etc.?
@@ -96,15 +116,18 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        if os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
-            # inject -rpath flag in front for every -L with an absolute path,
-            # also retain the -L flag (without reordering!)
-            cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
-            cmd_args.append('-L%s' % lib_path)
-        else:
-            # don't RPATH in relative paths;
-            # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
-            cmd_args.append('-L%s' % lib_path)
+        # don't RPATH in empty or relative paths, or paths that are filtered out;
+        # linking relative paths via RPATH doesn't make much sense,
+        # and it can also break the build because it may result in reordering lib paths
+        if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+            # avoid using duplicate library paths
+            if is_new_existing_path(lib_path, rpath_lib_paths):
+                # inject -rpath flag in front for every -L with an absolute path,
+                rpath_lib_paths.append(lib_path)
+                cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
+
+        # always retain -L flag (without reordering!)
+        cmd_args.append('-L%s' % lib_path)
 
     # replace --enable-new-dtags with --disable-new-dtags if it's used;
     # --enable-new-dtags would result in copying rpath to runpath,
@@ -118,6 +141,15 @@ while idx < len(args):
         cmd_args.append(arg)
 
     idx += 1
+
+# also inject -rpath options for all entries in $LIBRARY_PATH,
+# unless they are there already
+for lib_path in os.getenv('LIBRARY_PATH', '').split(os.pathsep):
+    if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+        # avoid using duplicate library paths
+        if is_new_existing_path(lib_path, rpath_lib_paths):
+            rpath_lib_paths.append(lib_path)
+            cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
 
 if add_rpath_args:
     # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags

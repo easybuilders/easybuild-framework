@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -101,6 +101,7 @@ DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
 DEFAULT_PKG_TYPE = PKG_TYPE_RPM
 DEFAULT_PNS = 'EasyBuildPNS'
+DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
@@ -160,6 +161,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
+        'accept_eula',
         'aggregate_regtest',
         'backup_modules',
         'container_config',
@@ -205,7 +207,6 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_branch_name',
         'pr_commit_msg',
         'pr_descr',
-        'pr_target_account',
         'pr_target_repo',
         'pr_title',
         'rpath_filter',
@@ -254,6 +255,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sequential',
         'set_gid_bit',
         'skip_test_cases',
+        'skip_test_step',
         'generate_devel_module',
         'sticky_bit',
         'trace',
@@ -307,6 +309,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
+    ],
+    DEFAULT_PR_TARGET_ACCOUNT: [
+        'pr_target_account',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',

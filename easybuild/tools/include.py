@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -125,10 +125,16 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
 
 def verify_imports(pymods, pypkg, from_path):
     """Verify that import of specified modules from specified package and expected location works."""
-    saved_modules = sys.modules.copy()
 
     for pymod in pymods:
         pymod_spec = '%s.%s' % (pypkg, pymod)
+
+        # force re-import if the specified modules was already imported;
+        # this is required to ensure that an easyblock that is included via --include-easyblocks-from-pr
+        # gets preference over one that is included via --include-easyblocks
+        if pymod_spec in sys.modules:
+            del sys.modules[pymod_spec]
+
         try:
             pymod = __import__(pymod_spec, fromlist=[pypkg])
         # different types of exceptions may be thrown, not only ImportErrors
@@ -141,10 +147,6 @@ def verify_imports(pymods, pypkg, from_path):
                                  pymod_spec, from_path, pymod.__file__)
 
         _log.debug("Import of %s from %s verified", pymod_spec, from_path)
-
-    # restore sys.modules to its original state (not only verified modules but also their dependencies)
-    sys.modules.clear()
-    sys.modules.update(saved_modules)
 
 
 def is_software_specific_easyblock(module):
@@ -279,7 +281,7 @@ def include_toolchains(tmpdir, paths):
         sys.modules[tcpkg].__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains', subpkg))
 
     # sanity check: verify that included toolchain modules can be imported (from expected location)
-    verify_imports([os.path.splitext(mns)[0] for mns in included_toolchains], 'easybuild.toolchains', tcs_dir)
+    verify_imports([os.path.splitext(tc)[0] for tc in included_toolchains], 'easybuild.toolchains', tcs_dir)
     for subpkg in toolchain_subpkgs:
         pkg = '.'.join(['easybuild', 'toolchains', subpkg])
         loc = os.path.join(tcs_dir, subpkg)

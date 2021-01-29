@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -156,8 +156,8 @@ class IncludeTest(EnhancedTestCase):
         self.assertFalse(os.path.samefile(os.path.dirname(os.path.dirname(foo_pyc_path)), test_easyblocks))
         self.assertTrue(os.path.samefile(foo_real_py_path, os.path.join(myeasyblocks, 'foo.py')))
 
-        # check that the included easyblock is not loaded
-        self.assertFalse('easybuild.easyblocks.foo' in sys.modules)
+        # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.foo']
 
     def test_include_mns(self):
         """Test include_module_naming_schemes()."""

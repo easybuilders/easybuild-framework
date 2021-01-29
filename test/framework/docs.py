@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -256,7 +256,7 @@ class DocsTest(EnhancedTestCase):
             "  * toy v0.0 (versionsuffix: '-deps'): system",
             "  * toy v0.0 (versionsuffix: '-iter'): system",
             "  * toy v0.0 (versionsuffix: '-multiple'): system",
-            "  * toy v0.0 (versionsuffix: '-test'): gompi/2018a",
+            "  * toy v0.0 (versionsuffix: '-test'): gompi/2018a, system",
         ]
         txt = list_software(output_format='txt', detailed=True)
         lines = txt.split('\n')
@@ -278,7 +278,7 @@ class DocsTest(EnhancedTestCase):
             '``0.0``    ``-deps``        ``system``                 ',
             '``0.0``    ``-iter``        ``system``                 ',
             '``0.0``    ``-multiple``    ``system``                 ',
-            '``0.0``    ``-test``        ``gompi/2018a``            ',
+            '``0.0``    ``-test``        ``gompi/2018a``, ``system``',
             '=======    =============    ===========================',
         ]
         txt = list_software(output_format='rst', detailed=True)
