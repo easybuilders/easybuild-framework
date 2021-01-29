@@ -254,6 +254,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     # read remaining data (all of it)
     output = get_output_from_process(proc)
+    proc.stdout.close()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
