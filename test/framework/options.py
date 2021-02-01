@@ -3406,8 +3406,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # make sure that location to 'easybuild.main' is included in $PYTHONPATH
         pythonpath = os.getenv('PYTHONPATH')
+        pythonpath = [pythonpath] if pythonpath else []
         easybuild_loc = os.path.dirname(os.path.dirname(easybuild.main.__file__))
-        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc, pythonpath])
+        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc] + pythonpath)
 
         return '; '.join([
             "cd %s" % self.test_prefix,
