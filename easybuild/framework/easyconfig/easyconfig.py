@@ -1289,12 +1289,16 @@ class EasyConfig(object):
 
                 # if a version is already set in the available metadata, we retain it
                 if 'version' not in existing_metadata:
-                    res['version'] = [version]
+                    # should not use [version], because this is a greedy behaviour
+                    # using version_var_name instead
+                    res['version'] = [version_var_name]
                     self.log.info('setting external module %s version to be %s', mod_name, version)
 
                 # if a prefix is already set in the available metadata, we retain it
                 if 'prefix' not in existing_metadata:
-                    res['prefix'] = prefix
+                    # should not use prefix, because this is a greedy behaviour
+                    # using prefix_var_name instead
+                    res['prefix'] = prefix_var_name
                     self.log.info('setting external module %s prefix to be %s', mod_name, prefix_var_name)
                 break
 
