@@ -79,6 +79,7 @@ CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_ENVVAR_USER_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -290,6 +291,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_BRANCH: [
         'pr_target_branch',
+    ],
+    DEFAULT_ENVVAR_USER_MODULES: [
+        'envvar_user_modules',
     ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
