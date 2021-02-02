@@ -3044,7 +3044,7 @@ class EasyBlock(object):
             self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
         self.cfg.generate_template_values()
 
-    def _skip_step(self, step, skippable):
+    def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
         force = build_option('force') or build_option('rebuild')
@@ -3243,7 +3243,7 @@ class EasyBlock(object):
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
-                if self._skip_step(step_name, skippable):
+                if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
