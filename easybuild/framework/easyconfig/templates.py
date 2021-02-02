@@ -233,7 +233,6 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         #  a cyclic import...);
         # we need to know to determine whether we're iterating over a list of build dependencies
         is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
-
         if is_easyconfig:
             # if we're iterating over different lists of build dependencies,
             # only consider build dependencies when we're actually in iterative mode!
@@ -243,9 +242,11 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             else:
                 deps.extend(config.get('builddependencies', []))
 
-            # Include all toolchain deps (e.g. CUDAcore template in fosscuda)
-            if config.toolchain.tcdeps is not None:
-                deps.extend(config.toolchain.tcdeps)
+            # include all toolchain deps (e.g. CUDAcore component in fosscuda);
+            # access Toolchain instance via _toolchain to avoid triggering initialization of the toolchain!
+            if config._toolchain is not None:
+                if config._toolchain.tcdeps is not None:
+                    deps.extend(config._toolchain.tcdeps)
 
         for dep in deps:
             if isinstance(dep, dict):
