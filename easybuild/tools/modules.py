@@ -1428,7 +1428,20 @@ class Lmod(ModulesTool):
         if priority:
             self.run_module(['use', '--priority', str(priority), path])
         else:
-            self.run_module(['use', path])
+            # LMod allows modifying MODULEPATH directly. So do that to avoid the costly module use
+            # unless priorities are in use already
+            if os.environ.get('__LMOD_Priority_MODULEPATH'):
+                self.run_module(['use', path])
+            else:
+                cur_mod_path = os.environ.get('MODULEPATH')
+                if cur_mod_path is None:
+                    new_mod_path = path
+                else:
+                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if p != path]
+                    new_mod_path = ':'.join(new_mod_path)
+                self.log.debug('Changing MODULEPATH from %s to %s' %
+                               ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
+                os.environ['MODULEPATH'] = new_mod_path
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
