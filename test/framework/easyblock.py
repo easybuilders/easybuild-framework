@@ -329,7 +329,8 @@ class EasyBlockTest(EnhancedTestCase):
                     r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
                 ])
             elif get_module_syntax() == 'Lua':
-                regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
+                regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c
+                          for c in modclasses]
                 home = r'os.getenv\("%s"\)' % envvar
                 pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
                 regexs.extend([
