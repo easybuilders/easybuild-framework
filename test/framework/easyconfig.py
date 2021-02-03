@@ -1548,24 +1548,24 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
         foobar_metadata = {
             'name': ['foobar'],
-            'prefix': '/software/foobar/2.3.4',
-            'version': ['2.3.4'],
+            'prefix': 'CRAY_FOOBAR_DIR',
+            'version': ['CRAY_FOOBAR_VERSION'],
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
 
         self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
         pi_metadata = {
             'name': ['pi'],
-            'prefix': '/software/pi/3.14',
-            'version': ['3.14'],
+            'prefix': 'PI_ROOT',
+            'version': ['PI_VERSION'],
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
 
         self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
         cray_netcdf_metadata = {
             'name': ['netcdf-hdf5parallel'],
-            'prefix': '/software/cray-netcdf-hdf5parallel/1.10.6',
-            'version': ['1.10.6'],
+            'prefix': 'CRAY_NETCDF_HDF5PARALLEL_PREFIX',
+            'version': ['CRAY_NETCDF_HDF5PARALLEL_VERSION'],
         }
         self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
@@ -1603,8 +1603,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
         foobar_metadata = {
             'name': ['foobar'],  # probed from 'foobar' module
-            'prefix': '/software/foobar/2.3.4',  # probed from 'foobar' module
-            'version': ['1.2.3'],  # from [foobar/1.2.3] entry in metadata file
+            'prefix': 'CRAY_FOOBAR_DIR',  # probed from 'foobar' module
+            'version': ['CRAY_FOOBAR_VERSION'],  # from [foobar/1.2.3] entry in metadata file
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
 
@@ -1617,16 +1617,16 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
         pi_metadata = {
             'name': ['PI'],  # from [pi/3.14] entry in metadata file
-            'prefix': '/software/pi/3.14',  # probed from 'pi/3.14' module
-            'version': ['3.14.0'],  # from [pi/3.14] entry in metadata file
+            'prefix': 'PI_ROOT',  # probed from 'pi/3.14' module
+            'version': ['PI_VERSION'],  # from [pi/3.14] entry in metadata file
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
 
         self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
         cray_netcdf_metadata = {
             'name': ['HDF5'],
-            'prefix': '/software/cray-netcdf-hdf5parallel/1.10.6',
-            'version': ['1.10.6'],
+            'prefix': 'CRAY_NETCDF_HDF5PARALLEL_PREFIX',
+            'version': ['CRAY_NETCDF_HDF5PARALLEL_VERSION'],
         }
         self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
