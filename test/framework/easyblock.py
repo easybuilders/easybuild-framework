@@ -301,9 +301,13 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # Repeat this but using an alternate envvar (instead of $HOME)
+        # Repeat this but using an alternate envvars (instead of $HOME)
+        list_of_envvars = ['TURKEY', 'HAM']
+        os.environ['TURKEY'] = "1"
+        os.environ['HAM'] = "1"
+
         build_options = {
-            'envvar_user_modules': 'TURKEY',
+            'envvars_user_modules': list_of_envvars,
             'subdir_user_modules': usermodsdir,
             'valid_module_classes': modclasses,
             'suffix_modules_path': 'funky',
@@ -313,31 +317,33 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = config.install_path()
 
         txt = eb.make_module_extend_modpath()
-        if get_module_syntax() == 'Tcl':
-            regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\$::env\(TURKEY\)'
-            fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
-            regexs.extend([
-                # extension for user modules is guarded
-                r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (home, fj_usermodsdir),
-                # no per-moduleclass extension for user modules
-                r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
-            ])
-        elif get_module_syntax() == 'Lua':
-            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
-            home = r'os.getenv\("TURKEY"\)'
-            pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
-            regexs.extend([
-                # extension for user modules is guarded
-                r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
-                # no per-moduleclass extension for user modules
-                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
-            ])
-        else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        for envvar in list_of_envvars:
+            if get_module_syntax() == 'Tcl':
+                regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
+                home = r'\$::env\(%s\)' % envvar
+                fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
+                regexs.extend([
+                    # extension for user modules is guarded
+                    r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (home, fj_usermodsdir),
+                    # no per-moduleclass extension for user modules
+                    r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
+                ])
+            elif get_module_syntax() == 'Lua':
+                regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
+                home = r'os.getenv\("%s"\)' % envvar
+                pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
+                regexs.extend([
+                    # extension for user modules is guarded
+                    r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
+                    # no per-moduleclass extension for user modules
+                    r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
+                ])
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            for regex in regexs:
+                regex = re.compile(regex, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            os.unsetenv(envvar)
 
     def test_make_module_req(self):
         """Testcase for make_module_req"""
