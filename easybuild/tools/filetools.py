@@ -40,7 +40,6 @@ Set of file tools.
 """
 import datetime
 import difflib
-import fileinput
 import glob
 import hashlib
 import imp
@@ -188,12 +187,18 @@ def is_readable(path):
     except OSError as err:
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
+def _open(path, mode):
+    """Open a file. If mode is not binary, then utf-8 encoding will be selected for Python3"""
+    if sys.version_info[0] >= 3 and 'b' not in mode:
+        return open(path, mode, encoding='utf-8')
+    else:
+        return open(path, mode)
 
 def read_file(path, log_error=True, mode='r'):
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
-        with open(path, mode) as handle:
+        with _open(path, mode) as handle:
             txt = handle.read()
     except IOError as err:
         if log_error:
@@ -244,7 +249,7 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        with open(path, mode) as handle:
+        with _open(path, mode) as handle:
             handle.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
@@ -1360,19 +1365,13 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
         for regex, subtxt in regex_subs:
             compiled_regex_subs.append((re.compile(regex), subtxt))
 
-        if backup:
-            backup_ext = backup
-        else:
-            # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
-            backup_ext = ''
-
         for path in paths:
             try:
                 # make sure that file can be opened in text mode;
                 # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
                 try:
-                    with open(path, 'r') as fp:
-                        _ = fp.read()
+                    with _open(path, 'r') as fp:
+                        fp.read()
                 except UnicodeDecodeError as err:
                     _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
                     path_backup = back_up_file(path)
@@ -1381,14 +1380,21 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                     txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
                     write_file(path, txt_utf8)
 
-                for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
-                    for regex, subtxt in compiled_regex_subs:
-                        match = regex.search(line)
-                        if match:
-                            origtxt = match.group(0)
-                            _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, origtxt, subtxt)
-                        line = regex.sub(subtxt, line)
-                    sys.stdout.write(line)
+                backup_path = path + (backup or '.bak')
+                copy_file(path, backup_path)
+                with _open(backup_path, 'r') as in_file:
+                    with _open(path, 'w') as out_file:
+                        for line_id, line in enumerate(in_file):
+                            for regex, subtxt in compiled_regex_subs:
+                                match = regex.search(line)
+                                if match:
+                                    origtxt = match.group(0)
+                                    _log.info("Replacing line %d in %s: '%s' -> '%s'",
+                                              (line_id + 1), path, origtxt, subtxt)
+                                line = regex.sub(subtxt, line)
+                            out_file.write(line)
+                if not backup:
+                    remove_file(backup_path)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
