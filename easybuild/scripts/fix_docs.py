@@ -57,13 +57,12 @@ for tmp in py_files:
         continue
     with open(tmp) as f:
         temp = "tmp_file.py"
-        out = open(temp, 'w')
-        for line in f:
-            if "@author" in line:
-                out.write(re.sub(r"@author: (.*)", r":author: \1", line))
-            elif "@param" in line:
-                out.write(re.sub(r"@param ([^:]*):", r":param \1:", line))
-            else:
-                out.write(line)
-        out.close()
+        with open(temp, 'w') as out:
+            for line in f:
+                if "@author" in line:
+                    out.write(re.sub(r"@author: (.*)", r":author: \1", line))
+                elif "@param" in line:
+                    out.write(re.sub(r"@param ([^:]*):", r":param \1:", line))
+                else:
+                    out.write(line)
         os.rename(temp, tmp)

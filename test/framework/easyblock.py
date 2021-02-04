@@ -317,8 +317,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # create fake directories and files that should be guessed
         os.makedirs(eb.installdir)
-        open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
-        open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
+        write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
+        write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             if isinstance(path, string_type):
                 path = (path, )
@@ -352,7 +352,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         # check that bin is only added to PATH if there are files in there
-        open(os.path.join(eb.installdir, 'bin', 'test'), 'w').write('test')
+        write_file(os.path.join(eb.installdir, 'bin', 'test'), 'test')
         guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
@@ -371,14 +371,14 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
         # -- With files
-        open(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'w').write('test')
+        write_file(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'test')
         guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
         # -- With files in lib and lib64 symlinks to lib
-        open(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'w').write('test')
+        write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
         guess = eb.make_module_req()
@@ -425,7 +425,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
-            open(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'w').write('test')
+            write_file(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'test')
         txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathC\n" +
@@ -1388,7 +1388,7 @@ class EasyBlockTest(EnhancedTestCase):
                 loc = os.path.join(tmpdir, 't', 'toy', fn)
                 self.assertEqual(res, loc)
                 self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
-                txt = open(loc, 'r').read()
+                txt = read_file(loc)
                 eb_regex = re.compile("EasyBuild: building software with ease")
                 self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))
             else:
@@ -1430,9 +1430,7 @@ class EasyBlockTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         shutil.copy2(ec_path, tmpdir)
         ec_path = os.path.join(tmpdir, ec_file)
-        f = open(ec_path, 'a')
-        f.write("\ndependencies += [('nosuchsoftware', '1.2.3')]\n")
-        f.close()
+        write_file(ec_path, "\ndependencies += [('nosuchsoftware', '1.2.3')]\n", append=True)
         ec = EasyConfig(ec_path)
         eb = EasyBlock(ec)
         try:

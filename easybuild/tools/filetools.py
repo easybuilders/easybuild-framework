@@ -187,12 +187,14 @@ def is_readable(path):
     except OSError as err:
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
+
 def _open(path, mode):
     """Open a file. If mode is not binary, then utf-8 encoding will be selected for Python3"""
     if sys.version_info[0] >= 3 and 'b' not in mode:
         return open(path, mode, encoding='utf-8')
     else:
         return open(path, mode)
+
 
 def read_file(path, log_error=True, mode='r'):
     """Read contents of file at given path, in a robust way."""
@@ -1016,10 +1018,9 @@ def calc_block_checksum(path, algorithm):
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
     try:
-        f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), b''):
-            algorithm.update(block)
-        f.close()
+        with open(path, 'rb') as f:
+            for block in iter(lambda: f.read(blocksize), b''):
+                algorithm.update(block)
     except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
 
@@ -1569,16 +1570,16 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
     :param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
                    to avoid users can removing/renaming files in this directory
     """
-    if set_gid is None:
-        set_gid = build_option('set_gid_bit')
-    if sticky is None:
-        sticky = build_option('sticky_bit')
-
     if not os.path.isabs(path):
         path = os.path.abspath(path)
 
     # exit early if path already exists
     if not os.path.exists(path):
+        if set_gid is None:
+            set_gid = build_option('set_gid_bit')
+        if sticky is None:
+            sticky = build_option('sticky_bit')
+
         _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)", path, parents, set_gid, sticky)
         # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
         existing_parent_path = os.path.dirname(path)
@@ -2048,7 +2049,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             if lic_files:
                 for lic_file in lic_files:
                     try:
-                        open(lic_file, 'r')
+                        open(lic_file, 'r').close()
                         valid_lic_specs.append(lic_file)
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)

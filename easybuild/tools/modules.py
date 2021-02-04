@@ -1409,9 +1409,8 @@ class Lmod(ModulesTool):
                     cache_dir = os.path.dirname(cache_fp)
                     if not os.path.exists(cache_dir):
                         mkdir(cache_dir, parents=True)
-                    cache_file = open(cache_fp, 'w')
-                    cache_file.write(stdout)
-                    cache_file.close()
+                    with open(cache_fp, 'w') as cache_file:
+                        cache_file.write(stdout)
                 except (IOError, OSError) as err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 

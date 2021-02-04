@@ -115,7 +115,7 @@ class GithubTest(EnhancedTestCase):
 
         try:
             fp = self.ghfs.read("a_directory/a_file.txt", api=False)
-            self.assertEqual(open(fp, 'r').read().strip(), "this is a line of text")
+            self.assertEqual(read_file(fp).strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
             pass

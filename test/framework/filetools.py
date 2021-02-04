@@ -737,9 +737,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_guess_patch_level(self):
         "Test guess_patch_level."""
         # create dummy toy.source file so guess_patch_level can work
-        f = open(os.path.join(self.test_buildpath, 'toy.source'), 'w')
-        f.write("This is toy.source")
-        f.close()
+        ft.write_file(os.path.join(self.test_buildpath, 'toy.source'), "This is toy.source")
 
         for patched_file, correct_patch_level in [
             ('toy.source', 0),

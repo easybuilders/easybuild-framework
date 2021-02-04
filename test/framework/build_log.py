@@ -70,7 +70,7 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
 
         log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        logtxt = open(tmplog, 'r').read()
+        logtxt = read_file(tmplog, 'r')
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
         # test formatting of message
