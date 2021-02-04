@@ -169,6 +169,12 @@ jobs:
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
 
+          # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
+          # Hence run the tests again with LC_ALL=C
+          if [[ ${{matrix.python}} =~ "3." ]]; then
+            LC_ALL=C python -O -m test.framework.suite
+          fi
+
     - name: test bootstrap script
       run: |
           # (re)initialize environment for modules tool
