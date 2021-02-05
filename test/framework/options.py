@@ -2578,10 +2578,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # define header fields:values that should (not) show up in the logs, either
         # because they are secret or because they are not matched for the url
-        test_applied_hdr = 'HeaderAPPLIED'
-        test_applied_val = 'SECRETvalue'
-        test_nomatch_hdr = 'HeaderIGNORED'
-        test_nomatch_val = 'BOGUSvalue'
+        testdohdr = 'HeaderAPPLIED'
+        testdoval = 'SECRETvalue'
+        testdonthdr = 'HeaderIGNORED'
+        testdontval = 'BOGUSvalue'
 
         # header fields (or its values) could be files to be read instead of literals
         testcmdfile = os.path.join(self.test_prefix, 'testhttpheaderscmdline.txt')
@@ -2590,6 +2590,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         testinchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrinc.txt')
         testexchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrexc.txt')
         testurlpatfile = os.path.join(self.test_prefix, 'testhttpheadersurlpat.txt')
+
+        # log mention format upon header or file inclusion
+        mentionhdr = 'Custom HTTP header field set: %s'
+        mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
 
         def run_and_assert(args, msg, words_expected=None, words_unexpected=None):
             stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
@@ -2605,11 +2609,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # A: simple direct case (all is logged)
         args = list(common_args)
         args.extend([
-            '--http-header-fields-urlpat=gnu.org::%s:%s' % (test_applied_hdr, test_applied_val),
-            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (test_nomatch_hdr, test_nomatch_val),
+            '--http-header-fields-urlpat=gnu.org::%s:%s' % (testdohdr, testdoval),
+            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
         ])
         # expect to find everything passed on cmdline
-        run_and_assert(args, 'case A', [test_applied_hdr, test_applied_val, test_nomatch_hdr, test_nomatch_val])
+        run_and_assert(
+            args,
+            'case A',
+            [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
+        )
 
         # all subsequent tests share this argument list
         args = common_args
@@ -2620,15 +2628,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
             testcmdfile,
             '\n'.join(
                 [
-                    'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
-                    'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
+                    'gnu.org::%s: %s' % (testdohdr, testdoval),
+                    'nomatch.com::%s: %s' % (testdonthdr, testdontval),
                     '',
                 ]
             ),
         )
         # expect to find only the header key (not its value) and only for the appropriate url
         run_and_assert(
-            args, 'case B', [test_applied_hdr, testcmdfile], [test_applied_val, test_nomatch_hdr, test_nomatch_val]
+            args,
+            'case B',
+            [mentionhdr % (testdohdr), mentionfile % (testcmdfile)],
+            [testdoval, testdonthdr, testdontval],
         )
 
         # C: recursion one: header value is another file
@@ -2636,32 +2647,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
             testcmdfile,
             '\n'.join(
                 [
-                    'gnu.org::%s: %s' % (test_applied_hdr, testincfile),
-                    'nomatch.com::%s: %s' % (test_nomatch_hdr, testexcfile),
+                    'gnu.org::%s: %s' % (testdohdr, testincfile),
+                    'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
                     '',
                 ]
             ),
         )
-        write_file(testincfile, '%s\n' % (test_applied_val))
-        write_file(testexcfile, '%s\n' % (test_nomatch_val))
+        write_file(testincfile, '%s\n' % (testdoval))
+        write_file(testexcfile, '%s\n' % (testdontval))
         # expect to find only the header key (not its value and not the filename) and only for the appropriate url
         run_and_assert(
             args,
             'case C',
-            [test_applied_hdr, testcmdfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val, testincfile, testexcfile],
+            [
+                mentionhdr % (testdohdr),
+                mentionfile % (testcmdfile),
+                mentionfile % (testincfile),
+                mentionfile % (testexcfile),
+            ],
+            [testdoval, testdonthdr, testdontval],
         )
 
         # D: recursion two: header field+value is another file,
         write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
-        write_file(testinchdrfile, '%s: %s\n' % (test_applied_hdr, test_applied_val))
-        write_file(testexchdrfile, '%s: %s\n' % (test_nomatch_hdr, test_nomatch_val))
+        write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
+        write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
         # expect to find only the header key (and the literal filename) and only for the appropriate url
         run_and_assert(
             args,
             'case D',
-            [test_applied_hdr, testcmdfile, testinchdrfile, testexchdrfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val],
+            [
+                mentionhdr % (testdohdr),
+                mentionfile % (testcmdfile),
+                mentionfile % (testinchdrfile),
+                mentionfile % (testexchdrfile),
+            ],
+            [testdoval, testdonthdr, testdontval],
         )
 
         # E: recursion three: url pattern + header field + value in another file
@@ -2670,8 +2691,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             testurlpatfile,
             '\n'.join(
                 [
-                    'gnu.org::%s: %s' % (test_applied_hdr, test_applied_val),
-                    'nomatch.com::%s: %s' % (test_nomatch_hdr, test_nomatch_val),
+                    'gnu.org::%s: %s' % (testdohdr, testdoval),
+                    'nomatch.com::%s: %s' % (testdonthdr, testdontval),
                     '',
                 ]
             ),
@@ -2680,8 +2701,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         run_and_assert(
             args,
             'case E',
-            [test_applied_hdr, testcmdfile, testurlpatfile],
-            [test_applied_val, test_nomatch_hdr, test_nomatch_val],
+            [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)],
+            [testdoval, testdonthdr, testdontval],
         )
 
     def test_test_report_env_filter(self):

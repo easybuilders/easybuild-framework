@@ -569,9 +569,9 @@ def derive_alt_pypi_url(url):
     return alt_pypi_url
 
 
-def parse_http_header_fields_urlpat(arg, urlpat=None, urlpat_headers={}, maxdepth=3):
+def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_headers={}, maxdepth=3):
     """
-    Recurse into PAT::[PAT::FILE|PAT::HEADER: FIELD|HEADER: FIELD] where FILE may be a
+    Recurse into [URLPAT::][HEADER: ]FILE|FIELD where FILE may be another such string or
     file containing lines matching the same format, and flatten the result as a dict
     e.g. {'^example.com': ['Authorization: Basic token', 'User-Agent: Special Agent']}
     """
@@ -597,15 +597,29 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, urlpat_headers={}, maxdept
             # argline is a file path, so read that instead
             _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
             argline = read_file(argline)
-            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, urlpat_headers, maxdepth - 1)
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, header, urlpat_headers, maxdepth - 1)
             continue
 
         # URL pattern is separated by '::' from a HTTP header field
         if '::' in argline:
             [urlpat, argline] = argline.split('::', 1)  # get the urlpat
             # the remainder may be another parseable argument, recurse with same depth
-            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, urlpat_headers, maxdepth)
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, header, urlpat_headers, maxdepth)
             continue
+
+        # Header field has format HEADER: FIELD, and FIELD may be another parseable argument
+        # except if FIELD contains colons, then argline is the final HEADER: FIELD to be returned
+        if ':' in argline and argline.count(':') == 1:
+            [argheader, argline] = argline.split(':', 1)  # get the header and the remainder
+            # the remainder may be another parseable argument, recurse with same depth
+            # note that argheader would be forgotten in favor of the urlpat_headers returned by recursion,
+            # so pass on the header for reconstruction just in case there was nothing to recurse in
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, argheader, urlpat_headers, maxdepth)
+            continue
+
+        if header is not None:
+            # parent caller didn't want to forget about the header, reconstruct as recursion stops here.
+            argline = header.strip() + ': ' + argline
 
         if urlpat is not None:
             if urlpat in urlpat_headers.keys():
@@ -638,7 +652,7 @@ def download_file(filename, url, path, forced=False):
     if http_header_fields_urlpat is not None:
         # there may be multiple options given, parse them all, while updating urlpat_headers
         for arg in http_header_fields_urlpat:
-            urlpat_headers = parse_http_header_fields_urlpat(arg, None, urlpat_headers)
+            urlpat_headers = parse_http_header_fields_urlpat(arg, urlpat_headers)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
