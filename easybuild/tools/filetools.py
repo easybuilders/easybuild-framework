@@ -1372,30 +1372,31 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                 # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
                 try:
                     with _open(path, 'r') as fp:
-                        fp.read()
+                        txt_utf8 = fp.read()
                 except UnicodeDecodeError as err:
                     _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
                     path_backup = back_up_file(path)
                     _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
                     txt = read_file(path, mode='rb')
                     txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
+                    del txt
                     write_file(path, txt_utf8)
 
-                backup_path = path + (backup or '.bak')
-                copy_file(path, backup_path)
-                with _open(backup_path, 'r') as in_file:
-                    with _open(path, 'w') as out_file:
-                        for line_id, line in enumerate(in_file):
-                            for regex, subtxt in compiled_regex_subs:
-                                match = regex.search(line)
-                                if match:
-                                    origtxt = match.group(0)
-                                    _log.info("Replacing line %d in %s: '%s' -> '%s'",
-                                              (line_id + 1), path, origtxt, subtxt)
+                if backup:
+                    copy_file(path, path + backup)
+                with _open(path, 'w') as out_file:
+                    lines = txt_utf8.split('\n')
+                    del txt_utf8
+                    for line_id, line in enumerate(lines):
+                        for regex, subtxt in compiled_regex_subs:
+                            match = regex.search(line)
+                            if match:
+                                origtxt = match.group(0)
+                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
+                                          (line_id + 1), path, origtxt, subtxt)
                                 line = regex.sub(subtxt, line)
-                            out_file.write(line)
-                if not backup:
-                    remove_file(backup_path)
+                                lines[line_id] = line
+                    out_file.write('\n'.join(lines))
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
