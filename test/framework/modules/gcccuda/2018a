@@ -1,0 +1,26 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   GCC based compiler toolchain with CUDA support, and including
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK. - Homepage: (none)
+}
+}
+
+module-whatis {GNU Compiler Collection (GCC) based compiler toolchain, along with CUDA toolkit. - Homepage: (none)}
+
+set root    /prefix/software/gcccuda/2018a
+
+conflict    gcccuda
+
+if { ![is-loaded GCC/6.4.0-2.28] } {
+    module load GCC/6.4.0-2.28
+}
+
+if { ![is-loaded CUDA/9.1.85] } {
+    module load CUDA/9.1.85
+}
+
+
+setenv	EBROOTGCCCUDA		"$root"
+setenv	EBVERSIONGCCCUDA		"2018a"
+setenv	EBDEVELGCCCUDA		"$root/easybuild/gcccuda-2018a-easybuild-devel"
