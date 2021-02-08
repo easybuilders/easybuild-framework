@@ -2405,6 +2405,8 @@ class EasyBlock(object):
             lib_dir = os.path.join(self.installdir, 'lib')
             lib64_dir = os.path.join(self.installdir, 'lib64')
             if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
+                # create *relative* 'lib64' symlink to 'lib';
+                # see https://github.com/easybuilders/easybuild-framework/issues/3564
                 symlink('lib', lib64_dir, use_abspath_source=False)
 
     def sanity_check_step(self, *args, **kwargs):
