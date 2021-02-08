@@ -55,10 +55,10 @@ for tmp in py_files:
     # exclude self
     if os.path.basename(tmp) == os.path.basename(__file__):
         continue
-    with open(tmp) as f:
+    with open(tmp) as fh:
         temp = "tmp_file.py"
         with open(temp, 'w') as out:
-            for line in f:
+            for line in fh:
                 if "@author" in line:
                     out.write(re.sub(r"@author: (.*)", r":author: \1", line))
                 elif "@param" in line:

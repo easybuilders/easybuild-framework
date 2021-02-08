@@ -189,7 +189,7 @@ def is_readable(path):
 
 
 def _open(path, mode):
-    """Open a file. If mode is not binary, then utf-8 encoding will be selected for Python3"""
+    """Open a file. If mode is not binary, then utf-8 encoding will be used for Python 3.x"""
     if sys.version_info[0] >= 3 and 'b' not in mode:
         return open(path, mode, encoding='utf-8')
     else:
@@ -1018,8 +1018,8 @@ def calc_block_checksum(path, algorithm):
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
     try:
-        with open(path, 'rb') as f:
-            for block in iter(lambda: f.read(blocksize), b''):
+        with open(path, 'rb') as fh:
+            for block in iter(lambda: fh.read(blocksize), b''):
                 algorithm.update(block)
     except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
@@ -2049,6 +2049,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             if lic_files:
                 for lic_file in lic_files:
                     try:
+                        # just try to open file for reading, no need to actually read it
                         open(lic_file, 'r').close()
                         valid_lic_specs.append(lic_file)
                     except IOError as err:

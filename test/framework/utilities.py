@@ -264,8 +264,8 @@ class EnhancedTestCase(TestCase):
             logfile = self.logfile
         # clear log file
         if logfile:
-            with open(logfile, 'w') as f:
-                f.write('')
+            with open(logfile, 'w') as fh:
+                fh.write('')
 
         env_before = copy.deepcopy(os.environ)
 

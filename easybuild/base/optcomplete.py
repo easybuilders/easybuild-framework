@@ -594,8 +594,8 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
         if isinstance(debugfn, logging.Logger):
             debugfn.debug(txt)
         else:
-            with open(debugfn, 'a') as f:
-                f.write(txt)
+            with open(debugfn, 'a') as fh:
+                fh.write(txt)
 
     # Exit with error code (we do not let the caller continue on purpose, this
     # is a run for completions only.)
