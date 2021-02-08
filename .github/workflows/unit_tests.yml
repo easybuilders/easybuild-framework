@@ -9,6 +9,7 @@ jobs:
         python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
         modules_tool: [Lmod-7.8.22, Lmod-8.2.9, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
         module_syntax: [Lua, Tcl]
+        lc_all: [""]
         # exclude some configuration for non-Lmod modules tool:
         # - don't test with Lua module syntax (only supported in Lmod)
         # - exclude Python 3.x versions other than 3.6, to limit test configurations
@@ -51,6 +52,13 @@ jobs:
             python: 3.8
           - modules_tool: Lmod-7.8.22
             python: 3.9
+        # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
+        # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
+        include:
+          - python: 3.6
+            modules_tool: Lmod-8.2.9
+            module_syntax: Lua
+            lc_all: C
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -129,6 +137,7 @@ jobs:
         EB_VERBOSE: 1
         EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
         TEST_EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
+        LC_ALL: ${{matrix.lc_all}}
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -168,12 +177,6 @@ jobs:
           # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
-
-          # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
-          # Hence run the tests again with LC_ALL=C
-          if [[ ${{matrix.python}} =~ "3." ]]; then
-            LC_ALL=C python -O -m test.framework.suite
-          fi
 
     - name: test bootstrap script
       run: |
