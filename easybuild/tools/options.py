@@ -357,6 +357,9 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
+            'cuda-cache-maxsize': ("Maximum size of the CUDA cache (in bytes) used for JIT compilation of PTX code. "
+                                   "Leave value empty to let EasyBuild choose a value or '0' to disable the cache",
+                                   int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
                                           "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),

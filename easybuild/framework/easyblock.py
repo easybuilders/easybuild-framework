@@ -2150,6 +2150,22 @@ class EasyBlock(object):
             self.log.info("Loading extra modules: %s", extra_modules)
             self.modules_tool.load(extra_modules)
 
+        # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
+        if get_software_root('CUDA') or get_software_root('CUDAcore'):
+            cuda_cache_maxsize = build_option('cuda_cache_maxsize')
+            if cuda_cache_maxsize is None:
+                cuda_cache_maxsize = 1 * 1024 * 1024 * 1024  # 1 GB default value
+            if cuda_cache_maxsize == 0:
+                self.log.info('Disabling CUDA PTX cache as per request')
+                env.setvar('CUDA_CACHE_DISABLE', '1')
+            else:
+                cuda_cache_dir = os.path.join(self.builddir, 'eb-cuda-cache')
+                self.log.info('Enabling CUDA PTX cache of size %s MB at %s',
+                              cuda_cache_maxsize / 1024 / 1024, cuda_cache_dir)
+                env.setvar('CUDA_CACHE_DISABLE', '0')
+                env.setvar('CUDA_CACHE_PATH', cuda_cache_dir)
+                env.setvar('CUDA_CACHE_MAXSIZE', str(cuda_cache_maxsize))
+
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
             self.guess_start_dir()
