@@ -188,8 +188,10 @@ def is_readable(path):
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
 
-def _open(path, mode):
-    """Open a file. If mode is not binary, then utf-8 encoding will be used for Python 3.x"""
+def open_file(path, mode):
+    """Open a (usually) text file. If mode is not binary, then utf-8 encoding will be used for Python 3.x"""
+    # This is required for text files in Python 3, especially until Python 3.7 which implements PEP 540.
+    # This PEP opens files in UTF-8 mode if the C locale is used, see https://www.python.org/dev/peps/pep-0540
     if sys.version_info[0] >= 3 and 'b' not in mode:
         return open(path, mode, encoding='utf-8')
     else:
@@ -200,7 +202,7 @@ def read_file(path, log_error=True, mode='r'):
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
-        with _open(path, mode) as handle:
+        with open_file(path, mode) as handle:
             txt = handle.read()
     except IOError as err:
         if log_error:
@@ -251,8 +253,8 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        with _open(path, mode) as handle:
-            handle.write(data)
+        with open_file(path, mode) as fh:
+            fh.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -1371,7 +1373,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                 # make sure that file can be opened in text mode;
                 # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
                 try:
-                    with _open(path, 'r') as fp:
+                    with open_file(path, 'r') as fp:
                         txt_utf8 = fp.read()
                 except UnicodeDecodeError as err:
                     _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
@@ -1384,7 +1386,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
 
                 if backup:
                     copy_file(path, path + backup)
-                with _open(path, 'w') as out_file:
+                with open_file(path, 'w') as out_file:
                     lines = txt_utf8.split('\n')
                     del txt_utf8
                     for line_id, line in enumerate(lines):
@@ -2051,7 +2053,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
                 for lic_file in lic_files:
                     try:
                         # just try to open file for reading, no need to actually read it
-                        open(lic_file, 'r').close()
+                        open(lic_file, 'rb').close()
                         valid_lic_specs.append(lic_file)
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
@@ -2385,7 +2387,7 @@ def install_fake_vsc():
     fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')
     if not os.path.exists(os.path.dirname(fake_vsc_init_path)):
         os.makedirs(os.path.dirname(fake_vsc_init_path))
-    with open(fake_vsc_init_path, 'w') as fp:
+    with open_file(fake_vsc_init_path, 'w') as fp:
         fp.write(fake_vsc_init)
 
     sys.path.insert(0, fake_vsc_path)

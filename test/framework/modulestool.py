@@ -39,7 +39,7 @@ from distutils.version import StrictVersion
 from easybuild.base import fancylogger
 from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import which, write_file, read_file
+from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import Lmod
 from test.framework.utilities import init_config
 
