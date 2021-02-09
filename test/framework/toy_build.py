@@ -3151,6 +3151,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(os.path.islink(lib_path))
         self.assertTrue(os.path.islink(lib64_path))
         self.assertTrue(os.path.samefile(lib_path, lib64_path))
+        # Need relative path: https://github.com/easybuilders/easybuild-framework/issues/3564
+        self.assertFalse(os.path.isabs(os.readlink(lib64_path)))
 
         # cleanup and try again with --disable-lib64-lib-symlink
         remove_dir(self.test_installpath)
