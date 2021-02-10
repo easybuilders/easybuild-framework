@@ -569,12 +569,15 @@ def derive_alt_pypi_url(url):
     return alt_pypi_url
 
 
-def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_headers={}, maxdepth=3):
+def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_headers=None, maxdepth=3):
     """
     Recurse into [URLPAT::][HEADER: ]FILE|FIELD where FILE may be another such string or
     file containing lines matching the same format, and flatten the result as a dict
     e.g. {'^example.com': ['Authorization: Basic token', 'User-Agent: Special Agent']}
     """
+    if urlpat_headers is None:
+        urlpat_headers = {}
+
     # stop infinite recursion that might happen if a file.txt refers to itself
     if maxdepth < 0:
         _log.debug("Failed to parse_http_header_fields_urlpat (recursion limit)")
@@ -619,7 +622,7 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
 
         if header is not None:
             # parent caller didn't want to forget about the header, reconstruct as recursion stops here.
-            argline = header.strip() + ': ' + argline
+            argline = header.strip() + ':' + argline
 
         if urlpat is not None:
             if urlpat in urlpat_headers.keys():
@@ -648,11 +651,11 @@ def download_file(filename, url, path, forced=False):
     # parse option HTTP header fields for URLs containing a pattern
     http_header_fields_urlpat = build_option('http_header_fields_urlpat')
     # compile a dict full of {urlpat: [header, list]}
-    urlpat_headers = dict()
+    urlpat_headers = None
     if http_header_fields_urlpat is not None:
         # there may be multiple options given, parse them all, while updating urlpat_headers
         for arg in http_header_fields_urlpat:
-            urlpat_headers = parse_http_header_fields_urlpat(arg, urlpat_headers)
+            urlpat_headers = parse_http_header_fields_urlpat(arg, urlpat_headers=urlpat_headers)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
