@@ -580,12 +580,10 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
 
     # stop infinite recursion that might happen if a file.txt refers to itself
     if maxdepth < 0:
-        _log.debug("Failed to parse_http_header_fields_urlpat (recursion limit)")
-        return urlpat_headers
+        raise EasyBuildError("Failed to parse_http_header_fields_urlpat (recursion limit)")
 
     if not isinstance(arg, str):
-        _log.debug("Failed to parse_http_header_fields_urlpat (argument not a string)")
-        return urlpat_headers
+        raise EasyBuildError("Failed to parse_http_header_fields_urlpat (argument not a string)")
 
     # HTTP header fields are separated by CRLF but splitting on LF is more convenient
     for argline in arg.split('\n'):

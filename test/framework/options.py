@@ -52,7 +52,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
-from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import parse_http_header_fields_urlpat, read_file, remove_dir, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -2562,6 +2563,74 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args)
         self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+
+    def test_parse_http_header_fields_urlpat(self):
+        """Test function parse_http_header_fields_urlpat"""
+        urlex = "example.com"
+        urlgnu = "gnu.org"
+        hdrauth = "Authorization"
+        valauth = "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
+        hdragent = "User-Agent"
+        valagent = "James/0.0.7 (MI6)"
+        hdrrefer = "Referer"
+        valrefer = "http://www.example.com/"
+        filesub1 = os.path.join(self.test_prefix, "testhttpheaders1.txt")
+        filesub2 = os.path.join(self.test_prefix, "testhttpheaders2.txt")
+        filesub3 = os.path.join(self.test_prefix, "testhttpheaders3.txt")
+        filesub4 = os.path.join(self.test_prefix, "testhttpheaders4.txt")
+        fileauth = os.path.join(self.test_prefix, "testhttpheadersauth.txt")
+        write_file(filesub4, filesub3)
+        write_file(filesub3, filesub2)
+        write_file(filesub2, filesub1)
+        write_file(filesub1, "\n".join([f"{urlgnu}::{hdrauth}:{valauth}"]))
+        write_file(filesub2, "\n".join([f"{urlex}::{filesub1}"]))
+        write_file(filesub3, "\n".join([f"{urlex}::{hdragent}:{filesub2}"]))
+        write_file(fileauth, "\n".join([f"{valauth}"]))
+
+        # Case A: basic pattern
+        args = f"{urlgnu}::{hdragent}:{valagent}"
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: [f"{hdragent}:{valagent}"]}, urlpat_headers)
+
+        # Case B: urlpat has another urlpat: retain deepest level
+        args = f"{urlgnu}::{urlgnu}::{urlex}::{hdragent}:{valagent}"
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlex: [f"{hdragent}:{valagent}"]}, urlpat_headers)
+
+        # Case C: header value has a colon
+        args = f"{urlex}::{hdrrefer}:{valrefer}"
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlex: [f"{hdrrefer}:{valrefer}"]}, urlpat_headers)
+
+        # Case D: recurse into files
+        args = filesub3
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+
+        # Case E: recurse into files as header
+        args = f"{urlex}::{filesub3}"
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+
+        # Case F: recurse into files as value (header is replaced)
+        args = f"{urlex}::{hdrrefer}:{filesub3}"
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+
+        # Case G: recurse into files as value (header is retained)
+        args = f"{urlgnu}::{hdrauth}:{fileauth}"
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+
+        # Case H: recurse into files but hit limit
+        args = filesub4
+        error_regex = r"Failed to parse_http_header_fields_urlpat \(recursion limit\)"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+
+        # Case I: argument is not a string
+        args = list("foobar")
+        error_regex = r"Failed to parse_http_header_fields_urlpat \(argument not a string\)"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
 
     def test_http_header_fields_urlpat(self):
         """Test use of --http-header-fields-urlpat."""
