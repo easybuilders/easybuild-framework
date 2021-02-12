@@ -2582,45 +2582,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(filesub4, filesub3)
         write_file(filesub3, filesub2)
         write_file(filesub2, filesub1)
-        write_file(filesub1, "\n".join([f"{urlgnu}::{hdrauth}:{valauth}"]))
-        write_file(filesub2, "\n".join([f"{urlex}::{filesub1}"]))
-        write_file(filesub3, "\n".join([f"{urlex}::{hdragent}:{filesub2}"]))
-        write_file(fileauth, "\n".join([f"{valauth}"]))
+        write_file(filesub1, "%s::%s:%s\n" % (urlgnu, hdrauth, valauth))
+        write_file(filesub2, "%s::%s\n" % (urlex, filesub1))
+        write_file(filesub3, "%s::%s:%s\n" % (urlex, hdragent, filesub2))
+        write_file(fileauth, "%s\n" % (valauth))
 
         # Case A: basic pattern
-        args = f"{urlgnu}::{hdragent}:{valagent}"
+        args = "%s::%s:%s" % (urlgnu, hdragent, valagent)
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlgnu: [f"{hdragent}:{valagent}"]}, urlpat_headers)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdragent, valagent)]}, urlpat_headers)
 
         # Case B: urlpat has another urlpat: retain deepest level
-        args = f"{urlgnu}::{urlgnu}::{urlex}::{hdragent}:{valagent}"
+        args = "%s::%s::%s::%s:%s" % (urlgnu, urlgnu, urlex, hdragent, valagent)
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlex: [f"{hdragent}:{valagent}"]}, urlpat_headers)
+        self.assertEqual({urlex: ["%s:%s" % (hdragent, valagent)]}, urlpat_headers)
 
         # Case C: header value has a colon
-        args = f"{urlex}::{hdrrefer}:{valrefer}"
+        args = "%s::%s:%s" % (urlex, hdrrefer, valrefer)
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlex: [f"{hdrrefer}:{valrefer}"]}, urlpat_headers)
+        self.assertEqual({urlex: ["%s:%s" % (hdrrefer, valrefer)]}, urlpat_headers)
 
         # Case D: recurse into files
         args = filesub3
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
 
         # Case E: recurse into files as header
-        args = f"{urlex}::{filesub3}"
+        args = "%s::%s" % (urlex, filesub3)
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
 
         # Case F: recurse into files as value (header is replaced)
-        args = f"{urlex}::{hdrrefer}:{filesub3}"
+        args = "%s::%s:%s" % (urlex, hdrrefer, filesub3)
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
 
         # Case G: recurse into files as value (header is retained)
-        args = f"{urlgnu}::{hdrauth}:{fileauth}"
+        args = "%s::%s:%s" % (urlgnu, hdrauth, fileauth)
         urlpat_headers = parse_http_header_fields_urlpat(args)
-        self.assertEqual({urlgnu: [f"{hdrauth}:{valauth}"]}, urlpat_headers)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
 
         # Case H: recurse into files but hit limit
         args = filesub4
