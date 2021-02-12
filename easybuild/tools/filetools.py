@@ -671,12 +671,13 @@ def download_file(filename, url, path, forced=False):
 
     # permit additional or override headers via http_headers_fields_urlpat option
     # only append/override HTTP header fields that match current url
-    for urlpatkey, http_header_fields in urlpat_headers.items():
-        if re.search(urlpatkey, url):
-            extraheaders = dict(hf.split(':', 1) for hf in http_header_fields)
-            for key, val in extraheaders.items():
-                headers[key] = val
-                _log.debug('Custom HTTP header field set: %s (value omitted from log)' % (key))
+    if urlpat_headers is not None:
+        for urlpatkey, http_header_fields in urlpat_headers.items():
+            if re.search(urlpatkey, url):
+                extraheaders = dict(hf.split(':', 1) for hf in http_header_fields)
+                for key, val in extraheaders.items():
+                    headers[key] = val
+                    _log.debug('Custom HTTP header field set: %s (value omitted from log)' % (key))
 
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = std_urllib.Request(url, headers=headers)
