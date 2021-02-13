@@ -46,7 +46,8 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import reset_module_caches
 from easybuild.tools.utilities import time2str
@@ -1395,6 +1396,36 @@ class EasyBlockTest(EnhancedTestCase):
                 print("ignoring failure to download %s in test_obtain_file, testing offline?" % file_url)
 
         shutil.rmtree(tmpdir)
+
+    def test_fallback_source_url(self):
+        """Check whether downloading from fallback source URL http://sources.easybuild.io works."""
+        # cfr. https://github.com/easybuilders/easybuild-easyconfigs/issues/11951
+
+        init_config(args=["--sourcepath=%s" % self.test_prefix])
+
+        udunits_ec = os.path.join(self.test_prefix, 'UDUNITS.eb')
+        udunits_ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'UDUNITS'",
+            "version = '2.2.26'",
+            "homepage = 'https://www.unidata.ucar.edu/software/udunits'",
+            "description = 'UDUNITS'",
+            "toolchain = {'name': 'GCC', 'version': '4.8.2'}",
+            "source_urls = ['https://broken.source.urls/nosuchdirectory']",
+            "sources = [SOURCELOWER_TAR_GZ]",
+            "checksums = ['368f4869c9c7d50d2920fa8c58654124e9ed0d8d2a8c714a9d7fdadc08c7356d']",
+        ])
+        write_file(udunits_ec, udunits_ec_txt)
+
+        ec = process_easyconfig(udunits_ec)[0]
+        eb = EasyBlock(ec['ec'])
+
+        eb.fetch_step()
+
+        expected_path = os.path.join(self.test_prefix, 'u', 'UDUNITS', 'udunits-2.2.26.tar.gz')
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path))
+
+        self.assertTrue(verify_checksum(expected_path, eb.cfg['checksums'][0]))
 
     def test_obtain_file_extension(self):
         """Test use of obtain_file method on an extension."""
