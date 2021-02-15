@@ -569,14 +569,18 @@ def derive_alt_pypi_url(url):
     return alt_pypi_url
 
 
-def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_headers=None, maxdepth=3):
+def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_headers_collection=None, maxdepth=3):
     """
-    Recurse into [URLPAT::][HEADER: ]FILE|FIELD where FILE may be another such string or
-    file containing lines matching the same format, and flatten the result as a dict
-    e.g. {'^example.com': ['Authorization: Basic token', 'User-Agent: Special Agent']}
+    Recurse into multi-line string "[URLPAT::][HEADER:]FILE|FIELD" where FILE may be another such string or file
+    containing lines matching the same format, such as "^https://www.example.com::/path/to/headers.txt", and flatten
+    the result to dict e.g. {'^https://www.example.com': ['Authorization: Basic token', 'User-Agent: Special Agent']}
     """
-    if urlpat_headers is None:
+    if urlpat_headers_collection is None:
+        # this function call is not a recursive call
         urlpat_headers = {}
+    else:
+        # copy existing header data to avoid modifying it
+        urlpat_headers = urlpat_headers_collection.copy()
 
     # stop infinite recursion that might happen if a file.txt refers to itself
     if maxdepth < 0:
@@ -649,11 +653,11 @@ def download_file(filename, url, path, forced=False):
     # parse option HTTP header fields for URLs containing a pattern
     http_header_fields_urlpat = build_option('http_header_fields_urlpat')
     # compile a dict full of {urlpat: [header, list]}
-    urlpat_headers = None
+    urlpat_headers = dict()
     if http_header_fields_urlpat is not None:
         # there may be multiple options given, parse them all, while updating urlpat_headers
         for arg in http_header_fields_urlpat:
-            urlpat_headers = parse_http_header_fields_urlpat(arg, urlpat_headers=urlpat_headers)
+            urlpat_headers.update(parse_http_header_fields_urlpat(arg))
 
     # make sure directory exists
     basedir = os.path.dirname(path)

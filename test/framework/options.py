@@ -2675,104 +2675,69 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     self.assertFalse(re.compile(thestring).search(stdout), "Pattern '%s' leaked into log (%s)" %
                                      (thestring, msg))
 
-        # A: simple direct case (all is logged)
+        # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
         args = list(common_args)
         args.extend([
             '--http-header-fields-urlpat=gnu.org::%s:%s' % (testdohdr, testdoval),
             '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
         ])
         # expect to find everything passed on cmdline
-        run_and_assert(
-            args,
-            'case A',
-            [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
-        )
+        expected = [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case A", expected)
 
         # all subsequent tests share this argument list
         args = common_args
         args.append('--http-header-fields-urlpat=%s' % (testcmdfile))
 
         # B: simple file case (secrets in file are not logged)
-        write_file(
-            testcmdfile,
-            '\n'.join(
-                [
-                    'gnu.org::%s: %s' % (testdohdr, testdoval),
-                    'nomatch.com::%s: %s' % (testdonthdr, testdontval),
-                    '',
-                ]
-            ),
-        )
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            '',
+        ])
+        write_file(testcmdfile, txt)
         # expect to find only the header key (not its value) and only for the appropriate url
-        run_and_assert(
-            args,
-            'case B',
-            [mentionhdr % (testdohdr), mentionfile % (testcmdfile)],
-            [testdoval, testdonthdr, testdontval],
-        )
+        expected = [mentionhdr % testdohdr, mentionfile % testcmdfile]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case B", expected, not_expected)
 
         # C: recursion one: header value is another file
-        write_file(
-            testcmdfile,
-            '\n'.join(
-                [
-                    'gnu.org::%s: %s' % (testdohdr, testincfile),
-                    'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
-                    '',
-                ]
-            ),
-        )
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testincfile),
+            'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
+            '',
+        ])
+        write_file(testcmdfile, txt)
         write_file(testincfile, '%s\n' % (testdoval))
         write_file(testexcfile, '%s\n' % (testdontval))
         # expect to find only the header key (not its value and not the filename) and only for the appropriate url
-        run_and_assert(
-            args,
-            'case C',
-            [
-                mentionhdr % (testdohdr),
-                mentionfile % (testcmdfile),
-                mentionfile % (testincfile),
-                mentionfile % (testexcfile),
-            ],
-            [testdoval, testdonthdr, testdontval],
-        )
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
+                    mentionfile % (testincfile), mentionfile % (testexcfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case C", expected, not_expected)
 
         # D: recursion two: header field+value is another file,
         write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
         write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
         write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
         # expect to find only the header key (and the literal filename) and only for the appropriate url
-        run_and_assert(
-            args,
-            'case D',
-            [
-                mentionhdr % (testdohdr),
-                mentionfile % (testcmdfile),
-                mentionfile % (testinchdrfile),
-                mentionfile % (testexchdrfile),
-            ],
-            [testdoval, testdonthdr, testdontval],
-        )
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
+                    mentionfile % (testinchdrfile), mentionfile % (testexchdrfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case D", expected, not_expected)
 
         # E: recursion three: url pattern + header field + value in another file
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
-        write_file(
-            testurlpatfile,
-            '\n'.join(
-                [
-                    'gnu.org::%s: %s' % (testdohdr, testdoval),
-                    'nomatch.com::%s: %s' % (testdonthdr, testdontval),
-                    '',
-                ]
-            ),
-        )
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            '',
+        ])
+        write_file(testurlpatfile, txt)
         # expect to find only the header key (but not the literal filename) and only for the appropriate url
-        run_and_assert(
-            args,
-            'case E',
-            [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)],
-            [testdoval, testdonthdr, testdontval],
-        )
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case E", expected, not_expected)
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
