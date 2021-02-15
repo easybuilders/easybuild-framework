@@ -2600,14 +2600,11 @@ def create_unused_dir(parent_folder, name):
         parent_folder = os.path.abspath(parent_folder)
 
     start_path = os.path.join(parent_folder, name)
-    number = None
-    while True:
-        if number is None:
+    for number in range(-1, 10000):  # Start with no suffix and limit the number of attempts
+        if number < 0:
             path = start_path
-            number = 0
         else:
             path = start_path + '_' + str(number)
-            number += 1
         try:
             os.mkdir(path)
             break

@@ -2948,6 +2948,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['2.txt'], [])
 
     def test_create_unused_dir(self):
+        """Test create_unused_dir function."""
         path = ft.create_unused_dir(self.test_prefix, 'folder')
         self.assertEqual(path, os.path.join(self.test_prefix, 'folder'))
         self.assertTrue(os.path.exists(path))
@@ -2964,6 +2965,21 @@ class FileToolsTest(EnhancedTestCase):
             path = ft.create_unused_dir(self.test_prefix, 'folder2')
             self.assertEqual(path, os.path.join(self.test_prefix, 'folder2_%s' % i))
             self.assertTrue(os.path.exists(path))
+        # Fail cleanly if passed a readonly folder
+        readonly_dir = os.path.join(self.test_prefix, 'ro_folder')
+        os.mkdir(readonly_dir)
+        old_perms = os.lstat(readonly_dir)[stat.ST_MODE]
+        os.chmod(readonly_dir, stat.S_IREAD | stat.S_IEXEC)
+        try:
+            self.assertErrorRegex(EasyBuildError, 'Failed to create directory',
+                                  ft.create_unused_dir, readonly_dir, 'new_folder')
+        finally:
+            os.chmod(readonly_dir, old_perms)
+        # Ignore files same as folders. So first just create a file with no contents
+        open(os.path.join(self.test_prefix, 'file'), 'w').close()
+        path = ft.create_unused_dir(self.test_prefix, 'file')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'file_0'))
+        self.assertTrue(os.path.exists(path))
 
 
 def suite():
