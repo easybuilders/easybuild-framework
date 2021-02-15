@@ -1895,7 +1895,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(loaded_modules[0]['mod_name'], 'GCC/6.4.0-2.28')
 
     def test_prepare_step_cuda_cache(self):
-        """Test handling cuda-cache-maxsize option."""
+        """Test handling cuda-cache-* options."""
 
         init_config(build_options={'cuda_cache_maxsize': None})  # Automatic mode
 
@@ -1936,14 +1936,17 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertNotIn('Enabling CUDA PTX cache', logtxt)
         self.assertEqual(os.environ['CUDA_CACHE_DISABLE'], '1')
 
-        init_config(build_options={'cuda_cache_maxsize': 1234567890})  # Specified size
+        # Specified size and location
+        cuda_cache_dir = os.path.join(self.test_prefix, 'custom-cuda-cache')
+        init_config(build_options={'cuda_cache_maxsize': 1234, 'cuda_cache_dir': cuda_cache_dir})
         write_file(eb.logfile, '')
         eb.prepare_step(start_dir=False)
         logtxt = read_file(eb.logfile)
         self.assertNotIn('Disabling CUDA PTX cache', logtxt)
         self.assertIn('Enabling CUDA PTX cache', logtxt)
         self.assertEqual(os.environ['CUDA_CACHE_DISABLE'], '0')
-        self.assertEqual(os.environ['CUDA_CACHE_MAXSIZE'], '1234567890')
+        self.assertEqual(os.environ['CUDA_CACHE_MAXSIZE'], str(1234 * 1024 * 1024))
+        self.assertEqual(os.environ['CUDA_CACHE_PATH'], cuda_cache_dir)
 
     def test_checksum_step(self):
         """Test checksum step"""

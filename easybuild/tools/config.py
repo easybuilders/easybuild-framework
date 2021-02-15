@@ -171,6 +171,7 @@ BUILD_OPTIONS_CMDLINE = {
         'container_image_name',
         'container_template_recipe',
         'container_tmpdir',
+        'cuda_cache_dir',
         'cuda_cache_maxsize',
         'cuda_compute_capabilities',
         'download_timeout',
