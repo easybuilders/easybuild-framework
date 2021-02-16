@@ -278,7 +278,7 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if get_module_syntax() == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\$::env\(HOME\)'
+            home = r'\[if \{ \[info exists ::env\(%s\)\] \} \{ concat \$::env\(%s\) \} \]' % ("HOME", "HOME")
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -288,7 +288,7 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         elif get_module_syntax() == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
-            home = r'os.getenv\("HOME"\)'
+            home = r'os.getenv\("HOME"\) or ""'
             pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -323,7 +323,8 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if get_module_syntax() == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\$::env\(%s\)' % envvar
+                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} \{ concat \$::env\(%s\) \} \]' % (envvar,
+                                                                                                           envvar)
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -334,7 +335,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif get_module_syntax() == 'Lua':
                 regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c
                           for c in modclasses]
-                module_envvar = r'os.getenv\("%s"\)' % envvar
+                module_envvar = r'os.getenv\("%s"\) or ""' % envvar
                 pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
