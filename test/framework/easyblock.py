@@ -304,8 +304,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Repeat this but using an alternate envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
-        site_install_path = os.path.join('path', 'to', 'site', 'installs')
-        user_install_path = os.path.join('path', 'to', 'user', 'installs')
+        site_install_path = os.path.join(config.install_path(), 'site')
+        user_install_path = os.path.join(config.install_path(), 'user')
         os.environ['SITE_INSTALLS'] = site_install_path
         os.environ['USER_INSTALLS'] = user_install_path
 
@@ -349,6 +349,42 @@ class EasyBlockTest(EnhancedTestCase):
                 regex = re.compile(regex, re.M)
                 self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
             os.unsetenv(envvar)
+
+        # Check behaviour when directories do and do not exist
+        site_modules = os.path.join(site_install_path, "my/own/modules", "funky", "Compiler/pi/3.14")
+        user_modules = os.path.join(user_install_path, "my/own/modules", "funky", "Compiler/pi/3.14")
+        # make a modules directory so that we can create our module files
+        temp_module_file_dir = os.path.join(site_install_path, "my/own/modules", "temp_module_files")
+        os.makedirs(temp_module_file_dir)
+        # write out a module file
+        if get_module_syntax() == 'Tcl':
+            module_file = os.path.join(temp_module_file_dir, "mytest")
+            module_txt = "#%Module\n" + txt
+        elif get_module_syntax() == 'Lua':
+            module_file = os.path.join(temp_module_file_dir, "mytest.lua")
+            module_txt = txt
+        handle = open(module_file, "w")
+        handle.write(module_txt)
+        handle.close()
+        # Set MODULEPATH and check the effect of `module load`
+        os.environ['MODULEPATH'] = temp_module_file_dir
+
+        # Check MODULEPATH when neither directories exist
+        self.modtool.run_module('load', 'mytest')
+        self.assertFalse(site_modules in os.environ['MODULEPATH'])
+        self.assertFalse(user_modules in os.environ['MODULEPATH'])
+        self.modtool.run_module('unload', 'mytest')
+        # Now create the directory for site modules
+        os.makedirs(site_modules)
+        self.modtool.run_module('load', 'mytest')
+        self.assertTrue(os.environ['MODULEPATH'].startswith(site_modules))
+        self.assertFalse(user_modules in os.environ['MODULEPATH'])
+        self.modtool.run_module('unload', 'mytest')
+        # Now create the directory for user modules
+        os.makedirs(user_modules)
+        self.modtool.run_module('load', 'mytest')
+        self.assertTrue(os.environ['MODULEPATH'].startswith(user_modules + ":" + site_modules))
+        self.modtool.run_module('unload', 'mytest')
 
     def test_make_module_req(self):
         """Testcase for make_module_req"""

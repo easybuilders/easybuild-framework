@@ -394,7 +394,7 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def getenv_cmd(self, envvar):
+    def getenv_cmd(self, envvar, safe=False):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
@@ -776,11 +776,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
-    def getenv_cmd(self, envvar):
+    def getenv_cmd(self, envvar, safe=False):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        return '[if { [info exists ::env(%s)] } { concat $::env(%s) } ]' % (envvar, envvar)
+        if safe:
+            cmd = '[if { [info exists ::env(%s)] } { concat $::env(%s) } ]' % (envvar, envvar)
+        else:
+            cmd = '$::env(%s)' % envvar
+        return cmd
 
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
@@ -1196,11 +1200,15 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
-    def getenv_cmd(self, envvar):
+    def getenv_cmd(self, envvar, safe=False):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        return 'os.getenv("%s") or ""' % envvar
+        if safe:
+            cmd = 'os.getenv("%s") or ""' % envvar
+        else:
+            cmd = 'os.getenv("%s")' % envvar
+        return cmd
 
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
