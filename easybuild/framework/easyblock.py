@@ -97,7 +97,7 @@ from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
-EASYBUILD_SOURCES_URL = 'http://sources.easybuild.io'
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
@@ -775,7 +775,7 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                # add sources.easybuild.io as fallback source URL
+                # add https://sources.easybuild.io as fallback source URL
                 source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
 
                 mkdir(targetdir, parents=True)
