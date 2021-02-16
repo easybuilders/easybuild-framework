@@ -66,6 +66,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -1351,7 +1352,7 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
-                user_envvars = build_option('envvars_user_modules') or ['HOME']
+                user_envvars = build_option('envvars_user_modules') or [DEFAULT_ENVVAR_USERS_MODULES]
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 for user_envvar in user_envvars:

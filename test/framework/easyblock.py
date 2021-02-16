@@ -303,9 +303,11 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # Repeat this but using an alternate envvars (instead of $HOME)
-        list_of_envvars = ['TURKEY', 'HAM']
-        os.environ['TURKEY'] = "1"
-        os.environ['HAM'] = "1"
+        list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
+        site_install_path = os.path.join('path','to','site','installs')
+        user_install_path = os.path.join('path','to','user','installs')
+        os.environ['SITE_INSTALLS'] = site_install_path
+        os.environ['USER_INSTALLS'] = user_install_path
 
         build_options = {
             'envvars_user_modules': list_of_envvars,
@@ -321,24 +323,24 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if get_module_syntax() == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                home = r'\$::env\(%s\)' % envvar
+                module_envvar = r'\$::env\(%s\)' % envvar
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
-                    r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (home, fj_usermodsdir),
+                    r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (module_envvar, fj_usermodsdir),
                     # no per-moduleclass extension for user modules
-                    r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
+                    r'^\s+module use \[ file join %s \[ %s \] \]$' % (module_envvar, fj_usermodsdir),
                 ])
             elif get_module_syntax() == 'Lua':
                 regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c
                           for c in modclasses]
-                home = r'os.getenv\("%s"\)' % envvar
+                module_envvar = r'os.getenv\("%s"\)' % envvar
                 pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
-                    r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
+                    r'if isDir\(pathJoin\(%s, %s\)\) then' % (module_envvar, pj_usermodsdir),
                     # no per-moduleclass extension for user modules
-                    r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
+                    r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (module_envvar, pj_usermodsdir),
                 ])
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
