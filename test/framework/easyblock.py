@@ -1398,7 +1398,7 @@ class EasyBlockTest(EnhancedTestCase):
         shutil.rmtree(tmpdir)
 
     def test_fallback_source_url(self):
-        """Check whether downloading from fallback source URL http://sources.easybuild.io works."""
+        """Check whether downloading from fallback source URL https://sources.easybuild.io works."""
         # cfr. https://github.com/easybuilders/easybuild-easyconfigs/issues/11951
 
         init_config(args=["--sourcepath=%s" % self.test_prefix])
