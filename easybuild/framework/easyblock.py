@@ -97,6 +97,8 @@ from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
+EASYBUILD_SOURCES_URL = 'http://sources.easybuild.io'
+
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
@@ -756,7 +758,8 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
-            targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+            name_letter = self.name.lower()[0]
+            targetdir = os.path.join(srcpaths[0], name_letter, self.name)
 
             if foundfile:
                 if self.dry_run:
@@ -771,6 +774,9 @@ class EasyBlock(object):
                 else:
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
+
+                # add sources.easybuild.io as fallback source URL
+                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
 
                 mkdir(targetdir, parents=True)
 
@@ -2411,7 +2417,9 @@ class EasyBlock(object):
             lib_dir = os.path.join(self.installdir, 'lib')
             lib64_dir = os.path.join(self.installdir, 'lib64')
             if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-                symlink(lib_dir, lib64_dir)
+                # create *relative* 'lib64' symlink to 'lib';
+                # see https://github.com/easybuilders/easybuild-framework/issues/3564
+                symlink('lib', lib64_dir, use_abspath_source=False)
 
     def sanity_check_step(self, *args, **kwargs):
         """
@@ -3050,7 +3058,7 @@ class EasyBlock(object):
             self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
         self.cfg.generate_template_values()
 
-    def _skip_step(self, step, skippable):
+    def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
         force = build_option('force') or build_option('rebuild')
@@ -3249,7 +3257,7 @@ class EasyBlock(object):
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
-                if self._skip_step(step_name, skippable):
+                if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
