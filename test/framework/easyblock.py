@@ -304,8 +304,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Repeat this but using an alternate envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
-        site_install_path = os.path.join('path','to','site','installs')
-        user_install_path = os.path.join('path','to','user','installs')
+        site_install_path = os.path.join('path', 'to', 'site', 'installs')
+        user_install_path = os.path.join('path', 'to', 'user', 'installs')
         os.environ['SITE_INSTALLS'] = site_install_path
         os.environ['USER_INSTALLS'] = user_install_path
 
