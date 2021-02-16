@@ -399,11 +399,11 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
-            'http-header-fields-urlpat': (("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
-                                           "To not log senstive values, specify a file containing newline separated "
-                                           "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
-                                           "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\"."),
-                                           None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
+            'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
+                                          "To not log senstive values, specify a file containing newline separated "
+                                          "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
+                                          "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
+                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
