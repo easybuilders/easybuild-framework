@@ -351,8 +351,9 @@ class EasyBlockTest(EnhancedTestCase):
             os.unsetenv(envvar)
 
         # Check behaviour when directories do and do not exist
-        site_modules = os.path.join(site_install_path, usermodsdir, "funky", "Compiler/pi/3.14")
-        user_modules = os.path.join(user_install_path, usermodsdir, "funky", "Compiler/pi/3.14")
+        usermodsdir_extension = os.path.join(usermodsdir, "funky", "Compiler/pi/3.14")
+        site_modules = os.path.join(site_install_path, usermodsdir_extension)
+        user_modules = os.path.join(user_install_path, usermodsdir_extension)
         # make a modules directory so that we can create our module files
         temp_module_file_dir = os.path.join(site_install_path, usermodsdir, "temp_module_files")
         os.makedirs(temp_module_file_dir)
@@ -374,10 +375,10 @@ class EasyBlockTest(EnhancedTestCase):
         # not be accidentally picked up if the variable is not defined but the paths exist
         # relative to the current directory
         cwd = os.getcwd()
-        os.makedirs(os.path.join(config.install_path(), "existing_dir", usermodsdir, "funky", "Compiler/pi/3.14"))
+        os.makedirs(os.path.join(config.install_path(), "existing_dir", usermodsdir_extension))
         change_dir(os.path.join(config.install_path(), "existing_dir"))
         self.modtool.run_module('load', 'mytest')
-        self.assertFalse(os.path.join(usermodsdir, "funky") in os.environ['MODULEPATH'])
+        self.assertFalse(usermodsdir_extension in os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         change_dir(cwd)
 
