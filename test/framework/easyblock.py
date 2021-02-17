@@ -307,8 +307,6 @@ class EasyBlockTest(EnhancedTestCase):
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
         site_install_path = os.path.join(config.install_path(), 'site')
         user_install_path = os.path.join(config.install_path(), 'user')
-        os.environ['SITE_INSTALLS'] = site_install_path
-        os.environ['USER_INSTALLS'] = user_install_path
 
         build_options = {
             'envvars_user_modules': list_of_envvars,
@@ -373,7 +371,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = temp_module_file_dir
 
         # Let's switch to a dir where the paths we will use exist to make sure they can
-        # not be accidentally picked up is the variable is not defined but the paths exist
+        # not be accidentally picked up if the variable is not defined but the paths exist
         # relative to the current directory
         cwd = os.getcwd()
         os.makedirs(os.path.join(config.install_path(), "existing_dir", usermodsdir, "funky", "Compiler/pi/3.14"))
@@ -382,6 +380,10 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertFalse(os.path.join(usermodsdir, "funky") in os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         change_dir(cwd)
+
+        # Now define our environment variables
+        os.environ['SITE_INSTALLS'] = site_install_path
+        os.environ['USER_INSTALLS'] = user_install_path
 
         # Check MODULEPATH when neither directories exist
         self.modtool.run_module('load', 'mytest')
