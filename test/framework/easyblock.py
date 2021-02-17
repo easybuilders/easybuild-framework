@@ -263,7 +263,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
         self.assertEqual(eb.make_module_extend_modpath(), '')
-        usermodsdir = 'my/own/modules'
+        usermodsdir = 'my_own_modules'
         modclasses = ['compiler', 'tools']
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         build_options = {
@@ -353,10 +353,10 @@ class EasyBlockTest(EnhancedTestCase):
             os.unsetenv(envvar)
 
         # Check behaviour when directories do and do not exist
-        site_modules = os.path.join(site_install_path, "my/own/modules", "funky", "Compiler/pi/3.14")
-        user_modules = os.path.join(user_install_path, "my/own/modules", "funky", "Compiler/pi/3.14")
+        site_modules = os.path.join(site_install_path, usermodsdir, "funky", "Compiler/pi/3.14")
+        user_modules = os.path.join(user_install_path, usermodsdir, "funky", "Compiler/pi/3.14")
         # make a modules directory so that we can create our module files
-        temp_module_file_dir = os.path.join(site_install_path, "my/own/modules", "temp_module_files")
+        temp_module_file_dir = os.path.join(site_install_path, usermodsdir, "temp_module_files")
         os.makedirs(temp_module_file_dir)
         # write out a module file
         if get_module_syntax() == 'Tcl':
@@ -376,10 +376,10 @@ class EasyBlockTest(EnhancedTestCase):
         # not be accidentally picked up is the variable is not defined but the paths exist
         # relative to the current directory
         cwd = os.getcwd()
-        os.makedirs(os.path.join(config.install_path(), "existing_dir", "my/own/modules", "funky", "Compiler/pi/3.14"))
+        os.makedirs(os.path.join(config.install_path(), "existing_dir", usermodsdir, "funky", "Compiler/pi/3.14"))
         change_dir(os.path.join(config.install_path(), "existing_dir"))
         self.modtool.run_module('load', 'mytest')
-        self.assertFalse("existing_dir" in os.environ['MODULEPATH'])
+        self.assertFalse(os.path.join(usermodsdir, "funky") in os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         change_dir(cwd)
 
