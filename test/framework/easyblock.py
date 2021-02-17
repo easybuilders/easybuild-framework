@@ -368,8 +368,20 @@ class EasyBlockTest(EnhancedTestCase):
         handle = open(module_file, "w")
         handle.write(module_txt)
         handle.close()
+
         # Set MODULEPATH and check the effect of `module load`
         os.environ['MODULEPATH'] = temp_module_file_dir
+
+        # Let's switch to a dir where the paths we will use exist to make sure they can
+        # not be accidentally picked up is the variable is not defined but the paths exist
+        # relative to the current directory
+        cwd = os.getcwd()
+        os.makedirs(os.path.join(config.install_path(), "existing_dir", "my/own/modules", "funky", "Compiler/pi/3.14"))
+        change_dir(os.path.join(config.install_path(), "existing_dir"))
+        self.modtool.run_module('load', 'mytest')
+        self.assertFalse("existing_dir" in os.environ['MODULEPATH'])
+        self.modtool.run_module('unload', 'mytest')
+        change_dir(cwd)
 
         # Check MODULEPATH when neither directories exist
         self.modtool.run_module('load', 'mytest')
