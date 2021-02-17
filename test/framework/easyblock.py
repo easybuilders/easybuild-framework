@@ -362,11 +362,9 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             module_file = os.path.join(temp_module_file_dir, "mytest")
             module_txt = "#%Module\n" + txt
-            print(module_txt)
         elif get_module_syntax() == 'Lua':
             module_file = os.path.join(temp_module_file_dir, "mytest.lua")
             module_txt = txt
-            print(module_txt)
         handle = open(module_file, "w")
         handle.write(module_txt)
         handle.close()
