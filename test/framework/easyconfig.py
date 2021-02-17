@@ -4053,7 +4053,7 @@ class EasyConfigTest(EnhancedTestCase):
             "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
             "installopts = '%(cuda_compute_capabilities)s'",
             "preinstallopts = '%(cuda_cc_space_sep)s'",
-            "postinstallcmds = '%(cuda_cc_semc_sep)s'",
+            "postinstallcmds = '%(cuda_cc_semicolon_sep)s'",
             "configopts = '%(cuda_sm_comma_sep)s'",
             "preconfigopts = '%(cuda_sm_space_sep)s'",
         ])
