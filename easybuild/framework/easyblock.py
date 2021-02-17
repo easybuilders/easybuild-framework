@@ -1356,9 +1356,8 @@ class EasyBlock(object):
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 for user_envvar in user_envvars:
-                    if not os.getenv(user_envvar):
-                        self.log.warning("Requested environment variable $%s as an additional branch for user "
-                                         "modules does not exist in current environment", user_envvar)
+                    self.log.debug("Requested environment variable $%s to host additional branch for modules",
+                                   user_envvar)
                     default_value = user_envvar + "_NOT_DEFINED"
                     txt += self.module_generator.use(user_modpath_exts,
                                                      prefix=self.module_generator.getenv_cmd(user_envvar,
