@@ -782,7 +782,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         if default is not None:
             cmd = '[if { [info exists ::env(%s)] } { concat $::env(%s) } else { concat "%s" } ]' % (envvar, envvar,
-                                                                                                  default)
+                                                                                                    default)
         else:
             cmd = '$::env(%s)' % envvar
         return cmd
