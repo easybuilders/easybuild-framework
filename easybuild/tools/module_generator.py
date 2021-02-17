@@ -394,7 +394,7 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def getenv_cmd(self, envvar, safe=False):
+    def getenv_cmd(self, envvar, default=None):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
@@ -776,12 +776,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
-    def getenv_cmd(self, envvar, safe=False):
+    def getenv_cmd(self, envvar, default=None):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        if safe:
-            cmd = '[if { [info exists ::env(%s)] } { concat $::env(%s) } ]' % (envvar, envvar)
+        if default is not None:
+            cmd = '[if { [info exists ::env(%s)] } { concat $::env(%s) } else { concat "%s" } ]' % (envvar, envvar,
+                                                                                                  default)
         else:
             cmd = '$::env(%s)' % envvar
         return cmd
@@ -1200,12 +1201,12 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
-    def getenv_cmd(self, envvar, safe=False):
+    def getenv_cmd(self, envvar, default=None):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        if safe:
-            cmd = 'os.getenv("%s") or ""' % envvar
+        if default is not None:
+            cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
         else:
             cmd = 'os.getenv("%s")' % envvar
         return cmd

@@ -278,7 +278,8 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if get_module_syntax() == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if \{ \[info exists ::env\(%s\)\] \} \{ concat \$::env\(%s\) \} \]' % ("HOME", "HOME")
+            home = r'\[if { \[info exists ::env\(%s\)\] } { concat \$::env\(%s\) } else { concat "%s" } \]'\
+                   % ("HOME", "HOME", "HOME_NOT_DEFINED")
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -288,7 +289,7 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         elif get_module_syntax() == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
-            home = r'os.getenv\("HOME"\) or ""'
+            home = r'os.getenv\("HOME"\) or "HOME_NOT_DEFINED"'
             pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -323,8 +324,9 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if get_module_syntax() == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} \{ concat \$::env\(%s\) \} \]' % (envvar,
-                                                                                                           envvar)
+                module_envvar =\
+                    r'\[if \{ \[info exists ::env\(%s\)\] \} \{ concat \$::env\(%s\) \} else { concat "%s" } \]'\
+                    % (envvar, envvar, envvar + "_NOT_DEFINED")
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -335,7 +337,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif get_module_syntax() == 'Lua':
                 regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c
                           for c in modclasses]
-                module_envvar = r'os.getenv\("%s"\) or ""' % envvar
+                module_envvar = r'os.getenv\("%s"\) or "%s"' % (envvar, envvar + "_NOT_DEFINED")
                 pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -360,9 +362,11 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             module_file = os.path.join(temp_module_file_dir, "mytest")
             module_txt = "#%Module\n" + txt
+            print(module_txt)
         elif get_module_syntax() == 'Lua':
             module_file = os.path.join(temp_module_file_dir, "mytest.lua")
             module_txt = txt
+            print(module_txt)
         handle = open(module_file, "w")
         handle.write(module_txt)
         handle.close()

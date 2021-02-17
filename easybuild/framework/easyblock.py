@@ -1359,8 +1359,10 @@ class EasyBlock(object):
                     if not os.getenv(user_envvar):
                         self.log.warning("Requested environment variable $%s as an additional branch for user "
                                          "modules does not exist in current environment", user_envvar)
+                    default_value = user_envvar + "_NOT_DEFINED"
                     txt += self.module_generator.use(user_modpath_exts,
-                                                     prefix=self.module_generator.getenv_cmd(user_envvar, safe=True),
+                                                     prefix=self.module_generator.getenv_cmd(user_envvar,
+                                                                                             default=default_value),
                                                      guarded=True, user_modpath=user_modpath)
         else:
             self.log.debug("Not including module path extensions, as specified.")
