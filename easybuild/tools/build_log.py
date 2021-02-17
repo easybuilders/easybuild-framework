@@ -215,7 +215,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             os.close(fd)
 
         fancylogger.logToFile(logfile, max_bytes=0)
-        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
+        print_msg('Temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
 
     log = fancylogger.getLogger(fname=False)
 

@@ -52,7 +52,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
-from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import parse_http_header_fields_urlpat, read_file, remove_dir, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -2562,6 +2563,181 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args)
         self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+
+    def test_parse_http_header_fields_urlpat(self):
+        """Test function parse_http_header_fields_urlpat"""
+        urlex = "example.com"
+        urlgnu = "gnu.org"
+        hdrauth = "Authorization"
+        valauth = "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
+        hdragent = "User-Agent"
+        valagent = "James/0.0.7 (MI6)"
+        hdrrefer = "Referer"
+        valrefer = "http://www.example.com/"
+        filesub1 = os.path.join(self.test_prefix, "testhttpheaders1.txt")
+        filesub2 = os.path.join(self.test_prefix, "testhttpheaders2.txt")
+        filesub3 = os.path.join(self.test_prefix, "testhttpheaders3.txt")
+        filesub4 = os.path.join(self.test_prefix, "testhttpheaders4.txt")
+        fileauth = os.path.join(self.test_prefix, "testhttpheadersauth.txt")
+        write_file(filesub4, filesub3)
+        write_file(filesub3, filesub2)
+        write_file(filesub2, filesub1)
+        write_file(filesub1, "%s::%s:%s\n" % (urlgnu, hdrauth, valauth))
+        write_file(filesub2, "%s::%s\n" % (urlex, filesub1))
+        write_file(filesub3, "%s::%s:%s\n" % (urlex, hdragent, filesub2))
+        write_file(fileauth, "%s\n" % (valauth))
+
+        # Case A: basic pattern
+        args = "%s::%s:%s" % (urlgnu, hdragent, valagent)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdragent, valagent)]}, urlpat_headers)
+
+        # Case B: urlpat has another urlpat: retain deepest level
+        args = "%s::%s::%s::%s:%s" % (urlgnu, urlgnu, urlex, hdragent, valagent)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlex: ["%s:%s" % (hdragent, valagent)]}, urlpat_headers)
+
+        # Case C: header value has a colon
+        args = "%s::%s:%s" % (urlex, hdrrefer, valrefer)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlex: ["%s:%s" % (hdrrefer, valrefer)]}, urlpat_headers)
+
+        # Case D: recurse into files
+        args = filesub3
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case E: recurse into files as header
+        args = "%s::%s" % (urlex, filesub3)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case F: recurse into files as value (header is replaced)
+        args = "%s::%s:%s" % (urlex, hdrrefer, filesub3)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case G: recurse into files as value (header is retained)
+        args = "%s::%s:%s" % (urlgnu, hdrauth, fileauth)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case H: recurse into files but hit limit
+        args = filesub4
+        error_regex = r"Failed to parse_http_header_fields_urlpat \(recursion limit\)"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+
+        # Case I: argument is not a string
+        args = list("foobar")
+        error_regex = r"Failed to parse_http_header_fields_urlpat \(argument not a string\)"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+
+    def test_http_header_fields_urlpat(self):
+        """Test use of --http-header-fields-urlpat."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        common_args = [
+            ec_file,
+            '--stop=fetch',
+            '--debug',
+            '--force',
+            '--force-download',
+            '--logtostdout',
+        ]
+
+        # define header fields:values that should (not) show up in the logs, either
+        # because they are secret or because they are not matched for the url
+        testdohdr = 'HeaderAPPLIED'
+        testdoval = 'SECRETvalue'
+        testdonthdr = 'HeaderIGNORED'
+        testdontval = 'BOGUSvalue'
+
+        # header fields (or its values) could be files to be read instead of literals
+        testcmdfile = os.path.join(self.test_prefix, 'testhttpheaderscmdline.txt')
+        testincfile = os.path.join(self.test_prefix, 'testhttpheadersvalinc.txt')
+        testexcfile = os.path.join(self.test_prefix, 'testhttpheadersvalexc.txt')
+        testinchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrinc.txt')
+        testexchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrexc.txt')
+        testurlpatfile = os.path.join(self.test_prefix, 'testhttpheadersurlpat.txt')
+
+        # log mention format upon header or file inclusion
+        mentionhdr = 'Custom HTTP header field set: %s'
+        mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
+
+        def run_and_assert(args, msg, words_expected=None, words_unexpected=None):
+            stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            if words_expected is not None:
+                for thestring in words_expected:
+                    self.assertTrue(re.compile(thestring).search(stdout), "Pattern '%s' missing from log (%s)" %
+                                    (thestring, msg))
+            if words_unexpected is not None:
+                for thestring in words_unexpected:
+                    self.assertFalse(re.compile(thestring).search(stdout), "Pattern '%s' leaked into log (%s)" %
+                                     (thestring, msg))
+
+        # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
+        args = list(common_args)
+        args.extend([
+            '--http-header-fields-urlpat=gnu.org::%s:%s' % (testdohdr, testdoval),
+            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
+        ])
+        # expect to find everything passed on cmdline
+        expected = [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case A", expected)
+
+        # all subsequent tests share this argument list
+        args = common_args
+        args.append('--http-header-fields-urlpat=%s' % (testcmdfile))
+
+        # B: simple file case (secrets in file are not logged)
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            '',
+        ])
+        write_file(testcmdfile, txt)
+        # expect to find only the header key (not its value) and only for the appropriate url
+        expected = [mentionhdr % testdohdr, mentionfile % testcmdfile]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case B", expected, not_expected)
+
+        # C: recursion one: header value is another file
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testincfile),
+            'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
+            '',
+        ])
+        write_file(testcmdfile, txt)
+        write_file(testincfile, '%s\n' % (testdoval))
+        write_file(testexcfile, '%s\n' % (testdontval))
+        # expect to find only the header key (not its value and not the filename) and only for the appropriate url
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
+                    mentionfile % (testincfile), mentionfile % (testexcfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case C", expected, not_expected)
+
+        # D: recursion two: header field+value is another file,
+        write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
+        write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
+        write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
+        # expect to find only the header key (and the literal filename) and only for the appropriate url
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
+                    mentionfile % (testinchdrfile), mentionfile % (testexchdrfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case D", expected, not_expected)
+
+        # E: recursion three: url pattern + header field + value in another file
+        write_file(testcmdfile, '%s\n' % (testurlpatfile))
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            '',
+        ])
+        write_file(testurlpatfile, txt)
+        # expect to find only the header key (but not the literal filename) and only for the appropriate url
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case E", expected, not_expected)
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
