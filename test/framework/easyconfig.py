@@ -4052,6 +4052,8 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
             "installopts = '%(cuda_compute_capabilities)s'",
+            "preinstallopts = '%(cuda_cc_space_sep)s'",
+            "prebuildopts = '%(cuda_cc_semicolon_sep)s'",
             "configopts = '%(cuda_sm_comma_sep)s'",
             "preconfigopts = '%(cuda_sm_space_sep)s'",
         ])
@@ -4059,6 +4061,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
+        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
         self.assertEqual(ec['configopts'], 'sm_51,sm_70,sm_71')
         self.assertEqual(ec['preconfigopts'], 'sm_51 sm_70 sm_71')
 
@@ -4066,6 +4070,8 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['installopts'], '4.2,6.3')
+        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
         self.assertEqual(ec['configopts'], 'sm_42,sm_63')
         self.assertEqual(ec['preconfigopts'], 'sm_42 sm_63')
 

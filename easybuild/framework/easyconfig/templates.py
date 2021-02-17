@@ -316,6 +316,8 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
     if cuda_compute_capabilities:
         template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
+        template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
+        template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
