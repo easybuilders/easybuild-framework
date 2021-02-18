@@ -3133,25 +3133,29 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
-    def test_test_toy_build_lib64_symlink(self):
+    def test_test_toy_build_lib64_lib_symlink(self):
         """Check whether lib64 symlink to lib subdirectory is created."""
         # this is done to ensure that <installdir>/lib64 is considered before /lib64 by GCC linker,
         # see https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
 
-        # by default, lib64 symlink is created
+        # by default, lib64 -> lib symlink is created (--lib64-lib-symlink is enabled by default)
         self.test_toy_build()
 
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         lib_path = os.path.join(toy_installdir, 'lib')
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
+        # lib6 subdir exists, is not a symlink
         self.assertTrue(os.path.exists(lib_path))
-        self.assertTrue(os.path.exists(lib64_path))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
+
+        # lib64 subdir is a symlink to lib subdir
+        self.assertTrue(os.path.exists(lib64_path))
         self.assertTrue(os.path.islink(lib64_path))
         self.assertTrue(os.path.samefile(lib_path, lib64_path))
-        # Need relative path: https://github.com/easybuilders/easybuild-framework/issues/3564
+
+        # lib64 symlink should point to a relative path
         self.assertFalse(os.path.isabs(os.readlink(lib64_path)))
 
         # cleanup and try again with --disable-lib64-lib-symlink
@@ -3163,6 +3167,49 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse('lib64' in os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
+
+    def test_test_toy_build_lib_lib64_symlink(self):
+        """Check whether lib64 symlink to lib subdirectory is created."""
+
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\npostinstallcmds += ['mv %(installdir)s/lib %(installdir)s/lib64']"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        # by default, lib -> lib64 symlink is created (--lib-lib64-symlink is enabled by default)
+        self.test_toy_build(ec_file=test_ec)
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        lib_path = os.path.join(toy_installdir, 'lib')
+        lib64_path = os.path.join(toy_installdir, 'lib64')
+
+        # lib64 subdir exists, is not a symlink
+        self.assertTrue(os.path.exists(lib64_path))
+        self.assertTrue(os.path.isdir(lib64_path))
+        self.assertFalse(os.path.islink(lib64_path))
+
+        # lib subdir is a symlink to lib64 subdir
+        self.assertTrue(os.path.exists(lib_path))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertTrue(os.path.islink(lib_path))
+        self.assertTrue(os.path.samefile(lib_path, lib64_path))
+
+        # lib symlink should point to a relative path
+        self.assertFalse(os.path.isabs(os.readlink(lib_path)))
+
+        # cleanup and try again with --disable-lib-lib64-symlink
+        remove_dir(self.test_installpath)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
+
+        self.assertTrue(os.path.exists(lib64_path))
+        self.assertFalse(os.path.exists(lib_path))
+        self.assertFalse('lib' in os.listdir(toy_installdir))
+        self.assertTrue(os.path.isdir(lib64_path))
+        self.assertFalse(os.path.islink(lib64_path))
 
 
 def suite():
