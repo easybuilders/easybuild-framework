@@ -3145,7 +3145,7 @@ class ToyBuildTest(EnhancedTestCase):
         lib_path = os.path.join(toy_installdir, 'lib')
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
-        # lib6 subdir exists, is not a symlink
+        # lib64 subdir exists, is not a symlink
         self.assertTrue(os.path.exists(lib_path))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
