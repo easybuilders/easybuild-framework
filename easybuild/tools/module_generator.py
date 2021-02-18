@@ -780,11 +780,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        if default is not None:
-            cmd = '[if { [info exists ::env(%s)] } { concat $::env(%s) } else { concat "%s" } ]' % (envvar, envvar,
-                                                                                                    default)
-        else:
+        if default is None:
             cmd = '$::env(%s)' % envvar
+        else:
+            values = {
+                'default': default,
+                'envvar': '::env(%s)' % envvar,
+            }
+            cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
         return cmd
 
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
@@ -1205,10 +1208,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        if default is not None:
-            cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
-        else:
+        if default is None:
             cmd = 'os.getenv("%s")' % envvar
+        else:
+            cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
         return cmd
 
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
