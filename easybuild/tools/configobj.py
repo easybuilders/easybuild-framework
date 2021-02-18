@@ -1213,9 +1213,8 @@ class ConfigObj(Section):
         if isinstance(infile, string_type):
             self.filename = infile
             if os.path.isfile(infile):
-                h = open(infile, 'r')
-                infile = h.read() or []
-                h.close()
+                with open(infile, 'r') as fh:
+                    infile = fh.read() or []
             elif self.file_error:
                 # raise an error if the file doesn't exist
                 raise IOError('Config file not found: "%s".' % self.filename)
@@ -1224,9 +1223,8 @@ class ConfigObj(Section):
                 if self.create_empty:
                     # this is a good test that the filename specified
                     # isn't impossible - like on a non-existent device
-                    h = open(infile, 'w')
-                    h.write('')
-                    h.close()
+                    with open(infile, 'w') as fh:
+                        fh.write('')
                 infile = []
 
         elif isinstance(infile, (list, tuple)):
@@ -2052,9 +2050,8 @@ class ConfigObj(Section):
         if outfile is not None:
             outfile.write(output)
         else:
-            h = open(self.filename, 'wb')
-            h.write(output)
-            h.close()
+            with open(self.filename, 'wb') as fh:
+                fh.write(output)
 
     def validate(self, validator, preserve_errors=False, copy=False,
                  section=None):

@@ -40,7 +40,6 @@ Set of file tools.
 """
 import datetime
 import difflib
-import fileinput
 import glob
 import hashlib
 import imp
@@ -189,11 +188,21 @@ def is_readable(path):
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
 
+def open_file(path, mode):
+    """Open a (usually) text file. If mode is not binary, then utf-8 encoding will be used for Python 3.x"""
+    # This is required for text files in Python 3, especially until Python 3.7 which implements PEP 540.
+    # This PEP opens files in UTF-8 mode if the C locale is used, see https://www.python.org/dev/peps/pep-0540
+    if sys.version_info[0] >= 3 and 'b' not in mode:
+        return open(path, mode, encoding='utf-8')
+    else:
+        return open(path, mode)
+
+
 def read_file(path, log_error=True, mode='r'):
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
-        with open(path, mode) as handle:
+        with open_file(path, mode) as handle:
             txt = handle.read()
     except IOError as err:
         if log_error:
@@ -244,8 +253,8 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        with open(path, mode) as handle:
-            handle.write(data)
+        with open_file(path, mode) as fh:
+            fh.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -1100,10 +1109,9 @@ def calc_block_checksum(path, algorithm):
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
     try:
-        f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), b''):
-            algorithm.update(block)
-        f.close()
+        with open(path, 'rb') as fh:
+            for block in iter(lambda: fh.read(blocksize), b''):
+                algorithm.update(block)
     except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
 
@@ -1449,35 +1457,37 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
         for regex, subtxt in regex_subs:
             compiled_regex_subs.append((re.compile(regex), subtxt))
 
-        if backup:
-            backup_ext = backup
-        else:
-            # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
-            backup_ext = ''
-
         for path in paths:
             try:
                 # make sure that file can be opened in text mode;
                 # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
                 try:
-                    with open(path, 'r') as fp:
-                        _ = fp.read()
+                    with open_file(path, 'r') as fp:
+                        txt_utf8 = fp.read()
                 except UnicodeDecodeError as err:
                     _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
                     path_backup = back_up_file(path)
                     _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
                     txt = read_file(path, mode='rb')
                     txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
+                    del txt
                     write_file(path, txt_utf8)
 
-                for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
-                    for regex, subtxt in compiled_regex_subs:
-                        match = regex.search(line)
-                        if match:
-                            origtxt = match.group(0)
-                            _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, origtxt, subtxt)
-                        line = regex.sub(subtxt, line)
-                    sys.stdout.write(line)
+                if backup:
+                    copy_file(path, path + backup)
+                with open_file(path, 'w') as out_file:
+                    lines = txt_utf8.split('\n')
+                    del txt_utf8
+                    for line_id, line in enumerate(lines):
+                        for regex, subtxt in compiled_regex_subs:
+                            match = regex.search(line)
+                            if match:
+                                origtxt = match.group(0)
+                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
+                                          (line_id + 1), path, origtxt, subtxt)
+                                line = regex.sub(subtxt, line)
+                                lines[line_id] = line
+                    out_file.write('\n'.join(lines))
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
@@ -1652,16 +1662,16 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
     :param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
                    to avoid users can removing/renaming files in this directory
     """
-    if set_gid is None:
-        set_gid = build_option('set_gid_bit')
-    if sticky is None:
-        sticky = build_option('sticky_bit')
-
     if not os.path.isabs(path):
         path = os.path.abspath(path)
 
     # exit early if path already exists
     if not os.path.exists(path):
+        if set_gid is None:
+            set_gid = build_option('set_gid_bit')
+        if sticky is None:
+            sticky = build_option('sticky_bit')
+
         _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)", path, parents, set_gid, sticky)
         # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
         existing_parent_path = os.path.dirname(path)
@@ -2131,7 +2141,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             if lic_files:
                 for lic_file in lic_files:
                     try:
-                        open(lic_file, 'r')
+                        # just try to open file for reading, no need to actually read it
+                        open(lic_file, 'rb').close()
                         valid_lic_specs.append(lic_file)
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
@@ -2465,7 +2476,7 @@ def install_fake_vsc():
     fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')
     if not os.path.exists(os.path.dirname(fake_vsc_init_path)):
         os.makedirs(os.path.dirname(fake_vsc_init_path))
-    with open(fake_vsc_init_path, 'w') as fp:
+    with open_file(fake_vsc_init_path, 'w') as fp:
         fp.write(fake_vsc_init)
 
     sys.path.insert(0, fake_vsc_path)

@@ -1342,7 +1342,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         robot_decoy = os.path.join(self.test_prefix, 'robot_decoy')
         mkdir(robot_decoy)
         for dry_run_arg in ['-D', '--dry-run-short']:
-            open(self.logfile, 'w').write('')
+            write_file(self.logfile, '')
             args = [
                 os.path.join(tmpdir, 'easybuild', 'easyconfigs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb'),
                 dry_run_arg,
@@ -2161,9 +2161,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        f = open(tweaked_toy_ec, 'a')
-        f.write("easyblock = 'ConfigureMake'")
-        f.close()
+        write_file(tweaked_toy_ec, "easyblock = 'ConfigureMake'", append=True)
 
         args = [
             tweaked_toy_ec,
@@ -2224,9 +2222,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        f = open(tweaked_toy_ec, 'a')
-        f.write("easyblock = 'ConfigureMake'")
-        f.close()
+        write_file(tweaked_toy_ec, "easyblock = 'ConfigureMake'", append=True)
 
         args = [
             tweaked_toy_ec,
@@ -2293,9 +2289,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        f = open(tweaked_toy_ec, 'a')
-        f.write("dependencies = [('gzip', '1.4')]\n")  # add fictious dependency
-        f.close()
+        write_file(tweaked_toy_ec, "dependencies = [('gzip', '1.4')]\n", append=True)  # add fictious dependency
 
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
         args = [
@@ -2349,9 +2343,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
         # clear fictitious dependency
-        f = open(tweaked_toy_ec, 'a')
-        f.write("dependencies = []\n")
-        f.close()
+        write_file(tweaked_toy_ec, "dependencies = []\n", append=True)
 
         # no recursive try if --disable-map-toolchains is involved
         for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
@@ -2411,7 +2403,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: zlib', outtxt))
 
         # clear log file
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # filter deps (including a non-existing dep, i.e. zlib)
         args.extend(['--filter-deps', 'FFTW,ScaLAPACK,zlib'])
@@ -2420,7 +2412,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # filter specific version of deps
         args[-1] = 'FFTW=3.2.3,zlib,ScaLAPACK=2.0.2'
@@ -2429,7 +2421,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         args[-1] = 'zlib,FFTW=3.3.7,ScaLAPACK=2.0.1'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
@@ -2437,7 +2429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # filter deps with version range: only filter FFTW 3.x, ScaLAPACK 1.x
         args[-1] = 'zlib,ScaLAPACK=]1.0:2.0[,FFTW=[3.0:4.0['
@@ -2446,7 +2438,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # also test open ended ranges
         args[-1] = 'zlib,ScaLAPACK=[1.0:,FFTW=:4.0['
@@ -2455,7 +2447,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         args[-1] = 'zlib,ScaLAPACK=[2.1:,FFTW=:3.0['
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
@@ -2470,7 +2462,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # FFTW & ScaLAPACK versions are not included in range, so no filtering
         args[-1] = 'FFTW=]3.3.7:4.0],zlib,ScaLAPACK=[1.0:2.0.2['
@@ -2479,7 +2471,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # also test mix of ranges & specific versions
         args[-1] = 'FFTW=3.3.7,zlib,ScaLAPACK=[1.0:2.0.2['
@@ -2488,7 +2480,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
         args[-1] = 'FFTW=]3.3.7:4.0],zlib,ScaLAPACK=2.0.2'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
@@ -2497,7 +2489,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # This easyconfig contains a dependency of CMake for which no easyconfig exists. It should still
         # succeed when called with --filter-deps=CMake=:2.8.10]
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
         ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
         args[0] = ec_file
         args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
@@ -2507,7 +2499,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(regexp, outtxt))
 
         # The test below fails without PR 2983
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
         ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
         args[0] = ec_file
         args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
@@ -2536,7 +2528,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: zlib', outtxt))
 
         # clear log file
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # hide deps (including a non-existing dep, i.e. zlib)
         args.append('--hide-deps=FFTW,ScaLAPACK,zlib')
@@ -2759,9 +2751,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             software_path = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
             test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-0.0*test_report.md')
-            f = open(glob.glob(test_report_path_pattern)[0], 'r')
-            test_report_txt = f.read()
-            f.close()
+            test_report_txt = read_file(glob.glob(test_report_path_pattern)[0])
             return test_report_txt
 
         # define environment variables that should (not) show up in the test report
