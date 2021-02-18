@@ -248,6 +248,9 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_extend_modpath(self):
         """Test for make_module_extend_modpath"""
+
+        module_syntax = get_module_syntax()
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -276,10 +279,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = config.install_path()
 
         txt = eb.make_module_extend_modpath()
-        if get_module_syntax() == 'Tcl':
+        if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if { \[info exists ::env\(%s\)\] } { concat \$::env\(%s\) } else { concat "%s" } \]'\
-                   % ("HOME", "HOME", "HOME_NOT_DEFINED")
+            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+            home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -287,7 +290,7 @@ class EasyBlockTest(EnhancedTestCase):
                 # no per-moduleclass extension for user modules
                 r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
             ])
-        elif get_module_syntax() == 'Lua':
+        elif module_syntax == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
             home = r'os.getenv\("HOME"\) or "HOME_NOT_DEFINED"'
             pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
@@ -298,15 +301,14 @@ class EasyBlockTest(EnhancedTestCase):
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.assertTrue(False, "Unknown module syntax: %s" % module_syntax)
+
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # Repeat this but using an alternate envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
-        site_install_path = os.path.join(config.install_path(), 'site')
-        user_install_path = os.path.join(config.install_path(), 'user')
 
         build_options = {
             'envvars_user_modules': list_of_envvars,
@@ -320,11 +322,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         txt = eb.make_module_extend_modpath()
         for envvar in list_of_envvars:
-            if get_module_syntax() == 'Tcl':
+            if module_syntax == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar =\
-                    r'\[if \{ \[info exists ::env\(%s\)\] \} \{ concat \$::env\(%s\) \} else { concat "%s" } \]'\
-                    % (envvar, envvar, envvar + "_NOT_DEFINED")
+                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -332,7 +334,7 @@ class EasyBlockTest(EnhancedTestCase):
                     # no per-moduleclass extension for user modules
                     r'^\s+module use \[ file join %s \[ %s \] \]$' % (module_envvar, fj_usermodsdir),
                 ])
-            elif get_module_syntax() == 'Lua':
+            elif module_syntax == 'Lua':
                 regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c
                           for c in modclasses]
                 module_envvar = r'os.getenv\("%s"\) or "%s"' % (envvar, envvar + "_NOT_DEFINED")
@@ -344,7 +346,8 @@ class EasyBlockTest(EnhancedTestCase):
                     r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (module_envvar, pj_usermodsdir),
                 ])
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(False, "Unknown module syntax: %s" % module_syntax)
+
             for regex in regexs:
                 regex = re.compile(regex, re.M)
                 self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
@@ -352,21 +355,23 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Check behaviour when directories do and do not exist
         usermodsdir_extension = os.path.join(usermodsdir, "funky", "Compiler/pi/3.14")
+        site_install_path = os.path.join(config.install_path(), 'site')
         site_modules = os.path.join(site_install_path, usermodsdir_extension)
+        user_install_path = os.path.join(config.install_path(), 'user')
         user_modules = os.path.join(user_install_path, usermodsdir_extension)
+
         # make a modules directory so that we can create our module files
         temp_module_file_dir = os.path.join(site_install_path, usermodsdir, "temp_module_files")
-        os.makedirs(temp_module_file_dir)
+        mkdir(temp_module_file_dir, parents=True)
+
         # write out a module file
-        if get_module_syntax() == 'Tcl':
+        if module_syntax == 'Tcl':
             module_file = os.path.join(temp_module_file_dir, "mytest")
             module_txt = "#%Module\n" + txt
-        elif get_module_syntax() == 'Lua':
+        elif module_syntax == 'Lua':
             module_file = os.path.join(temp_module_file_dir, "mytest.lua")
             module_txt = txt
-        handle = open(module_file, "w")
-        handle.write(module_txt)
-        handle.close()
+        write_file(module_file, module_txt)
 
         # Set MODULEPATH and check the effect of `module load`
         os.environ['MODULEPATH'] = temp_module_file_dir
@@ -375,7 +380,7 @@ class EasyBlockTest(EnhancedTestCase):
         # not be accidentally picked up if the variable is not defined but the paths exist
         # relative to the current directory
         cwd = os.getcwd()
-        os.makedirs(os.path.join(config.install_path(), "existing_dir", usermodsdir_extension))
+        mkdir(os.path.join(config.install_path(), "existing_dir", usermodsdir_extension), parents=True)
         change_dir(os.path.join(config.install_path(), "existing_dir"))
         self.modtool.run_module('load', 'mytest')
         self.assertFalse(usermodsdir_extension in os.environ['MODULEPATH'])
@@ -392,13 +397,13 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertFalse(user_modules in os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         # Now create the directory for site modules
-        os.makedirs(site_modules)
+        mkdir(site_modules, parents=True)
         self.modtool.run_module('load', 'mytest')
         self.assertTrue(os.environ['MODULEPATH'].startswith(site_modules))
         self.assertFalse(user_modules in os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         # Now create the directory for user modules
-        os.makedirs(user_modules)
+        mkdir(user_modules, parents=True)
         self.modtool.run_module('load', 'mytest')
         self.assertTrue(os.environ['MODULEPATH'].startswith(user_modules + ":" + site_modules))
         self.modtool.run_module('unload', 'mytest')

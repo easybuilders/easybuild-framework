@@ -1359,9 +1359,8 @@ class EasyBlock(object):
                     self.log.debug("Requested environment variable $%s to host additional branch for modules",
                                    user_envvar)
                     default_value = user_envvar + "_NOT_DEFINED"
-                    txt += self.module_generator.use(user_modpath_exts,
-                                                     prefix=self.module_generator.getenv_cmd(user_envvar,
-                                                                                             default=default_value),
+                    getenv_txt = self.module_generator.getenv_cmd(user_envvar, default=default_value)
+                    txt += self.module_generator.use(user_modpath_exts, prefix=getenv_txt,
                                                      guarded=True, user_modpath=user_modpath)
         else:
             self.log.debug("Not including module path extensions, as specified.")
