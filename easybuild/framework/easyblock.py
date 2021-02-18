@@ -2410,17 +2410,26 @@ class EasyBlock(object):
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         self.fix_shebang()
+
+        lib_dir = os.path.join(self.installdir, 'lib')
+        lib64_dir = os.path.join(self.installdir, 'lib64')
+
         # GCC linker searches system /lib64 path before the $LIBRARY_PATH paths.
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
         if build_option('lib64_lib_symlink'):
-            lib_dir = os.path.join(self.installdir, 'lib')
-            lib64_dir = os.path.join(self.installdir, 'lib64')
             if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
                 # create *relative* 'lib64' symlink to 'lib';
                 # see https://github.com/easybuilders/easybuild-framework/issues/3564
                 symlink('lib', lib64_dir, use_abspath_source=False)
+
+        # symlink lib to lib64, which is helpful on OpenSUSE;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3549
+        if build_option('lib_lib64_symlink'):
+            if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
+                # create *relative* 'lib' symlink to 'lib64';
+                symlink('lib64', lib_dir, use_abspath_source=False)
 
     def sanity_check_step(self, *args, **kwargs):
         """
