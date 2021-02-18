@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,17 +23,19 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gsmpi compiler toolchain (includes GCC and SpectrumMPI).
+EasyBuild support for iibff compiler toolchain (includes Intel compilers + MPI, BLIS, libFLAME, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
+:author: Kenneth Hoste (HPC-UGent)
 """
 
-from easybuild.toolchains.gcc import GccToolchain
-from easybuild.toolchains.mpi.spectrummpi import SpectrumMPI
+from easybuild.toolchains.iimpi import Iimpi
+from easybuild.toolchains.linalg.blis import Blis
+from easybuild.toolchains.linalg.flame import Flame
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.fft.fftw import Fftw
 
 
-class Gsmpi(GccToolchain, SpectrumMPI):
-    """Compiler toolchain with GCC and SpectrumMPI."""
-    NAME = 'gsmpi'
-    SUBTOOLCHAIN = GccToolchain.NAME
+class Iibff(Iimpi, Blis, Flame, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, OpenMPI, BLIS, libFLAME, ScaLAPACK and FFTW."""
+    NAME = 'iibff'
+    SUBTOOLCHAIN = Iimpi.NAME

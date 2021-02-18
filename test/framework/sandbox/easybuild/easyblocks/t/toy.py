@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,7 +36,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import mkdir
+from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.run import run_cmd
 
@@ -116,9 +116,7 @@ class EB_toy(ExtensionEasyBlock):
         # also install a dummy libtoy.a, to make the default sanity check happy
         libdir = os.path.join(self.installdir, 'lib')
         mkdir(libdir, parents=True)
-        f = open(os.path.join(libdir, 'lib%s.a' % name), 'w')
-        f.write(name.upper())
-        f.close()
+        write_file(os.path.join(libdir, 'lib%s.a' % name), name.upper())
 
     def run(self):
         """Install toy as extension."""

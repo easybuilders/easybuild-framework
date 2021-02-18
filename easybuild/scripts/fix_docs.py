@@ -1,5 +1,5 @@
 # #
-# Copyright 2016-2020 Ghent University
+# Copyright 2016-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -55,15 +55,14 @@ for tmp in py_files:
     # exclude self
     if os.path.basename(tmp) == os.path.basename(__file__):
         continue
-    with open(tmp) as f:
+    with open(tmp) as fh:
         temp = "tmp_file.py"
-        out = open(temp, 'w')
-        for line in f:
-            if "@author" in line:
-                out.write(re.sub(r"@author: (.*)", r":author: \1", line))
-            elif "@param" in line:
-                out.write(re.sub(r"@param ([^:]*):", r":param \1:", line))
-            else:
-                out.write(line)
-        out.close()
+        with open(temp, 'w') as out:
+            for line in fh:
+                if "@author" in line:
+                    out.write(re.sub(r"@author: (.*)", r":author: \1", line))
+                elif "@param" in line:
+                    out.write(re.sub(r"@param ([^:]*):", r":param \1:", line))
+                else:
+                    out.write(line)
         os.rename(temp, tmp)

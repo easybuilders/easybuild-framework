@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -215,7 +215,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             os.close(fd)
 
         fancylogger.logToFile(logfile, max_bytes=0)
-        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
+        print_msg('Temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
 
     log = fancylogger.getLogger(fname=False)
 

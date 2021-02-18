@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2020-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,17 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gsmpi compiler toolchain (includes GCC and SpectrumMPI).
+EasyBuild support for building and installing toy with EULA, implemented as an easyblock
 
-:author: Kenneth Hoste (Ghent University)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
+@author: Kenneth Hoste (Ghent University)
 """
-
-from easybuild.toolchains.gcc import GccToolchain
-from easybuild.toolchains.mpi.spectrummpi import SpectrumMPI
+from easybuild.easyblocks.toy import EB_toy
 
 
-class Gsmpi(GccToolchain, SpectrumMPI):
-    """Compiler toolchain with GCC and SpectrumMPI."""
-    NAME = 'gsmpi'
-    SUBTOOLCHAIN = GccToolchain.NAME
+class EB_toy_eula(EB_toy):
+    """Support for building/installing toy."""
+
+    def prepare_step(self, *args, **kwargs):
+        """Constructor"""
+        super(EB_toy_eula, self).prepare_step(*args, **kwargs)
+
+        # EULA for toy must be accepted via --accept-eula EasyBuild configuration option,
+        # or via 'accept_eula = True' in easyconfig file
+        self.check_accepted_eula(more_info='https://example.com/toy_eula.txt')

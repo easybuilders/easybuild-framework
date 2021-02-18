@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,7 +46,7 @@ from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
-from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
+from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.py2vs3 import subprocess_popen_text
 from easybuild.tools.run import run_cmd
@@ -793,9 +793,12 @@ class ModulesTool(object):
         # restore selected original environment variables before running module command
         environ = os.environ.copy()
         for key in LD_ENV_VAR_KEYS:
-            environ[key] = ORIG_OS_ENVIRON.get(key, '')
-            self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
-                           key, os.environ.get(key, ''), environ[key])
+            old_value = environ.get(key, '')
+            new_value = ORIG_OS_ENVIRON.get(key, '')
+            if old_value != new_value:
+                environ[key] = new_value
+                self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
+                               key, old_value, new_value)
 
         cmd_list = self.compose_cmd_list(args)
         full_cmd = ' '.join(cmd_list)
@@ -842,11 +845,13 @@ class ModulesTool(object):
             # correct values of selected environment variables as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
             for key in LD_ENV_VAR_KEYS:
-                curr_ld_val = os.environ.get(key, '').split(os.pathsep)
+                curr_ld_val = os.environ.get(key, '')
+                curr_ld_val = curr_ld_val.split(os.pathsep) if curr_ld_val else []  # Take care of empty/unset values
                 new_ld_val = [x for x in nub(prev_ld_values[key] + curr_ld_val[::-1]) if x][::-1]
 
-                self.log.debug("Correcting paths in $%s from %s to %s" % (key, curr_ld_val, new_ld_val))
-                self.set_path_env_var(key, new_ld_val)
+                if new_ld_val != curr_ld_val:
+                    self.log.debug("Correcting paths in $%s from %s to %s" % (key, curr_ld_val, new_ld_val))
+                    self.set_path_env_var(key, new_ld_val)
 
             # Process stderr
             result = []
@@ -1403,17 +1408,12 @@ class Lmod(ModulesTool):
                 # don't actually update local cache when testing, just return the cache contents
                 return stdout
             else:
-                try:
-                    cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
-                    self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
-                    cache_dir = os.path.dirname(cache_fp)
-                    if not os.path.exists(cache_dir):
-                        mkdir(cache_dir, parents=True)
-                    cache_file = open(cache_fp, 'w')
-                    cache_file.write(stdout)
-                    cache_file.close()
-                except (IOError, OSError) as err:
-                    raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
+                cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+                cache_dir = os.path.dirname(cache_fp)
+                if not os.path.exists(cache_dir):
+                    mkdir(cache_dir, parents=True)
+                write_file(cache_fp, stdout)
 
     def use(self, path, priority=None):
         """

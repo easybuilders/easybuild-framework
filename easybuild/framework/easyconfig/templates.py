@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -80,6 +80,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 TEMPLATE_SOFTWARE_VERSIONS = [
     # software name, prefix for *ver and *shortver
     ('CUDA', 'cuda'),
+    ('CUDAcore', 'cuda'),
     ('Java', 'java'),
     ('Perl', 'perl'),
     ('Python', 'py'),
@@ -232,15 +233,20 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         #  a cyclic import...);
         # we need to know to determine whether we're iterating over a list of build dependencies
         is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
-
         if is_easyconfig:
             # if we're iterating over different lists of build dependencies,
             # only consider build dependencies when we're actually in iterative mode!
             if 'builddependencies' in config.iterate_options:
                 if config.iterating:
-                    deps += config.get('builddependencies', [])
+                    deps.extend(config.get('builddependencies', []))
             else:
-                deps += config.get('builddependencies', [])
+                deps.extend(config.get('builddependencies', []))
+
+            # include all toolchain deps (e.g. CUDAcore component in fosscuda);
+            # access Toolchain instance via _toolchain to avoid triggering initialization of the toolchain!
+            if config._toolchain is not None:
+                if config._toolchain.tcdeps is not None:
+                    deps.extend(config._toolchain.tcdeps)
 
         for dep in deps:
             if isinstance(dep, dict):
@@ -310,6 +316,8 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
     if cuda_compute_capabilities:
         template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
+        template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
+        template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)

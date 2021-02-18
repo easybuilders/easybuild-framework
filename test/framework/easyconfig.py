@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1049,6 +1049,51 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s  "})
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
+
+    def test_templating_cuda_toolchain(self):
+        """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
+
+        build_options = {'robot_path': [self.test_prefix]}
+        init_config(build_options=build_options)
+
+        # create fake easyconfig files, good enough to test with
+        cuda_ec = os.path.join(self.test_prefix, 'CUDA-10.1.243')
+        cuda_ec_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'CUDA'",
+            "version = '10.1.243'",
+            "homepage = 'https://example.com'",
+            "description = 'CUDA'",
+            "toolchain = SYSTEM",
+        ])
+        write_file(cuda_ec, cuda_ec_txt)
+
+        fosscuda_ec = os.path.join(self.test_prefix, 'fosscuda-2021.02.eb')
+        fosscuda_ec_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'fosscuda'",
+            "version = '2021.02'",
+            "homepage = 'https://example.com'",
+            "description = 'fosscuda toolchain'",
+            "toolchain = SYSTEM",
+            "dependencies = [('CUDA', '10.1.243')]",
+        ])
+        write_file(fosscuda_ec, fosscuda_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'test'",
+            "version = '1.0'",
+            "homepage = 'https://example.com'",
+            "description = 'just a test'",
+            "toolchain = {'name': 'fosscuda', 'version': '2021.02'}",
+        ])
+        write_file(test_ec, test_ec_txt)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec.template_values['cudaver'], '10.1.243')
+        self.assertEqual(ec.template_values['cudamajver'], '10')
+        self.assertEqual(ec.template_values['cudashortver'], '10.1')
 
     def test_java_wrapper_templating(self):
         """test templating when the Java wrapper is a dep"""
@@ -4007,6 +4052,8 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
             "installopts = '%(cuda_compute_capabilities)s'",
+            "preinstallopts = '%(cuda_cc_space_sep)s'",
+            "prebuildopts = '%(cuda_cc_semicolon_sep)s'",
             "configopts = '%(cuda_sm_comma_sep)s'",
             "preconfigopts = '%(cuda_sm_space_sep)s'",
         ])
@@ -4014,6 +4061,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
+        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
         self.assertEqual(ec['configopts'], 'sm_51,sm_70,sm_71')
         self.assertEqual(ec['preconfigopts'], 'sm_51 sm_70 sm_71')
 
@@ -4021,6 +4070,8 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['installopts'], '4.2,6.3')
+        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
         self.assertEqual(ec['configopts'], 'sm_42,sm_63')
         self.assertEqual(ec['preconfigopts'], 'sm_42 sm_63')
 

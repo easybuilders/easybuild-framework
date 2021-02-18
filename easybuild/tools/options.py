@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,7 +60,8 @@ from easybuild.tools import build_log, run  # build_log should always stay there
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
-from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENVVAR_USERS_MODULES, DEFAULT_FORCE_DOWNLOAD
+from easybuild.tools.config import DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
@@ -333,6 +334,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'accept-eula': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
                                                 "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
                                                 None, 'store_true', False),
@@ -398,6 +400,11 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
+            'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
+                                          "To not log sensitive values, specify a file containing newline separated "
+                                          "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
+                                          "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
+                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
@@ -439,6 +446,7 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
             'generate-devel-module': ("Generate a develop module file, implies --force if disabled",
                                       None, 'store_true', True),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
@@ -487,6 +495,9 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
+            'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
+                                     "modules will be installed relative to", 'strlist', 'store',
+                                     [DEFAULT_ENVVAR_USERS_MODULES]),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
@@ -545,7 +556,8 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
-            'subdir-user-modules': ("Base path of user-specific modules relative to their $HOME", None, 'store', None),
+            'subdir-user-modules': ("Base path of user-specific modules relative to --envvar-user-modules",
+                                    None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
