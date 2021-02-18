@@ -853,6 +853,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
+
+        test_mod_file = os.path.join(self.test_prefix, 'test', '1.2.3')
+
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             # can't have $LMOD_QUIET set when testing with Tcl syntax,
             # otherwise we won't get the output produced by the test module file...
@@ -866,7 +869,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
             self.assertEqual(getenv_txt, expected)
 
-            write_file(os.path.join(self.test_prefix, 'test', '1.2.3'), '#%%Module\nputs stderr %s' % getenv_txt)
+            write_file(test_mod_file, '#%%Module\nputs stderr %s' % getenv_txt)
         else:
             self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))
@@ -875,15 +878,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
             getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
             self.assertEqual(getenv_txt, expected)
 
-            write_file(os.path.join(self.test_prefix, 'test', '1.2.3.lua'), "io.stderr:write(%s)" % getenv_txt)
+            test_mod_file += '.lua'
+            write_file(test_mod_file, "io.stderr:write(%s)" % getenv_txt)
 
-        self.modtool.use(self.test_prefix)
-        out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
-        self.assertEqual(out.strip(), 'foobar')
+        # only test loading of test module in Lua syntax when using Lmod
+        if isinstance(self.modtool, Lmod) or not test_mod_file.endswith('.lua'):
+            self.modtool.use(self.test_prefix)
+            out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
+            self.assertEqual(out.strip(), 'foobar')
 
-        os.environ['TEST'] = 'test_value_that_is_not_foobar'
-        out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
-        self.assertEqual(out.strip(), 'test_value_that_is_not_foobar')
+            os.environ['TEST'] = 'test_value_that_is_not_foobar'
+            out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
+            self.assertEqual(out.strip(), 'test_value_that_is_not_foobar')
 
     def test_alias(self):
         """Test setting of alias in modulefiles."""
