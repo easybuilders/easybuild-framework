@@ -4184,7 +4184,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         github_path = r"boegel/easybuild-easyconfigs\.git"
         pattern = '\n'.join([
-            r"== temporary log file in case of crash .*",
+            r"== Temporary log file in case of crash .*",
             r"== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #9150: develop",
             r"== fetching branch 'develop' from https://github\.com/%s\.\.\." % github_path,
             r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
@@ -4215,7 +4215,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         github_path = r"boegel/easybuild-easyconfigs\.git"
         pattern = '\n'.join([
-            r"== temporary log file in case of crash .*",
+            r"== Temporary log file in case of crash .*",
             r"== fetching branch '%s' from https://github\.com/%s\.\.\." % (test_branch, github_path),
             r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
             r"== merging 'develop' branch into PR branch '%s'\.\.\." % test_branch,
