@@ -1359,6 +1359,95 @@ def merge_pr(pr):
         print_warning("Review indicates this PR should not be merged (use -f/--force to do so anyway)")
 
 
+def det_pr_labels(file_info, pr_target_repo):
+    """
+    Determine labels for a pull request based on provided information on files changed by that pull request.
+    """
+    labels = []
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if any(file_info['new_folder']):
+            labels.append('new')
+        if any(file_info['new_file_in_existing_folder']):
+            labels.append('update')
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+        if any(file_info['new']):
+            labels.append('new')
+    return labels
+
+
+def post_pr_labels(pr, labels):
+    """
+    Update PR labels
+    """
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+
+    # fetch GitHub token if available
+    github_user = build_option('github_user')
+    if github_user is None:
+        _log.info("GitHub user not specified, not adding labels to PR# %s" % pr)
+        return False
+
+    github_token = fetch_github_token(github_user)
+    if github_token is None:
+        _log.info("GitHub token for user '%s' not found, not adding labels to PR# %s" % (github_user, pr))
+        return False
+
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    if not dry_run:
+        g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+
+        pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
+        try:
+            status, data = pr_url.labels.post(body=labels)
+            if status == HTTP_STATUS_OK:
+                print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+                return True
+        except HTTPError as err:
+            _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
+            return False
+    else:
+        return True
+
+
+def add_pr_labels(pr, branch='develop'):
+    """
+    Try to determine and add labels to PR.
+    :param pr: pull request number in easybuild-easyconfigs repo
+    :param branch: easybuild-easyconfigs branch to compare with
+    """
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet")
+
+    tmpdir = tempfile.mkdtemp()
+
+    download_repo_path = download_repo(branch=branch, path=tmpdir)
+
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+
+    file_info = det_file_info(pr_files, download_repo_path)
+
+    pr_target_account = build_option('pr_target_account')
+    github_user = build_option('github_user')
+    pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+    pr_labels = [label['name'] for label in pr_data['labels']]
+
+    expected_labels = det_pr_labels(file_info, pr_target_repo)
+    missing_labels = [label for label in expected_labels if label not in pr_labels]
+
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    if missing_labels:
+        missing_labels_txt = ', '.join(["'%s'" % ml for ml in missing_labels])
+        print_msg("PR #%s should be labelled %s" % (pr, missing_labels_txt), log=_log, prefix=False)
+        if not dry_run and not post_pr_labels(pr, missing_labels):
+            print_msg("Could not add labels %s to PR #%s" % (missing_labels_txt, pr), log=_log, prefix=False)
+    else:
+        print_msg("Could not determine any missing labels for PR #%s" % pr, log=_log, prefix=False)
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_branch_github(paths, ecs, commit_msg=None):
     """
@@ -1486,14 +1575,9 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
 
         file_info = det_file_info(ec_paths, target_dir)
 
-    labels = []
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        # label easyconfigs for new software and/or new easyconfigs for existing software
-        if any(file_info['new_folder']):
-            labels.append('new')
-        if any(file_info['new_file_in_existing_folder']):
-            labels.append('update')
+    labels = det_pr_labels(file_info, pr_target_repo)
 
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         # only use most common toolchain(s) in toolchain label of PR title
         toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
         toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
@@ -1503,9 +1587,6 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
         classes = [ec['moduleclass'] for ec in file_info['ecs']]
         classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
         class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
-        if any(file_info['new']):
-            labels.append('new')
 
     if title is None:
         if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
@@ -1581,15 +1662,9 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
         print_msg("Opened pull request: %s" % data['html_url'], log=_log, prefix=False)
 
         if labels:
-            # post labels
             pr = data['html_url'].split('/')[-1]
-            pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
-            try:
-                status, data = pr_url.labels.post(body=labels)
-                if status == HTTP_STATUS_OK:
-                    print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
-            except HTTPError as err:
-                _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
+            if not post_pr_labels(pr, labels):
+                print_msg("This PR should be labelled %s" % ', '.join(labels), log=_log, prefix=False)
 
 
 def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):

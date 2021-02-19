@@ -754,6 +754,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'EasyBlock',
                 r'\|-- bar',
                 r'\|-- ConfigureMake',
+                r'\|   \|-- MakeCp',
+                r'\|-- EB_EasyBuildMeta',
                 r'\|-- EB_FFTW',
                 r'\|-- EB_foo',
                 r'\|   \|-- EB_foofoo',
@@ -3581,6 +3583,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
         regex = re.compile(r"^Comparing gzip-1.10-\S* with gzip-1.10-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        # closed PR for gzip 1.2.8 easyconfig,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/5365
+        args = [
+            '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--review-pr=5365',
+        ]
+        self.eb_main(args, raise_error=True, testing=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("This PR should be labelled with 'update'" in txt)
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
