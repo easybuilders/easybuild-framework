@@ -111,6 +111,9 @@ jobs:
             fi;
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
           fi
+          echo "GitHub token installed!"
+        else
+          echo "Installation of GitHub token skipped!"
         fi
 
     - name: install modules tool
