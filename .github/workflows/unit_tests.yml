@@ -100,12 +100,17 @@ jobs:
         # see https://github.com/<username>/easybuild-framework/settings/secrets
         GITHUB_TOKEN: ${{secrets.TEST_GITHUB_TOKEN}}
       run: |
-        if [ ! -z $GITHUB_TOKEN ]; then
-          if [ "x${{matrix.python}}" == 'x2.6' ];
+        # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools,
+        # to avoid hitting GitHub rate limit;
+        # tests that require a GitHub token are skipped automatically when no GitHub token is available
+        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]]; then
+          if [ ! -z $GITHUB_TOKEN ]; then
+            if [ "x${{matrix.python}}" == 'x2.6' ];
               then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
               else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
-          fi;
-          python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+            fi;
+            python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+          fi
         fi
 
     - name: install modules tool
