@@ -509,6 +509,55 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for fmt in [None, 'txt', 'rst']:
             run_test(fmt=fmt)
 
+    def test_avail_easyconfig_templates(self):
+        """Test listing available easyconfig file templates."""
+
+        def run_test(fmt=None):
+            """Helper function to test --avail-easyconfig-templates."""
+
+            args = ['--avail-easyconfig-templates']
+            if fmt is not None:
+                args.append('--output-format=%s' % fmt)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, verbose=True, raise_error=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+
+            if fmt == 'rst':
+                pattern_lines = [
+                    r'^``%\(version_major\)s``\s+Major version\s*$',
+                    r'^``%\(cudaver\)s``\s+full version for CUDA\s*$',
+                    r'^``%\(pyshortver\)s``\s+short version for Python \(<major>.<minor>\)\s*$',
+                    r'^\* ``%\(name\)s``$',
+                    r'^``%\(namelower\)s``\s+lower case of value of name\s*$',
+                    r'^``%\(arch\)s``\s+System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)\s*$',
+                    r'^``%\(cuda_cc_space_sep\)s``\s+Space-separated list of CUDA compute capabilities\s*$',
+                    r'^``SOURCE_TAR_GZ``\s+Source \.tar\.gz bundle\s+``%\(name\)s-%\(version\)s.tar.gz``\s*$',
+                ]
+            else:
+                pattern_lines = [
+                    r'^\s+%\(version_major\)s: Major version$',
+                    r'^\s+%\(cudaver\)s: full version for CUDA$',
+                    r'^\s+%\(pyshortver\)s: short version for Python \(<major>.<minor>\)$',
+                    r'^\s+%\(name\)s$',
+                    r'^\s+%\(namelower\)s: lower case of value of name$',
+                    r'^\s+%\(arch\)s: System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)$',
+                    r'^\s+%\(cuda_cc_space_sep\)s: Space-separated list of CUDA compute capabilities$',
+                    r'^\s+SOURCE_TAR_GZ: Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)$',
+                ]
+
+            for pattern_line in pattern_lines:
+                regex = re.compile(pattern_line, re.M)
+                self.assertTrue(regex.search(stdout), "Pattern '%s' should match in: %s" % (regex.pattern, stdout))
+
+        for fmt in [None, 'txt', 'rst']:
+            run_test(fmt=fmt)
+
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
