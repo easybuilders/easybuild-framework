@@ -1128,6 +1128,7 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_NAMES_CONFIG,
             easyconfig.templates.TEMPLATE_NAMES_LOWER,
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+            easyconfig.templates.TEMPLATE_NAMES_DYNAMIC,
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
 
