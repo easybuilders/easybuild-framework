@@ -1449,7 +1449,7 @@ class ToolchainTest(EnhancedTestCase):
         libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
         libscalack_intel4 += "-lmkl_core"
 
-        libblas_mt_fosscuda = "-lopenblas -lgfortran"
+        libblas_mt_fosscuda = "-lopenblas -lgfortran -lpthread"
         libscalack_fosscuda = "-lscalapack -lopenblas -lgfortran"
         libfft_mt_fosscuda = "-lfftw3_omp -lfftw3 -lpthread"
 
