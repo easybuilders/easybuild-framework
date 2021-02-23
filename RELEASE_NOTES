@@ -17,7 +17,7 @@ update/bugfix release
   - detect 'SYSTEM' toolchain as special case in easystack files (#3543)
   - enhance extract_cmd function to use 'cp -a' for shell scripts (.sh) (#3545)
   - allow use of alternate envvar(s) to $HOME for user modules (#3558)
-  - use https://sources/easybuild.io as fallback source URL (#3572, #3576)
+  - use https://sources.easybuild.io as fallback source URL (#3572, #3576)
   - add toolchain definition for iibff toolchain (#3574)
   - add %(cuda_cc_space_sep)s and %(cuda_cc_semicolon_sep)s templates (#3578)
   - add support for intel-compiler toolchain (>= 2021.x versions, oneAPI) (#3581, #3582)
