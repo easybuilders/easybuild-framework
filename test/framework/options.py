@@ -4103,7 +4103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--pr-branch-name=branch_name_for_new_pr_test',
             '--pr-commit-msg="this is a commit message. really!"',
             '--pr-descr="moar letters foar teh lettre box"',
-            '--pr-target-branch=master',
+            '--pr-target-branch=main',
             '--github-org=%s' % GITHUB_TEST_ORG,
             '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
             '--pr-title=test-1-2-3',
@@ -4111,9 +4111,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs = [
-            r"^== fetching branch 'master' from https://github.com/boegel/easybuild-easyconfigs.git...",
+            r"^== fetching branch 'main' from https://github.com/boegel/easybuild-easyconfigs.git...",
             r"^Opening pull request \[DRY RUN\]",
-            r"^\* target: boegel/easybuild-easyconfigs:master",
+            r"^\* target: boegel/easybuild-easyconfigs:main",
             r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ORG,
             r"\(created using `eb --new-pr`\)",  # description
             r"moar letters foar teh lettre box",  # also description (see --pr-descr)

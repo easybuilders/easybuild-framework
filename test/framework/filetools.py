@@ -2394,7 +2394,7 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'master',
+            'tag': 'main',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
 
