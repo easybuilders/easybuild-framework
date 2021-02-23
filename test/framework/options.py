@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -52,7 +52,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
-from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
+from easybuild.tools.filetools import parse_http_header_fields_urlpat, read_file, remove_dir, remove_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -508,6 +509,55 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for fmt in [None, 'txt', 'rst']:
             run_test(fmt=fmt)
 
+    def test_avail_easyconfig_templates(self):
+        """Test listing available easyconfig file templates."""
+
+        def run_test(fmt=None):
+            """Helper function to test --avail-easyconfig-templates."""
+
+            args = ['--avail-easyconfig-templates']
+            if fmt is not None:
+                args.append('--output-format=%s' % fmt)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, verbose=True, raise_error=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+
+            if fmt == 'rst':
+                pattern_lines = [
+                    r'^``%\(version_major\)s``\s+Major version\s*$',
+                    r'^``%\(cudaver\)s``\s+full version for CUDA\s*$',
+                    r'^``%\(pyshortver\)s``\s+short version for Python \(<major>.<minor>\)\s*$',
+                    r'^\* ``%\(name\)s``$',
+                    r'^``%\(namelower\)s``\s+lower case of value of name\s*$',
+                    r'^``%\(arch\)s``\s+System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)\s*$',
+                    r'^``%\(cuda_cc_space_sep\)s``\s+Space-separated list of CUDA compute capabilities\s*$',
+                    r'^``SOURCE_TAR_GZ``\s+Source \.tar\.gz bundle\s+``%\(name\)s-%\(version\)s.tar.gz``\s*$',
+                ]
+            else:
+                pattern_lines = [
+                    r'^\s+%\(version_major\)s: Major version$',
+                    r'^\s+%\(cudaver\)s: full version for CUDA$',
+                    r'^\s+%\(pyshortver\)s: short version for Python \(<major>.<minor>\)$',
+                    r'^\s+%\(name\)s$',
+                    r'^\s+%\(namelower\)s: lower case of value of name$',
+                    r'^\s+%\(arch\)s: System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)$',
+                    r'^\s+%\(cuda_cc_space_sep\)s: Space-separated list of CUDA compute capabilities$',
+                    r'^\s+SOURCE_TAR_GZ: Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)$',
+                ]
+
+            for pattern_line in pattern_lines:
+                regex = re.compile(pattern_line, re.M)
+                self.assertTrue(regex.search(stdout), "Pattern '%s' should match in: %s" % (regex.pattern, stdout))
+
+        for fmt in [None, 'txt', 'rst']:
+            run_test(fmt=fmt)
+
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
@@ -753,6 +803,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'EasyBlock',
                 r'\|-- bar',
                 r'\|-- ConfigureMake',
+                r'\|   \|-- MakeCp',
+                r'\|-- EB_EasyBuildMeta',
                 r'\|-- EB_FFTW',
                 r'\|-- EB_foo',
                 r'\|   \|-- EB_foofoo',
@@ -765,6 +817,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toy_eula',
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
@@ -773,6 +826,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|-- ExtensionEasyBlock',
                 r'\|   \|-- DummyExtension',
                 r'\|   \|-- EB_toy',
+                r'\|   \|   \|-- EB_toy_eula',
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
             ])
@@ -1339,7 +1393,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         robot_decoy = os.path.join(self.test_prefix, 'robot_decoy')
         mkdir(robot_decoy)
         for dry_run_arg in ['-D', '--dry-run-short']:
-            open(self.logfile, 'w').write('')
+            write_file(self.logfile, '')
             args = [
                 os.path.join(tmpdir, 'easybuild', 'easyconfigs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb'),
                 dry_run_arg,
@@ -2158,9 +2212,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        f = open(tweaked_toy_ec, 'a')
-        f.write("easyblock = 'ConfigureMake'")
-        f.close()
+        write_file(tweaked_toy_ec, "easyblock = 'ConfigureMake'", append=True)
 
         args = [
             tweaked_toy_ec,
@@ -2221,9 +2273,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        f = open(tweaked_toy_ec, 'a')
-        f.write("easyblock = 'ConfigureMake'")
-        f.close()
+        write_file(tweaked_toy_ec, "easyblock = 'ConfigureMake'", append=True)
 
         args = [
             tweaked_toy_ec,
@@ -2290,9 +2340,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        f = open(tweaked_toy_ec, 'a')
-        f.write("dependencies = [('gzip', '1.4')]\n")  # add fictious dependency
-        f.close()
+        write_file(tweaked_toy_ec, "dependencies = [('gzip', '1.4')]\n", append=True)  # add fictious dependency
 
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
         args = [
@@ -2346,9 +2394,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
         # clear fictitious dependency
-        f = open(tweaked_toy_ec, 'a')
-        f.write("dependencies = []\n")
-        f.close()
+        write_file(tweaked_toy_ec, "dependencies = []\n", append=True)
 
         # no recursive try if --disable-map-toolchains is involved
         for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
@@ -2408,7 +2454,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: zlib', outtxt))
 
         # clear log file
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # filter deps (including a non-existing dep, i.e. zlib)
         args.extend(['--filter-deps', 'FFTW,ScaLAPACK,zlib'])
@@ -2417,7 +2463,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # filter specific version of deps
         args[-1] = 'FFTW=3.2.3,zlib,ScaLAPACK=2.0.2'
@@ -2426,7 +2472,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         args[-1] = 'zlib,FFTW=3.3.7,ScaLAPACK=2.0.1'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
@@ -2434,7 +2480,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # filter deps with version range: only filter FFTW 3.x, ScaLAPACK 1.x
         args[-1] = 'zlib,ScaLAPACK=]1.0:2.0[,FFTW=[3.0:4.0['
@@ -2443,7 +2489,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # also test open ended ranges
         args[-1] = 'zlib,ScaLAPACK=[1.0:,FFTW=:4.0['
@@ -2452,7 +2498,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         args[-1] = 'zlib,ScaLAPACK=[2.1:,FFTW=:3.0['
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
@@ -2467,7 +2513,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: ScaLAPACK', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # FFTW & ScaLAPACK versions are not included in range, so no filtering
         args[-1] = 'FFTW=]3.3.7:4.0],zlib,ScaLAPACK=[1.0:2.0.2['
@@ -2476,7 +2522,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # also test mix of ranges & specific versions
         args[-1] = 'FFTW=3.3.7,zlib,ScaLAPACK=[1.0:2.0.2['
@@ -2485,7 +2531,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
 
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
         args[-1] = 'FFTW=]3.3.7:4.0],zlib,ScaLAPACK=2.0.2'
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: FFTW/3.3.7-gompi', outtxt))
@@ -2494,7 +2540,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # This easyconfig contains a dependency of CMake for which no easyconfig exists. It should still
         # succeed when called with --filter-deps=CMake=:2.8.10]
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
         ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
         args[0] = ec_file
         args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
@@ -2504,7 +2550,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(regexp, outtxt))
 
         # The test below fails without PR 2983
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
         ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'f', 'foss', 'foss-2018a-broken.eb')
         args[0] = ec_file
         args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
@@ -2533,7 +2579,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: zlib', outtxt))
 
         # clear log file
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # hide deps (including a non-existing dep, i.e. zlib)
         args.append('--hide-deps=FFTW,ScaLAPACK,zlib')
@@ -2561,6 +2607,181 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
+    def test_parse_http_header_fields_urlpat(self):
+        """Test function parse_http_header_fields_urlpat"""
+        urlex = "example.com"
+        urlgnu = "gnu.org"
+        hdrauth = "Authorization"
+        valauth = "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
+        hdragent = "User-Agent"
+        valagent = "James/0.0.7 (MI6)"
+        hdrrefer = "Referer"
+        valrefer = "http://www.example.com/"
+        filesub1 = os.path.join(self.test_prefix, "testhttpheaders1.txt")
+        filesub2 = os.path.join(self.test_prefix, "testhttpheaders2.txt")
+        filesub3 = os.path.join(self.test_prefix, "testhttpheaders3.txt")
+        filesub4 = os.path.join(self.test_prefix, "testhttpheaders4.txt")
+        fileauth = os.path.join(self.test_prefix, "testhttpheadersauth.txt")
+        write_file(filesub4, filesub3)
+        write_file(filesub3, filesub2)
+        write_file(filesub2, filesub1)
+        write_file(filesub1, "%s::%s:%s\n" % (urlgnu, hdrauth, valauth))
+        write_file(filesub2, "%s::%s\n" % (urlex, filesub1))
+        write_file(filesub3, "%s::%s:%s\n" % (urlex, hdragent, filesub2))
+        write_file(fileauth, "%s\n" % (valauth))
+
+        # Case A: basic pattern
+        args = "%s::%s:%s" % (urlgnu, hdragent, valagent)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdragent, valagent)]}, urlpat_headers)
+
+        # Case B: urlpat has another urlpat: retain deepest level
+        args = "%s::%s::%s::%s:%s" % (urlgnu, urlgnu, urlex, hdragent, valagent)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlex: ["%s:%s" % (hdragent, valagent)]}, urlpat_headers)
+
+        # Case C: header value has a colon
+        args = "%s::%s:%s" % (urlex, hdrrefer, valrefer)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlex: ["%s:%s" % (hdrrefer, valrefer)]}, urlpat_headers)
+
+        # Case D: recurse into files
+        args = filesub3
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case E: recurse into files as header
+        args = "%s::%s" % (urlex, filesub3)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case F: recurse into files as value (header is replaced)
+        args = "%s::%s:%s" % (urlex, hdrrefer, filesub3)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case G: recurse into files as value (header is retained)
+        args = "%s::%s:%s" % (urlgnu, hdrauth, fileauth)
+        urlpat_headers = parse_http_header_fields_urlpat(args)
+        self.assertEqual({urlgnu: ["%s:%s" % (hdrauth, valauth)]}, urlpat_headers)
+
+        # Case H: recurse into files but hit limit
+        args = filesub4
+        error_regex = r"Failed to parse_http_header_fields_urlpat \(recursion limit\)"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+
+        # Case I: argument is not a string
+        args = list("foobar")
+        error_regex = r"Failed to parse_http_header_fields_urlpat \(argument not a string\)"
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+
+    def test_http_header_fields_urlpat(self):
+        """Test use of --http-header-fields-urlpat."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        common_args = [
+            ec_file,
+            '--stop=fetch',
+            '--debug',
+            '--force',
+            '--force-download',
+            '--logtostdout',
+        ]
+
+        # define header fields:values that should (not) show up in the logs, either
+        # because they are secret or because they are not matched for the url
+        testdohdr = 'HeaderAPPLIED'
+        testdoval = 'SECRETvalue'
+        testdonthdr = 'HeaderIGNORED'
+        testdontval = 'BOGUSvalue'
+
+        # header fields (or its values) could be files to be read instead of literals
+        testcmdfile = os.path.join(self.test_prefix, 'testhttpheaderscmdline.txt')
+        testincfile = os.path.join(self.test_prefix, 'testhttpheadersvalinc.txt')
+        testexcfile = os.path.join(self.test_prefix, 'testhttpheadersvalexc.txt')
+        testinchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrinc.txt')
+        testexchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrexc.txt')
+        testurlpatfile = os.path.join(self.test_prefix, 'testhttpheadersurlpat.txt')
+
+        # log mention format upon header or file inclusion
+        mentionhdr = 'Custom HTTP header field set: %s'
+        mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
+
+        def run_and_assert(args, msg, words_expected=None, words_unexpected=None):
+            stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            if words_expected is not None:
+                for thestring in words_expected:
+                    self.assertTrue(re.compile(thestring).search(stdout), "Pattern '%s' missing from log (%s)" %
+                                    (thestring, msg))
+            if words_unexpected is not None:
+                for thestring in words_unexpected:
+                    self.assertFalse(re.compile(thestring).search(stdout), "Pattern '%s' leaked into log (%s)" %
+                                     (thestring, msg))
+
+        # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
+        args = list(common_args)
+        args.extend([
+            '--http-header-fields-urlpat=gnu.org::%s:%s' % (testdohdr, testdoval),
+            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
+        ])
+        # expect to find everything passed on cmdline
+        expected = [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case A", expected)
+
+        # all subsequent tests share this argument list
+        args = common_args
+        args.append('--http-header-fields-urlpat=%s' % (testcmdfile))
+
+        # B: simple file case (secrets in file are not logged)
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            '',
+        ])
+        write_file(testcmdfile, txt)
+        # expect to find only the header key (not its value) and only for the appropriate url
+        expected = [mentionhdr % testdohdr, mentionfile % testcmdfile]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case B", expected, not_expected)
+
+        # C: recursion one: header value is another file
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testincfile),
+            'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
+            '',
+        ])
+        write_file(testcmdfile, txt)
+        write_file(testincfile, '%s\n' % (testdoval))
+        write_file(testexcfile, '%s\n' % (testdontval))
+        # expect to find only the header key (not its value and not the filename) and only for the appropriate url
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
+                    mentionfile % (testincfile), mentionfile % (testexcfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case C", expected, not_expected)
+
+        # D: recursion two: header field+value is another file,
+        write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
+        write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
+        write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
+        # expect to find only the header key (and the literal filename) and only for the appropriate url
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
+                    mentionfile % (testinchdrfile), mentionfile % (testexchdrfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case D", expected, not_expected)
+
+        # E: recursion three: url pattern + header field + value in another file
+        write_file(testcmdfile, '%s\n' % (testurlpatfile))
+        txt = '\n'.join([
+            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            '',
+        ])
+        write_file(testurlpatfile, txt)
+        # expect to find only the header key (but not the literal filename) and only for the appropriate url
+        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
+        not_expected = [testdoval, testdonthdr, testdontval]
+        run_and_assert(args, "case E", expected, not_expected)
+
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
 
@@ -2581,9 +2802,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             software_path = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
             test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-0.0*test_report.md')
-            f = open(glob.glob(test_report_path_pattern)[0], 'r')
-            test_report_txt = f.read()
-            f.close()
+            test_report_txt = read_file(glob.glob(test_report_path_pattern)[0])
             return test_report_txt
 
         # define environment variables that should (not) show up in the test report
@@ -3045,6 +3264,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         orig_local_sys_path = sys.path[:]
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -3093,10 +3313,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.generic.cmakemake']
         os.remove(os.path.join(self.test_prefix, 'foo.py'))
         sys.path = orig_local_sys_path
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
 
         # include test cmakemake easyblock
         cmm_txt = '\n'.join([
@@ -3416,6 +3632,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
         regex = re.compile(r"^Comparing gzip-1.10-\S* with gzip-1.10-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        # closed PR for gzip 1.2.8 easyconfig,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/5365
+        args = [
+            '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--review-pr=5365',
+        ]
+        self.eb_main(args, raise_error=True, testing=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("This PR should be labelled with 'update'" in txt)
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
@@ -3872,7 +4103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--pr-branch-name=branch_name_for_new_pr_test',
             '--pr-commit-msg="this is a commit message. really!"',
             '--pr-descr="moar letters foar teh lettre box"',
-            '--pr-target-branch=master',
+            '--pr-target-branch=main',
             '--github-org=%s' % GITHUB_TEST_ORG,
             '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
             '--pr-title=test-1-2-3',
@@ -3880,9 +4111,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs = [
-            r"^== fetching branch 'master' from https://github.com/boegel/easybuild-easyconfigs.git...",
+            r"^== fetching branch 'main' from https://github.com/boegel/easybuild-easyconfigs.git...",
             r"^Opening pull request \[DRY RUN\]",
-            r"^\* target: boegel/easybuild-easyconfigs:master",
+            r"^\* target: boegel/easybuild-easyconfigs:main",
             r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ORG,
             r"\(created using `eb --new-pr`\)",  # description
             r"moar letters foar teh lettre box",  # also description (see --pr-descr)
@@ -4002,7 +4233,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         github_path = r"boegel/easybuild-easyconfigs\.git"
         pattern = '\n'.join([
-            r"== temporary log file in case of crash .*",
+            r"== Temporary log file in case of crash .*",
             r"== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #9150: develop",
             r"== fetching branch 'develop' from https://github\.com/%s\.\.\." % github_path,
             r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
@@ -4033,7 +4264,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         github_path = r"boegel/easybuild-easyconfigs\.git"
         pattern = '\n'.join([
-            r"== temporary log file in case of crash .*",
+            r"== Temporary log file in case of crash .*",
             r"== fetching branch '%s' from https://github\.com/%s\.\.\." % (test_branch, github_path),
             r"== pulling latest version of 'develop' branch from easybuilders/easybuild-easyconfigs\.\.\.",
             r"== merging 'develop' branch into PR branch '%s'\.\.\." % test_branch,
@@ -5658,6 +5889,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
+    def test_accept_eula_for(self):
+        """Test --accept-eula configuration option."""
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            "easyblock = 'EB_toy_eula'",
+            '',
+            read_file(toy_ec),
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        # by default, no EULAs are accepted at all
+        args = [test_ec, '--force']
+        error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
+        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula
+        self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
+
+        toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_modfile += '.lua'
+        self.assertTrue(os.path.exists(toy_modfile))
+
+        remove_dir(self.test_installpath)
+        self.assertFalse(os.path.exists(toy_modfile))
+
+        # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
+        os.environ['EASYBUILD_ACCEPT_EULA'] = 'toy'
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_modfile))
+
+        remove_dir(self.test_installpath)
+        self.assertFalse(os.path.exists(toy_modfile))
+
+        # also check accepting EULA via 'accept_eula = True' in easyconfig file
+        del os.environ['EASYBUILD_ACCEPT_EULA']
+        write_file(test_ec, test_ec_txt + '\naccept_eula = True')
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_modfile))
+
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):
         """Test for --easystack <easystack.yaml> when wrong name is provided"""
@@ -5679,10 +5954,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"[\S\s]*INFO Building from easystack:[\S\s]*",
             r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs: "
-            r"binutils-2.25-GCCcore-4.9.3.eb, binutils-2.26-GCCcore-4.9.3.eb, toy-0.0-gompi-2018a-test.eb",
+            r"binutils-2.25-GCCcore-4.9.3.eb, binutils-2.26-GCCcore-4.9.3.eb, "
+            r"foss-2018a.eb, toy-0.0-gompi-2018a-test.eb",
             r"\* \[ \] .*/test_ecs/b/binutils/binutils-2.25-GCCcore-4.9.3.eb \(module: binutils/2.25-GCCcore-4.9.3\)",
             r"\* \[ \] .*/test_ecs/b/binutils/binutils-2.26-GCCcore-4.9.3.eb \(module: binutils/2.26-GCCcore-4.9.3\)",
             r"\* \[ \] .*/test_ecs/t/toy/toy-0.0-gompi-2018a-test.eb \(module: toy/0.0-gompi-2018a-test\)",
+            r"\* \[x\] .*/test_ecs/f/foss/foss-2018a.eb \(module: foss/2018a\)",
         ]
         for pattern in patterns:
             regex = re.compile(pattern)

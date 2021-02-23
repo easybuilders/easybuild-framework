@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,7 +42,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.github import VALID_CLOSE_PR_REASONS
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, VALID_CLOSE_PR_REASONS
 from easybuild.tools.testing import post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -60,7 +60,7 @@ GITHUB_TEST_ACCOUNT = 'easybuild_test'
 GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
-GITHUB_BRANCH = 'master'
+GITHUB_BRANCH = 'main'
 
 
 class GithubTest(EnhancedTestCase):
@@ -71,12 +71,15 @@ class GithubTest(EnhancedTestCase):
     def setUp(self):
         """setup"""
         super(GithubTest, self).setUp()
+
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+
         if self.github_token is None:
-            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, None, None, None)
+            username, token = None, None
         else:
-            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT,
-                                    None, self.github_token)
+            username, token = GITHUB_TEST_ACCOUNT, self.github_token
+
+        self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
 
         self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
@@ -115,10 +118,52 @@ class GithubTest(EnhancedTestCase):
 
         try:
             fp = self.ghfs.read("a_directory/a_file.txt", api=False)
-            self.assertEqual(open(fp, 'r').read().strip(), "this is a line of text")
+            self.assertEqual(read_file(fp).strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
             pass
+
+    def test_add_pr_labels(self):
+        """Test add_pr_labels function."""
+        if self.skip_github_tests:
+            print("Skipping test_add_pr_labels, no GitHub token available?")
+            return
+
+        build_options = {
+            'pr_target_account': GITHUB_USER,
+            'pr_target_repo': GITHUB_EASYBLOCKS_REPO,
+            'github_user':  GITHUB_TEST_ACCOUNT,
+            'dry_run': True,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        error_pattern = "Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet"
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.add_pr_labels, 1)
+        self.mock_stdout(False)
+
+        build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
+        init_config(build_options=build_options)
+
+        # PR #11262 includes easyconfigs that use 'dummy' toolchain,
+        # so we need to allow triggering deprecated behaviour
+        self.allow_deprecated_behaviour()
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        gh.add_pr_labels(11262)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("Could not determine any missing labels for PR #11262" in stdout)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        gh.add_pr_labels(8006)  # closed, unmerged, unlabeled PR
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("PR #8006 should be labelled 'update'" in stdout)
 
     def test_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -410,7 +455,7 @@ class GithubTest(EnhancedTestCase):
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
+        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
         shafile = os.path.join(repodir, 'latest-sha')
@@ -592,7 +637,7 @@ class GithubTest(EnhancedTestCase):
 
         pr_data = {
             'base': {
-                'ref': 'master',
+                'ref': 'main',
                 'repo': {
                     'name': 'easybuild-easyconfigs',
                     'owner': {'login': 'easybuilders'},
@@ -610,7 +655,7 @@ class GithubTest(EnhancedTestCase):
         expected_stdout = "Checking eligibility of easybuilders/easybuild-easyconfigs PR #1234 for merging...\n"
 
         # target branch for PR must be develop
-        expected_warning = "* targets develop branch: FAILED; found 'master' => not eligible for merging!\n"
+        expected_warning = "* targets develop branch: FAILED; found 'main' => not eligible for merging!\n"
         run_check()
 
         pr_data['base']['ref'] = 'develop'
@@ -680,6 +725,25 @@ class GithubTest(EnhancedTestCase):
         # all checks pass, PR is eligible for merging
         expected_warning = ''
         self.assertEqual(run_check(True), '')
+
+    def test_det_pr_labels(self):
+        """Test for det_pr_labels function."""
+
+        file_info = {'new_folder': [False], 'new_file_in_existing_folder': [True]}
+        res = gh.det_pr_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.assertEqual(res, ['update'])
+
+        file_info = {'new_folder': [True], 'new_file_in_existing_folder': [False]}
+        res = gh.det_pr_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.assertEqual(res, ['new'])
+
+        file_info = {'new_folder': [True, False], 'new_file_in_existing_folder': [False, True]}
+        res = gh.det_pr_labels(file_info, GITHUB_EASYCONFIGS_REPO)
+        self.assertTrue(sorted(res), ['new', 'update'])
+
+        file_info = {'new': [True]}
+        res = gh.det_pr_labels(file_info, GITHUB_EASYBLOCKS_REPO)
+        self.assertEqual(res, ['new'])
 
     def test_det_patch_specs(self):
         """Test for det_patch_specs function."""
@@ -876,7 +940,7 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'master')
+        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'main')
         git_repo.create_head(branch, force=True)
         gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
         stderr = self.get_stderr()
@@ -888,7 +952,7 @@ class GithubTest(EnhancedTestCase):
 
         github_path = '%s/%s.git' % (GITHUB_USER, GITHUB_REPO)
         pattern = r'^' + '\n'.join([
-            r"== fetching branch 'master' from https://github.com/%s\.\.\." % github_path,
+            r"== fetching branch 'main' from https://github.com/%s\.\.\." % github_path,
             r"== pushing branch 'test123' to remote 'github_.*' \(git@github.com:%s\) \[DRY RUN\]" % github_path,
         ]) + r'$'
         regex = re.compile(pattern)

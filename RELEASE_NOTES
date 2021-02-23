@@ -3,6 +3,39 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+
+v4.3.3 (February 23rd 2021)
+---------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - advise PR labels in --review-pr and add support for --add-pr-labels (#3177)
+  - add support for using customized HTTP headers in download_file (#3472, #3583)
+  - also take toolchain dependencies into account when defining template values (#3541, #3560)
+  - add support for --accept-eula configuration option + 'accept_eula' easyconfig parameter (#3535, #3536, #3546)
+  - detect 'SYSTEM' toolchain as special case in easystack files (#3543)
+  - enhance extract_cmd function to use 'cp -a' for shell scripts (.sh) (#3545)
+  - allow use of alternate envvar(s) to $HOME for user modules (#3558)
+  - use https://sources/easybuild.io as fallback source URL (#3572, #3576)
+  - add toolchain definition for iibff toolchain (#3574)
+  - add %(cuda_cc_space_sep)s and %(cuda_cc_semicolon_sep)s templates (#3578)
+  - add support for intel-compiler toolchain (>= 2021.x versions, oneAPI) (#3581, #3582)
+- various bug fixes, including:
+  - add --init and --recursive options to 'git submodule update' command that is used when creating source tarball for specific commit (#3537)
+  - filter out duplicate paths in RPATH wrapper script (#3538)
+  - don't clean up imported modules after verifying imports of included Python modules (#3544)
+  - avoid no-op changes to $LD_* environment variables in ModulesTool (#3553)
+  - fix UTF-8 encoding errors when running EasyBuild with Python 3.0.x-3.6.x (#3565)
+  - create lib64 symlink as a relative symlink (#3566)
+  - don't reuse variable name in the loop to fix adding extra compiler flags via toolchainopts (#3571)
+  - symlink 'lib' to 'lib64' if it doesn't exist (#3580)
+  - include %(mpi_cmd_prefix)s and %(cuda_*)s templates in output of --avail-easyconfig-templates (#3586)
+- other changes:
+  - rename EasyBlock._skip_step to EasyBlock.skip_step, to make it part of the public API (#3561)
+  - make symlinking of posix_c.so to posix.so in test suite configuration conditional (#3570)
+
+
 v4.3.2 (December 10th 2020)
 ---------------------------
 

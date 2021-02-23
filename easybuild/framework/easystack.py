@@ -1,4 +1,4 @@
-# Copyright 2020-2020 Ghent University
+# Copyright 2020-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -110,14 +110,18 @@ class EasyStackParser(object):
                 raise EasyBuildError("Toolchains for software '%s' are not defined in %s", name, filepath)
             for toolchain in toolchains:
                 toolchain = str(toolchain)
-                toolchain_parts = toolchain.split('-', 1)
-                if len(toolchain_parts) == 2:
-                    toolchain_name, toolchain_version = toolchain_parts
-                elif len(toolchain_parts) == 1:
-                    toolchain_name, toolchain_version = toolchain, ''
+
+                if toolchain == 'SYSTEM':
+                    toolchain_name, toolchain_version = 'system', ''
                 else:
-                    raise EasyBuildError("Incorrect toolchain specification for '%s' in %s, too many parts: %s",
-                                         name, filepath, toolchain_parts)
+                    toolchain_parts = toolchain.split('-', 1)
+                    if len(toolchain_parts) == 2:
+                        toolchain_name, toolchain_version = toolchain_parts
+                    elif len(toolchain_parts) == 1:
+                        toolchain_name, toolchain_version = toolchain, ''
+                    else:
+                        raise EasyBuildError("Incorrect toolchain specification for '%s' in %s, too many parts: %s",
+                                             name, filepath, toolchain_parts)
 
                 try:
                     # if version string containts asterisk or labels, raise error (asterisks not supported)

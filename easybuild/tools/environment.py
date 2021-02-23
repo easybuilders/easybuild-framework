@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,17 +50,11 @@ def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
     """
-    script = None
     try:
-        script = open(filename, 'w')
-
-        for key in _changes:
-            script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
-
-        script.close()
+        with open(filename, 'w') as script:
+            for key in _changes:
+                script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
     except IOError as err:
-        if script is not None:
-            script.close()
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()
 

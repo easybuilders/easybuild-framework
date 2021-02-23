@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -264,9 +264,8 @@ class EnhancedTestCase(TestCase):
             logfile = self.logfile
         # clear log file
         if logfile:
-            f = open(logfile, 'w')
-            f.write('')
-            f.close()
+            with open(logfile, 'w') as fh:
+                fh.write('')
 
         env_before = copy.deepcopy(os.environ)
 

@@ -5,6 +5,10 @@ software:
         versions:
           2.25:
           2.26:
+  foss:
+    toolchains:
+      SYSTEM:
+        versions: [2018a]
   toy:
     toolchains:
       gompi-2018a:

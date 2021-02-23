@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -95,6 +95,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
+            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -125,6 +126,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', '.txz'),
             ('test.iso', '.iso'),
             ('test.tar.Z', '.tar.Z'),
+            ('test.foo.bar.sh', '.sh'),
         ]
         for (fn, expected_ext) in tests:
             cmd = ft.find_extension(fn)
@@ -601,11 +603,34 @@ class FileToolsTest(EnhancedTestCase):
     def test_read_write_file(self):
         """Test reading/writing files."""
 
+        # Test different "encodings"
+        ascii_file = os.path.join(self.test_prefix, 'ascii.txt')
+        txt = 'Hello World\nFoo bar'
+        ft.write_file(ascii_file, txt)
+        self.assertEqual(ft.read_file(ascii_file), txt)
+
+        binary_file = os.path.join(self.test_prefix, 'binary.txt')
+        txt = b'Hello World\x12\x00\x01\x02\x03\nFoo bar'
+        ft.write_file(binary_file, txt)
+        self.assertEqual(ft.read_file(binary_file, mode='rb'), txt)
+
+        utf8_file = os.path.join(self.test_prefix, 'utf8.txt')
+        txt = b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4'
+        if sys.version_info[0] == 3:
+            txt_decoded = txt.decode('utf-8')
+        else:
+            txt_decoded = txt
+        # Must work as binary and string
+        ft.write_file(utf8_file, txt)
+        self.assertEqual(ft.read_file(utf8_file), txt_decoded)
+        ft.write_file(utf8_file, txt_decoded)
+        self.assertEqual(ft.read_file(utf8_file), txt_decoded)
+
+        # Test append
         fp = os.path.join(self.test_prefix, 'test.txt')
         txt = "test123"
         ft.write_file(fp, txt)
         self.assertEqual(ft.read_file(fp), txt)
-
         txt2 = '\n'.join(['test', '123'])
         ft.write_file(fp, txt2, append=True)
         self.assertEqual(ft.read_file(fp), txt + txt2)
@@ -712,9 +737,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_guess_patch_level(self):
         "Test guess_patch_level."""
         # create dummy toy.source file so guess_patch_level can work
-        f = open(os.path.join(self.test_buildpath, 'toy.source'), 'w')
-        f.write("This is toy.source")
-        f.close()
+        ft.write_file(os.path.join(self.test_buildpath, 'toy.source'), "This is toy.source")
 
         for patched_file, correct_patch_level in [
             ('toy.source', 0),
@@ -1209,6 +1232,15 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
+        # make sure apply_regex_substitutions can patch files that include UTF-8 characters
+        testtxt = b"foo \xe2\x80\x93 bar"  # This is an UTF-8 "-"
+        ft.write_file(testfile, testtxt)
+        ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
+        txt = ft.read_file(testfile)
+        if sys.version_info[0] == 3:
+            testtxt = testtxt.decode('utf-8')
+        self.assertEqual(txt, testtxt.replace('foo', 'FOO'))
 
         # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
         testtxt = b"foo \xe2 bar"
@@ -2362,7 +2394,7 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'master',
+            'tag': 'main',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
 
@@ -2475,7 +2507,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update"',
+            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
