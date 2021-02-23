@@ -123,15 +123,21 @@ VALID_CLOSE_PR_REASONS = {
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
 
-    def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
+    def __init__(self, githubuser, reponame, branchname=None, username=None, password=None, token=None):
         """Construct a new githubfs object
         :param githubuser: the github user's repo we want to use.
         :param reponame: The name of the repository we want to use.
-        :param branchname: Then name of the branch to use (defaults to master)
+        :param branchname: Then name of the branch to use (defaults to 'main' for easybuilders org, 'master' otherwise)
         :param username: (optional) your github username.
         :param password: (optional) your github password.
         :param token:    (optional) a github api token.
         """
+        if branchname is None:
+            if githubuser == GITHUB_EB_MAIN:
+                branchname = 'main'
+            else:
+                branchname = 'master'
+
         if token is None:
             token = fetch_github_token(username)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -218,7 +224,7 @@ class Githubfs(object):
         """Read the contents of a file and return it
         Or, if api=False it will download the file and return the location of the downloaded file"""
         # we don't need use the api for this, but can also use raw.github.com
-        # https://raw.github.com/easybuilders/easybuild/master/README.rst
+        # https://raw.github.com/easybuilders/easybuild/main/README.rst
         if not api:
             outfile = tempfile.mkstemp()[1]
             url = '/'.join([GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path])
@@ -301,7 +307,7 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
     return (status, data)
 
 
-def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, token=None):
+def fetch_latest_commit_sha(repo, account, branch=None, github_user=None, token=None):
     """
     Fetch latest SHA1 for a specified repository and branch.
     :param repo: GitHub repository
@@ -311,6 +317,14 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     :param token: GitHub token to use
     :return: latest SHA1
     """
+    if branch is None:
+        # use 'main' as default branch for 'easybuilders' organisation,
+        # otherwise use 'master'
+        if account == GITHUB_EB_MAIN:
+            branch = 'main'
+        else:
+            branch = 'master'
+
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
                                           github_user=github_user, token=token, per_page=GITHUB_MAX_PER_PAGE)
     if status != HTTP_STATUS_OK:
@@ -332,7 +346,7 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     return res
 
 
-def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None, github_user=None):
+def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, account=GITHUB_EB_MAIN, path=None, github_user=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
     :param repo: repo to download
@@ -341,6 +355,14 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     :param path: path to extract to
     :param github_user: name of GitHub user to use
     """
+    if branch is None:
+        # use 'main' as default branch for 'easybuilders' organisation,
+        # otherwise use 'master'
+        if account == GITHUB_EB_MAIN:
+            branch = 'main'
+        else:
+            branch = 'master'
+
     # make sure path exists, create it if necessary
     if path is None:
         path = tempfile.mkdtemp()
@@ -1940,7 +1962,7 @@ def check_github():
     branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=not debug)
-        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master',
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'main',
                                  silent=not debug, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)

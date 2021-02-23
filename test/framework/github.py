@@ -60,7 +60,7 @@ GITHUB_TEST_ACCOUNT = 'easybuild_test'
 GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
-GITHUB_BRANCH = 'master'
+GITHUB_BRANCH = 'main'
 
 
 class GithubTest(EnhancedTestCase):
@@ -71,12 +71,15 @@ class GithubTest(EnhancedTestCase):
     def setUp(self):
         """setup"""
         super(GithubTest, self).setUp()
+
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+
         if self.github_token is None:
-            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, None, None, None)
+            username, token = None, None
         else:
-            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT,
-                                    None, self.github_token)
+            username, token = GITHUB_TEST_ACCOUNT, self.github_token
+
+        self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
 
         self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
@@ -452,7 +455,7 @@ class GithubTest(EnhancedTestCase):
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
+        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
         shafile = os.path.join(repodir, 'latest-sha')
@@ -634,7 +637,7 @@ class GithubTest(EnhancedTestCase):
 
         pr_data = {
             'base': {
-                'ref': 'master',
+                'ref': 'main',
                 'repo': {
                     'name': 'easybuild-easyconfigs',
                     'owner': {'login': 'easybuilders'},
@@ -652,7 +655,7 @@ class GithubTest(EnhancedTestCase):
         expected_stdout = "Checking eligibility of easybuilders/easybuild-easyconfigs PR #1234 for merging...\n"
 
         # target branch for PR must be develop
-        expected_warning = "* targets develop branch: FAILED; found 'master' => not eligible for merging!\n"
+        expected_warning = "* targets develop branch: FAILED; found 'main' => not eligible for merging!\n"
         run_check()
 
         pr_data['base']['ref'] = 'develop'
@@ -937,7 +940,7 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'master')
+        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'main')
         git_repo.create_head(branch, force=True)
         gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
         stderr = self.get_stderr()
@@ -949,7 +952,7 @@ class GithubTest(EnhancedTestCase):
 
         github_path = '%s/%s.git' % (GITHUB_USER, GITHUB_REPO)
         pattern = r'^' + '\n'.join([
-            r"== fetching branch 'master' from https://github.com/%s\.\.\." % github_path,
+            r"== fetching branch 'main' from https://github.com/%s\.\.\." % github_path,
             r"== pushing branch 'test123' to remote 'github_.*' \(git@github.com:%s\) \[DRY RUN\]" % github_path,
         ]) + r'$'
         regex = re.compile(pattern)
