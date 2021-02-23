@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -26,7 +26,8 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for cgmvolf compiler toolchain (includes Clang, GFortran, MVAPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for cgmvolf compiler toolchain (includes Clang, GFortran, MVAPICH2, OpenBLAS, LAPACK,
+ScaLAPACK and FFTW).
 
 :author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """

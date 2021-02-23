@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2020 Ghent University
+# Copyright 2014-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ class CrayMPICH(Mpi):
     """Generic support for using Cray compiler wrappers"""
     # MPI support
     # no separate module, Cray compiler drivers always provide MPI support
-    MPI_MODULE_NAME = []
+    MPI_MODULE_NAME = None
     MPI_FAMILY = TC_CONSTANT_MPICH
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
 
@@ -57,7 +57,7 @@ class CrayMPICH(Mpi):
         """Set the MPI compiler variables"""
         for var_tuple in COMPILER_VARIABLES:
             c_var = var_tuple[0]  # [1] is the description
-            var = MPI_COMPILER_TEMPLATE % {'c_var':c_var}
+            var = MPI_COMPILER_TEMPLATE % {'c_var': c_var}
 
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:

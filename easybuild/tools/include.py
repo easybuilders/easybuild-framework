@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ Support for including additional Python modules, for easyblocks, module naming s
 import os
 import re
 import sys
+import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -67,7 +68,7 @@ EASYBLOCKS_PKG_INIT_BODY = """
 import pkgutil
 
 # extend path so Python finds our easyblocks in the subdirectories where they are located
-subdirs = [chr(l) for l in range(ord('a'), ord('z') + 1)] + ['0']
+subdirs = [chr(char) for char in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
     __path__ = pkgutil.extend_path(__path__, '%s.%s' % (__name__, subdir))
 
@@ -124,8 +125,16 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
 
 def verify_imports(pymods, pypkg, from_path):
     """Verify that import of specified modules from specified package and expected location works."""
+
     for pymod in pymods:
         pymod_spec = '%s.%s' % (pypkg, pymod)
+
+        # force re-import if the specified modules was already imported;
+        # this is required to ensure that an easyblock that is included via --include-easyblocks-from-pr
+        # gets preference over one that is included via --include-easyblocks
+        if pymod_spec in sys.modules:
+            del sys.modules[pymod_spec]
+
         try:
             pymod = __import__(pymod_spec, fromlist=[pypkg])
         # different types of exceptions may be thrown, not only ImportErrors
@@ -142,19 +151,22 @@ def verify_imports(pymods, pypkg, from_path):
 
 def is_software_specific_easyblock(module):
     """Determine whether Python module at specified location is a software-specific easyblock."""
-    return bool(re.search('^class EB_.*\(.*\):\s*$', read_file(module), re.M))
+    return bool(re.search(r'^class EB_.*\(.*\):\s*$', read_file(module), re.M))
 
 
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
-    easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
+    easyblocks_path = tempfile.mkdtemp(dir=tmpdir, prefix='included-easyblocks-')
 
     set_up_eb_package(easyblocks_path, 'easybuild.easyblocks',
                       subpkgs=['generic'], pkg_init_body=EASYBLOCKS_PKG_INIT_BODY)
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
-    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
+    allpaths = [p for p in expand_glob_paths(paths)
+                if os.path.basename(p).endswith('.py') and
+                os.path.basename(p) != '__init__.py']
+
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 
@@ -269,7 +281,7 @@ def include_toolchains(tmpdir, paths):
         sys.modules[tcpkg].__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains', subpkg))
 
     # sanity check: verify that included toolchain modules can be imported (from expected location)
-    verify_imports([os.path.splitext(mns)[0] for mns in included_toolchains], 'easybuild.toolchains', tcs_dir)
+    verify_imports([os.path.splitext(tc)[0] for tc in included_toolchains], 'easybuild.toolchains', tcs_dir)
     for subpkg in toolchain_subpkgs:
         pkg = '.'.join(['easybuild', 'toolchains', subpkg])
         loc = os.path.join(tcs_dir, subpkg)

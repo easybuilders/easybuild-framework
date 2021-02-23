@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,5 +40,5 @@ class EB_toytoy(EB_toy):
         """Custom easyconfig parameters for toytoy."""
         extra_vars = {
             'toytoy_extra1': [None, "first toytoy-specific easyconfig parameter", CUSTOM],
-         }
+        }
         return EB_toy.extra_options(extra_vars)

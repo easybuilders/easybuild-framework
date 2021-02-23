@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2020 Ghent University
+# Copyright 2014-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,7 @@ from distutils.version import StrictVersion
 from easybuild.base import fancylogger
 from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import Lmod
 from test.framework.utilities import init_config
 
@@ -123,9 +123,7 @@ class ModulesToolTest(EnhancedTestCase):
         fancylogger.logToFile(self.logfile)
 
         mt = MockModulesTool(testing=True)
-        f = open(self.logfile, 'r')
-        logtxt = f.read()
-        f.close()
+        logtxt = read_file(self.logfile)
         warn_regex = re.compile("WARNING .*pattern .* not found in defined 'module' function")
         self.assertTrue(warn_regex.search(logtxt), "Found pattern '%s' in: %s" % (warn_regex.pattern, logtxt))
 
@@ -137,9 +135,7 @@ class ModulesToolTest(EnhancedTestCase):
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
         mt = MockModulesTool(testing=True)
-        f = open(self.logfile, 'r')
-        logtxt = f.read()
-        f.close()
+        logtxt = read_file(self.logfile)
         warn_regex = re.compile("WARNING No 'module' function defined, can't check if it matches .*")
         self.assertTrue(warn_regex.search(logtxt), "Pattern %s found in %s" % (warn_regex.pattern, logtxt))
 

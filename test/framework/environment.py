@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -130,6 +130,37 @@ class EnvironmentTest(EnhancedTestCase):
             'TEST_ENV_VAR': 'test123',
         }
         self.assertEqual(res, expected)
+
+    def test_sanitize_env(self):
+        """Test sanitize_env function."""
+
+        # define $*PATH variable that include empty entries, those should get filtered out
+        os.environ['PATH'] = '/bar::/foo:' + self.test_prefix  # middle empty entry
+        os.environ['LD_LIBRARY_PATH'] = '/apps/slurm/default/lib:/usr/lib:'  # trailing empty entry
+        os.environ['LIBRARY_PATH'] = self.test_prefix + ':' + os.environ['HOME']  # no empty entries here
+        os.environ['CPATH'] = ':' + self.test_prefix  # leading empty entry
+        os.environ['LD_PRELOAD'] = ':::'  # only empty entries (should get unset!)
+
+        # define $PYTHON* environment variables, these should be unset by sanitize_env
+        os.environ['PYTHONNOUSERSITE'] = '1'
+        os.environ['PYTHONPATH'] = self.test_prefix
+        os.environ['PYTHONOPTIMIZE'] = '1'
+
+        env.sanitize_env()
+
+        self.assertFalse(any(x for x in os.environ.keys() if x.startswith('PYTHON')))
+
+        expected = {
+            'CPATH': self.test_prefix,
+            'LD_LIBRARY_PATH': '/apps/slurm/default/lib:/usr/lib',
+            'LIBRARY_PATH': self.test_prefix + ':' + os.environ['HOME'],
+            'PATH': '/bar:/foo:' + self.test_prefix,
+        }
+        for key in sorted(expected):
+            self.assertEqual(os.getenv(key), expected[key])
+            self.assertEqual(os.environ[key], expected[key])
+
+        self.assertEqual(os.getenv('LD_PRELOAD'), None)
 
 
 def suite():

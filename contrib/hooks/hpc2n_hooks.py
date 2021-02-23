@@ -11,6 +11,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root
 from easybuild.tools.systemtools import get_shared_lib_ext
 
+
 # Add/remove dependencies and/or patches
 # Access to the raw values before templating and such.
 def parse_hook(ec, *args, **kwargs):
@@ -58,7 +59,7 @@ def parse_hook(ec, *args, **kwargs):
             if LooseVersion(ec.version) >= LooseVersion('3'):
                 pmix_version = '2.2.1'
             if LooseVersion(ec.version) >= LooseVersion('4'):
-                pmix_version = '3.0.2' # OpenMPI 4.0.0 is not compatible with PMIx 3.1.x
+                pmix_version = '3.0.2'  # OpenMPI 4.0.0 is not compatible with PMIx 3.1.x
 
             extra_deps.append(('PMIx', pmix_version))
             # Use of external PMIx requires external libevent

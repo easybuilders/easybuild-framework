@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -203,5 +203,3 @@ ALL_MAP_CLASSES = [
     BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
     FFT_MAP_CLASS, FFTW_MAP_CLASS, CO_COMPILER_MAP_CLASS,
 ]
-
-

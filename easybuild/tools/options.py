@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -58,16 +58,18 @@ from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
-from easybuild.tools.build_log import init_logging, log_start, print_warning, raise_easybuilderror
-from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
-from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD
+from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
+from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENVVAR_USERS_MODULES, DEFAULT_FORCE_DOWNLOAD
+from easybuild.tools.config import DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
-from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
-from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS, ERROR
-from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE, JOB_DEPS_TYPE_ABORT_ON_ERROR
-from easybuild.tools.config import JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS, WARN
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
+from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
+from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
+from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_PR_TARGET_ACCOUNT
+from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
+from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
+from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -75,12 +77,12 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, install_fake_vsc, move_file, which
-from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_STATE_OPEN
-from easybuild.tools.github import GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
+from easybuild.tools.filetools import move_file, which
+from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
+from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import fetch_github_token
+from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -95,8 +97,8 @@ from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family, get_cpu_features
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import get_cpu_features, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -255,8 +257,13 @@ class EasyBuildOptions(GeneralOption):
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
+            'ignore-locks': ("Ignore locks that prevent two identical installations running in parallel",
+                             None, 'store_true', False),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
+            'locks-dir': ("Directory to store lock files (should be on a shared filesystem); "
+                          "None implies .locks subdirectory of software installation directory",
+                          None, 'store_or_None', None),
             'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
@@ -313,6 +320,11 @@ class EasyBuildOptions(GeneralOption):
 
         opts['map-toolchains'] = ("Enable mapping of (sub)toolchains when --try-toolchain(-version) is used",
                                   None, 'store_true', True)
+        opts['try-update-deps'] = ("Try to update versions of the dependencies of an easyconfig based on what is "
+                                   "available in the robot path",
+                                   None, 'store_true', False)
+        opts['try-ignore-versionsuffixes'] = ("Ignore versionsuffix differences when --try-update-deps is used",
+                                              None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -322,6 +334,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'accept-eula': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
                                                 "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
                                                 None, 'store_true', False),
@@ -345,8 +358,9 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
-            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software",
-                                          'strlist', 'extend', None),
+            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
+                                          "values should be specified as digits separated by a dot, "
+                                          "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
@@ -386,13 +400,26 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
+            'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
+                                          "To not log sensitive values, specify a file containing newline separated "
+                                          "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
+                                          "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
+                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
+                                  None, 'store_true', True),
             'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
                                             None, 'store_true', True),
+            'lib64-lib-symlink': ("Automatically create symlinks for lib64/ pointing to lib/ if the former is missing",
+                                  None, 'store_true', True),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
+            'minimal-build-env': ("Minimal build environment to define when using system toolchain, "
+                                  "specified as a comma-separated list that defines a mapping between name of "
+                                  "environment variable and its value separated by a colon (':')",
+                                  None, 'store', DEFAULT_MINIMAL_BUILD_ENV),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
@@ -421,6 +448,11 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
+            'generate-devel-module': ("Generate a develop module file, implies --force if disabled",
+                                      None, 'store_true', True),
+            'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
+                        None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
@@ -434,6 +466,15 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
+            'wait-on-lock': ("Wait for lock to be released; 0 implies no waiting (exit with an error if the lock "
+                             "already exists), non-zero value specified waiting interval [DEPRECATED: "
+                             "use --wait-on-lock-interval and --wait-on-lock-limit instead]",
+                             int, 'store_or_None', None),
+            'wait-on-lock-interval': ("Wait interval (in seconds) to use when waiting for existing lock to be removed",
+                                      int, 'store', DEFAULT_WAIT_ON_LOCK_INTERVAL),
+            'wait-on-lock-limit': ("Maximum amount of time (in seconds) to wait until lock is released (0 means no "
+                                   "waiting at all, exit with error; -1 means no waiting limit, keep waiting)",
+                                   int, 'store', DEFAULT_WAIT_ON_LOCK_LIMIT),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
 
@@ -456,6 +497,9 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
+            'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
+                                     "modules will be installed relative to", 'strlist', 'store',
+                                     [DEFAULT_ENVVAR_USERS_MODULES]),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
@@ -514,7 +558,8 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
-            'subdir-user-modules': ("Base path of user-specific modules relative to their $HOME", None, 'store', None),
+            'subdir-user-modules': ("Base path of user-specific modules relative to --envvar-user-modules",
+                                    None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
@@ -574,6 +619,8 @@ class EasyBuildOptions(GeneralOption):
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
+            'easystack': ("Path to easystack file in YAML format, specifying details of a software stack",
+                          None, 'store', None),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
@@ -584,6 +631,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
+            'add-pr-labels': ("Try to add labels to PR based on files changed", int, 'store', None, {'metavar': 'PR#'}),
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-contrib': ("Runs checks to see whether the given easyconfigs are ready to be contributed back",
                               None, 'store_true', False),
@@ -594,6 +642,8 @@ class EasyBuildOptions(GeneralOption):
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
+            'include-easyblocks-from-pr': ("Include easyblocks from specified PR", 'strlist', 'store', [],
+                                           {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
@@ -610,9 +660,10 @@ class EasyBuildOptions(GeneralOption):
                                str, 'store', None),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
-            'pr-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
+            'pr-target-account': ("Target account for new PRs", str, 'store', DEFAULT_PR_TARGET_ACCOUNT),
             'pr-target-branch': ("Target branch for new PRs", str, 'store', DEFAULT_BRANCH),
-            'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
+            'pr-target-repo': ("Target repository for new/updating PRs (default: auto-detect based on provided files)",
+                               str, 'store', None),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
             'preview-pr': ("Preview a new pull request", None, 'store_true', False),
             'sync-branch-with-develop': ("Sync branch with current 'develop' branch", str, 'store', None),
@@ -683,8 +734,12 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Options for Easyconfigs", "Options that affect all specified easyconfig files.")
 
         opts = OrderedDict({
+            'create-index': ("Create index for files in specified directory", None, 'store', None),
             'fix-deprecated-easyconfigs': ("Fix use of deprecated functionality in specified easyconfig files.",
                                            None, 'store_true', False),
+            'ignore-index': ("Ignore index when searching for files", None, 'store_true', False),
+            'index-max-age': ("Maximum age for index before it is considered stale (in seconds)",
+                              int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
@@ -927,7 +982,7 @@ class EasyBuildOptions(GeneralOption):
         """Check whether (combination of) configuration options make sense."""
 
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
-        if self.options.from_pr or self.options.upload_test_report:
+        if self.options.from_pr or self.options.include_easyblocks_from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
                 raise EasyBuildError("Required support for using GitHub API is not available (see warnings)")
 
@@ -957,6 +1012,13 @@ class EasyBuildOptions(GeneralOption):
         if self.options.dump_autopep8:
             if not HAVE_AUTOPEP8:
                 raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
+
+        # if a path is specified to --sysroot, it must exist
+        if self.options.sysroot:
+            if os.path.exists(self.options.sysroot):
+                self.log.info("Specified sysroot '%s' exists: OK", self.options.sysroot)
+            else:
+                raise EasyBuildError("Specified sysroot '%s' does not exist!", self.options.sysroot)
 
         self.log.info("Checks on configuration options passed")
 
@@ -1014,6 +1076,7 @@ class EasyBuildOptions(GeneralOption):
         # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
             self.options.stop = FETCH_STEP
+            self.options.ignore_locks = True
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
@@ -1045,8 +1108,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_easyconfig_licenses:
             msg += avail_easyconfig_licenses(self.options.output_format)
 
-        # dump available easyblocks
-        if self.options.list_easyblocks:
+        # dump available easyblocks (unless including easyblocks from pr, in which case it will be done later)
+        if self.options.list_easyblocks and not self.options.include_easyblocks_from_pr:
             msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
@@ -1090,7 +1153,8 @@ class EasyBuildOptions(GeneralOption):
             print(msg)
 
         # cleanup tmpdir and exit
-        cleanup_and_exit(self.tmpdir)
+        if not self.options.include_easyblocks_from_pr:
+            cleanup_and_exit(self.tmpdir)
 
     def avail_repositories(self):
         """Show list of known repository types."""
@@ -1153,6 +1217,7 @@ class EasyBuildOptions(GeneralOption):
         """Show system information."""
         system_info = get_system_info()
         cpu_features = get_cpu_features()
+        cpu_arch_name = system_info['cpu_arch_name']
         lines = [
             "System information (%s):" % system_info['hostname'],
             '',
@@ -1166,6 +1231,13 @@ class EasyBuildOptions(GeneralOption):
             "  -> vendor: %s" % system_info['cpu_vendor'],
             "  -> architecture: %s" % get_cpu_architecture(),
             "  -> family: %s" % get_cpu_family(),
+        ]
+        if cpu_arch_name == UNKNOWN:
+            lines.append("  -> arch name: UNKNOWN (archspec is not installed?)")
+        else:
+            lines.append("  -> arch name: %s" % cpu_arch_name)
+
+        lines.extend([
             "  -> model: %s" % system_info['cpu_model'],
             "  -> speed: %s" % system_info['cpu_speed'],
             "  -> cores: %s" % system_info['core_count'],
@@ -1175,7 +1247,8 @@ class EasyBuildOptions(GeneralOption):
             "  -> glibc version: %s" % system_info['glibc_version'],
             "  -> Python binary: %s" % sys.executable,
             "  -> Python version: %s" % sys.version.split(' ')[0],
-        ]
+        ])
+
         return '\n'.join(lines)
 
     def show_config(self):
@@ -1398,6 +1471,43 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
 
+    # done here instead of in _postprocess_include because github integration requires build_options to be initialized
+    if eb_go.options.include_easyblocks_from_pr:
+        try:
+            easyblock_prs = map(int, eb_go.options.include_easyblocks_from_pr)
+        except ValueError:
+            raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
+
+        if eb_go.options.include_easyblocks:
+            # check if you are including the same easyblock twice
+            included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
+            included_from_file = set([os.path.basename(eb) for eb in included_paths])
+
+        for easyblock_pr in easyblock_prs:
+            easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
+            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+
+            if eb_go.options.include_easyblocks:
+                included_twice = included_from_pr & included_from_file
+                if included_twice:
+                    warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                                  % ', '.join(included_twice)
+                    warning_msg += "(the one(s) from PR #%s will be used)" % easyblock_pr
+                    print_warning(warning_msg)
+
+            for easyblock in included_from_pr:
+                print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+
+            include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+
+        if eb_go.options.list_easyblocks:
+            msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
+            if eb_go.options.unittest_file:
+                log.info(msg)
+            else:
+                print(msg)
+            cleanup_and_exit(tmpdir)
+
     check_python_version()
 
     # move directory containing fake vsc namespace into temporary directory used for this session
@@ -1434,6 +1544,8 @@ def process_software_build_specs(options):
         'version': options.try_software_version,
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
+        'update_deps': options.try_update_deps,
+        'ignore_versionsuffixes': options.try_ignore_versionsuffixes,
     }
 
     # process easy options

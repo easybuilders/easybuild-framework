@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2020 Ghent University
+# Copyright 2014-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -86,6 +86,7 @@ def mock(*args, **kwargs):
 
 class MockPbsJob(object):
     """Mocking class for PbsJob."""
+
     def __init__(self, *args, **kwargs):
         self.deps = []
         self.jobid = None
@@ -173,8 +174,10 @@ class ParallelBuildTest(EnhancedTestCase):
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
-        regex = re.compile('toy-0.0-deps.eb\s* --hidden')
-        self.assertTrue(regex.search(jobs[3].deps[0].script))
+        regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
+        script_txt = jobs[3].deps[0].script
+        fail_msg = "Pattern '%s' should be found in: %s" % (regex.pattern, script_txt)
+        self.assertTrue(regex.search(script_txt), fail_msg)
         self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
 
         # also test use of --pre-create-installdir
@@ -290,22 +293,24 @@ class ParallelBuildTest(EnhancedTestCase):
             '--try-toolchain=intel,2016a',  # should be excluded in job script
             '--robot', self.test_prefix,  # should be excluded in job script
             '--job',  # should be excluded in job script
+            '--job-cores=3',
         ]
         eb_go = parse_options(args=args)
         cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
 
         # these patterns must be found
         regexs = [
-            ' --debug ',
+            r' --debug ',
             # values got wrapped in single quotes (to avoid interpretation by shell)
-            " --tmpdir='/tmp' ",
-            " --parallel='2' ",
+            r" --tmpdir='/tmp' ",
+            r" --parallel='2' ",
             # (unparsed) optarch value got wrapped in single quotes, double quotes got stripped
-            " --optarch='GCC:O3 -mtune=generic;Intel:O3 -xHost' ",
+            r" --optarch='GCC:O3 -mtune=generic;Intel:O3 -xHost' ",
             # templates to be completed via build_easyconfigs_in_parallel -> create_job
-            ' eb %\(spec\)s ',
-            ' %\(add_opts\)s ',
-            ' --testoutput=%\(output_dir\)s',
+            r' eb %\(spec\)s ',
+            r' %\(add_opts\)s ',
+            r' --testoutput=%\(output_dir\)s',
+            r' --disable-job ',
         ]
         for regex in regexs:
             regex = re.compile(regex)
@@ -313,9 +318,9 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # these patterns should NOT be found, these options get filtered out
         # (self.test_prefix was argument to --robot)
-        for regex in ['--job', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
+        for regex in ['--job', '--job-cores', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
             regex = re.compile(regex)
-            self.assertFalse(regex.search(cmd), "Pattern '%s' *not* found in: %s" % (regex.pattern, cmd))
+            self.assertFalse(regex.search(cmd), "Pattern '%s' should *not* be found in: %s" % (regex.pattern, cmd))
 
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""

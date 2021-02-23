@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,7 @@ from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for, reset_module_caches
-from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies
+from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies, search_easyconfigs
 from test.framework.utilities import find_full_path
 
 
@@ -87,6 +87,10 @@ class MockModule(modules.ModulesTool):
         else:
             txt = 'Module %s not found' % modname
         return txt
+
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """Dummy implementation of get_setenv_value_from_modulefile, always returns None."""
+        return None
 
 
 def mock_module(mod_paths=None):
@@ -424,14 +428,14 @@ class RobotTest(EnhancedTestCase):
             # to test resolving of dependencies with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
             "dependencies = [",
-            "   ('OpenMPI', '2.1.2'),",  # available with GCC/6.4.0-2.28
+            # the use of %(version_minor)s here is mainly to check if templates are being handled correctly
+            # (it doesn't make much sense, but it serves the purpose)
+            "   ('OpenMPI', '%(version_minor)s.1.2'),",  # available with GCC/6.4.0-2.28
             "   ('OpenBLAS', '0.2.20'),",  # available with GCC/6.4.0-2.28
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20'),",  # available with gompi/2018a
             "   ('SQLite', '3.8.10.2'),",
             "]",
             # toolchain as list line, for easy modification later;
-            # the use of %(version_minor)s here is mainly to check if templates are being handled correctly
-            # (it doesn't make much sense, but it serves the purpose)
             "toolchain = {'name': 'foss', 'version': '%(version_minor)s018a'}",
         ]
         write_file(barec, '\n'.join(barec_lines))
@@ -574,7 +578,7 @@ class RobotTest(EnhancedTestCase):
             }],
         }
 
-        error = "Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
+        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool)
 
         # check behaviour if only module file is available
@@ -583,7 +587,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], 'test/123')
 
-        error = "Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
+        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool, retain_all_deps=True)
 
         res = resolve_dependencies([ec], self.modtool, retain_all_deps=True, raise_error_missing_ecs=False)
@@ -616,12 +620,19 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
+        # copy hwloc easyconfig to h/hwloc subdir in robot search path,
+        # to trigger bug fixed in det_easyconfig_paths (.extend rather than .append for '__archive'__ to ignore_subdirs)
+        hwloc_ec = 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'
+        subdir_hwloc = os.path.join(self.test_prefix, 'h', 'hwloc')
+        mkdir(subdir_hwloc, parents=True)
+        shutil.copy2(os.path.join(test_ecs_path, 'h', 'hwloc', hwloc_ec), subdir_hwloc)
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
+            hwloc_ec,
             '--dry-run',
             '--debug',
             '--robot',
@@ -636,6 +647,7 @@ class RobotTest(EnhancedTestCase):
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
+            (self.test_prefix, 'hwloc/1.11.8-GCC-6.4.0-2.28'),  # specified easyconfig, found in robot search path
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -650,7 +662,8 @@ class RobotTest(EnhancedTestCase):
             '--robot',
             '--unittest-file=%s' % self.logfile,
         ]
-        self.assertErrorRegex(EasyBuildError, "Can't find", self.eb_main, args, logfile=dummylogfn, raise_error=True)
+        error_pattern = "One or more files not found: intel-2012a.eb"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
@@ -1472,6 +1485,75 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual([ec['full_mod_name'] for ec in res], ['intel/2012a', 'gzip/1.5-intel-2012a'])
         expected = os.path.join(test_ecs, '__archive__', 'i', 'intel', 'intel-2012a.eb')
         self.assertTrue(os.path.samefile(res[0]['spec'], expected))
+
+    def test_search_easyconfigs(self):
+        """Test search_easyconfigs function."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'robot_path': [test_ecs],
+            'search_paths': [self.test_prefix],
+        })
+
+        # copy some files to search_paths location
+        copy_file(os.path.join(test_ecs, 'b', 'binutils', 'binutils-2.25-GCCcore-4.9.3.eb'), self.test_prefix)
+        copy_file(os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'), self.test_prefix)
+
+        paths = search_easyconfigs('binutils-.*-GCCcore-4.9.3', consider_extra_paths=False, print_result=False)
+        ref_paths = [os.path.join(test_ecs, 'b', 'binutils', x) for x in ['binutils-2.25-GCCcore-4.9.3.eb',
+                                                                          'binutils-2.26-GCCcore-4.9.3.eb']]
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(paths, ref_paths)
+
+        # search_paths location is considered by default
+        paths = search_easyconfigs('binutils-.*-GCCcore-4.9.3', print_result=False)
+        self.assertEqual(len(paths), 3)
+        self.assertEqual(paths[:2], ref_paths)
+        # last hit is the one from search_paths
+        self.assertTrue(os.path.samefile(paths[2], os.path.join(self.test_prefix, 'binutils-2.25-GCCcore-4.9.3.eb')))
+
+        paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False)
+        ref_paths = [
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
+            os.path.join(test_ecs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb')
+        ]
+        self.assertEqual(paths, ref_paths)
+
+        # now do a case sensitive search
+        paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False, case_sensitive=True)
+        ref_paths = [os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb')]
+        self.assertEqual(paths, ref_paths)
+
+        # test use of filename_only
+        paths = search_easyconfigs('hwloc-1.8', consider_extra_paths=False, print_result=False, filename_only=True)
+        self.assertEqual(paths, ['hwloc-1.8-gcccuda-2018a.eb'])
+
+        # test use of print_result (enabled by default)
+        for filename_only in [None, False, True]:
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            kwargs = {'consider_extra_paths': False}
+            if filename_only is not None:
+                kwargs['filename_only'] = filename_only
+            search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+            self.assertEqual(len(stdout.splitlines()), 2)
+            pattern = []
+            for ec_fn in ['binutils-2.25-GCCcore-4.9.3.eb', 'binutils-2.26-GCCcore-4.9.3.eb']:
+                if filename_only:
+                    path = ec_fn
+                else:
+                    path = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs', 'b', 'binutils', ec_fn)
+                pattern.append(r"^ \* .*%s$" % path)
+
+            regex = re.compile('\n'.join(pattern), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():

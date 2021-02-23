@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -65,15 +65,17 @@ REFORMAT_ORDERED_ITEM_KEYS = {
 _log = fancylogger.getLogger('easyconfig.format.one', fname=False)
 
 
-def dump_dependency(dep, toolchain):
+def dump_dependency(dep, toolchain, toolchain_hierarchy=None):
     """Dump parsed dependency in tuple format"""
+    if not toolchain_hierarchy:
+        toolchain_hierarchy = [toolchain]
 
     if dep['external_module']:
         res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
     else:
-        # mininal spec: (name, version)
+        # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
-        if dep['toolchain'] != toolchain:
+        if all(dep['toolchain'] != subtoolchain for subtoolchain in toolchain_hierarchy):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
                 tup += (dep['versionsuffix'], True)
             else:
@@ -94,6 +96,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
     PYHEADER_MANDATORY = ['version', 'name', 'toolchain', 'homepage', 'description']
     PYHEADER_BLACKLIST = []
+
+    def __init__(self, *args, **kwargs):
+        """FormatOneZero constructor."""
+        super(FormatOneZero, self).__init__(*args, **kwargs)
+
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        self.strict_sanity_check_paths_keys = True
 
     def validate(self):
         """Format validation"""
@@ -126,7 +135,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
         """
-        super(FormatOneZero, self).parse(txt, strict_section_markers=True)
+        self.rawcontent = txt
+        super(FormatOneZero, self).parse(self.rawcontent, strict_section_markers=True)
 
     def _reformat_line(self, param_name, param_val, outer=False, addlen=0):
         """
@@ -166,10 +176,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     for item_key in ordered_item_keys:
                         if item_key in param_val:
                             item_val = param_val[item_key]
+                            item_comments = self._get_item_comments(param_name, item_val)
+                        elif param_name == 'sanity_check_paths' and not self.strict_sanity_check_paths_keys:
+                            item_val = []
+                            item_comments = {}
+                            self.log.info("Using default value for '%s' in sanity_check_paths: %s", item_key, item_val)
                         else:
                             raise EasyBuildError("Missing mandatory key '%s' in %s.", item_key, param_name)
-
-                        item_comments = self._get_item_comments(param_name, item_val)
 
                         inline_comment = item_comments.get('inline', '')
                         item_tmpl_dict = {'inline_comment': inline_comment}
@@ -260,7 +273,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return res
 
-    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val):
+    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """
         Determine parameters in the dumped easyconfig file which have a non-default value.
         """
@@ -279,12 +292,18 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                                 # the way that builddependencies are constructed with multi_deps
                                 # we just need to dump the first entry without the dependencies
                                 # that are listed in multi_deps
-                                valstr = [dump_dependency(d, ecfg['toolchain']) for d in val[0]
-                                          if d['name'] not in ecfg['multi_deps']]
+                                valstr = [
+                                    dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
+                                    for d in val[0] if d['name'] not in ecfg['multi_deps']
+                                ]
                             else:
-                                valstr = [[dump_dependency(d, ecfg['toolchain']) for d in dep] for dep in val]
+                                valstr = [
+                                    [dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
+                                     for d in dep] for dep in val
+                                ]
                         else:
-                            valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
+                            valstr = [dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
+                                      for d in val]
                     elif key == 'toolchain':
                         valstr = "{'name': '%(name)s', 'version': '%(version)s'}" % ecfg[key]
                     else:
@@ -299,7 +318,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return eclines, printed_keys
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
         """
         Dump easyconfig in format v1.
 
@@ -307,12 +326,18 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         :param default_values: default values for easyconfig parameters
         :param templ_const: known template constants
         :param templ_val: known template values
+        :param toolchain_hierarchy: hierarchy of toolchains for easyconfig
         """
+        # figoure out whether we should be strict about the format of sanity_check_paths;
+        # if enhance_sanity_check is set, then both files/dirs keys are not strictly required...
+        self.strict_sanity_check_paths_keys = not ecfg['enhance_sanity_check']
+
         # include header comments first
         dump = self.comments['header'][:]
 
         # print easyconfig parameters ordered and in groups specified above
-        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val)
+        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val,
+                                                         toolchain_hierarchy=toolchain_hierarchy)
         dump.extend(params)
 
         # print other easyconfig parameters at the end
@@ -332,6 +357,16 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return '\n'.join(dump)
 
+    @property
+    def comments(self):
+        """
+        Return comments (and extract them first if needed).
+        """
+        if not self._comments:
+            self.extract_comments(self.rawcontent)
+
+        return self._comments
+
     def extract_comments(self, rawtxt):
         """
         Extract comments from raw content.
@@ -339,14 +374,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Discriminates between comment header, comments above a line (parameter definition), and inline comments.
         Inline comments on items of iterable values are also extracted.
         """
-        self.comments = {
+        self._comments = {
             'above': {},  # comments above a parameter definition
             'header': [],  # header comment lines
             'inline': {},  # inline comments
             'iterabove': {},  # comment above elements of iterable values
             'iterinline': {},  # inline comments on elements of iterable values
             'tail': [],  # comment at the end of the easyconfig file
-         }
+        }
 
         parsed_ec = self.get_config_dict()
 
@@ -514,7 +549,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             dep_block = reg_dep_block.search(block_contents)
             if dep_block:
                 dependencies = eval(dep_block.group(1))
-                if type(dependencies) == list:
+                if isinstance(dependencies, list):
                     block['dependencies'] = dependencies
                 else:
                     block['dependencies'] = [dependencies]

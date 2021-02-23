@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -97,17 +97,37 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         self.ext_dir = None  # dir where extension source was unpacked
 
+    def _set_start_dir(self):
+        """Set value for self.start_dir
+
+        Uses existing value of self.start_dir if it is already set and exists
+        otherwise self.ext_dir (path to extracted source) if that is set and exists, similar to guess_start_dir
+        """
+        possible_dirs = (self.start_dir, self.ext_dir)
+        for possible_dir in possible_dirs:
+            if possible_dir and os.path.isdir(possible_dir):
+                self.cfg['start_dir'] = possible_dir
+                self.log.debug("Using start_dir: %s", self.start_dir)
+                return
+        self.log.debug("Unable to determine start_dir as none of these paths is set and exists: %s", possible_dirs)
+
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired
         if unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
-            self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
+            self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_options,
+                                        change_into_dir=False)
 
-            if self.start_dir and os.path.isdir(self.start_dir):
-                self.log.debug("Using start_dir: %s", self.start_dir)
-                change_dir(self.start_dir)
+            # setting start dir must be done from unpacked source directory for extension,
+            # because start_dir value is usually a relative path (if it is set)
+            change_dir(self.ext_dir)
+
+            self._set_start_dir()
+            change_dir(self.start_dir)
+        else:
+            self._set_start_dir()
 
         # patch if needed
         EasyBlock.patch_step(self, beginpath=self.ext_dir)

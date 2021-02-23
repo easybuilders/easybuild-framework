@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2020 Ghent University
+# Copyright 2014-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -69,6 +69,7 @@ class MultiDiff(object):
     """
     Class representing a multi-diff.
     """
+
     def __init__(self, base_fn, base_lines, files, colored=True):
         """
         MultiDiff constructor

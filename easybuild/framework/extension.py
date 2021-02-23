@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -85,6 +85,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
+
     def __init__(self, mself, ext, extra_params=None):
         """
         Constructor for Extension class
@@ -127,14 +128,14 @@ class Extension(object):
         # make sure they are merged into self.cfg so they can be queried;
         # unknown easyconfig parameters are ignored since self.options may include keys only there for extensions;
         # this allows to specify custom easyconfig parameters on a per-extension basis
-        for key in self.options:
+        for key, value in self.options.items():
             if key in self.cfg:
-                self.cfg[key] = resolve_template(self.options[key], self.cfg.template_values)
+                self.cfg[key] = value
                 self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, name, version, self.cfg[key])
+                               key, name, version, value)
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
-                               key, name, version, self.options[key])
+                               key, name, version, value)
 
         self.sanity_check_fail_msgs = []
 

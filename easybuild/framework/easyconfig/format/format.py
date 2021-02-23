@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -95,6 +95,7 @@ def get_format_version(txt):
 
 class NestedDict(dict):
     """A nested dictionary, with tracking of depth and parent"""
+
     def __init__(self, parent, depth):
         """Initialise NestedDict instance"""
         dict.__init__(self)
@@ -121,6 +122,7 @@ class NestedDict(dict):
 
 class TopNestedDict(NestedDict):
     """The top level nested dictionary (depth 0, parent is itself)"""
+
     def __init__(self, parent=None, depth=None):
         """Initialise TopNestedDict instance"""
         # parent and depth are ignored; just to support same init for copier
@@ -129,6 +131,7 @@ class TopNestedDict(NestedDict):
 
 class Squashed(object):
     """Class to ease the squashing of OrderedVersionOperators and OrderedToolchainVersionOperators"""
+
     def __init__(self):
         """Initialise Squashed instance"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -609,11 +612,16 @@ class EasyConfigFormat(object):
             raise EasyBuildError('Invalid version number %s (incorrect length)', self.VERSION)
 
         self.rawtext = None  # text version of the easyconfig
-        self.comments = {}  # comments in easyconfig file
+        self._comments = {}  # comments in easyconfig file
         self.header = None  # easyconfig header (e.g., format version, license, ...)
         self.docstring = None  # easyconfig docstring (e.g., author, maintainer, ...)
 
         self.specs = {}
+
+    @property
+    def comments(self):
+        """Return comments in easyconfig file"""
+        return self._comments
 
     def set_specifications(self, specs):
         """Set specifications."""
@@ -632,8 +640,8 @@ class EasyConfigFormat(object):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
-        """Dump easyconfig according to this format. This is higly version specific"""
+    def dump(self, ecfg, default_values, templ_const, templ_val, toolchain_hierarchy=None):
+        """Dump easyconfig according to this format. This is highly version specific"""
         raise NotImplementedError
 
     def extract_comments(self, rawtxt):

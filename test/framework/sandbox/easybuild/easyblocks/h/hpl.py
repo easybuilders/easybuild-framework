@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +28,7 @@ Dummy easyblock for HPL
 @author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
+
 
 class EB_HPL(EasyBlock):
     pass

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,7 @@ def flatten(lst):
     return res
 
 
-def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
+def quote_str(val, escape_newline=False, prefer_single_quotes=False, escape_backslash=False, tcl=False):
     """
     Obtain a new value to be used in string replacement context.
 
@@ -66,10 +66,14 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
 
     :param escape_newline: wrap strings that include a newline in triple quotes
     :param prefer_single_quotes: if possible use single quotes
+    :param escape_backslash: escape backslash characters in the string
     :param tcl: Boolean for whether we are quoting for Tcl syntax
     """
 
     if isinstance(val, string_type):
+        # escape backslashes
+        if escape_backslash:
+            val = val.replace('\\', '\\\\')
         # forced triple double quotes
         if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
             return '"""%s"""' % val
@@ -92,7 +96,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
 
 def quote_py_str(val):
     """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
-    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True, escape_backslash=True)
 
 
 def shell_quote(token):
@@ -169,18 +173,18 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
                     pass
 
             if imported is None:
-                raise ImportError("None of the specified modules %s is available" % ', '.join(modnames))
+                raise ImportError
             else:
                 return orig
 
-        except ImportError as err:
-            # need to pass down 'err' via named argument to ensure it's in scope when using Python 3.x
-            def error(err=err, *args, **kwargs):
-                msg = "%s; required module '%s' is not available" % (err, modname)
+        except ImportError:
+            def error(*args, **kwargs):
+                msg = "None of the specified modules (%s) is available" % ', '.join(modnames)
                 if pkgname:
                     msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
                 elif url:
                     msg += " (available from %s)" % url
+                msg += ", yet one of them is required!"
                 raise EasyBuildError("ImportError: %s", msg)
             return error
 
@@ -254,6 +258,10 @@ def mk_rst_table(titles, columns):
     """
     Returns an rst table with given titles and columns (a nested list of string columns for each column)
     """
+    # take into account that passed values may be iterators produced via 'map'
+    titles = list(titles)
+    columns = list(columns)
+
     title_cnt, col_cnt = len(titles), len(columns)
     if title_cnt != col_cnt:
         msg = "Number of titles/columns should be equal, found %d titles and %d columns" % (title_cnt, col_cnt)

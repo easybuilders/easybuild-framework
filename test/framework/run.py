@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -206,29 +206,34 @@ class RunTest(EnhancedTestCase):
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
 
-        # set the signal handler and a 3-second alarm
-        signal.signal(signal.SIGALRM, handler)
-        signal.alarm(3)
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
-        (_, ec) = run_cmd("kill -9 $$", log_ok=False)
-        self.assertEqual(ec, -9)
+        try:
+            # set the signal handler and a 3-second alarm
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(3)
 
-        # reset the alarm
-        signal.alarm(0)
-        signal.alarm(3)
+            (_, ec) = run_cmd("kill -9 $$", log_ok=False)
+            self.assertEqual(ec, -9)
 
-        (_, ec) = run_cmd_qa("kill -9 $$", {}, log_ok=False)
-        self.assertEqual(ec, -9)
+            # reset the alarm
+            signal.alarm(0)
+            signal.alarm(3)
 
-        # disable the alarm
-        signal.alarm(0)
+            (_, ec) = run_cmd_qa("kill -9 $$", {}, log_ok=False)
+            self.assertEqual(ec, -9)
+
+        finally:
+            # cleanup: disable the alarm + reset signal handler for SIGALRM
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+            signal.alarm(0)
 
     def test_run_cmd_bis(self):
         """More 'complex' test for run_cmd function."""
         # a more 'complex' command to run, make sure all required output is there
         (out, ec) = run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
         self.assertTrue(out.startswith('hello\nhello\n'))
-        self.assertEqual(len(out), len("hello\n"*300))
+        self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
 
     def test_run_cmd_log_output(self):

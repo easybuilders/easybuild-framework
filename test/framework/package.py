@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -49,9 +49,8 @@ MOCKED_FPM = """#!/usr/bin/env python
 import os, sys
 
 def verbose(msg):
-    fp = open('%(fpm_output_file)s', 'a')
-    fp.write(msg + '\\n')
-    fp.close()
+    with open('%(fpm_output_file)s', 'a') as fp:
+        fp.write(msg + '\\n')
 
 description, iteration, name, source, target, url, version, workdir = '', '', '', '', '', '', '', ''
 excludes = []
@@ -112,29 +111,26 @@ while idx < len(sys.argv):
 
 pkgfile = os.path.join(workdir, name + '-' + version + '.' + iteration + '.' + target)
 
-fp = open(pkgfile, 'w')
+with open(pkgfile, 'w') as fp:
+    fp.write('thisisan' + target + '\\n')
+    fp.write(' '.join(sys.argv[1:]) + '\\n')
+    fp.write("STARTCONTENTS of installdir " + installdir + ':\\n')
 
-fp.write('thisisan' + target + '\\n')
-fp.write(' '.join(sys.argv[1:]) + '\\n')
-fp.write("STARTCONTENTS of installdir " + installdir + ':\\n')
+    find_cmd = 'find ' + installdir + '  ' + ''.join([" -not -path /" + x + ' ' for x in excludes])
+    verbose("trying: " + find_cmd)
+    fp.write(find_cmd + '\\n')
 
-find_cmd = 'find ' + installdir + '  ' + ''.join([" -not -path /" + x + ' ' for x in excludes])
-verbose("trying: " + find_cmd)
-fp.write(find_cmd + '\\n')
+    fp.write('ENDCONTENTS\\n')
 
-fp.write('ENDCONTENTS\\n')
-
-fp.write("Contents of module file " + modulefile + ':')
+    fp.write("Contents of module file " + modulefile + ':')
 
 
-fp.write('modulefile: ' + modulefile + '\\n')
-#modtxt = open(modulefile).read()
-#fp.write(modtxt + '\\n')
+    fp.write('modulefile: ' + modulefile + '\\n')
+    #modtxt = open(modulefile).read()
+    #fp.write(modtxt + '\\n')
 
-fp.write("I found excludes " + ' '.join(excludes) + '\\n')
-fp.write("DESCRIPTION: " + description + '\\n')
-
-fp.close()
+    fp.write("I found excludes " + ' '.join(excludes) + '\\n')
+    fp.write("DESCRIPTION: " + description + '\\n')
 """
 
 

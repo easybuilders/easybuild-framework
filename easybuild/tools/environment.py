@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,17 +50,11 @@ def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
     """
-    script = None
     try:
-        script = open(filename, 'w')
-
-        for key in _changes:
-            script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
-
-        script.close()
+        with open(filename, 'w') as script:
+            for key in _changes:
+                script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
     except IOError as err:
-        if script is not None:
-            script.close()
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()
 
@@ -189,18 +183,39 @@ def sanitize_env():
     """
     Sanitize environment.
 
-    This function undefines all $PYTHON* environment variables,
-    since they may affect the build/install procedure of Python packages.
+    This function:
 
-    cfr. https://docs.python.org/2/using/cmdline.html#environment-variables
+    * Filters out empty entries from environment variables like $PATH, $LD_LIBRARY_PATH, etc.
+      Empty entries make no sense, and can cause problems,
+      see for example https://github.com/easybuilders/easybuild-easyconfigs/issues/9843 .
 
-    While the $PYTHON* environment variables may be relevant/required for EasyBuild itself,
-    and for any non-stdlib Python packages it uses,
-    they are irrelevant (and potentially harmful) when installing Python packages.
+    * Undefines all $PYTHON* environment variables,
+      since they may affect the build/install procedure of Python packages.
 
-    Note that this is not an airtight protection against the Python being used in the build/install procedure
-    picking up non-stdlib Python packages (e.g., setuptools, vsc-base, ...), thanks to the magic of .pth files,
-    cfr. https://docs.python.org/2/library/site.html .
+      cfr. https://docs.python.org/2/using/cmdline.html#environment-variables
+
+      While the $PYTHON* environment variables may be relevant/required for EasyBuild itself,
+      and for any non-stdlib Python packages it uses,
+      they are irrelevant (and potentially harmful) when installing Python packages.
+
+      Note that this is not an airtight protection against the Python being used in the build/install procedure
+      picking up non-stdlib Python packages (e.g., setuptools, vsc-base, ...), thanks to the magic of .pth files,
+      cfr. https://docs.python.org/2/library/site.html .
     """
+
+    # remove empty entries from $*PATH variables
+    for key in ['CPATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'LD_PRELOAD', 'PATH']:
+        val = os.getenv(key)
+        if val:
+            entries = val.split(os.pathsep)
+            if '' in entries:
+                _log.info("Found %d empty entries in $%s, filtering them out...", entries.count(''), key)
+                newval = os.pathsep.join(x for x in entries if x)
+                if newval:
+                    setvar(key, newval)
+                else:
+                    unset_env_vars([key], verbose=False)
+
+    # unset all $PYTHON* environment variables
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
