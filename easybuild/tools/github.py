@@ -85,6 +85,8 @@ except ImportError as err:
 
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
+GITHUB_BRANCH_MAIN = 'main'
+GITHUB_BRANCH_MASTER = 'master'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
@@ -120,6 +122,18 @@ VALID_CLOSE_PR_REASONS = {
 }
 
 
+def pick_default_branch(github_owner):
+    """Determine default name to use."""
+    # use 'main' as default branch for 'easybuilders' organisation,
+    # otherwise use 'master'
+    if github_owner == GITHUB_EB_MAIN:
+        branch = GITHUB_BRANCH_MAIN
+    else:
+        branch = GITHUB_BRANCH_MASTER
+
+    return branch
+
+
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
 
@@ -133,10 +147,7 @@ class Githubfs(object):
         :param token:    (optional) a github api token.
         """
         if branchname is None:
-            if githubuser == GITHUB_EB_MAIN:
-                branchname = 'main'
-            else:
-                branchname = 'master'
+            branchname = pick_default_branch(githubuser)
 
         if token is None:
             token = fetch_github_token(username)
@@ -318,12 +329,7 @@ def fetch_latest_commit_sha(repo, account, branch=None, github_user=None, token=
     :return: latest SHA1
     """
     if branch is None:
-        # use 'main' as default branch for 'easybuilders' organisation,
-        # otherwise use 'master'
-        if account == GITHUB_EB_MAIN:
-            branch = 'main'
-        else:
-            branch = 'master'
+        branch = pick_default_branch(account)
 
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
                                           github_user=github_user, token=token, per_page=GITHUB_MAX_PER_PAGE)
@@ -356,12 +362,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, account=GITHUB_EB_M
     :param github_user: name of GitHub user to use
     """
     if branch is None:
-        # use 'main' as default branch for 'easybuilders' organisation,
-        # otherwise use 'master'
-        if account == GITHUB_EB_MAIN:
-            branch = 'main'
-        else:
-            branch = 'master'
+        branch = pick_default_branch(account)
 
     # make sure path exists, create it if necessary
     if path is None:
@@ -1962,7 +1963,7 @@ def check_github():
     branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=not debug)
-        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'main',
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, GITHUB_BRANCH_MAIN,
                                  silent=not debug, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
