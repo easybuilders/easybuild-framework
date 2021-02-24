@@ -1341,7 +1341,7 @@ class ToyBuildTest(EnhancedTestCase):
             '           "git_config": {',
             '               "repo_name": "testrepository",',
             '               "url": "https://github.com/easybuilders",',
-            '               "tag": "master",',
+            '               "tag": "main",',
             '           },',
             '       },',
             '   }),',
