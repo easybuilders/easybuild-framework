@@ -43,6 +43,7 @@ from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, VALID_CLOSE_PR_REASONS
+from easybuild.tools.github import pick_default_branch
 from easybuild.tools.testing import post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -82,6 +83,12 @@ class GithubTest(EnhancedTestCase):
         self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
 
         self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
+
+    def test_pick_default_branch(self):
+        """Test pick_default_branch function."""
+
+        self.assertEqual(pick_default_branch('easybuilders'), 'main')
+        self.assertEqual(pick_default_branch('foobar'), 'master')
 
     def test_walk(self):
         """test the gitubfs walk function"""
