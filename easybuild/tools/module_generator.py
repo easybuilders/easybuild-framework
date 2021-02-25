@@ -573,9 +573,6 @@ class ModuleGenerator(object):
             lines.extend(["    - $%s/%s" % (root_envvar, path) for path in docpaths])
             lines.extend(["    - %s" % url for url in docurls])
 
-
-
-
         for contacts_type in ['upstream', 'site']:
             contacts = self.app.cfg['%s_contacts' % contacts_type]
             if contacts:
