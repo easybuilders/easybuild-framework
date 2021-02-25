@@ -270,6 +270,7 @@ class ToyBuildTest(EnhancedTestCase):
             "modluafooter = 'io.stderr:write(\"oh hai!\")'",  # ignored when module syntax is Tcl
             "usage = 'This toy is easy to use, 100%!'",
             "examples = 'No example available, 0% complete'",
+            "citing = 'If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863'",
             "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
             "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
@@ -291,7 +292,6 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r'^setenv\s*FOO\s*"bar"$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
@@ -300,6 +300,9 @@ class ToyBuildTest(EnhancedTestCase):
             mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
             self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
+            self.assertTrue(re.search(
+                r'^If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863$',
+                toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
@@ -309,6 +312,9 @@ class ToyBuildTest(EnhancedTestCase):
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
             regex = re.compile(mod_load_msg, re.M)
             self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
+            self.assertTrue(re.search(
+                r'^If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863$',
+                toy_module_txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
