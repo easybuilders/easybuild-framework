@@ -351,8 +351,26 @@ class RunTest(EnhancedTestCase):
         cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
         (out, ec) = run_cmd_qa(cmd, {'Pick a number: ': '42'}, log_all=True, maxhits=5)
 
+        self.assertEqual(ec, 0)
         regex = re.compile("Picked number: 42$")
         self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
+        # also test with script run as interactive command that quickly exits with non-zero exit code;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3593
+        script_txt = '\n'.join([
+            "#/bin/bash",
+            "echo 'Hello, I am about to exit'",
+            "echo 'ERROR: I failed' >&2",
+            "exit 1",
+        ])
+        script = os.path.join(self.test_prefix, 'test.sh')
+        write_file(script, script_txt)
+        adjust_permissions(script, stat.S_IXUSR)
+
+        out, ec = run_cmd_qa(script, {}, log_ok=False)
+
+        self.assertEqual(ec, 1)
+        self.assertEqual(out, "Hello, I am about to exit\nERROR: I failed\n")
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
