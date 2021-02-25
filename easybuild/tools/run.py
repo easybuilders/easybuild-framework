@@ -107,7 +107,10 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
     """
 
     if asynchronous:
-        output = asyncprocess.recv_some(proc)
+        # e=False is set to avoid raising an exception when command has completed;
+        # that's needed to ensure we get all output,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3593
+        output = asyncprocess.recv_some(proc, e=False)
     elif read_size:
         output = proc.stdout.read(read_size)
     else:
@@ -411,6 +414,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
             out = get_output_from_process(proc, asynchronous=True)
+
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out
