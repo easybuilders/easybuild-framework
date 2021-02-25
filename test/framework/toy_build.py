@@ -292,6 +292,7 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
+
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r'^setenv\s*FOO\s*"bar"$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
