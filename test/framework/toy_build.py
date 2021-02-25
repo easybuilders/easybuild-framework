@@ -301,9 +301,6 @@ class ToyBuildTest(EnhancedTestCase):
             mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
             self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
-            self.assertTrue(re.search(
-                r'^If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863$',
-                toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
@@ -313,9 +310,6 @@ class ToyBuildTest(EnhancedTestCase):
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
             regex = re.compile(mod_load_msg, re.M)
             self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
-            self.assertTrue(re.search(
-                r'^If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863$',
-                toy_module_txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
@@ -1391,6 +1385,11 @@ class ToyBuildTest(EnhancedTestCase):
             r'Examples',
             r'========',
             r'No example available, 0% complete',
+            r'',
+            r'',
+            r'Citing',
+            r'========',
+            r'If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863',
             r'',
             r'',
             r'More information',
