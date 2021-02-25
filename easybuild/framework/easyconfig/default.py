@@ -195,6 +195,7 @@ DEFAULT_CONFIG = {
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
+    'citing': [None, "Free-form text that describes how the software should be cited in publications", MODULES],
     'docpaths': [None, "List of paths for documentation relative to installation directory", MODULES],
     'examples': [None, "Free-form text with examples on using the software", MODULES],
     'site_contacts': [None, "String/list of strings with site contacts for the software", MODULES],
