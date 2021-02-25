@@ -244,6 +244,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
         cfgtxt = '\n'.join([
             '[config]',
             'installpath = %s' % testpath2,
+            # special case: configuration option to a value starting with '--'
+            '[override]',
+            'optarch = --test',
         ])
         write_file(config_file, cfgtxt)
 
@@ -260,6 +263,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
         self.assertEqual(install_path(), installpath_software)  # via cmdline arg
         self.assertEqual(install_path('mod'), os.path.join(testpath2, 'modules'))  # via config file
+
+        self.assertEqual(options.optarch, '--test')  # via config file
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
         # to check whether easyconfigs install path is auto-included in robot path
