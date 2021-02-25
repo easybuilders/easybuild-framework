@@ -1376,8 +1376,7 @@ class GeneralOption(object):
                             configfile_values[opt_dest] = newval
                     else:
                         configfile_cmdline_dest.append(opt_dest)
-                        configfile_cmdline.append("--%s" % opt_name)
-                        configfile_cmdline.append(val)
+                        configfile_cmdline.append("--%s=%s" % (opt_name, val))
 
         # reparse
         self.log.debug('parseconfigfiles: going to parse options through cmdline %s' % configfile_cmdline)
