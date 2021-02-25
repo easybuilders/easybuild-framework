@@ -1388,7 +1388,7 @@ class ToyBuildTest(EnhancedTestCase):
             r'',
             r'',
             r'Citing',
-            r'========',
+            r'======',
             r'If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863',
             r'',
             r'',
