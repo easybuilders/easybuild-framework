@@ -72,7 +72,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.utilities import find_full_path
@@ -304,6 +304,38 @@ class EasyConfigTest(EnhancedTestCase):
         err_msg = "Incorrect external dependency specification"
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
+
+    def test_false_dep_version(self):
+        """
+        Test use False as dependency version via dict using 'arch=' keys,
+        which should result in filtering the dependency.
+        """
+
+        arch = get_cpu_architecture()
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = ['
+            '   ("first", "1.0"),',
+            '   ("seoond", {"arch=%s": False}),' % arch,
+            ']',
+            'builddependencies = [',
+            '   ("first_build", {"arch=%s": False}),' % arch,
+            '   ("second_build", "2.0"),',
+            ']',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+        deps = eb.dependencies()
+        self.assertEqual(len(deps), 2)
+        self.assertEqual(deps[0]['name'], 'second_build')
+        self.assertEqual(deps[1]['name'], 'first')
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
