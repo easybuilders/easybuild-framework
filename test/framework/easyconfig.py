@@ -358,6 +358,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # only non-POWER arch, dependency is retained
         for arch in (AARCH64, X86_64):
+            st.get_cpu_architecture = lambda: arch
             eb = EasyConfig(self.eb_file)
             deps = eb.dependencies()
             self.assertEqual(len(deps), 1)
