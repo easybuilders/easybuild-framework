@@ -1,5 +1,5 @@
 # #
-# Copyright 2018-2020 Ghent University
+# Copyright 2018-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -141,9 +141,7 @@ class ContainersTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         pip_patterns = [
-            # EasyBuild and dependencies are installed with pip by default
-            "pip install -U setuptools",
-            "pip install.*vsc-base",
+            # EasyBuild is installed with pip by default
             "pip install easybuild",
         ]
         post_commands_patterns = [

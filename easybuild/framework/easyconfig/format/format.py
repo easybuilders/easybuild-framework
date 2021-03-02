@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -612,11 +612,16 @@ class EasyConfigFormat(object):
             raise EasyBuildError('Invalid version number %s (incorrect length)', self.VERSION)
 
         self.rawtext = None  # text version of the easyconfig
-        self.comments = {}  # comments in easyconfig file
+        self._comments = {}  # comments in easyconfig file
         self.header = None  # easyconfig header (e.g., format version, license, ...)
         self.docstring = None  # easyconfig docstring (e.g., author, maintainer, ...)
 
         self.specs = {}
+
+    @property
+    def comments(self):
+        """Return comments in easyconfig file"""
+        return self._comments
 
     def set_specifications(self, specs):
         """Set specifications."""

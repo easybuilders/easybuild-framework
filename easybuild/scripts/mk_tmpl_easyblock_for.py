@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -225,9 +225,8 @@ try:
     dirpath = os.path.dirname(easyblock_path)
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
-    f = open(easyblock_path, "w")
-    f.write(txt)
-    f.close()
+    with open(easyblock_path, "w") as fh:
+        fh.write(txt)
 except (IOError, OSError) as err:
     sys.stderr.write("ERROR! Writing template easyblock for %s to %s failed: %s" % (name, easyblock_path, err))
     sys.exit(1)

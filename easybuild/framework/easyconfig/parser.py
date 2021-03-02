@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -109,8 +109,6 @@ class EasyConfigParser(object):
             self.process()
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
-
-        self._formatter.extract_comments(self.rawcontent)
 
     def process(self, filename=None):
         """Create an instance"""

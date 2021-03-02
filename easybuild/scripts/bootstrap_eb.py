@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -62,7 +62,7 @@ else:
     import urllib.request as std_urllib
 
 
-EB_BOOTSTRAP_VERSION = '20200820.01'
+EB_BOOTSTRAP_VERSION = '20210106.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False

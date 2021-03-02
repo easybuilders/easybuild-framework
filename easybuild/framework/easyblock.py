@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -66,6 +66,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -96,6 +97,8 @@ from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
+
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
@@ -756,7 +759,8 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
-            targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+            name_letter = self.name.lower()[0]
+            targetdir = os.path.join(srcpaths[0], name_letter, self.name)
 
             if foundfile:
                 if self.dry_run:
@@ -771,6 +775,9 @@ class EasyBlock(object):
                 else:
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
+
+                # add https://sources.easybuild.io as fallback source URL
+                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
 
                 mkdir(targetdir, parents=True)
 
@@ -1345,10 +1352,16 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
+                user_envvars = build_option('envvars_user_modules') or [DEFAULT_ENVVAR_USERS_MODULES]
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
-                txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
-                                                 guarded=True, user_modpath=user_modpath)
+                for user_envvar in user_envvars:
+                    self.log.debug("Requested environment variable $%s to host additional branch for modules",
+                                   user_envvar)
+                    default_value = user_envvar + "_NOT_DEFINED"
+                    getenv_txt = self.module_generator.getenv_cmd(user_envvar, default=default_value)
+                    txt += self.module_generator.use(user_modpath_exts, prefix=getenv_txt,
+                                                     guarded=True, user_modpath=user_modpath)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
@@ -1635,6 +1648,31 @@ class EasyBlock(object):
 
         change_dir(self.start_dir)
         self.log.debug("Changed to real build directory %s (start_dir)", self.start_dir)
+
+    def check_accepted_eula(self, name=None, more_info=None):
+        """Check whether EULA for this software is accepted in current EasyBuild configuration."""
+
+        if name is None:
+            name = self.name
+
+        accepted_eulas = build_option('accept_eula') or []
+        if self.cfg['accept_eula'] or name in accepted_eulas:
+            self.log.info("EULA for %s is accepted", name)
+        else:
+            error_lines = [
+                "The End User License Argreement (EULA) for %(name)s is currently not accepted!",
+            ]
+            if more_info:
+                error_lines.append("(see %s for more information)" % more_info)
+
+            error_lines.extend([
+                "You should either:",
+                "- add --accept-eula=%(name)s to the 'eb' command;",
+                "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
+                "- add 'accept_eula = True' to the easyconfig file you are using;",
+                '',
+            ])
+            raise EasyBuildError('\n'.join(error_lines) % {'name': name})
 
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
@@ -2139,10 +2177,11 @@ class EasyBlock(object):
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        if self.cfg['runtest']:
+        unit_test_cmd = self.cfg['runtest']
+        if unit_test_cmd:
 
-            self.log.debug("Trying to execute %s as a command for running unit tests...")
-            (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
+            self.log.debug("Trying to execute %s as a command for running unit tests...", unit_test_cmd)
+            (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
 
             return out
 
@@ -2371,15 +2410,26 @@ class EasyBlock(object):
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         self.fix_shebang()
+
+        lib_dir = os.path.join(self.installdir, 'lib')
+        lib64_dir = os.path.join(self.installdir, 'lib64')
+
         # GCC linker searches system /lib64 path before the $LIBRARY_PATH paths.
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
         if build_option('lib64_lib_symlink'):
-            lib_dir = os.path.join(self.installdir, 'lib')
-            lib64_dir = os.path.join(self.installdir, 'lib64')
             if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-                symlink(lib_dir, lib64_dir)
+                # create *relative* 'lib64' symlink to 'lib';
+                # see https://github.com/easybuilders/easybuild-framework/issues/3564
+                symlink('lib', lib64_dir, use_abspath_source=False)
+
+        # symlink lib to lib64, which is helpful on OpenSUSE;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3549
+        if build_option('lib_lib64_symlink'):
+            if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
+                # create *relative* 'lib' symlink to 'lib64';
+                symlink('lib64', lib_dir, use_abspath_source=False)
 
     def sanity_check_step(self, *args, **kwargs):
         """
@@ -2460,7 +2510,7 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False)
+                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
                         fails.append("Failed to run 'file %s': %s" % (path, out))
 
@@ -2470,7 +2520,7 @@ class EasyBlock(object):
                     # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
                     if "dynamically linked" in out:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False)
+                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -2483,7 +2533,7 @@ class EasyBlock(object):
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False)
+                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
                         if ec:
                             fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
                             self.log.warning(fail_msg)
@@ -3018,7 +3068,7 @@ class EasyBlock(object):
             self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
         self.cfg.generate_template_values()
 
-    def _skip_step(self, step, skippable):
+    def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
         force = build_option('force') or build_option('rebuild')
@@ -3238,7 +3288,7 @@ class EasyBlock(object):
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
-                if self._skip_step(step_name, skippable):
+                if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
@@ -3330,6 +3380,10 @@ def build_and_install_one(ecdict, init_env):
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
+
+    if build_option('skip_test_step'):
+        _log.debug('Adding test_step to skipped steps')
+        app.cfg.update('skipsteps', TEST_STEP, allow_duplicate=False)
 
     # build easyconfig
     errormsg = '(no error)'

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,9 +46,9 @@ from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_DYNAMIC
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
-from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS, template_constant_dict
 from easybuild.framework.easyconfig.tools import avail_easyblocks
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
@@ -344,6 +344,12 @@ def avail_easyconfig_templates_txt():
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
         doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
 
+    # some template values are only defined dynamically,
+    # see template_constant_dict function in easybuild.framework.easyconfigs.templates
+    doc.append('Template values which are defined dynamically')
+    for name in TEMPLATE_NAMES_DYNAMIC:
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
         doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, cst[0], cst[2], cst[1]))
@@ -392,6 +398,13 @@ def avail_easyconfig_templates_rst():
     table_values = [
         ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
         [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+    ]
+    doc.extend(rst_title_and_table(title, table_titles, table_values))
+
+    title = 'Template values which are defined dynamically'
+    table_values = [
+        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_DYNAMIC],
+        [name[1] for name in TEMPLATE_NAMES_DYNAMIC],
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
 
@@ -726,16 +739,16 @@ def list_software_txt(software, detailed=False):
 def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
+
+    # filter deprecated 'dummy' toolchain
+    all_tcs = [x for x in all_tcs if x.NAME != DUMMY_TOOLCHAIN_NAME]
     all_tcs_names = [x.NAME for x in all_tcs]
-    tclist = sorted(zip(all_tcs_names, all_tcs))
 
-    tcs = dict()
-    for (tcname, tcc) in tclist:
+    # start with dict that maps toolchain name to corresponding subclass of Toolchain
+    tcs = dict(zip(all_tcs_names, all_tcs))
 
-        # filter deprecated 'dummy' toolchain
-        if tcname == DUMMY_TOOLCHAIN_NAME:
-            continue
-
+    for tcname in sorted(tcs):
+        tcc = tcs[tcname]
         tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
         tcs[tcname] = tc.definition()
 

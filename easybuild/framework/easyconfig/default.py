@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -159,6 +159,7 @@ DEFAULT_CONFIG = {
     'moddependpaths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
+    'accept_eula': [False, "Accepted End User License Agreement (EULA) for this software", LICENSE],
     'group': [None, "Name of the user group for which the software should be available; "
                     "format: string or 2-tuple with group name + custom error for users outside group", LICENSE],
     'key': [None, 'Key for installing software', LICENSE],

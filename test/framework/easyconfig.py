@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -56,7 +56,8 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parame
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
-from easybuild.framework.easyconfig.tools import find_related_easyconfigs, get_paths_for, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import det_copy_ec_specs, find_related_easyconfigs, get_paths_for
+from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
@@ -994,6 +995,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
+            'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1028,6 +1030,7 @@ class EasyConfigTest(EnhancedTestCase):
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
         self.assertEqual(eb['modloadmsg'], expected)
+        self.assertEqual(eb['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -1046,6 +1049,51 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s  "})
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
+
+    def test_templating_cuda_toolchain(self):
+        """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
+
+        build_options = {'robot_path': [self.test_prefix]}
+        init_config(build_options=build_options)
+
+        # create fake easyconfig files, good enough to test with
+        cuda_ec = os.path.join(self.test_prefix, 'CUDA-10.1.243')
+        cuda_ec_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'CUDA'",
+            "version = '10.1.243'",
+            "homepage = 'https://example.com'",
+            "description = 'CUDA'",
+            "toolchain = SYSTEM",
+        ])
+        write_file(cuda_ec, cuda_ec_txt)
+
+        fosscuda_ec = os.path.join(self.test_prefix, 'fosscuda-2021.02.eb')
+        fosscuda_ec_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'fosscuda'",
+            "version = '2021.02'",
+            "homepage = 'https://example.com'",
+            "description = 'fosscuda toolchain'",
+            "toolchain = SYSTEM",
+            "dependencies = [('CUDA', '10.1.243')]",
+        ])
+        write_file(fosscuda_ec, fosscuda_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'test'",
+            "version = '1.0'",
+            "homepage = 'https://example.com'",
+            "description = 'just a test'",
+            "toolchain = {'name': 'fosscuda', 'version': '2021.02'}",
+        ])
+        write_file(test_ec, test_ec_txt)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec.template_values['cudaver'], '10.1.243')
+        self.assertEqual(ec.template_values['cudamajver'], '10')
+        self.assertEqual(ec.template_values['cudashortver'], '10.1')
 
     def test_java_wrapper_templating(self):
         """test templating when the Java wrapper is a dep"""
@@ -1080,6 +1128,7 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_NAMES_CONFIG,
             easyconfig.templates.TEMPLATE_NAMES_LOWER,
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+            easyconfig.templates.TEMPLATE_NAMES_DYNAMIC,
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
 
@@ -2868,6 +2917,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
+            'module_name': 'gzip/1.5-foss-2018a',
             'name': 'gzip',
             'namelower': 'gzip',
             'nameletter': 'g',
@@ -2936,6 +2986,7 @@ class EasyConfigTest(EnhancedTestCase):
             'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
+            'module_name': None,
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
@@ -2976,6 +3027,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
         expected = {
+            'module_name': None,
             'name': 'foo',
             'namelower': 'foo',
             'nameletter': 'f',
@@ -4001,6 +4053,8 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
             "installopts = '%(cuda_compute_capabilities)s'",
+            "preinstallopts = '%(cuda_cc_space_sep)s'",
+            "prebuildopts = '%(cuda_cc_semicolon_sep)s'",
             "configopts = '%(cuda_sm_comma_sep)s'",
             "preconfigopts = '%(cuda_sm_space_sep)s'",
         ])
@@ -4008,6 +4062,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
+        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
         self.assertEqual(ec['configopts'], 'sm_51,sm_70,sm_71')
         self.assertEqual(ec['preconfigopts'], 'sm_51 sm_70 sm_71')
 
@@ -4015,8 +4071,88 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['installopts'], '4.2,6.3')
+        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
         self.assertEqual(ec['configopts'], 'sm_42,sm_63')
         self.assertEqual(ec['preconfigopts'], 'sm_42 sm_63')
+
+    def test_det_copy_ec_specs(self):
+        """Test det_copy_ec_specs function."""
+
+        cwd = os.getcwd()
+
+        # no problems on empty list as input
+        paths, target_path = det_copy_ec_specs([], None)
+        self.assertEqual(paths, [])
+        self.assertEqual(target_path, None)
+
+        # single-element list, no --from-pr => use current directory as target location
+        paths, target_path = det_copy_ec_specs(['test.eb'], None)
+        self.assertEqual(paths, ['test.eb'])
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        # multi-element list, no --from-pr => last element is used as target location
+        for args in (['test.eb', 'dir'], ['test1.eb', 'test2.eb', 'dir']):
+            paths, target_path = det_copy_ec_specs(args, None)
+            self.assertEqual(paths, args[:-1])
+            self.assertEqual(target_path, args[-1])
+
+        # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
+        from_pr = 8007
+        arrow_ec_fn = 'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb'
+        bat_ec_fn = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
+        bat_patch_fn = 'bat-0.3.3-fix-pyspark.patch'
+        pr_files = [
+            arrow_ec_fn,
+            bat_ec_fn,
+            bat_patch_fn,
+        ]
+
+        # if no paths are specified, default is to copy all files touched by PR to current working directory
+        paths, target_path = det_copy_ec_specs([], from_pr)
+        self.assertEqual(len(paths), 3)
+        filenames = sorted([os.path.basename(x) for x in paths])
+        self.assertEqual(filenames, sorted(pr_files))
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        # last argument is used as target directory,
+        # unless it corresponds to a file touched by PR
+        args = [bat_ec_fn, 'target_dir']
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(target_path, 'target_dir')
+
+        args = [bat_ec_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        args = [arrow_ec_fn, bat_ec_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), bat_ec_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        args = [bat_ec_fn, bat_patch_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), bat_patch_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
+
+        # also test with combination of local files and files from PR
+        args = [arrow_ec_fn, 'test.eb', 'test.patch', bat_patch_fn]
+        paths, target_path = det_copy_ec_specs(args, from_pr)
+        self.assertEqual(len(paths), 4)
+        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
+        self.assertEqual(paths[1], 'test.eb')
+        self.assertEqual(paths[2], 'test.patch')
+        self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
+        self.assertTrue(os.path.samefile(target_path, cwd))
 
 
 def suite():
