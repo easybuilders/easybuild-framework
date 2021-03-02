@@ -131,13 +131,13 @@ class Compiler(Toolchain):
 
     COMPILER_CC = None
     COMPILER_CXX = None
-    COMPILER_C_FLAGS = ['cstd', 'extra_cflags']
+    COMPILER_C_FLAGS = ['cstd']
     COMPILER_C_UNIQUE_FLAGS = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
-    COMPILER_F_FLAGS = ['i8', 'r8', 'extra_fflags']
+    COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
