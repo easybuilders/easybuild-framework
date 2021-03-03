@@ -325,13 +325,13 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = ['
-            '   ("first", "1.0"),',
-            '   ("second", {"arch=%s": False}),' % arch,
-            ']',
             'builddependencies = [',
             '   ("first_build", {"arch=%s": False}),' % arch,
             '   ("second_build", "2.0"),',
+            ']',
+            'dependencies = ['
+            '   ("first", "1.0"),',
+            '   ("second", {"arch=%s": False}),' % arch,
             ']',
         ])
         self.prep()
