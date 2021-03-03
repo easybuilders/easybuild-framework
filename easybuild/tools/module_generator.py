@@ -559,6 +559,9 @@ class ModuleGenerator(object):
         # Examples (optional)
         lines.extend(self._generate_section('Examples', self.app.cfg['examples'], strip=True))
 
+        # Citing (optional)
+        lines.extend(self._generate_section('Citing', self.app.cfg['citing'], strip=True))
+
         # Additional information: homepage + (if available) doc paths/urls, upstream/site contact
         lines.extend(self._generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
 
