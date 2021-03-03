@@ -926,7 +926,7 @@ def pick_dep_version(dep_version):
         arch_keys = [x for x in dep_version.keys() if x.startswith(ARCH_KEY_PREFIX)]
         other_keys = [x for x in dep_version.keys() if x not in arch_keys]
         if other_keys:
-            other_keys = ','.join(other_keys)
+            other_keys = ','.join(sorted(other_keys))
             raise EasyBuildError("Unexpected keys in version: %s (only 'arch=' keys are supported)", other_keys)
         if arch_keys:
             host_arch_key = ARCH_KEY_PREFIX + get_cpu_architecture()
