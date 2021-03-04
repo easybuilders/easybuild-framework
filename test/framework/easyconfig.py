@@ -72,7 +72,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.systemtools import AARCH64, POWER, X86_64, get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.utilities import find_full_path
@@ -104,6 +104,7 @@ class EasyConfigTest(EnhancedTestCase):
     def setUp(self):
         """Set up everything for running a unit test."""
         super(EasyConfigTest, self).setUp()
+        self.orig_get_cpu_architecture = st.get_cpu_architecture
 
         self.cwd = os.getcwd()
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -122,6 +123,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """ make sure to remove the temporary file """
+        st.get_cpu_architecture = self.orig_get_cpu_architecture
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
@@ -304,6 +306,69 @@ class EasyConfigTest(EnhancedTestCase):
         err_msg = "Incorrect external dependency specification"
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
         self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
+
+    def test_false_dep_version(self):
+        """
+        Test use False as dependency version via dict using 'arch=' keys,
+        which should result in filtering the dependency.
+        """
+        # silence warnings about missing easyconfigs for dependencies, we don't care
+        init_config(build_options={'silent': True})
+
+        arch = get_cpu_architecture()
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'builddependencies = [',
+            '   ("first_build", {"arch=%s": False}),' % arch,
+            '   ("second_build", "2.0"),',
+            ']',
+            'dependencies = ['
+            '   ("first", "1.0"),',
+            '   ("second", {"arch=%s": False}),' % arch,
+            ']',
+        ])
+        self.prep()
+        eb = EasyConfig(self.eb_file)
+        deps = eb.dependencies()
+        self.assertEqual(len(deps), 2)
+        self.assertEqual(deps[0]['name'], 'second_build')
+        self.assertEqual(deps[1]['name'], 'first')
+
+        # more realistic example: only filter dep for POWER
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'versionsuffix = "-test"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = ['
+            '   ("not_on_power", {"arch=*": "1.2.3", "arch=POWER": False}),',
+            ']',
+        ])
+        self.prep()
+
+        # only non-POWER arch, dependency is retained
+        for arch in (AARCH64, X86_64):
+            st.get_cpu_architecture = lambda: arch
+            eb = EasyConfig(self.eb_file)
+            deps = eb.dependencies()
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0]['name'], 'not_on_power')
+
+        # only power, dependency gets filtered
+        st.get_cpu_architecture = lambda: POWER
+        eb = EasyConfig(self.eb_file)
+        deps = eb.dependencies()
+        self.assertEqual(deps, [])
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """

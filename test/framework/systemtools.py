@@ -916,6 +916,24 @@ class SystemToolsTest(EnhancedTestCase):
         error_pattern = "Unknown value type for version"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
 
+        # check support for using 'arch=*' as fallback key
+        dep_ver_dict = {
+            'arch=*': '1.2.3',
+            'arch=foo': '1.2.3-foo',
+            'arch=POWER': '1.2.3-ppc64le',
+        }
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
+
+        del dep_ver_dict['arch=POWER']
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3')
+
+        # check how faulty input is handled
+        self.assertErrorRegex(EasyBuildError, "Found empty dict as version!", pick_dep_version, {})
+        error_pattern = r"Unexpected keys in version: bar,foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
+        error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+
     def test_check_os_dependency(self):
         """Test check_os_dependency."""
 
