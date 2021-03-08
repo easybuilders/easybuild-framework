@@ -2292,7 +2292,8 @@ def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False
             """Helper function to grab comments for this PR."""
             return gh.repos[pr_target_account][pr_target_repo].issues[pr].comments
 
-        status, comments_data = github_api_get_request(comments_url, github_user, **parameters)
+        status, comments_data = github_api_get_request(comments_url, github_user,
+                                                       per_page=GITHUB_MAX_PER_PAGE, **parameters)
         if status != HTTP_STATUS_OK:
             raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
                                  pr, pr_target_account, pr_target_repo, status, comments_data)
