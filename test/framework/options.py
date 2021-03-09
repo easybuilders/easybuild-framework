@@ -4435,6 +4435,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
             "* test suite passes: OK",
             "* last test report is successful: OK",
+            "* no pending change requests: OK",
             "* milestone is set: OK (3.3.1)",
         ])
         expected_stderr = '\n'.join([
@@ -4457,6 +4458,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
+            "* no pending change requests: OK",
             "* approved review: OK (by wpoely86)",
             "* milestone is set: OK (3.3.1)",
             '',
@@ -4483,6 +4485,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
+            "* no pending change requests: OK",
             "* approved review: OK (by migueldiascosta)",
             "* milestone is set: OK (3.3.1)",
             '',
