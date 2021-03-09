@@ -654,7 +654,7 @@ class GithubTest(EnhancedTestCase):
             'issue_comments': [],
             'milestone': None,
             'number': '1234',
-            'reviews': [],
+            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -714,10 +714,12 @@ class GithubTest(EnhancedTestCase):
         pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
         run_check()
 
-        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        expected_warning = "* no pending change requests: FAILED (changes requested by boegel)"
+        expected_warning += " => not eligible for merging!"
         run_check()
 
-        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        pr_data['reviews'] = [{'state': 'APPROVED', 'user': {'login': 'boegel'}}]
+        expected_stdout += "* no pending change requests: OK\n"
         expected_stdout += "* approved review: OK (by boegel)\n"
         expected_warning = ''
         run_check()
