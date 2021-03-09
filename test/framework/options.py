@@ -4437,6 +4437,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* last test report is successful: OK",
             "* no pending change requests: OK",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
         ])
         expected_stderr = '\n'.join([
             "* targets some_branch branch: FAILED; found 'develop' => not eligible for merging!",
@@ -4461,6 +4462,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* no pending change requests: OK",
             "* approved review: OK (by wpoely86)",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
@@ -4488,6 +4490,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* no pending change requests: OK",
             "* approved review: OK (by migueldiascosta)",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
         ])

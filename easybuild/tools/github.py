@@ -1164,6 +1164,16 @@ def check_pr_eligible_to_merge(pr_data):
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
+    # check github mergeable state
+    msg_tmpl = "* mergeable state is clean: %s"
+    if pr_data['merged']:
+        print_msg(msg_tmpl % "PR is already merged", prefix=False)
+    elif pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN:
+        print_msg(msg_tmpl % "OK", prefix=False)
+    else:
+        reason = "FAILED (mergeable state is '%s')" % pr_data['mergeable_state']
+        res = not_eligible(msg_tmpl % reason)
+
     return res
 
 
