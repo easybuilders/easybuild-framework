@@ -207,7 +207,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
@@ -318,7 +319,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
-        orig_paths, target_path = det_copy_ec_specs(orig_paths, options.from_pr)
+        orig_paths, target_path = det_copy_ec_specs(orig_paths, from_pr_list)
 
     categorized_paths = categorize_files_by_type(orig_paths)
 

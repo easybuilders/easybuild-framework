@@ -291,11 +291,15 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
     if use_abspath_source:
         source_path = os.path.abspath(source_path)
 
-    try:
-        os.symlink(source_path, symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+    if os.path.exists(symlink_path):
+        _log.info("Skipping symlinking %s to %s, link already exists", source_path, symlink_path)
+        # TODO: check if the symlink_path points to source_path
+    else:
+        try:
+            os.symlink(source_path, symlink_path)
+            _log.info("Symlinked %s to %s", source_path, symlink_path)
+        except OSError as err:
+            raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def remove_file(path):
