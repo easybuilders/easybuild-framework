@@ -42,7 +42,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, VALID_CLOSE_PR_REASONS
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
+from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import pick_default_branch
 from easybuild.tools.testing import post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
@@ -654,7 +655,9 @@ class GithubTest(EnhancedTestCase):
             'issue_comments': [],
             'milestone': None,
             'number': '1234',
-            'reviews': [],
+            'merged': False,
+            'mergeable_state': 'unknown',
+            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -714,10 +717,12 @@ class GithubTest(EnhancedTestCase):
         pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
         run_check()
 
-        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        expected_warning = "* no pending change requests: FAILED (changes requested by boegel)"
+        expected_warning += " => not eligible for merging!"
         run_check()
 
-        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        pr_data['reviews'] = [{'state': 'APPROVED', 'user': {'login': 'boegel'}}]
+        expected_stdout += "* no pending change requests: OK\n"
         expected_stdout += "* approved review: OK (by boegel)\n"
         expected_warning = ''
         run_check()
@@ -728,6 +733,13 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['milestone'] = {'title': '3.3.1'}
         expected_stdout += "* milestone is set: OK (3.3.1)\n"
+
+        # mergeable state must be clean
+        expected_warning = "* mergeable state is clean: FAILED (mergeable state is 'unknown')"
+        run_check()
+
+        pr_data['mergeable_state'] = GITHUB_MERGEABLE_STATE_CLEAN
+        expected_stdout += "* mergeable state is clean: OK\n"
 
         # all checks pass, PR is eligible for merging
         expected_warning = ''

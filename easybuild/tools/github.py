@@ -1136,11 +1136,20 @@ def check_pr_eligible_to_merge(pr_data):
         if not test_report_found:
             res = not_eligible(msg_tmpl % "(no test reports found)")
 
-    # check for approved review
+    # check for requested changes and approved review
     approved_review_by = []
+    changes_requested_by = []
     for review in pr_data['reviews']:
         if review['state'] == 'APPROVED':
             approved_review_by.append(review['user']['login'])
+        if review['state'] == 'CHANGES_REQUESTED':
+            changes_requested_by.append(review['user']['login'])
+
+    msg_tmpl = "* no pending change requests: %s"
+    if changes_requested_by:
+        res = not_eligible(msg_tmpl % 'FAILED (changes requested by %s)' % ', '.join(changes_requested_by))
+    else:
+        print_msg(msg_tmpl % 'OK', prefix=False)
 
     msg_tmpl = "* approved review: %s"
     if approved_review_by:
@@ -1154,6 +1163,16 @@ def check_pr_eligible_to_merge(pr_data):
         print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
+
+    # check github mergeable state
+    msg_tmpl = "* mergeable state is clean: %s"
+    if pr_data['merged']:
+        print_msg(msg_tmpl % "PR is already merged", prefix=False)
+    elif pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN:
+        print_msg(msg_tmpl % "OK", prefix=False)
+    else:
+        reason = "FAILED (mergeable state is '%s')" % pr_data['mergeable_state']
+        res = not_eligible(msg_tmpl % reason)
 
     return res
 
