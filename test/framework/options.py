@@ -4470,7 +4470,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
             "* test suite passes: OK",
             "* last test report is successful: OK",
+            "* no pending change requests: OK",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
         ])
         expected_stderr = '\n'.join([
             "* targets some_branch branch: FAILED; found 'develop' => not eligible for merging!",
@@ -4492,8 +4494,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
+            "* no pending change requests: OK",
             "* approved review: OK (by wpoely86)",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
@@ -4518,8 +4522,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
+            "* no pending change requests: OK",
             "* approved review: OK (by migueldiascosta)",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
         ])
