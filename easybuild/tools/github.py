@@ -1136,14 +1136,18 @@ def check_pr_eligible_to_merge(pr_data):
         if not test_report_found:
             res = not_eligible(msg_tmpl % "(no test reports found)")
 
-    # check for requested changes and approved review
+    # check for approved review
     approved_review_by = []
-    changes_requested_by = []
     for review in pr_data['reviews']:
         if review['state'] == 'APPROVED':
             approved_review_by.append(review['user']['login'])
+
+    # check for requested changes
+    changes_requested_by = []
+    for review in pr_data['reviews']:
         if review['state'] == 'CHANGES_REQUESTED':
-            changes_requested_by.append(review['user']['login'])
+            if review['user']['login'] not in approved_review_by:
+                changes_requested_by.append(review['user']['login'])
 
     msg_tmpl = "* no pending change requests: %s"
     if changes_requested_by:
