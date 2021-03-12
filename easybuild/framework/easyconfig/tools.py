@@ -731,6 +731,9 @@ def avail_easyblocks():
 def det_copy_ec_specs(orig_paths, from_pr):
     """Determine list of paths + target directory for --copy-ec."""
 
+    if from_pr is not None and not isinstance(from_pr, list):
+        from_pr = [from_pr]
+
     target_path, paths = None, []
 
     # if only one argument is specified, use current directory as target directory

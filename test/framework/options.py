@@ -821,6 +821,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
+                r'\|-- PythonBundle',
                 r'\|-- Toolchain',
                 r'Extension',
                 r'\|-- ExtensionEasyBlock',
