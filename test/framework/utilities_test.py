@@ -30,6 +30,7 @@ Unit tests for utilities.py
 @author: Alexander Grund (TU Dresden)
 """
 import os
+import random
 import sys
 import tempfile
 from datetime import datetime
@@ -37,7 +38,7 @@ from unittest import TextTestRunner
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.utilities import time2str
+from easybuild.tools.utilities import time2str, natural_keys
 
 
 class UtilitiesTest(EnhancedTestCase):
@@ -77,6 +78,25 @@ class UtilitiesTest(EnhancedTestCase):
 
         error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
         self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
+
+    def test_natural_keys(self):
+        """Test the natural_keys function"""
+        sorted_items = [
+            'ACoolSw-1.0',
+            'ACoolSw-2.1',
+            'ACoolSw-11.0',
+            'ACoolSw-23.0',
+            'ACoolSw-30.0',
+            'ACoolSw-30.1',
+            'BigNumber-1234567890',
+            'BigNumber-1234567891',
+            'NoNumbers',
+            'VeryLastEntry-10'
+        ]
+        shuffled_items = sorted_items[:]
+        random.shuffle(shuffled_items)
+        shuffled_items.sort(key=natural_keys)
+        self.assertEqual(shuffled_items, sorted_items)
 
 
 def suite():
