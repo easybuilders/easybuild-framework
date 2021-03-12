@@ -1146,7 +1146,7 @@ def check_pr_eligible_to_merge(pr_data):
     changes_requested_by = []
     for review in pr_data['reviews']:
         if review['state'] == 'CHANGES_REQUESTED':
-            if review['user']['login'] not in approved_review_by:
+            if review['user']['login'] not in approved_review_by + changes_requested_by:
                 changes_requested_by.append(review['user']['login'])
 
     msg_tmpl = "* no pending change requests: %s"
