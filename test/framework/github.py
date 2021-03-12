@@ -657,7 +657,9 @@ class GithubTest(EnhancedTestCase):
             'number': '1234',
             'merged': False,
             'mergeable_state': 'unknown',
-            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
+            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}},
+                        # to check that duplicates are filtered
+                        {'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
