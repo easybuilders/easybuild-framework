@@ -721,9 +721,17 @@ class GithubTest(EnhancedTestCase):
         expected_warning += " => not eligible for merging!"
         run_check()
 
-        pr_data['reviews'] = [{'state': 'APPROVED', 'user': {'login': 'boegel'}}]
-        expected_stdout += "* no pending change requests: OK\n"
-        expected_stdout += "* approved review: OK (by boegel)\n"
+        # if PR is approved by a different user that requested changes and that request has not been dismissed,
+        # the PR is still not mergeable
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'not_boegel'}})
+        expected_stdout_saved = expected_stdout
+        expected_stdout += "* approved review: OK (by not_boegel)\n"
+        run_check()
+
+        # if the user that requested changes approves the PR, it's mergeable
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        expected_stdout = expected_stdout_saved + "* no pending change requests: OK\n"
+        expected_stdout += "* approved review: OK (by not_boegel, boegel)\n"
         expected_warning = ''
         run_check()
 
