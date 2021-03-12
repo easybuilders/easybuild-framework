@@ -1027,12 +1027,14 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         path_hits = sorted(path_hits, key=natural_keys)
 
         if path_hits:
-            common_prefix = det_common_path_prefix(path_hits)
-            if not terse and short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_defs.append((var, common_prefix))
-                hits.extend([os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in path_hits])
-            else:
-                hits.extend(path_hits)
+            if not terse and short:
+                common_prefix = det_common_path_prefix(path_hits)
+                if common_prefix is not None and len(common_prefix) > len(var) * 2:
+                    var_defs.append((var, common_prefix))
+                    var_spec = '$' + var
+                    # Replace the common prefix by  var_spec
+                    path_hits = (var_spec + fn[len(common_prefix):] for fn in path_hits)
+            hits.extend(path_hits)
 
     return var_defs, hits
 
