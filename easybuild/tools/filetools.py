@@ -1000,8 +1000,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        path_index = load_index(path, ignore_dirs=ignore_dirs)
-        if path_index is None or build_option('ignore_index'):
+        if build_option('ignore_index'):
+            path_index = None
+        else:
+            path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index is None:
             if os.path.exists(path):
                 _log.info("No index found for %s, creating one...", path)
                 path_index = create_index(path, ignore_dirs=ignore_dirs)
