@@ -333,7 +333,7 @@ def det_easyconfig_paths(orig_paths):
     :return: list of paths to easyconfig files
     """
     try:
-        from_pr_list = map(int, build_option('from_pr'))
+        from_pr_list = [int(pr_nr) for pr_nr in build_option('from_pr')]
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 

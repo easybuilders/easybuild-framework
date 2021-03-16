@@ -282,7 +282,7 @@ def post_pr_test_report(pr_nr, repo_type, test_report, msg, init_session_state, 
 
     if build_option('include_easyblocks_from_pr'):
         if repo_type == GITHUB_EASYCONFIGS_REPO:
-            easyblocks_pr_nrs = map(int, build_option('include_easyblocks_from_pr'))
+            easyblocks_pr_nrs = [int(pr_nr) for pr_nr in build_option('include_easyblocks_from_pr')]
             comment_lines.append("Using easyblocks from PR(s) %s" %
                                  ", ".join(["https://github.com/%s/%s/pull/%s" %
                                             (pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr)
@@ -320,12 +320,12 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     dump_path = build_option('dump_test_report')
 
     try:
-        pr_nrs = map(int, build_option('from_pr'))
+        pr_nrs = [int(pr_nr) for pr_nr in build_option('from_pr')]
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
     try:
-        eb_pr_nrs = map(int, build_option('include_easyblocks_from_pr'))
+        eb_pr_nrs = [int(pr_nr) for pr_nr in build_option('include_easyblocks_from_pr')]
     except ValueError:
         raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
 
