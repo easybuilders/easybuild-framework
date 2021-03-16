@@ -2860,6 +2860,45 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(bash_shebang_regex.match(bashbin_txt),
                             "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
 
+        # now test with a custom env command
+        extra_args = ['--env-for-shebang=/usr/bin/env -S']
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+
+        toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
+
+        # bin/toy and bin/toy2 should *not* be patched, since they're binary files
+        toy_txt = read_file(os.path.join(toy_bindir, 'toy'), mode='rb')
+        for fn in ['toy.perl', 'toy.python']:
+            fn_txt = read_file(os.path.join(toy_bindir, fn), mode='rb')
+            # no shebang added
+            self.assertFalse(fn_txt.startswith(b"#!/"))
+            # exact same file as original binary (untouched)
+            self.assertEqual(toy_txt, fn_txt)
+
+        # no re.M, this should match at start of file!
+        py_shebang_regex = re.compile(r'^#!/usr/bin/env -S python\n# test$')
+        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py']:
+            pybin_path = os.path.join(toy_bindir, pybin)
+            pybin_txt = read_file(pybin_path)
+            self.assertTrue(py_shebang_regex.match(pybin_txt),
+                            "Pattern '%s' found in %s: %s" % (py_shebang_regex.pattern, pybin_path, pybin_txt))
+
+        # no re.M, this should match at start of file!
+        perl_shebang_regex = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl']:
+            perlbin_path = os.path.join(toy_bindir, perlbin)
+            perlbin_txt = read_file(perlbin_path)
+            self.assertTrue(perl_shebang_regex.match(perlbin_txt),
+                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+
+        # There are 2 bash files which shouldn't be influenced by fix_shebang
+        bash_shebang_regex = re.compile(r'^#!/usr/bin/env bash\n# test$')
+        for bashbin in ['b1.sh', 'b2.sh']:
+            bashbin_path = os.path.join(toy_bindir, bashbin)
+            bashbin_txt = read_file(bashbin_path)
+            self.assertTrue(bash_shebang_regex.match(bashbin_txt),
+                            "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
+
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')

@@ -2367,7 +2367,7 @@ class EasyBlock(object):
                 if isinstance(fix_shebang_for, string_type):
                     fix_shebang_for = [fix_shebang_for]
 
-                shebang = '#!/usr/bin/env %s' % lang
+                shebang = '#!%s %s' % (build_option('env_for_shebang'), lang)
                 for glob_pattern in fix_shebang_for:
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
