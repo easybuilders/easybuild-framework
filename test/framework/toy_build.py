@@ -40,7 +40,7 @@ import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
 
@@ -2861,9 +2861,8 @@ class ToyBuildTest(EnhancedTestCase):
                             "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
 
         # now test with a custom env command
-        init_config(build_options={'env_for_shebang': "/usr/bin/env -S"})
-
-        self.test_toy_build(ec_file=test_ec, raise_error=True)
+        extra_args = ['--env-for-shebang=/usr/bin/env -S']
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
 
         toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
 
