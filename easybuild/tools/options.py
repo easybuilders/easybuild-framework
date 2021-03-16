@@ -375,6 +375,7 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
                                   None, 'store_true', False),
+            'env-for-shebang': ("Define the env command to use when fixing shebangs", None, 'store', '/usr/bin/env'),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",

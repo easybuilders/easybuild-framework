@@ -79,6 +79,7 @@ CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
@@ -294,6 +295,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_BRANCH: [
         'pr_target_branch',
+    ],
+    DEFAULT_ENV_FOR_SHEBANG: [
+        'env_for_shebang',
     ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
