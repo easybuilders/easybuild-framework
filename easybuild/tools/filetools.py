@@ -60,7 +60,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import nub, remove_unwanted_chars, natural_keys
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
 try:
     import requests
@@ -1032,7 +1032,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
                 if common_prefix is not None and len(common_prefix) > len(var) * 2:
                     var_defs.append((var, common_prefix))
                     var_spec = '$' + var
-                    # Replace the common prefix by  var_spec
+                    # Replace the common prefix by var_spec
                     path_hits = (var_spec + fn[len(common_prefix):] for fn in path_hits)
             hits.extend(path_hits)
 
