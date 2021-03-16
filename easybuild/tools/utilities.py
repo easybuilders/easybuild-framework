@@ -316,3 +316,10 @@ def time2str(delta):
         res = '%d %s %d min %d sec' % (hours, hours_str, mins, secs)
 
     return res
+
+
+def natural_keys(key):
+    """Can be used as the sort key in list.sort(key=natural_keys) to sort in natural order (i.e. respecting numbers)"""
+    def try_to_int(key_part):
+        return int(key_part) if key_part.isdigit() else key_part
+    return [try_to_int(key_part) for key_part in re.split(r'(\d+)', key)]

@@ -60,7 +60,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import nub, remove_unwanted_chars
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
 try:
     import requests
@@ -1000,8 +1000,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        path_index = load_index(path, ignore_dirs=ignore_dirs)
-        if path_index is None or build_option('ignore_index'):
+        if build_option('ignore_index'):
+            path_index = None
+        else:
+            path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index is None:
             if os.path.exists(path):
                 _log.info("No index found for %s, creating one...", path)
                 path_index = create_index(path, ignore_dirs=ignore_dirs)
@@ -1021,15 +1024,17 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
                 else:
                     path_hits.append(os.path.join(path, filepath))
 
-        path_hits = sorted(path_hits)
+        path_hits = sorted(path_hits, key=natural_keys)
 
         if path_hits:
-            common_prefix = det_common_path_prefix(path_hits)
-            if not terse and short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_defs.append((var, common_prefix))
-                hits.extend([os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in path_hits])
-            else:
-                hits.extend(path_hits)
+            if not terse and short:
+                common_prefix = det_common_path_prefix(path_hits)
+                if common_prefix is not None and len(common_prefix) > len(var) * 2:
+                    var_defs.append((var, common_prefix))
+                    var_spec = '$' + var
+                    # Replace the common prefix by var_spec
+                    path_hits = (var_spec + fn[len(common_prefix):] for fn in path_hits)
+            hits.extend(path_hits)
 
     return var_defs, hits
 

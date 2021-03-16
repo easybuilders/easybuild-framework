@@ -988,7 +988,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         copy_file(toy_ec, self.test_prefix)
 
-        toy_ec_list = ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb']
+        toy_ec_list = ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb', 'toy-11.5.6.eb']
 
         # install index that list more files than are actually available,
         # so we can check whether it's used
@@ -998,15 +998,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--search=toy',
             '--robot-paths=%s' % self.test_prefix,
+            '--terse',
         ]
         self.mock_stdout(True)
         self.eb_main(args, testing=False, raise_error=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
-        for toy_ec_fn in toy_ec_list:
-            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        # Also checks for ordering: 11.x comes last!
+        expected_output = '\n'.join(os.path.join(self.test_prefix, ec) for ec in toy_ec_list) + '\n'
+        self.assertEqual(stdout, expected_output)
 
         args.append('--ignore-index')
         self.mock_stdout(True)
@@ -1014,11 +1015,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
-        regex = re.compile(re.escape(os.path.join(self.test_prefix, 'toy-0.0.eb')), re.M)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
-        for toy_ec_fn in ['toy-1.2.3.eb', 'toy-4.5.6.eb']:
-            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
-            self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+        # This should be the only EC found
+        self.assertEqual(stdout, os.path.join(self.test_prefix, 'toy-0.0.eb') + '\n')
 
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
