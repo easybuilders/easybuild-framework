@@ -2894,7 +2894,6 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(bash_shebang_regex.match(bashbin_txt),
                             "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
 
-
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
