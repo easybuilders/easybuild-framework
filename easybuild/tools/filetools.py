@@ -246,17 +246,19 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # cfr. https://docs.python.org/3/library/functions.html#open
     mode = 'a' if append else 'w'
 
-    is_file_like = hasattr(data, 'read')
+    data_is_file_obj = all(hasattr(data, x) for x in ('read', 'seek', 'tell', 'write'))
 
     # special care must be taken with binary data in Python 3
-    if sys.version_info[0] >= 3 and (isinstance(data, bytes) or is_file_like):
+    if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
         mode += 'b'
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
         with open_file(path, mode) as fh:
-            if is_file_like:
+            if data_is_file_obj:
+                # if a file-like object was provided, use copyfileobj (which reads the file in chunks)
+                data.seek(0)
                 shutil.copyfileobj(data, fh)
             else:
                 fh.write(data)
@@ -715,6 +717,10 @@ def download_file(filename, url, path, forced=False):
                 url_fd = response.raw
                 url_fd.decode_content = True
             _log.debug('response code for given url %s: %s' % (url, status_code))
+            # note: we pass the file object to write_file rather than reading the file first,
+            # to ensure the data is read in chunks (which prevents problems in Python 3.9+);
+            # cfr. https://github.com/easybuilders/easybuild-framework/issues/3455
+            # and https://bugs.python.org/issue42853
             write_file(path, url_fd, forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
