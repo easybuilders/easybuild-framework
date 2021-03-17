@@ -217,7 +217,7 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     overwrites current file contents without backup by default!
 
     :param path: location of file
-    :param data: contents to write to file
+    :param data: contents to write to file. Can be a file-like object of binary data
     :param append: append to existing file rather than overwrite
     :param forced: force actually writing file in (extended) dry run mode
     :param backup: back up existing file before overwriting or modifying it
@@ -246,15 +246,20 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # cfr. https://docs.python.org/3/library/functions.html#open
     mode = 'a' if append else 'w'
 
+    is_file_like = hasattr(data, 'read')
+
     # special care must be taken with binary data in Python 3
-    if sys.version_info[0] >= 3 and isinstance(data, bytes):
+    if sys.version_info[0] >= 3 and (isinstance(data, bytes) or is_file_like):
         mode += 'b'
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
         with open_file(path, mode) as fh:
-            fh.write(data)
+            if is_file_like:
+                shutil.copyfileobj(data, fh)
+            else:
+                fh.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -710,7 +715,7 @@ def download_file(filename, url, path, forced=False):
                 url_fd = response.raw
                 url_fd.decode_content = True
             _log.debug('response code for given url %s: %s' % (url, status_code))
-            write_file(path, url_fd.read(), forced=forced, backup=True)
+            write_file(path, url_fd, forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
