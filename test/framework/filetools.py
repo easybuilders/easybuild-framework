@@ -705,14 +705,20 @@ class FileToolsTest(EnhancedTestCase):
         # test use of 'mode' in read_file
         self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
 
-    def test_write_file_like(self):
-        """Test writing from a file handle directly"""
+    def test_write_file_obj(self):
+        """Test writing from a file-like object directly"""
         # Write a text file
         fp = os.path.join(self.test_prefix, 'test.txt')
         fp_out = os.path.join(self.test_prefix, 'test_out.txt')
         ft.write_file(fp, b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4')
 
         with ft.open_file(fp, 'rb') as fh:
+            ft.write_file(fp_out, fh)
+        self.assertEqual(ft.read_file(fp_out), ft.read_file(fp))
+
+        # works fine even if same data was already read through the provided file handle
+        with ft.open_file(fp, 'rb') as fh:
+            fh.read(4)
             ft.write_file(fp_out, fh)
         self.assertEqual(ft.read_file(fp_out), ft.read_file(fp))
 
