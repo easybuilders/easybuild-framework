@@ -246,7 +246,7 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # cfr. https://docs.python.org/3/library/functions.html#open
     mode = 'a' if append else 'w'
 
-    data_is_file_obj = all(hasattr(data, x) for x in ('read', 'seek', 'tell', 'write'))
+    data_is_file_obj = hasattr(data, 'read')
 
     # special care must be taken with binary data in Python 3
     if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
@@ -258,7 +258,6 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
         with open_file(path, mode) as fh:
             if data_is_file_obj:
                 # if a file-like object was provided, use copyfileobj (which reads the file in chunks)
-                data.seek(0)
                 shutil.copyfileobj(data, fh)
             else:
                 fh.write(data)

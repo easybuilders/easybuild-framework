@@ -716,12 +716,6 @@ class FileToolsTest(EnhancedTestCase):
             ft.write_file(fp_out, fh)
         self.assertEqual(ft.read_file(fp_out), ft.read_file(fp))
 
-        # works fine even if same data was already read through the provided file handle
-        with ft.open_file(fp, 'rb') as fh:
-            fh.read(4)
-            ft.write_file(fp_out, fh)
-        self.assertEqual(ft.read_file(fp_out), ft.read_file(fp))
-
         # Write a binary file
         fp = os.path.join(self.test_prefix, 'test.bin')
         fp_out = os.path.join(self.test_prefix, 'test_out.bin')
