@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         python: [2.7, 3.6]
-        modules_tool: [Lmod-7.8.22, Lmod-8.2.9, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
+        modules_tool: [Lmod-7.8.22, Lmod-8.4.27, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
         module_syntax: [Lua, Tcl]
         lc_all: [""]
         # don't test with Lua module syntax (only supported in Lmod)
@@ -19,35 +19,35 @@ jobs:
           - modules_tool: modules-4.1.4
             module_syntax: Lua
         include:
-          # Test different python versions with latest Lmod
+          # Test different Python versions with Lmod 8.x (with both Lua and Tcl module syntax)
           - python: 3.5
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Lua
           - python: 3.5
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Tcl
           - python: 3.7
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Lua
           - python: 3.7
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Tcl
           - python: 3.8
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Lua
           - python: 3.8
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Tcl
           - python: 3.9
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Lua
           - python: 3.9
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Tcl
-        # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
-        # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
+          # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
+          # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
           - python: 3.6
-            modules_tool: Lmod-8.2.9
+            modules_tool: Lmod-8.4.27
             module_syntax: Lua
             lc_all: C
       fail-fast: false
