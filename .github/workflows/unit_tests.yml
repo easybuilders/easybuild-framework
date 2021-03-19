@@ -2,52 +2,68 @@
 name: EasyBuild framework unit tests
 on: [push, pull_request]
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+        lmod7: Lmod-7.8.22
+        lmod8: Lmod-8.4.27
+        modulesTcl: modules-tcl-1.147
+        modules3: modules-3.2.10
+        modules4: modules-4.1.4
+    steps:
+      - run: "true"
   build:
+    needs: setup
     runs-on: ubuntu-18.04
     strategy:
       matrix:
         python: [2.7, 3.6]
-        modules_tool: [Lmod-7.8.22, Lmod-8.4.27, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
+        modules_tool:
+          - ${{needs.setup.outputs.lmod7}}
+          - ${{needs.setup.outputs.lmod8}}
+          - ${{needs.setup.outputs.modulesTcl}}
+          - ${{needs.setup.outputs.modules3}}
+          - ${{needs.setup.outputs.modules4}}
         module_syntax: [Lua, Tcl]
         lc_all: [""]
         # don't test with Lua module syntax (only supported in Lmod)
         exclude:
-          - modules_tool: modules-tcl-1.147
+          - modules_tool: ${{needs.setup.outputs.modulesTcl}}
             module_syntax: Lua
-          - modules_tool: modules-3.2.10
+          - modules_tool: ${{needs.setup.outputs.modules3}}
             module_syntax: Lua
-          - modules_tool: modules-4.1.4
+          - modules_tool: ${{needs.setup.outputs.modules4}}
             module_syntax: Lua
         include:
           # Test different Python versions with Lmod 8.x (with both Lua and Tcl module syntax)
           - python: 3.5
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
           - python: 3.5
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
           - python: 3.7
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
           - python: 3.7
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
           - python: 3.8
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
           - python: 3.8
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
           - python: 3.9
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
           - python: 3.9
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
           # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
           - python: 3.6
-            modules_tool: Lmod-8.4.27
+            modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
             lc_all: C
       fail-fast: false
