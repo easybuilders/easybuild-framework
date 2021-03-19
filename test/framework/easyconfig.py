@@ -3395,7 +3395,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[-1]))
 
-        # Restore EB_SCRIPT_PATH value if set originally
+        # Restore (temporarily) EB_SCRIPT_PATH value if set originally
         if env_eb_script_path:
             os.environ['EB_SCRIPT_PATH'] = env_eb_script_path
 
