@@ -50,7 +50,7 @@ from easybuild.tools import config
 from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, mkdir, read_file
+from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 from easybuild.tools.py2vs3 import reload
@@ -123,6 +123,12 @@ class EnhancedTestCase(TestCase):
 
         # make sure that the tests only pick up easyconfigs provided with the tests
         os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
+
+        # make sure that the EasyBuild installation is still known even if we purge an EB module
+        if os.getenv('EB_SCRIPT_PATH') is None:
+            eb_path = which('eb')
+            if eb_path is not None:
+                os.environ['EB_SCRIPT_PATH'] = eb_path
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         self.orig_current_version = eb_build_log.CURRENT_VERSION
