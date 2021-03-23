@@ -3374,6 +3374,11 @@ class EasyConfigTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
+        # Can't have EB_SCRIPT_PATH set (for some of) these tests
+        env_eb_script_path = os.getenv('EB_SCRIPT_PATH')
+        if env_eb_script_path:
+            del os.environ['EB_SCRIPT_PATH']
+
         # easyconfigs location can also be derived from location of 'eb'
         write_file(os.path.join(self.test_prefix, 'bin', 'eb'), "#!/bin/bash; echo 'This is a fake eb'")
         adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
@@ -3389,6 +3394,10 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # Restore (temporarily) EB_SCRIPT_PATH value if set originally
+        if env_eb_script_path:
+            os.environ['EB_SCRIPT_PATH'] = env_eb_script_path
 
         # also locations in sys.path are considered
         os.environ['PATH'] = orig_path
@@ -3439,6 +3448,10 @@ class EasyConfigTest(EnhancedTestCase):
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.exists(res[0]))
         self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
+
+        # Finally restore EB_SCRIPT_PATH value if set
+        if env_eb_script_path:
+            os.environ['EB_SCRIPT_PATH'] = env_eb_script_path
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
