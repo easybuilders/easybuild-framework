@@ -37,6 +37,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import textwrap
 from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -1182,6 +1183,37 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertFalse('javaminver' in eb.template_values)
 
         self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
+
+    def test_python_whl_templating(self):
+        """test templating for Python wheels"""
+
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "Pi"
+            version = "3.14"
+            homepage = "https://example.com"
+            description = "test easyconfig"
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+            sources = [
+                SOURCE_WHL,
+                SOURCELOWER_WHL,
+                SOURCE_PY2_WHL,
+                SOURCELOWER_PY2_WHL,
+                SOURCE_PY3_WHL,
+                SOURCELOWER_PY3_WHL,
+            ]
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        sources = ec['sources']
+
+        self.assertEqual(sources[0], 'Pi-3.14-py2.py3-none-any.whl')
+        self.assertEqual(sources[1], 'pi-3.14-py2.py3-none-any.whl')
+        self.assertEqual(sources[2], 'Pi-3.14-py2-none-any.whl')
+        self.assertEqual(sources[3], 'pi-3.14-py2-none-any.whl')
+        self.assertEqual(sources[4], 'Pi-3.14-py3-none-any.whl')
+        self.assertEqual(sources[5], 'pi-3.14-py3-none-any.whl')
 
     def test_templating_doc(self):
         """test templating documentation"""
