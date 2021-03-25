@@ -90,7 +90,8 @@ class EasyStack(object):
             if sw.from_pr:
                 from_pr_suffix = ' --from-pr=%s' % sw.from_pr
             full_command = 'eb %s%s%s%s%s%s%s' % (ec_filename, robot_suffix, force_suffix,
-                            dry_run_suffix, parallel_suffix, easybuild_version_suffix, from_pr_suffix)
+                                                  dry_run_suffix, parallel_suffix,
+                                                  easybuild_version_suffix, from_pr_suffix)
             full_command_log = "%s; \n" % full_command
             _log.info(full_command_log)
             print(full_command_log)
@@ -118,7 +119,7 @@ class SoftwareSpecs(object):
     """Contains information about every software that should be installed"""
 
     def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name, easybuild_version,
-                    robot, force, dry_run, parallel, from_pr, include_labels, exclude_labels):
+                 robot, force, dry_run, parallel, from_pr, include_labels, exclude_labels):
         self.name = name
         self.version = version
         self.toolchain_version = toolchain_version
