@@ -6001,14 +6001,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
-        args = ['--easystack', toy_easystack, '--labels', 'sqlite,no_mpi,sqlitegcc', '--debug', \
-        '--experimental', '--dry-run']
+        args = ['--easystack', toy_easystack, '--labels', 'sqlite,no_mpi,sqlitegcc', '--debug',
+            '--experimental', '--dry-run']
         stdout, err = self.eb_main(args, do_build=True, return_error=True)
-        print(stdout)
+        ec_patterns = "[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs: \n"
+        ec_patterns += "'SQLite-3\.8\.10\.2-foss-2018a\.eb',\n'SQLite-3\.8\.10\.2-GCC-6\.4\.0-2\.28\.eb'[\S\s]*"
         patterns = [
             r"[\S\s]*Building from easystack:[\S\s]*",
-            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs: \n"\
-            + "'SQLite-3\.8\.10\.2-foss-2018a\.eb',\n'SQLite-3\.8\.10\.2-GCC-6\.4\.0-2\.28\.eb'[\S\s]*",
+            r"{}".format(ec_patterns),
             r"[\S\s]*Number of easyconfigs extracted from Easystack: 2[\S\s]*",
         ]
         for pattern in patterns:

@@ -232,7 +232,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             orig_paths, print_only = parse_easystack(options.easystack, options.labels)
         else:
             orig_paths, print_only = parse_easystack(options.easystack, False)
-        if print_only == True:
+        if print_only is True:
             clean_exit(logfile, eb_tmpdir, testing, silent=True)
 
     # check whether packaging is supported when it's being used

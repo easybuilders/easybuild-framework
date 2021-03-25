@@ -64,7 +64,7 @@ class EasyStack(object):
         """Creates easybuild string to be run via terminal."""
         easystack_log = "Building from easystack:"
         _log.info(easystack_log)
-        print(easystack_log) # todo najst printovaciu funkciu fw - print_msg() z build_log.py
+        print(easystack_log)
         print_only_log = "Printing commands only, since a not-fully-supported keyword has been used:\n"
         _log.info(print_only_log)
         print(print_only_log)
@@ -75,15 +75,22 @@ class EasyStack(object):
                 'versionsuffix': sw.versionsuffix or '',
             })
             ec_filename = '%s-%s.eb' % (sw.name, full_ec_version)
-            robot_suffix, force_suffix, dry_run_suffix, parallel_suffix, easybuild_version_suffix, from_pr_suffix = '', '', '', '', '', ''
-            if sw.robot == True: robot_suffix = ' --robot'
-            if sw.force == True: force_suffix = ' --force'
-            if sw.dry_run == True: dry_run_suffix = ' --dry-run'
-            if sw.parallel: parallel_suffix = ' --parallel=%s' % sw.parallel
-            if sw.easybuild_version: easybuild_version_suffix = ' --easybuild_version=%s' % sw.easybuild_version
-            if sw.from_pr: from_pr_suffix = ' --from-pr=%s' % sw.from_pr
-            full_command = 'eb %s%s%s%s%s%s%s' % (ec_filename, robot_suffix, force_suffix, dry_run_suffix, parallel_suffix,
-                                               easybuild_version_suffix, from_pr_suffix)
+            robot_suffix, force_suffix, dry_run_suffix, parallel_suffix = '', '', '', ''
+            easybuild_version_suffix, from_pr_suffix = '', ''
+            if sw.robot is True:
+                robot_suffix = ' --robot'
+            if sw.force is True:
+                force_suffix = ' --force'
+            if sw.dry_run is True:
+                dry_run_suffix = ' --dry-run'
+            if sw.parallel:
+                parallel_suffix = ' --parallel=%s' % sw.parallel
+            if sw.easybuild_version:
+                easybuild_version_suffix = ' --easybuild_version=%s' % sw.easybuild_version
+            if sw.from_pr:
+                from_pr_suffix = ' --from-pr=%s' % sw.from_pr
+            full_command = 'eb %s%s%s%s%s%s%s' % (ec_filename, robot_suffix, force_suffix, 
+                dry_run_suffix, parallel_suffix, easybuild_version_suffix, from_pr_suffix)
             full_command_log = "%s; \n" % full_command
             _log.info(full_command_log)
             print(full_command_log)
@@ -93,7 +100,7 @@ class EasyStack(object):
         for sw in self.software_list[:]:
             for easystack_include_label in sw.include_labels[:]:
                 # if a match IS NOT FOUND, sw must be deleted
-                if provided_labels == False or easystack_include_label not in provided_labels:
+                if provided_labels is False or easystack_include_label not in provided_labels:
                     self.software_list.remove(sw)
 
     # do input labels match with any of defined 'exclude-labels' ? if so, such sw wont be installed
@@ -101,7 +108,7 @@ class EasyStack(object):
         for sw in self.software_list[:]:
             for easystack_exclude_labels in sw.exclude_labels[:]:
                 # if a match IS FOUND, sw must be deleted
-                if provided_labels == False:
+                if provided_labels is False:
                     continue
                 elif easystack_exclude_labels in provided_labels:
                     self.software_list.remove(sw)
@@ -111,7 +118,7 @@ class SoftwareSpecs(object):
     """Contains information about every software that should be installed"""
 
     def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name, easybuild_version,
-                robot, force, dry_run, parallel, from_pr, include_labels, exclude_labels):
+                    robot, force, dry_run, parallel, from_pr, include_labels, exclude_labels):
         self.name = name
         self.version = version
         self.toolchain_version = toolchain_version
@@ -126,16 +133,15 @@ class SoftwareSpecs(object):
         self.include_labels = include_labels or []
         self.exclude_labels = exclude_labels or []
         self.check_consistency(self.include_labels, self.exclude_labels)
-    
+
     # general function that checks any potential inconsistencies
     def check_consistency(self, include_labels, exclude_labels):
         for include_label in include_labels:
             if exclude_labels.count(include_label) != 0:
-                inconsistent_labels_err = 'One or more software specifications contain inconsistent labels. ' + \
-                'Make sure there are no cases of one software having the same label specified both in include_labels ' + \
-                'and exclude_labels'
+                inconsistent_labels_err = 'One or more software specifications contain inconsistent labels. '
+                inconsistent_labels_err += 'Make sure there are no cases of one software having the same label '
+                inconsistent_labels_err += 'specified both in include_labels and exclude_labels'
                 raise EasyBuildError(inconsistent_labels_err)
-
 
 
 class EasyStackParser(object):
@@ -167,7 +173,6 @@ class EasyStackParser(object):
         parallel = easystack_raw.get('parallel', False)
         from_pr = easystack_raw.get('from-pr', False)
 
-
         # assign software-specific easystack attributes
         for name in software:
             # ensure we have a string value (YAML parser returns type = dict
@@ -181,9 +186,9 @@ class EasyStackParser(object):
             name_lvl_exclude_labels = []
             tmp_include = software[name].get('include-labels', False)
             tmp_exclude = software[name].get('exclude-labels', False)
-            if tmp_include != False:
+            if tmp_include:
                 name_lvl_include_labels.append(tmp_include)
-            if tmp_exclude != False:
+            if tmp_exclude:
                 name_lvl_exclude_labels.append(tmp_exclude)
 
             try:
@@ -201,17 +206,15 @@ class EasyStackParser(object):
                 else:
                     raise EasyBuildError("Incorrect toolchain specification for '%s' in %s, too many parts: %s",
                                          name, filepath, toolchain_parts)
-                
+
                 toolchain_lvl_include_labels = name_lvl_include_labels[:]
                 toolchain_lvl_exclude_labels = name_lvl_exclude_labels[:]
                 tmp_include = toolchains[toolchain].get('include-labels', False)
                 tmp_exclude = toolchains[toolchain].get('exclude-labels', False)
-                if tmp_include != False:
+                if tmp_include:
                     toolchain_lvl_include_labels.append(tmp_include)
-                if tmp_exclude != False:
+                if tmp_exclude:
                     toolchain_lvl_exclude_labels.append(tmp_exclude)
-
-
                 try:
                     versions = toolchains[toolchain]['versions']
                 except TypeError as err:
@@ -224,7 +227,7 @@ class EasyStackParser(object):
                     asterisk_err = "EasyStack specifications of '%s' in %s contain asterisk. "
                     asterisk_err += "Wildcard feature is not supported yet."
                     raise EasyBuildError(asterisk_err, name, filepath)
-                
+
                 # yaml versions can be in different formats in yaml file
                 # firstly, check if versions in yaml file are read as a dictionary.
                 # Example of yaml structure:
@@ -257,19 +260,19 @@ class EasyStackParser(object):
                             dry_run_for_version = version_spec.get('dry-run', dry_run)
                             parallel_for_version = version_spec.get('parallel', parallel)
                             from_pr_for_version = version_spec.get('from-pr', from_pr)
-                            
+
                             # sub-version-level labels handling
                             tmp_include = version_spec.get('include-labels', False)
-                            if tmp_include != False:
+                            if tmp_include:
                                 version_lvl_include_labels.append(tmp_include)
                             tmp_exclude = version_spec.get('exclude-labels', False)
-                            if tmp_exclude != False:
+                            if tmp_exclude:
                                 version_lvl_exclude_labels.append(tmp_exclude)
                         else:
                             versionsuffix = False
 
                         # dont want to overwrite print_only if it's been already set to True
-                        if print_only == False:
+                        if print_only is False:
                             if easybuild_version or robot or force or dry_run or parallel or from_pr:
                                 print_only = True
 
@@ -319,8 +322,8 @@ class EasyStackParser(object):
                 elif isinstance(versions, float):
                     versions_list = [str(versions)]
 
-                # if no version is a dictionary, neither 
-                # versionsuffix, robot, force, dry_run, parallel, easybuild_version nor from_pr,are specified on this level
+                # if no version is a dictionary, neither versionsuffix, robot, 
+                # force, dry_run, parallel, easybuild_version nor from_pr,are specified on this level
                 versionsuffix = False
                 easybuild_version = easybuild_version or False
                 robot = robot or False
@@ -332,7 +335,7 @@ class EasyStackParser(object):
                 exclude_labels = toolchain_lvl_exclude_labels or False
 
                 # dont want to overwrite print_only once it's been set to True
-                if print_only == False:
+                if print_only is False:
                     if easybuild_version or robot or force or dry_run or parallel or from_pr:
                         print_only = True
 
@@ -341,7 +344,7 @@ class EasyStackParser(object):
                         name=name, version=version, versionsuffix=versionsuffix,
                         toolchain_name=toolchain_name, toolchain_version=toolchain_version,
                         easybuild_version=easybuild_version, robot=robot, force=force, dry_run=dry_run, parallel=parallel, from_pr=from_pr,
-                        include_labels = include_labels, exclude_labels = exclude_labels
+                        include_labels=include_labels, exclude_labels=exclude_labels
                         )
                     # append newly created class instance to the list in instance of EasyStack class
                     easystack.software_list.append(sw)
