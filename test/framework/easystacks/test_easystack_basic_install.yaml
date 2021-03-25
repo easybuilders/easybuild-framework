@@ -1,0 +1,9 @@
+software:
+  SQLite:
+    toolchains:
+      foss-2018a:
+        versions:
+          3.8.10.2:
+      gompi-2018a:
+        versions:
+          3.8.10.2:

@@ -595,6 +595,10 @@ class EasyBuildOptions(GeneralOption):
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),
+            'easystack': ("Path to easystack file in YAML format, specifying details of a software stack",
+                                    None, 'store', None, {'metavar': "example.yaml"}),
+            'labels': ("Easystack feature. Compares labels with those defined in Easystack file.",
+                        'strlist', 'store', None, {'metavar': "LAB1,LAB2"}),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
@@ -619,8 +623,6 @@ class EasyBuildOptions(GeneralOption):
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
             'terse': ("Terse output (machine-readable)", None, 'store_true', False),
-            'easystack': ("Path to easystack file in YAML format, specifying details of a software stack",
-                          None, 'store', None),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))

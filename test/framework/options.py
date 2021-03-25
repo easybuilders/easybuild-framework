@@ -5994,15 +5994,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
 
+    # tests whether include and exclude labels are read & interpretted correctly
     def test_easystack_labels(self):
         """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
         easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
-        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
-        error_msg += "Labels aren't supported yet."
-        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, toy_easystack)
+        args = ['--easystack', toy_easystack, '--labels', 'sqlite,no_mpi,sqlitegcc', '--debug', \
+        '--experimental', '--dry-run']
+        stdout, err = self.eb_main(args, do_build=True, return_error=True)
+        print(stdout)
+        patterns = [
+            r"[\S\s]*Building from easystack:[\S\s]*",
+            r"[\S\s]*DEBUG EasyStack parsed\. Proceeding to install these Easyconfigs: \n"\
+            + "'SQLite-3\.8\.10\.2-foss-2018a\.eb',\n'SQLite-3\.8\.10\.2-GCC-6\.4\.0-2\.28\.eb'[\S\s]*",
+            r"[\S\s]*Number of easyconfigs extracted from Easystack: 2[\S\s]*",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.match(stdout) is not None)
 
 
 def suite():
