@@ -138,22 +138,30 @@ def session_state():
     }
 
 
-def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False):
+def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False, eb_pr_nrs=None):
     """Create test report for easyconfigs PR, in Markdown format."""
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
-    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    pr_target_repo = build_option('pr_target_repo')
 
     end_time = gmtime()
 
     # create a gist with a full test report
     test_report = []
     if pr_nr is not None:
+        repo = pr_target_repo or GITHUB_EASYCONFIGS_REPO
         test_report.extend([
-            "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, pr_target_repo, pr_nr),
+            "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, pr_nr),
             "",
         ])
+    if eb_pr_nrs:
+        repo = pr_target_repo or GITHUB_EASYBLOCKS_REPO
+        test_report.extend([
+            "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, nr)
+            for nr in eb_pr_nrs
+        ])
+        test_report.append("")
     test_report.extend([
         "#### Test result",
         "%s" % msg,
@@ -184,6 +192,8 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
                 if pr_nr is not None:
                     descr += " (PR #%s)" % pr_nr
+                if eb_pr_nrs:
+                    descr += "".join(" (EB PR #%s)" % nr for nr in eb_pr_nrs)
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                 gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
                 test_log = "(partial log available at %s)" % gist_url
@@ -323,7 +333,8 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
 
     if upload:
         msg = msg + " (%d easyconfigs in total)" % orig_cnt
-        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
+        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True,
+                                         eb_pr_nrs=eb_pr_nrs)
         if pr_nr:
             # upload test report to gist and issue a comment in the PR to notify
             txt = post_pr_test_report(pr_nr, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state, success)
