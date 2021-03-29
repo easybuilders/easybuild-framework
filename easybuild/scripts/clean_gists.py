@@ -35,7 +35,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO
 from easybuild.tools.github import GITHUB_EB_MAIN, fetch_github_token
 from easybuild.tools.options import EasyBuildOptions
-from easybuild.tools.py2vs3 import HTTPError
+from easybuild.tools.py2vs3 import HTTPError, URLError
 
 HTTP_DELETE_OK = 204
 
@@ -115,7 +115,7 @@ def main():
         if go.options.all:
             delete_gist = True
         elif not pr_nrs_matches:
-            log.info("Found Easybuild test report without PR (id=%s).", gist["id"])
+            log.debug("Found Easybuild test report without PR (id=%s).", gist["id"])
             delete_gist = go.options.orphans
         elif go.options.closed_pr:
             # All PRs must be closed
@@ -140,11 +140,11 @@ def main():
                     pr_cache[cache_key] = pr["state"]
 
                 if pr_cache[cache_key] == "closed":
-                    log.info("Found report from closed %s PR #%s (id=%s)", repo, pr_num, gist["id"])
+                    log.debug("Found report from closed %s PR #%s (id=%s)", repo, pr_num, gist["id"])
                 elif delete_gist:
                     if len(pr_nrs_matches) > 1:
-                        log.info("Found at least 1 PR, that is not closed yet: %s/%s (id=%s)",
-                                 repo, pr_num, gist["id"])
+                        log.debug("Found at least 1 PR, that is not closed yet: %s/%s (id=%s)",
+                                  repo, pr_num, gist["id"])
                     delete_gist = False
         else:
             delete_gist = True
@@ -154,7 +154,12 @@ def main():
                 log.info("DRY-RUN: Delete gist with id=%s", gist["id"])
                 num_deleted += 1
                 continue
-            status, del_gist = gh.gists[gist["id"]].delete()
+            try:
+                status, del_gist = gh.gists[gist["id"]].delete()
+            except HTTPError as e:
+                status, del_gist = e.code, e.msg
+            except URLError as e:
+                status, del_gist = None, e.reason
 
             if status != HTTP_DELETE_OK:
                 log.warning("Unable to remove gist (id=%s): error code %s, message = %s",
