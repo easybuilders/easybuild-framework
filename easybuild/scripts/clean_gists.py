@@ -60,6 +60,7 @@ def main():
         raise EasyBuildError("Please tell me what to do?")
 
     if go.options.github_user is None:
+        EasyBuildOptions.DEFAULT_LOGLEVEL = None  # Don't overwrite log level
         eb_go = EasyBuildOptions(envvar_prefix='EASYBUILD', go_args=[])
         username = eb_go.options.github_user
         log.debug("Fetch github username from easybuild, found: %s", username)
