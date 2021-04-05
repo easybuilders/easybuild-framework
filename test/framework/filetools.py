@@ -2947,6 +2947,110 @@ class FileToolsTest(EnhancedTestCase):
         error_pattern = r"One or more files not found: 2\.txt \(search paths: \)"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['2.txt'], [])
 
+    def test_set_gid_sticky_bits(self):
+        """Test for set_gid_sticky_bits function."""
+        test_dir = os.path.join(self.test_prefix, 'test_dir')
+        test_subdir = os.path.join(test_dir, 'subdir')
+
+        ft.mkdir(test_subdir, parents=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+
+        # by default, GID & sticky bits are not set
+        ft.set_gid_sticky_bits(test_dir)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+
+        ft.set_gid_sticky_bits(test_dir, set_gid=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        ft.set_gid_sticky_bits(test_dir, sticky=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        ft.set_gid_sticky_bits(test_dir, set_gid=True, sticky=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        # no recursion by default
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        ft.set_gid_sticky_bits(test_dir, set_gid=True, sticky=True, recursive=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        # set_gid_sticky_bits honors relevant build options
+        init_config(build_options={'set_gid_bit': True, 'sticky_bit': True})
+        ft.set_gid_sticky_bits(test_dir, recursive=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
+    def test_create_unused_dir(self):
+        """Test create_unused_dir function."""
+        path = ft.create_unused_dir(self.test_prefix, 'folder')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'folder'))
+        self.assertTrue(os.path.exists(path))
+
+        # Repeat with existing folder(s) should create new ones
+        for i in range(10):
+            path = ft.create_unused_dir(self.test_prefix, 'folder')
+            self.assertEqual(path, os.path.join(self.test_prefix, 'folder_%s' % i))
+            self.assertTrue(os.path.exists(path))
+
+        # Not influenced by similar folder
+        path = ft.create_unused_dir(self.test_prefix, 'folder2')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'folder2'))
+        self.assertTrue(os.path.exists(path))
+        for i in range(10):
+            path = ft.create_unused_dir(self.test_prefix, 'folder2')
+            self.assertEqual(path, os.path.join(self.test_prefix, 'folder2_%s' % i))
+            self.assertTrue(os.path.exists(path))
+
+        # Fail cleanly if passed a readonly folder
+        readonly_dir = os.path.join(self.test_prefix, 'ro_folder')
+        ft.mkdir(readonly_dir)
+        old_perms = os.lstat(readonly_dir)[stat.ST_MODE]
+        ft.adjust_permissions(readonly_dir, stat.S_IREAD | stat.S_IEXEC, relative=False)
+        try:
+            self.assertErrorRegex(EasyBuildError, 'Failed to create directory',
+                                  ft.create_unused_dir, readonly_dir, 'new_folder')
+        finally:
+            ft.adjust_permissions(readonly_dir, old_perms, relative=False)
+
+        # Ignore files same as folders. So first just create a file with no contents
+        ft.write_file(os.path.join(self.test_prefix, 'file'), '')
+        path = ft.create_unused_dir(self.test_prefix, 'file')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'file_0'))
+        self.assertTrue(os.path.exists(path))
+
 
 def suite():
     """ returns all the testcases in this module """
