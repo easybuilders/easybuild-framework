@@ -1655,7 +1655,7 @@ class EasyBlock(object):
         if name is None:
             name = self.name
 
-        accepted_eulas = build_option('accept_eula') or []
+        accepted_eulas = build_option('accept_eula_for') or []
         if self.cfg['accept_eula'] or name in accepted_eulas:
             self.log.info("EULA for %s is accepted", name)
         else:
@@ -1667,7 +1667,7 @@ class EasyBlock(object):
 
             error_lines.extend([
                 "You should either:",
-                "- add --accept-eula=%(name)s to the 'eb' command;",
+                "- add --accept-eula-for=%(name)s to the 'eb' command;",
                 "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
                 "- add 'accept_eula = True' to the easyconfig file you are using;",
                 '',
