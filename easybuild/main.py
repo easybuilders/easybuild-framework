@@ -61,7 +61,7 @@ from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
 from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
-from easybuild.tools.github import install_github_token, list_prs, merge_pr, new_branch_github, new_pr
+from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
@@ -260,7 +260,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print(review_pr(pr=options.review_pr, colored=use_color(options.color)))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing))
+
+    elif options.add_pr_labels:
+        add_pr_labels(options.add_pr_labels)
 
     elif options.list_installed_software:
         detailed = options.list_installed_software == 'detailed'
@@ -277,6 +280,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
+        options.add_pr_labels,
         options.check_github,
         options.create_index,
         options.install_github_token,

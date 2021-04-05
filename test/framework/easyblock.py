@@ -34,7 +34,6 @@ import shutil
 import sys
 import tempfile
 from inspect import cleandoc
-from datetime import datetime
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -46,10 +45,10 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file, write_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import reset_module_caches
-from easybuild.tools.utilities import time2str
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 from easybuild.tools.py2vs3 import string_type
 
@@ -247,6 +246,9 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_extend_modpath(self):
         """Test for make_module_extend_modpath"""
+
+        module_syntax = get_module_syntax()
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -262,7 +264,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
         self.assertEqual(eb.make_module_extend_modpath(), '')
-        usermodsdir = 'my/own/modules'
+        usermodsdir = 'my_own_modules'
         modclasses = ['compiler', 'tools']
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         build_options = {
@@ -275,9 +277,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = config.install_path()
 
         txt = eb.make_module_extend_modpath()
-        if get_module_syntax() == 'Tcl':
+        if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\$::env\(HOME\)'
+            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+            home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -285,9 +288,9 @@ class EasyBlockTest(EnhancedTestCase):
                 # no per-moduleclass extension for user modules
                 r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
             ])
-        elif get_module_syntax() == 'Lua':
+        elif module_syntax == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
-            home = r'os.getenv\("HOME"\)'
+            home = r'os.getenv\("HOME"\) or "HOME_NOT_DEFINED"'
             pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -296,10 +299,112 @@ class EasyBlockTest(EnhancedTestCase):
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.assertTrue(False, "Unknown module syntax: %s" % module_syntax)
+
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # Repeat this but using an alternate envvars (instead of $HOME)
+        list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
+
+        build_options = {
+            'envvars_user_modules': list_of_envvars,
+            'subdir_user_modules': usermodsdir,
+            'valid_module_classes': modclasses,
+            'suffix_modules_path': 'funky',
+        }
+        init_config(build_options=build_options)
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        txt = eb.make_module_extend_modpath()
+        for envvar in list_of_envvars:
+            if module_syntax == 'Tcl':
+                regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
+                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
+                fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
+                regexs.extend([
+                    # extension for user modules is guarded
+                    r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (module_envvar, fj_usermodsdir),
+                    # no per-moduleclass extension for user modules
+                    r'^\s+module use \[ file join %s \[ %s \] \]$' % (module_envvar, fj_usermodsdir),
+                ])
+            elif module_syntax == 'Lua':
+                regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c
+                          for c in modclasses]
+                module_envvar = r'os.getenv\("%s"\) or "%s"' % (envvar, envvar + "_NOT_DEFINED")
+                pj_usermodsdir = r'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
+                regexs.extend([
+                    # extension for user modules is guarded
+                    r'if isDir\(pathJoin\(%s, %s\)\) then' % (module_envvar, pj_usermodsdir),
+                    # no per-moduleclass extension for user modules
+                    r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (module_envvar, pj_usermodsdir),
+                ])
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % module_syntax)
+
+            for regex in regexs:
+                regex = re.compile(regex, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            os.unsetenv(envvar)
+
+        # Check behaviour when directories do and do not exist
+        usermodsdir_extension = os.path.join(usermodsdir, "funky", "Compiler/pi/3.14")
+        site_install_path = os.path.join(config.install_path(), 'site')
+        site_modules = os.path.join(site_install_path, usermodsdir_extension)
+        user_install_path = os.path.join(config.install_path(), 'user')
+        user_modules = os.path.join(user_install_path, usermodsdir_extension)
+
+        # make a modules directory so that we can create our module files
+        temp_module_file_dir = os.path.join(site_install_path, usermodsdir, "temp_module_files")
+        mkdir(temp_module_file_dir, parents=True)
+
+        # write out a module file
+        if module_syntax == 'Tcl':
+            module_file = os.path.join(temp_module_file_dir, "mytest")
+            module_txt = "#%Module\n" + txt
+        elif module_syntax == 'Lua':
+            module_file = os.path.join(temp_module_file_dir, "mytest.lua")
+            module_txt = txt
+        write_file(module_file, module_txt)
+
+        # Set MODULEPATH and check the effect of `module load`
+        os.environ['MODULEPATH'] = temp_module_file_dir
+
+        # Let's switch to a dir where the paths we will use exist to make sure they can
+        # not be accidentally picked up if the variable is not defined but the paths exist
+        # relative to the current directory
+        cwd = os.getcwd()
+        mkdir(os.path.join(config.install_path(), "existing_dir", usermodsdir_extension), parents=True)
+        change_dir(os.path.join(config.install_path(), "existing_dir"))
+        self.modtool.run_module('load', 'mytest')
+        self.assertFalse(usermodsdir_extension in os.environ['MODULEPATH'])
+        self.modtool.run_module('unload', 'mytest')
+        change_dir(cwd)
+
+        # Now define our environment variables
+        os.environ['SITE_INSTALLS'] = site_install_path
+        os.environ['USER_INSTALLS'] = user_install_path
+
+        # Check MODULEPATH when neither directories exist
+        self.modtool.run_module('load', 'mytest')
+        self.assertFalse(site_modules in os.environ['MODULEPATH'])
+        self.assertFalse(user_modules in os.environ['MODULEPATH'])
+        self.modtool.run_module('unload', 'mytest')
+        # Now create the directory for site modules
+        mkdir(site_modules, parents=True)
+        self.modtool.run_module('load', 'mytest')
+        self.assertTrue(os.environ['MODULEPATH'].startswith(site_modules))
+        self.assertFalse(user_modules in os.environ['MODULEPATH'])
+        self.modtool.run_module('unload', 'mytest')
+        # Now create the directory for user modules
+        mkdir(user_modules, parents=True)
+        self.modtool.run_module('load', 'mytest')
+        self.assertTrue(os.environ['MODULEPATH'].startswith(user_modules + ":" + site_modules))
+        self.modtool.run_module('unload', 'mytest')
 
     def test_make_module_req(self):
         """Testcase for make_module_req"""
@@ -317,8 +422,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # create fake directories and files that should be guessed
         os.makedirs(eb.installdir)
-        open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
-        open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
+        write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
+        write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             if isinstance(path, string_type):
                 path = (path, )
@@ -352,7 +457,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         # check that bin is only added to PATH if there are files in there
-        open(os.path.join(eb.installdir, 'bin', 'test'), 'w').write('test')
+        write_file(os.path.join(eb.installdir, 'bin', 'test'), 'test')
         guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
@@ -371,14 +476,14 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
         # -- With files
-        open(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'w').write('test')
+        write_file(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'test')
         guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
         # -- With files in lib and lib64 symlinks to lib
-        open(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'w').write('test')
+        write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
         guess = eb.make_module_req()
@@ -425,7 +530,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
-            open(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'w').write('test')
+            write_file(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'test')
         txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathC\n" +
@@ -1388,13 +1493,43 @@ class EasyBlockTest(EnhancedTestCase):
                 loc = os.path.join(tmpdir, 't', 'toy', fn)
                 self.assertEqual(res, loc)
                 self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
-                txt = open(loc, 'r').read()
+                txt = read_file(loc)
                 eb_regex = re.compile("EasyBuild: building software with ease")
                 self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))
             else:
                 print("ignoring failure to download %s in test_obtain_file, testing offline?" % file_url)
 
         shutil.rmtree(tmpdir)
+
+    def test_fallback_source_url(self):
+        """Check whether downloading from fallback source URL https://sources.easybuild.io works."""
+        # cfr. https://github.com/easybuilders/easybuild-easyconfigs/issues/11951
+
+        init_config(args=["--sourcepath=%s" % self.test_prefix])
+
+        udunits_ec = os.path.join(self.test_prefix, 'UDUNITS.eb')
+        udunits_ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'UDUNITS'",
+            "version = '2.2.26'",
+            "homepage = 'https://www.unidata.ucar.edu/software/udunits'",
+            "description = 'UDUNITS'",
+            "toolchain = {'name': 'GCC', 'version': '4.8.2'}",
+            "source_urls = ['https://broken.source.urls/nosuchdirectory']",
+            "sources = [SOURCELOWER_TAR_GZ]",
+            "checksums = ['368f4869c9c7d50d2920fa8c58654124e9ed0d8d2a8c714a9d7fdadc08c7356d']",
+        ])
+        write_file(udunits_ec, udunits_ec_txt)
+
+        ec = process_easyconfig(udunits_ec)[0]
+        eb = EasyBlock(ec['ec'])
+
+        eb.fetch_step()
+
+        expected_path = os.path.join(self.test_prefix, 'u', 'UDUNITS', 'udunits-2.2.26.tar.gz')
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path))
+
+        self.assertTrue(verify_checksum(expected_path, eb.cfg['checksums'][0]))
 
     def test_obtain_file_extension(self):
         """Test use of obtain_file method on an extension."""
@@ -1430,9 +1565,7 @@ class EasyBlockTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         shutil.copy2(ec_path, tmpdir)
         ec_path = os.path.join(tmpdir, ec_file)
-        f = open(ec_path, 'a')
-        f.write("\ndependencies += [('nosuchsoftware', '1.2.3')]\n")
-        f.close()
+        write_file(ec_path, "\ndependencies += [('nosuchsoftware', '1.2.3')]\n", append=True)
         ec = EasyConfig(ec_path)
         eb = EasyBlock(ec)
         try:
@@ -2026,34 +2159,6 @@ class EasyBlockTest(EnhancedTestCase):
         hpl = easyblocks['easybuild.easyblocks.hpl']
         self.assertEqual(hpl['class'], 'EB_HPL')
         self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
-
-    def test_time2str(self):
-        """Test time2str function."""
-
-        start = datetime(2019, 7, 30, 5, 14, 23)
-
-        test_cases = [
-            (start, "0 sec"),
-            (datetime(2019, 7, 30, 5, 14, 37), "14 sec"),
-            (datetime(2019, 7, 30, 5, 15, 22), "59 sec"),
-            (datetime(2019, 7, 30, 5, 15, 23), "1 min 0 sec"),
-            (datetime(2019, 7, 30, 5, 16, 22), "1 min 59 sec"),
-            (datetime(2019, 7, 30, 5, 37, 26), "23 min 3 sec"),
-            (datetime(2019, 7, 30, 6, 14, 22), "59 min 59 sec"),
-            (datetime(2019, 7, 30, 6, 14, 23), "1 hour 0 min 0 sec"),
-            (datetime(2019, 7, 30, 6, 49, 14), "1 hour 34 min 51 sec"),
-            (datetime(2019, 7, 30, 7, 14, 23), "2 hours 0 min 0 sec"),
-            (datetime(2019, 7, 30, 8, 35, 59), "3 hours 21 min 36 sec"),
-            (datetime(2019, 7, 30, 16, 29, 24), "11 hours 15 min 1 sec"),
-            (datetime(2019, 7, 31, 5, 14, 22), "23 hours 59 min 59 sec"),
-            (datetime(2019, 7, 31, 5, 14, 23), "24 hours 0 min 0 sec"),
-            (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 min 21 sec"),
-        ]
-        for end, expected in test_cases:
-            self.assertEqual(time2str(end - start), expected)
-
-        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
-        self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
 
     def test_sanity_check_paths_verification(self):
         """Test verification of sanity_check_paths w.r.t. keys & values."""

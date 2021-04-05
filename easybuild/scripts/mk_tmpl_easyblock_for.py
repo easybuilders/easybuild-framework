@@ -225,9 +225,8 @@ try:
     dirpath = os.path.dirname(easyblock_path)
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
-    f = open(easyblock_path, "w")
-    f.write(txt)
-    f.close()
+    with open(easyblock_path, "w") as fh:
+        fh.write(txt)
 except (IOError, OSError) as err:
     sys.stderr.write("ERROR! Writing template easyblock for %s to %s failed: %s" % (name, easyblock_path, err))
     sys.exit(1)

@@ -105,9 +105,8 @@ def write_to_xml(succes, failed, filename):
         root.firstChild.appendChild(el)
 
     try:
-        output_file = open(filename, "w")
-        root.writexml(output_file)
-        output_file.close()
+        with open(filename, "w") as output_file:
+            root.writexml(output_file)
     except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", filename, err)
 
@@ -162,9 +161,8 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     comment = root.createComment("%s out of %s builds succeeded" % (succes, total))
     root.firstChild.insertBefore(comment, properties)
     try:
-        output_file = open(output_filename, "w")
-        root.writexml(output_file, addindent="\t", newl="\n")
-        output_file.close()
+        with open(output_filename, "w") as output_file:
+            root.writexml(output_file, addindent="\t", newl="\n")
     except IOError as err:
         raise EasyBuildError("Failed to write out XML file %s: %s", output_filename, err)
 

@@ -678,7 +678,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
 
         # only directories containing files in specified list should be retained
-        open(os.path.join(root, 'lib64', 'foo'), 'w').write('foo')
+        write_file(os.path.join(root, 'lib64', 'foo'), 'foo')
         self.assertEqual(get_software_libdir(name, fs=['foo']), 'lib64')
 
         # duplicate paths due to symlink get filtered

@@ -46,7 +46,6 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
-    ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
     ('module_name', "Module name"),
     ('nameletter', "First letter of software name"),
     ('toolchain_name', "Toolchain name"),
@@ -86,6 +85,18 @@ TEMPLATE_SOFTWARE_VERSIONS = [
     ('Python', 'py'),
     ('R', 'r'),
 ]
+# template values which are only generated dynamically
+TEMPLATE_NAMES_DYNAMIC = [
+    ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
+    ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
+    ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
+     "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
+    ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
+    ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
+    ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
+    ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
+]
+
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
     # source url constants
@@ -300,6 +311,10 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         except Exception:
             _log.warning("Failed to get .lower() for name %s value %s (type %s)", name, value, type(value))
 
+    # keep track of names of defined templates until now,
+    # so we can check whether names of additional dynamic template values are all known
+    common_template_names = set(template_values.keys())
+
     # step 5. add additional conditional templates
     if toolchain is not None and hasattr(toolchain, 'mpi_cmd_prefix'):
         try:
@@ -316,9 +331,19 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
     if cuda_compute_capabilities:
         template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
+        template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
+        template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
+
+    unknown_names = []
+    for key in template_values:
+        dynamic_template_names = set(x for (x, _) in TEMPLATE_NAMES_DYNAMIC)
+        if not (key in common_template_names or key in dynamic_template_names):
+            unknown_names.append(key)
+    if unknown_names:
+        raise EasyBuildError("One or more template values found with unknown name: %s", ','.join(unknown_names))
 
     return template_values
 

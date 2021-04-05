@@ -270,6 +270,7 @@ class ToyBuildTest(EnhancedTestCase):
             "modluafooter = 'io.stderr:write(\"oh hai!\")'",  # ignored when module syntax is Tcl
             "usage = 'This toy is easy to use, 100%!'",
             "examples = 'No example available, 0% complete'",
+            "citing = 'If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863'",
             "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
             "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
@@ -1341,7 +1342,7 @@ class ToyBuildTest(EnhancedTestCase):
             '           "git_config": {',
             '               "repo_name": "testrepository",',
             '               "url": "https://github.com/easybuilders",',
-            '               "tag": "master",',
+            '               "tag": "main",',
             '           },',
             '       },',
             '   }),',
@@ -1384,6 +1385,11 @@ class ToyBuildTest(EnhancedTestCase):
             r'Examples',
             r'========',
             r'No example available, 0% complete',
+            r'',
+            r'',
+            r'Citing',
+            r'======',
+            r'If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863',
             r'',
             r'',
             r'More information',
@@ -2854,6 +2860,45 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(bash_shebang_regex.match(bashbin_txt),
                             "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
 
+        # now test with a custom env command
+        extra_args = ['--env-for-shebang=/usr/bin/env -S']
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+
+        toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
+
+        # bin/toy and bin/toy2 should *not* be patched, since they're binary files
+        toy_txt = read_file(os.path.join(toy_bindir, 'toy'), mode='rb')
+        for fn in ['toy.perl', 'toy.python']:
+            fn_txt = read_file(os.path.join(toy_bindir, fn), mode='rb')
+            # no shebang added
+            self.assertFalse(fn_txt.startswith(b"#!/"))
+            # exact same file as original binary (untouched)
+            self.assertEqual(toy_txt, fn_txt)
+
+        # no re.M, this should match at start of file!
+        py_shebang_regex = re.compile(r'^#!/usr/bin/env -S python\n# test$')
+        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py']:
+            pybin_path = os.path.join(toy_bindir, pybin)
+            pybin_txt = read_file(pybin_path)
+            self.assertTrue(py_shebang_regex.match(pybin_txt),
+                            "Pattern '%s' found in %s: %s" % (py_shebang_regex.pattern, pybin_path, pybin_txt))
+
+        # no re.M, this should match at start of file!
+        perl_shebang_regex = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
+        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl']:
+            perlbin_path = os.path.join(toy_bindir, perlbin)
+            perlbin_txt = read_file(perlbin_path)
+            self.assertTrue(perl_shebang_regex.match(perlbin_txt),
+                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+
+        # There are 2 bash files which shouldn't be influenced by fix_shebang
+        bash_shebang_regex = re.compile(r'^#!/usr/bin/env bash\n# test$')
+        for bashbin in ['b1.sh', 'b2.sh']:
+            bashbin_path = os.path.join(toy_bindir, bashbin)
+            bashbin_txt = read_file(bashbin_path)
+            self.assertTrue(bash_shebang_regex.match(bashbin_txt),
+                            "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
+
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -3133,24 +3178,30 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
-    def test_test_toy_build_lib64_symlink(self):
+    def test_test_toy_build_lib64_lib_symlink(self):
         """Check whether lib64 symlink to lib subdirectory is created."""
         # this is done to ensure that <installdir>/lib64 is considered before /lib64 by GCC linker,
         # see https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
 
-        # by default, lib64 symlink is created
+        # by default, lib64 -> lib symlink is created (--lib64-lib-symlink is enabled by default)
         self.test_toy_build()
 
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         lib_path = os.path.join(toy_installdir, 'lib')
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
+        # lib64 subdir exists, is not a symlink
         self.assertTrue(os.path.exists(lib_path))
-        self.assertTrue(os.path.exists(lib64_path))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
+
+        # lib64 subdir is a symlink to lib subdir
+        self.assertTrue(os.path.exists(lib64_path))
         self.assertTrue(os.path.islink(lib64_path))
         self.assertTrue(os.path.samefile(lib_path, lib64_path))
+
+        # lib64 symlink should point to a relative path
+        self.assertFalse(os.path.isabs(os.readlink(lib64_path)))
 
         # cleanup and try again with --disable-lib64-lib-symlink
         remove_dir(self.test_installpath)
@@ -3161,6 +3212,49 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse('lib64' in os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
+
+    def test_test_toy_build_lib_lib64_symlink(self):
+        """Check whether lib64 symlink to lib subdirectory is created."""
+
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\npostinstallcmds += ['mv %(installdir)s/lib %(installdir)s/lib64']"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        # by default, lib -> lib64 symlink is created (--lib-lib64-symlink is enabled by default)
+        self.test_toy_build(ec_file=test_ec)
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        lib_path = os.path.join(toy_installdir, 'lib')
+        lib64_path = os.path.join(toy_installdir, 'lib64')
+
+        # lib64 subdir exists, is not a symlink
+        self.assertTrue(os.path.exists(lib64_path))
+        self.assertTrue(os.path.isdir(lib64_path))
+        self.assertFalse(os.path.islink(lib64_path))
+
+        # lib subdir is a symlink to lib64 subdir
+        self.assertTrue(os.path.exists(lib_path))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertTrue(os.path.islink(lib_path))
+        self.assertTrue(os.path.samefile(lib_path, lib64_path))
+
+        # lib symlink should point to a relative path
+        self.assertFalse(os.path.isabs(os.readlink(lib_path)))
+
+        # cleanup and try again with --disable-lib-lib64-symlink
+        remove_dir(self.test_installpath)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
+
+        self.assertTrue(os.path.exists(lib64_path))
+        self.assertFalse(os.path.exists(lib_path))
+        self.assertFalse('lib' in os.listdir(toy_installdir))
+        self.assertTrue(os.path.isdir(lib64_path))
+        self.assertFalse(os.path.islink(lib64_path))
 
 
 def suite():
