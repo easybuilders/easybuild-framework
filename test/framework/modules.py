@@ -1148,6 +1148,13 @@ class ModulesTest(EnhancedTestCase):
         test_dir2 = os.path.join(self.test_prefix, 'two')
         test_dir3 = os.path.join(self.test_prefix, 'three')
 
+        for subdir in ('one', 'two', 'three'):
+            modtxt = '\n'.join([
+                '#%Module',
+                "setenv TEST123 %s" % subdir,
+            ])
+            write_file(os.path.join(self.test_prefix, subdir, 'test'), modtxt)
+
         self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
         self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir1))
@@ -1155,10 +1162,26 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir2))
         self.modtool.use(test_dir3)
         self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir3))
+
+        # make sure the right test module is loaded
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'three')
+        self.modtool.unload(['test'])
+
         self.modtool.unuse(test_dir3)
         self.assertFalse(test_dir3 in os.environ.get('MODULEPATH', ''))
+
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'two')
+        self.modtool.unload(['test'])
+
         self.modtool.unuse(test_dir2)
         self.assertFalse(test_dir2 in os.environ.get('MODULEPATH', ''))
+
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'one')
+        self.modtool.unload(['test'])
+
         self.modtool.unuse(test_dir1)
         self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
 
@@ -1166,11 +1189,28 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.use(test_dir2, priority=10000)
         self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
 
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'two')
+        self.modtool.unload(['test'])
+
         # check whether prepend with priority actually works (only for Lmod)
         if isinstance(self.modtool, Lmod):
             self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
             self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:%s:' % (test_dir2, test_dir1, test_dir3)))
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'two')
+            self.modtool.unload(['test'])
+
+            self.modtool.unuse(test_dir2)
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'one')
+            self.modtool.unload(['test'])
+
+            self.modtool.unuse(test_dir1)
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'three')
+            self.modtool.unload(['test'])
 
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
