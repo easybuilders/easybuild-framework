@@ -334,7 +334,9 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
-            'accept-eula': ("Accept EULA for specified software", 'strlist', 'store', []),
+            'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
+                            'strlist', 'store', []),
+            'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
                                                 "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
                                                 None, 'store_true', False),
