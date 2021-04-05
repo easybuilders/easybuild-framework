@@ -1656,7 +1656,7 @@ class EasyBlock(object):
             name = self.name
 
         accepted_eulas = build_option('accept_eula_for') or []
-        if self.cfg['accept_eula'] or name in accepted_eulas:
+        if self.cfg['accept_eula'] or name in accepted_eulas or any(re.match(x, name) for x in accepted_eulas):
             self.log.info("EULA for %s is accepted", name)
         else:
             error_lines = [

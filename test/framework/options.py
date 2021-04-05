@@ -5911,27 +5911,28 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [test_ec, '--force']
         error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
-
-        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula-for
-        self.eb_main(args + ['--accept-eula-for=foo,toy,bar'], do_build=True, raise_error=True)
-
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
-        self.assertTrue(os.path.exists(toy_modfile))
 
-        remove_dir(self.test_installpath)
-        self.assertFalse(os.path.exists(toy_modfile))
+        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula-for
+        for val in ('foo,toy,bar', '.*', 't.y'):
+            self.eb_main(args + ['--accept-eula-for=' + val], do_build=True, raise_error=True)
 
-        # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
-        os.environ['EASYBUILD_ACCEPT_EULA_FOR'] = 'toy'
-        self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_modfile))
+            self.assertTrue(os.path.exists(toy_modfile))
 
-        remove_dir(self.test_installpath)
-        self.assertFalse(os.path.exists(toy_modfile))
+            remove_dir(self.test_installpath)
+            self.assertFalse(os.path.exists(toy_modfile))
 
-        del os.environ['EASYBUILD_ACCEPT_EULA_FOR']
+            # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
+            os.environ['EASYBUILD_ACCEPT_EULA_FOR'] = val
+            self.eb_main(args, do_build=True, raise_error=True)
+            self.assertTrue(os.path.exists(toy_modfile))
+
+            remove_dir(self.test_installpath)
+            self.assertFalse(os.path.exists(toy_modfile))
+
+            del os.environ['EASYBUILD_ACCEPT_EULA_FOR']
 
         # also check deprecated --accept-eula configuration option
         self.allow_deprecated_behaviour()
