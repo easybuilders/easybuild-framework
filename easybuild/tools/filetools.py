@@ -1667,6 +1667,25 @@ def patch_perl_script_autoflush(path):
         write_file(path, newtxt)
 
 
+def set_gid_sticky_bits(path, set_gid=None, sticky=None, recursive=False):
+    """Set GID/sticky bits on specified path."""
+    if set_gid is None:
+        set_gid = build_option('set_gid_bit')
+    if sticky is None:
+        sticky = build_option('sticky_bit')
+
+    bits = 0
+    if set_gid:
+        bits |= stat.S_ISGID
+    if sticky:
+        bits |= stat.S_ISVTX
+    if bits:
+        try:
+            adjust_permissions(path, bits, add=True, relative=True, recursive=recursive, onlydirs=True)
+        except OSError as err:
+            raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
+
+
 def mkdir(path, parents=False, set_gid=None, sticky=None):
     """
     Create a directory
@@ -1702,18 +1721,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
         # set group ID and sticky bits, if desired
-        bits = 0
-        if set_gid:
-            bits |= stat.S_ISGID
-        if sticky:
-            bits |= stat.S_ISVTX
-        if bits:
-            try:
-                new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
-                new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
-                adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
-            except OSError as err:
-                raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
+        new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
+        new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
+        set_gid_sticky_bits(new_path, set_gid, sticky, recursive=True)
     else:
         _log.debug("Not creating existing path %s" % path)
 
@@ -2614,14 +2624,6 @@ def create_unused_dir(parent_folder, name):
                 raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
     # set group ID and sticky bits, if desired
-    bits = 0
-    if build_option('set_gid_bit'):
-        bits |= stat.S_ISGID
-    if build_option('sticky_bit'):
-        bits |= stat.S_ISVTX
-    if bits:
-        try:
-            adjust_permissions(path, bits, add=True, relative=True, recursive=True, onlydirs=True)
-        except OSError as err:
-            raise EasyBuildError("Failed to set group ID/sticky bit: %s", err)
+    set_gid_sticky_bits(path, recursive=True)
+
     return path
