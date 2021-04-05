@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for goblf compiler toolchain (includes GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW).
 
 :author: Kenneth Hoste (Ghent University)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
