@@ -1142,8 +1142,8 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 
-    def test_module_use(self):
-        """Test 'module use'."""
+    def test_module_use_unuse(self):
+        """Test 'module use' and 'module unuse'."""
         test_dir1 = os.path.join(self.test_prefix, 'one')
         test_dir2 = os.path.join(self.test_prefix, 'two')
         test_dir3 = os.path.join(self.test_prefix, 'three')
@@ -1151,6 +1151,16 @@ class ModulesTest(EnhancedTestCase):
         self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
         self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir1))
+        self.modtool.use(test_dir2)
+        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir2))
+        self.modtool.use(test_dir3)
+        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir3))
+        self.modtool.unuse(test_dir3)
+        self.assertFalse(test_dir3 in os.environ.get('MODULEPATH', ''))
+        self.modtool.unuse(test_dir2)
+        self.assertFalse(test_dir2 in os.environ.get('MODULEPATH', ''))
+        self.modtool.unuse(test_dir1)
+        self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
 
         # also test use with high priority
         self.modtool.use(test_dir2, priority=10000)
@@ -1158,8 +1168,9 @@ class ModulesTest(EnhancedTestCase):
 
         # check whether prepend with priority actually works (only for Lmod)
         if isinstance(self.modtool, Lmod):
+            self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
-            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:' % (test_dir2, test_dir3)))
+            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:%s:' % (test_dir2, test_dir1, test_dir3)))
 
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
