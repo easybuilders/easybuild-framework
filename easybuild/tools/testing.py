@@ -138,7 +138,7 @@ def session_state():
     }
 
 
-def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False, eb_pr_nrs=None):
+def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False, easyblock_pr_nrs=None):
     """Create test report for easyconfigs PR, in Markdown format."""
 
     github_user = build_option('github_user')
@@ -155,11 +155,11 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
             "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, pr_nr),
             "",
         ])
-    if eb_pr_nrs:
+    if easyblock_pr_nrs:
         repo = pr_target_repo or GITHUB_EASYBLOCKS_REPO
         test_report.extend([
             "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, nr)
-            for nr in eb_pr_nrs
+            for nr in easyblock_pr_nrs
         ])
         test_report.append("")
     test_report.extend([
@@ -192,8 +192,8 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
                 if pr_nr is not None:
                     descr += " (PR #%s)" % pr_nr
-                if eb_pr_nrs:
-                    descr += "".join(" (EB PR #%s)" % nr for nr in eb_pr_nrs)
+                if easyblock_pr_nrs:
+                    descr += "".join(" (easyblock PR #%s)" % nr for nr in easyblock_pr_nrs)
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                 gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
                 test_log = "(partial log available at %s)" % gist_url
@@ -328,21 +328,21 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     """
     dump_path = build_option('dump_test_report')
     pr_nr = build_option('from_pr')
-    eb_pr_nrs = build_option('include_easyblocks_from_pr')
+    easyblock_pr_nrs = build_option('include_easyblocks_from_pr')
     upload = build_option('upload_test_report')
 
     if upload:
         msg = msg + " (%d easyconfigs in total)" % orig_cnt
         test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True,
-                                         eb_pr_nrs=eb_pr_nrs)
+                                         easyblock_pr_nrs=easyblock_pr_nrs)
         if pr_nr:
             # upload test report to gist and issue a comment in the PR to notify
             txt = post_pr_test_report(pr_nr, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state, success)
-        elif eb_pr_nrs:
+        elif easyblock_pr_nrs:
             # upload test report to gist and issue a comment in the easyblocks PR to notify
-            for eb_pr_nr in map(int, eb_pr_nrs):
-                txt = post_pr_test_report(eb_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg, init_session_state,
-                                          success)
+            for easyblock_pr_nr in map(int, easyblock_pr_nrs):
+                txt = post_pr_test_report(easyblock_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg,
+                                          init_session_state, success)
         else:
             # only upload test report as a gist
             gist_url = upload_test_report_as_gist(test_report['full'])
