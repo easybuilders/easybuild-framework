@@ -603,11 +603,34 @@ class FileToolsTest(EnhancedTestCase):
     def test_read_write_file(self):
         """Test reading/writing files."""
 
+        # Test different "encodings"
+        ascii_file = os.path.join(self.test_prefix, 'ascii.txt')
+        txt = 'Hello World\nFoo bar'
+        ft.write_file(ascii_file, txt)
+        self.assertEqual(ft.read_file(ascii_file), txt)
+
+        binary_file = os.path.join(self.test_prefix, 'binary.txt')
+        txt = b'Hello World\x12\x00\x01\x02\x03\nFoo bar'
+        ft.write_file(binary_file, txt)
+        self.assertEqual(ft.read_file(binary_file, mode='rb'), txt)
+
+        utf8_file = os.path.join(self.test_prefix, 'utf8.txt')
+        txt = b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4'
+        if sys.version_info[0] == 3:
+            txt_decoded = txt.decode('utf-8')
+        else:
+            txt_decoded = txt
+        # Must work as binary and string
+        ft.write_file(utf8_file, txt)
+        self.assertEqual(ft.read_file(utf8_file), txt_decoded)
+        ft.write_file(utf8_file, txt_decoded)
+        self.assertEqual(ft.read_file(utf8_file), txt_decoded)
+
+        # Test append
         fp = os.path.join(self.test_prefix, 'test.txt')
         txt = "test123"
         ft.write_file(fp, txt)
         self.assertEqual(ft.read_file(fp), txt)
-
         txt2 = '\n'.join(['test', '123'])
         ft.write_file(fp, txt2, append=True)
         self.assertEqual(ft.read_file(fp), txt + txt2)
@@ -682,6 +705,26 @@ class FileToolsTest(EnhancedTestCase):
         # test use of 'mode' in read_file
         self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
 
+    def test_write_file_obj(self):
+        """Test writing from a file-like object directly"""
+        # Write a text file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        fp_out = os.path.join(self.test_prefix, 'test_out.txt')
+        ft.write_file(fp, b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4')
+
+        with ft.open_file(fp, 'rb') as fh:
+            ft.write_file(fp_out, fh)
+        self.assertEqual(ft.read_file(fp_out), ft.read_file(fp))
+
+        # Write a binary file
+        fp = os.path.join(self.test_prefix, 'test.bin')
+        fp_out = os.path.join(self.test_prefix, 'test_out.bin')
+        ft.write_file(fp, b'\x00\x01'+os.urandom(42)+b'\x02\x03')
+
+        with ft.open_file(fp, 'rb') as fh:
+            ft.write_file(fp_out, fh)
+        self.assertEqual(ft.read_file(fp_out, mode='rb'), ft.read_file(fp, mode='rb'))
+
     def test_is_binary(self):
         """Test is_binary function."""
 
@@ -714,9 +757,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_guess_patch_level(self):
         "Test guess_patch_level."""
         # create dummy toy.source file so guess_patch_level can work
-        f = open(os.path.join(self.test_buildpath, 'toy.source'), 'w')
-        f.write("This is toy.source")
-        f.close()
+        ft.write_file(os.path.join(self.test_buildpath, 'toy.source'), "This is toy.source")
 
         for patched_file, correct_patch_level in [
             ('toy.source', 0),
@@ -1211,6 +1252,15 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
+        # make sure apply_regex_substitutions can patch files that include UTF-8 characters
+        testtxt = b"foo \xe2\x80\x93 bar"  # This is an UTF-8 "-"
+        ft.write_file(testfile, testtxt)
+        ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
+        txt = ft.read_file(testfile)
+        if sys.version_info[0] == 3:
+            testtxt = testtxt.decode('utf-8')
+        self.assertEqual(txt, testtxt.replace('foo', 'FOO'))
 
         # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
         testtxt = b"foo \xe2 bar"
@@ -2128,11 +2178,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(var_defs, [])
         self.assertEqual(len(hits), 5)
         self.assertTrue(all(os.path.exists(p) for p in hits))
-        self.assertTrue(hits[0].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
-        self.assertTrue(hits[1].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
-        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
-        self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
-        self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
+        self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
+        self.assertTrue(hits[1].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
+        self.assertTrue(hits[3].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
+        self.assertTrue(hits[4].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
 
         # also test case-sensitive searching
         var_defs, hits_bis = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
@@ -2146,9 +2196,12 @@ class FileToolsTest(EnhancedTestCase):
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
-                                'hwloc-1.8-gcccuda-2018a.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb',
+                                'hwloc-1.11.8-GCC-4.6.4.eb',
+                                'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb',
+                                ])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -2157,28 +2210,34 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb', '$CFGS1/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-                                '$CFGS1/hwloc-1.11.8-GCC-7.3.0-2.30.eb', '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
-                                '$CFGS1/hwloc-1.8-gcccuda-2018a.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2018a.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-7.3.0-2.30.eb'
+                                ])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
         self.assertEqual(var_defs, [])
         expected = [
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
-                                'hwloc-1.8-gcccuda-2018a.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb',
+                                'hwloc-1.11.8-GCC-4.6.4.eb',
+                                'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb',
+                                ])
 
         # patterns that include special characters + (or ++) shouldn't cause trouble
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
@@ -2364,7 +2423,7 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'master',
+            'tag': 'main',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
 

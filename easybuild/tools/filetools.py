@@ -40,7 +40,6 @@ Set of file tools.
 """
 import datetime
 import difflib
-import fileinput
 import glob
 import hashlib
 import imp
@@ -61,7 +60,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import nub, remove_unwanted_chars
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
 try:
     import requests
@@ -189,11 +188,21 @@ def is_readable(path):
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
 
+def open_file(path, mode):
+    """Open a (usually) text file. If mode is not binary, then utf-8 encoding will be used for Python 3.x"""
+    # This is required for text files in Python 3, especially until Python 3.7 which implements PEP 540.
+    # This PEP opens files in UTF-8 mode if the C locale is used, see https://www.python.org/dev/peps/pep-0540
+    if sys.version_info[0] >= 3 and 'b' not in mode:
+        return open(path, mode, encoding='utf-8')
+    else:
+        return open(path, mode)
+
+
 def read_file(path, log_error=True, mode='r'):
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
-        with open(path, mode) as handle:
+        with open_file(path, mode) as handle:
             txt = handle.read()
     except IOError as err:
         if log_error:
@@ -208,7 +217,7 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     overwrites current file contents without backup by default!
 
     :param path: location of file
-    :param data: contents to write to file
+    :param data: contents to write to file. Can be a file-like object of binary data
     :param append: append to existing file rather than overwrite
     :param forced: force actually writing file in (extended) dry run mode
     :param backup: back up existing file before overwriting or modifying it
@@ -237,15 +246,21 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # cfr. https://docs.python.org/3/library/functions.html#open
     mode = 'a' if append else 'w'
 
+    data_is_file_obj = hasattr(data, 'read')
+
     # special care must be taken with binary data in Python 3
-    if sys.version_info[0] >= 3 and isinstance(data, bytes):
+    if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
         mode += 'b'
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        with open(path, mode) as handle:
-            handle.write(data)
+        with open_file(path, mode) as fh:
+            if data_is_file_obj:
+                # if a file-like object was provided, use copyfileobj (which reads the file in chunks)
+                shutil.copyfileobj(data, fh)
+            else:
+                fh.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -569,6 +584,75 @@ def derive_alt_pypi_url(url):
     return alt_pypi_url
 
 
+def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_headers_collection=None, maxdepth=3):
+    """
+    Recurse into multi-line string "[URLPAT::][HEADER:]FILE|FIELD" where FILE may be another such string or file
+    containing lines matching the same format, such as "^https://www.example.com::/path/to/headers.txt", and flatten
+    the result to dict e.g. {'^https://www.example.com': ['Authorization: Basic token', 'User-Agent: Special Agent']}
+    """
+    if urlpat_headers_collection is None:
+        # this function call is not a recursive call
+        urlpat_headers = {}
+    else:
+        # copy existing header data to avoid modifying it
+        urlpat_headers = urlpat_headers_collection.copy()
+
+    # stop infinite recursion that might happen if a file.txt refers to itself
+    if maxdepth < 0:
+        raise EasyBuildError("Failed to parse_http_header_fields_urlpat (recursion limit)")
+
+    if not isinstance(arg, str):
+        raise EasyBuildError("Failed to parse_http_header_fields_urlpat (argument not a string)")
+
+    # HTTP header fields are separated by CRLF but splitting on LF is more convenient
+    for argline in arg.split('\n'):
+        argline = argline.strip()  # remove optional whitespace (e.g. remaining CR)
+        if argline == '' or '#' in argline[0]:
+            continue  # permit comment lines: ignore them
+
+        if os.path.isfile(os.path.join(os.getcwd(), argline)):
+            # expand existing relative path to absolute
+            argline = os.path.join(os.path.join(os.getcwd(), argline))
+        if os.path.isfile(argline):
+            # argline is a file path, so read that instead
+            _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
+            argline = read_file(argline)
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, header, urlpat_headers, maxdepth - 1)
+            continue
+
+        # URL pattern is separated by '::' from a HTTP header field
+        if '::' in argline:
+            [urlpat, argline] = argline.split('::', 1)  # get the urlpat
+            # the remainder may be another parseable argument, recurse with same depth
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, header, urlpat_headers, maxdepth)
+            continue
+
+        # Header field has format HEADER: FIELD, and FIELD may be another parseable argument
+        # except if FIELD contains colons, then argline is the final HEADER: FIELD to be returned
+        if ':' in argline and argline.count(':') == 1:
+            [argheader, argline] = argline.split(':', 1)  # get the header and the remainder
+            # the remainder may be another parseable argument, recurse with same depth
+            # note that argheader would be forgotten in favor of the urlpat_headers returned by recursion,
+            # so pass on the header for reconstruction just in case there was nothing to recurse in
+            urlpat_headers = parse_http_header_fields_urlpat(argline, urlpat, argheader, urlpat_headers, maxdepth)
+            continue
+
+        if header is not None:
+            # parent caller didn't want to forget about the header, reconstruct as recursion stops here.
+            argline = header.strip() + ':' + argline
+
+        if urlpat is not None:
+            if urlpat in urlpat_headers.keys():
+                urlpat_headers[urlpat].append(argline)  # add headers to the list
+            else:
+                urlpat_headers[urlpat] = list([argline])  # new list headers for this urlpat
+        else:
+            _log.warning("Non-empty argument to http-header-fields-urlpat ignored (missing URL pattern)")
+
+    # return a dict full of {urlpat: [list, of, headers]}
+    return urlpat_headers
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -581,6 +665,15 @@ def download_file(filename, url, path, forced=False):
         timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
+    # parse option HTTP header fields for URLs containing a pattern
+    http_header_fields_urlpat = build_option('http_header_fields_urlpat')
+    # compile a dict full of {urlpat: [header, list]}
+    urlpat_headers = dict()
+    if http_header_fields_urlpat is not None:
+        # there may be multiple options given, parse them all, while updating urlpat_headers
+        for arg in http_header_fields_urlpat:
+            urlpat_headers.update(parse_http_header_fields_urlpat(arg))
+
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
@@ -592,6 +685,17 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     headers = {'User-Agent': 'EasyBuild', 'Accept': '*/*'}
+
+    # permit additional or override headers via http_headers_fields_urlpat option
+    # only append/override HTTP header fields that match current url
+    if urlpat_headers is not None:
+        for urlpatkey, http_header_fields in urlpat_headers.items():
+            if re.search(urlpatkey, url):
+                extraheaders = dict(hf.split(':', 1) for hf in http_header_fields)
+                for key, val in extraheaders.items():
+                    headers[key] = val
+                    _log.debug("Custom HTTP header field set: %s (value omitted from log)", key)
+
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
     url_req = std_urllib.Request(url, headers=headers)
     used_urllib = std_urllib
@@ -612,7 +716,11 @@ def download_file(filename, url, path, forced=False):
                 url_fd = response.raw
                 url_fd.decode_content = True
             _log.debug('response code for given url %s: %s' % (url, status_code))
-            write_file(path, url_fd.read(), forced=forced, backup=True)
+            # note: we pass the file object to write_file rather than reading the file first,
+            # to ensure the data is read in chunks (which prevents problems in Python 3.9+);
+            # cfr. https://github.com/easybuilders/easybuild-framework/issues/3455
+            # and https://bugs.python.org/issue42853
+            write_file(path, url_fd, forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
@@ -902,8 +1010,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        path_index = load_index(path, ignore_dirs=ignore_dirs)
-        if path_index is None or build_option('ignore_index'):
+        if build_option('ignore_index'):
+            path_index = None
+        else:
+            path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index is None:
             if os.path.exists(path):
                 _log.info("No index found for %s, creating one...", path)
                 path_index = create_index(path, ignore_dirs=ignore_dirs)
@@ -923,15 +1034,17 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
                 else:
                     path_hits.append(os.path.join(path, filepath))
 
-        path_hits = sorted(path_hits)
+        path_hits = sorted(path_hits, key=natural_keys)
 
         if path_hits:
-            common_prefix = det_common_path_prefix(path_hits)
-            if not terse and short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_defs.append((var, common_prefix))
-                hits.extend([os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in path_hits])
-            else:
-                hits.extend(path_hits)
+            if not terse and short:
+                common_prefix = det_common_path_prefix(path_hits)
+                if common_prefix is not None and len(common_prefix) > len(var) * 2:
+                    var_defs.append((var, common_prefix))
+                    var_spec = '$' + var
+                    # Replace the common prefix by var_spec
+                    path_hits = (var_spec + fn[len(common_prefix):] for fn in path_hits)
+            hits.extend(path_hits)
 
     return var_defs, hits
 
@@ -1011,10 +1124,9 @@ def calc_block_checksum(path, algorithm):
     _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
     try:
-        f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), b''):
-            algorithm.update(block)
-        f.close()
+        with open(path, 'rb') as fh:
+            for block in iter(lambda: fh.read(blocksize), b''):
+                algorithm.update(block)
     except IOError as err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
 
@@ -1360,35 +1472,37 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
         for regex, subtxt in regex_subs:
             compiled_regex_subs.append((re.compile(regex), subtxt))
 
-        if backup:
-            backup_ext = backup
-        else:
-            # no (persistent) backup file is created if empty string value is passed to 'backup' in fileinput.input
-            backup_ext = ''
-
         for path in paths:
             try:
                 # make sure that file can be opened in text mode;
                 # it's possible this fails with UnicodeDecodeError when running EasyBuild with Python 3
                 try:
-                    with open(path, 'r') as fp:
-                        _ = fp.read()
+                    with open_file(path, 'r') as fp:
+                        txt_utf8 = fp.read()
                 except UnicodeDecodeError as err:
                     _log.info("Encountered UnicodeDecodeError when opening %s in text mode: %s", path, err)
                     path_backup = back_up_file(path)
                     _log.info("Editing %s to strip out non-UTF-8 characters (backup at %s)", path, path_backup)
                     txt = read_file(path, mode='rb')
                     txt_utf8 = txt.decode(encoding='utf-8', errors='replace')
+                    del txt
                     write_file(path, txt_utf8)
 
-                for line_id, line in enumerate(fileinput.input(path, inplace=1, backup=backup_ext)):
-                    for regex, subtxt in compiled_regex_subs:
-                        match = regex.search(line)
-                        if match:
-                            origtxt = match.group(0)
-                            _log.info("Replacing line %d in %s: '%s' -> '%s'", (line_id + 1), path, origtxt, subtxt)
-                        line = regex.sub(subtxt, line)
-                    sys.stdout.write(line)
+                if backup:
+                    copy_file(path, path + backup)
+                with open_file(path, 'w') as out_file:
+                    lines = txt_utf8.split('\n')
+                    del txt_utf8
+                    for line_id, line in enumerate(lines):
+                        for regex, subtxt in compiled_regex_subs:
+                            match = regex.search(line)
+                            if match:
+                                origtxt = match.group(0)
+                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
+                                          (line_id + 1), path, origtxt, subtxt)
+                                line = regex.sub(subtxt, line)
+                                lines[line_id] = line
+                    out_file.write('\n'.join(lines))
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
@@ -1563,16 +1677,16 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
     :param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
                    to avoid users can removing/renaming files in this directory
     """
-    if set_gid is None:
-        set_gid = build_option('set_gid_bit')
-    if sticky is None:
-        sticky = build_option('sticky_bit')
-
     if not os.path.isabs(path):
         path = os.path.abspath(path)
 
     # exit early if path already exists
     if not os.path.exists(path):
+        if set_gid is None:
+            set_gid = build_option('set_gid_bit')
+        if sticky is None:
+            sticky = build_option('sticky_bit')
+
         _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)", path, parents, set_gid, sticky)
         # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
         existing_parent_path = os.path.dirname(path)
@@ -2042,7 +2156,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             if lic_files:
                 for lic_file in lic_files:
                     try:
-                        open(lic_file, 'r')
+                        # just try to open file for reading, no need to actually read it
+                        open(lic_file, 'rb').close()
                         valid_lic_specs.append(lic_file)
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
@@ -2376,7 +2491,7 @@ def install_fake_vsc():
     fake_vsc_init_path = os.path.join(fake_vsc_path, 'vsc', '__init__.py')
     if not os.path.exists(os.path.dirname(fake_vsc_init_path)):
         os.makedirs(os.path.dirname(fake_vsc_init_path))
-    with open(fake_vsc_init_path, 'w') as fp:
+    with open_file(fake_vsc_init_path, 'w') as fp:
         fp.write(fake_vsc_init)
 
     sys.path.insert(0, fake_vsc_path)

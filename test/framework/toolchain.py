@@ -631,6 +631,19 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(tc.get_variable(var).endswith(' ' + value))
             self.modtool.purge()
 
+        value = '--only-in-cxxflags'
+        flag_vars.remove('CXXFLAGS')
+        tc = self.get_toolchain('foss', version='2018a')
+        tc.set_options({'extra_cxxflags': value})
+        tc.prepare()
+        self.assertTrue(tc.get_variable('CXXFLAGS').endswith(' ' + value))
+        for var in flag_vars:
+            self.assertTrue(value not in tc.get_variable(var))
+            # https://github.com/easybuilders/easybuild-framework/pull/3571
+            # catch variable resued inside loop
+            self.assertTrue("-o -n -l -y" not in tc.get_variable(var))
+        self.modtool.purge()
+
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
 
@@ -1436,7 +1449,7 @@ class ToolchainTest(EnhancedTestCase):
         libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
         libscalack_intel4 += "-lmkl_core"
 
-        libblas_mt_fosscuda = "-lopenblas -lgfortran"
+        libblas_mt_fosscuda = "-lopenblas -lgfortran -lpthread"
         libscalack_fosscuda = "-lscalapack -lopenblas -lgfortran"
         libfft_mt_fosscuda = "-lfftw3_omp -lfftw3 -lpthread"
 

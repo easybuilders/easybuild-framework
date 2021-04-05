@@ -47,7 +47,8 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -55,7 +56,9 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_files_from_pr, download_repo
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import det_pr_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -474,14 +477,19 @@ def find_related_easyconfigs(path, ec):
     return sorted(res)
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop'):
+def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
     :param paths: path tuples (path, generated) of easyconfigs to review
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
+    :param testing: whether to ignore PR labels (used in test_review_pr)
     """
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Reviewing PRs for repositories other than easyconfigs hasn't been implemented yet")
+
     tmpdir = tempfile.mkdtemp()
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
@@ -507,6 +515,20 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+    if pr:
+        file_info = det_file_info(pr_files, download_repo_path)
+
+        pr_target_account = build_option('pr_target_account')
+        github_user = build_option('github_user')
+        pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+        pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
+
+        expected_labels = det_pr_labels(file_info, pr_target_repo)
+        missing_labels = [label for label in expected_labels if label not in pr_labels]
+
+        if missing_labels:
+            lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % ml for ml in missing_labels])])
 
     return '\n'.join(lines)
 
