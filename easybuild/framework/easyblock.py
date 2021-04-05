@@ -1034,20 +1034,23 @@ class EasyBlock(object):
 
         mkdir(dir_name, parents=True)
 
-    def setup_cuda_cache(self):
+    def set_up_cuda_cache(self):
+        """Set up CUDA PTX cache."""
+
         cuda_cache_maxsize = build_option('cuda_cache_maxsize')
         if cuda_cache_maxsize is None:
             cuda_cache_maxsize = 1 * 1024  # 1 GiB default value
         else:
             cuda_cache_maxsize = int(cuda_cache_maxsize)
+
         if cuda_cache_maxsize == 0:
-            self.log.info('Disabling CUDA PTX cache as per request')
+            self.log.info("Disabling CUDA PTX cache since cache size was set to zero")
             env.setvar('CUDA_CACHE_DISABLE', '1')
         else:
             cuda_cache_dir = build_option('cuda_cache_dir')
             if not cuda_cache_dir:
                 cuda_cache_dir = os.path.join(self.builddir, 'eb-cuda-cache')
-            self.log.info('Enabling CUDA PTX cache of size %s MiB at %s', cuda_cache_maxsize, cuda_cache_dir)
+            self.log.info("Enabling CUDA PTX cache of size %s MiB at %s", cuda_cache_maxsize, cuda_cache_dir)
             env.setvar('CUDA_CACHE_DISABLE', '0')
             env.setvar('CUDA_CACHE_PATH', cuda_cache_dir)
             env.setvar('CUDA_CACHE_MAXSIZE', str(cuda_cache_maxsize * 1024 * 1024))
@@ -2183,7 +2186,7 @@ class EasyBlock(object):
 
         # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
         if get_software_root('CUDA') or get_software_root('CUDAcore'):
-            self.setup_cuda_cache()
+            self.set_up_cuda_cache()
 
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
