@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2021 Ghent University
+# Copyright 2009-2020 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,20 +23,27 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for goblf compiler toolchain (includes GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW).
+Dummy easyblock for Makecp.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+@author: Miguel Dias Costa (National University of Singapore)
 """
-
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.gompi import Gompi
-from easybuild.toolchains.linalg.blis import Blis
-from easybuild.toolchains.linalg.lapack import Lapack
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.easyblocks.generic.configuremake import ConfigureMake
+from easybuild.framework.easyconfig import BUILD, MANDATORY
 
 
-class Goblf(Gompi, Blis, Lapack, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW."""
-    NAME = 'goblf'
-    SUBTOOLCHAIN = Gompi.NAME
+class MakeCp(ConfigureMake):
+    """Dummy support for software with no configure and no make install step."""
+
+    @staticmethod
+    def extra_options(extra_vars=None):
+        """
+        Define list of files or directories to be copied after make
+        """
+        extra = {
+            'files_to_copy': [None, "List of files or dirs to copy", MANDATORY],
+            'with_configure': [False, "Run configure script before building", BUILD],
+        }
+        if extra_vars is None:
+            extra_vars = {}
+        extra.update(extra_vars)
+        return ConfigureMake.extra_options(extra_vars=extra)

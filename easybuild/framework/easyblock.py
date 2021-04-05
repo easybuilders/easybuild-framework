@@ -66,6 +66,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -96,6 +97,8 @@ from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
+
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
@@ -756,7 +759,8 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
-            targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+            name_letter = self.name.lower()[0]
+            targetdir = os.path.join(srcpaths[0], name_letter, self.name)
 
             if foundfile:
                 if self.dry_run:
@@ -771,6 +775,9 @@ class EasyBlock(object):
                 else:
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
+
+                # add https://sources.easybuild.io as fallback source URL
+                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
 
                 mkdir(targetdir, parents=True)
 
@@ -1345,10 +1352,16 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
+                user_envvars = build_option('envvars_user_modules') or [DEFAULT_ENVVAR_USERS_MODULES]
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
-                txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
-                                                 guarded=True, user_modpath=user_modpath)
+                for user_envvar in user_envvars:
+                    self.log.debug("Requested environment variable $%s to host additional branch for modules",
+                                   user_envvar)
+                    default_value = user_envvar + "_NOT_DEFINED"
+                    getenv_txt = self.module_generator.getenv_cmd(user_envvar, default=default_value)
+                    txt += self.module_generator.use(user_modpath_exts, prefix=getenv_txt,
+                                                     guarded=True, user_modpath=user_modpath)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
@@ -2354,7 +2367,7 @@ class EasyBlock(object):
                 if isinstance(fix_shebang_for, string_type):
                     fix_shebang_for = [fix_shebang_for]
 
-                shebang = '#!/usr/bin/env %s' % lang
+                shebang = '#!%s %s' % (build_option('env_for_shebang'), lang)
                 for glob_pattern in fix_shebang_for:
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
@@ -2397,15 +2410,26 @@ class EasyBlock(object):
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         self.fix_shebang()
+
+        lib_dir = os.path.join(self.installdir, 'lib')
+        lib64_dir = os.path.join(self.installdir, 'lib64')
+
         # GCC linker searches system /lib64 path before the $LIBRARY_PATH paths.
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
         if build_option('lib64_lib_symlink'):
-            lib_dir = os.path.join(self.installdir, 'lib')
-            lib64_dir = os.path.join(self.installdir, 'lib64')
             if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-                symlink(lib_dir, lib64_dir)
+                # create *relative* 'lib64' symlink to 'lib';
+                # see https://github.com/easybuilders/easybuild-framework/issues/3564
+                symlink('lib', lib64_dir, use_abspath_source=False)
+
+        # symlink lib to lib64, which is helpful on OpenSUSE;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3549
+        if build_option('lib_lib64_symlink'):
+            if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
+                # create *relative* 'lib' symlink to 'lib64';
+                symlink('lib64', lib_dir, use_abspath_source=False)
 
     def sanity_check_step(self, *args, **kwargs):
         """
@@ -3044,7 +3068,7 @@ class EasyBlock(object):
             self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
         self.cfg.generate_template_values()
 
-    def _skip_step(self, step, skippable):
+    def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
         force = build_option('force') or build_option('rebuild')
@@ -3243,7 +3267,7 @@ class EasyBlock(object):
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
-                if self._skip_step(step_name, skippable):
+                if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
