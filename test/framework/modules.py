@@ -492,15 +492,23 @@ class ModulesTest(EnhancedTestCase):
         test3 = os.path.join(self.test_prefix, 'test3')
         mkdir(test3)
 
+        del os.environ['MODULEPATH']
+        self.assertEqual(curr_module_paths(), [])
+        self.assertEqual(curr_module_paths(clean=False), [])
+
         os.environ['MODULEPATH'] = ''
         self.assertEqual(curr_module_paths(), [])
+        self.assertEqual(curr_module_paths(clean=False), [''])
 
         os.environ['MODULEPATH'] = '%s:%s:%s' % (test1, test2, test3)
         self.assertEqual(curr_module_paths(), [test1, test2, test3])
+        self.assertEqual(curr_module_paths(clean=False), [test1, test2, test3])
 
         # empty entries and non-existing directories are filtered out
         os.environ['MODULEPATH'] = '/doesnotexist:%s::%s:' % (test2, test1)
         self.assertEqual(curr_module_paths(), [test2, test1])
+        # Disabling the clean returns them
+        self.assertEqual(curr_module_paths(clean=False), ['/doesnotexist', test2, '', test1, ''])
 
     def test_check_module_path(self):
         """Test ModulesTool.check_module_path() method"""

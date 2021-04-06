@@ -1728,14 +1728,19 @@ def get_software_version(name):
     return version
 
 
-def curr_module_paths(normalize=False):
+def curr_module_paths(normalize=False, clean=True):
     """
     Return a list of current module paths.
 
     :param normalize: Normalize the paths
+    :param clean: If True remove empty and non-existing paths
     """
-    # avoid empty or nonexistent paths, which don't make any sense
-    module_paths = (p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p))
+    if clean:
+        # avoid empty or nonexistent paths, which don't make any sense
+        module_paths = (p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p))
+    else:
+        modulepath = os.environ.get('MODULEPATH')
+        module_paths = [] if modulepath is None else modulepath.split(':')
     if normalize:
         module_paths = (normalize_path(p) for p in module_paths)
     return list(module_paths)
