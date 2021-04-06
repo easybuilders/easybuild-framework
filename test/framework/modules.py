@@ -1224,6 +1224,16 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(os.getenv('TEST123'), 'three')
             self.modtool.unload(['test'])
 
+            # Also test that load and unload a single path works when it is the only one
+            # Only for LMod as we have some shortcuts for avoiding the module call there
+            old_module_path = os.environ['MODULEPATH']
+            del os.environ['MODULEPATH']
+            self.modtool.use(test_dir1)
+            self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+            self.modtool.unuse(test_dir1)
+            self.assertFalse('MODULEPATH' in os.environ)
+            os.environ['MODULEPATH'] = old_module_path  # Restore
+
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
         # this test is here as check for a nasty bug in how the modules tool is deployed
