@@ -1163,18 +1163,6 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.use(test_dir3)
         self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
 
-        # Using an empty path still works (technically)
-        old_module_path = os.environ['MODULEPATH']
-        self.modtool.use('')
-        self.assertEqual(os.environ['MODULEPATH'], ':' + old_module_path)
-        self.modtool.unuse('')
-        self.assertEqual(os.environ['MODULEPATH'], old_module_path)
-        # Even works when the whole path is empty
-        os.environ['MODULEPATH'] = ''
-        self.modtool.unuse('')
-        self.assertFalse('MODULEPATH' in os.environ)
-        os.environ['MODULEPATH'] = old_module_path  # Restore
-
         # make sure the right test module is loaded
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'three')
@@ -1205,8 +1193,9 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(os.getenv('TEST123'), 'two')
         self.modtool.unload(['test'])
 
-        # check whether prepend with priority actually works (only for Lmod)
+        # Tests for Lmod only
         if isinstance(self.modtool, Lmod):
+            # check whether prepend with priority actually works (priority is specific to Lmod)
             self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
             self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:%s:' % (test_dir2, test_dir1, test_dir3)))
@@ -1224,13 +1213,25 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(os.getenv('TEST123'), 'three')
             self.modtool.unload(['test'])
 
-            # Also test that load and unload a single path works when it is the only one
-            # Only for LMod as we have some shortcuts for avoiding the module call there
+            # Check load and unload for a single path when it is the only one
+            # Only for Lmod as we have some shortcuts for avoiding the module call there
             old_module_path = os.environ['MODULEPATH']
             del os.environ['MODULEPATH']
             self.modtool.use(test_dir1)
             self.assertEqual(os.environ['MODULEPATH'], test_dir1)
             self.modtool.unuse(test_dir1)
+            self.assertFalse('MODULEPATH' in os.environ)
+            os.environ['MODULEPATH'] = old_module_path  # Restore
+
+            # Using an empty path still works (technically) (Lmod only, ignored by Tcl)
+            old_module_path = os.environ['MODULEPATH']
+            self.modtool.use('')
+            self.assertEqual(os.environ['MODULEPATH'], ':' + old_module_path)
+            self.modtool.unuse('')
+            self.assertEqual(os.environ['MODULEPATH'], old_module_path)
+            # Even works when the whole path is empty
+            os.environ['MODULEPATH'] = ''
+            self.modtool.unuse('')
             self.assertFalse('MODULEPATH' in os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
