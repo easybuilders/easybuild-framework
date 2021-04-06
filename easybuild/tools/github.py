@@ -1457,7 +1457,7 @@ def post_pr_labels(pr, labels):
         return True
 
 
-def add_pr_labels(pr, branch='develop'):
+def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
     """
     Try to determine and add labels to PR.
     :param pr: pull request number in easybuild-easyconfigs repo
@@ -1986,7 +1986,7 @@ def check_github():
     branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=not debug)
-        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, GITHUB_BRANCH_MAIN,
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, GITHUB_DEVELOP_BRANCH,
                                  silent=not debug, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
@@ -2168,7 +2168,8 @@ def validate_github_token(token, github_user):
     # try and determine sha of latest commit in easybuilders/easybuild-easyconfigs repo through authenticated access
     sha = None
     try:
-        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user, token=token)
+        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN,
+                                      branch=GITHUB_DEVELOP_BRANCH, github_user=github_user, token=token)
     except Exception as err:
         _log.warning("An exception occurred when trying to use token for authenticated GitHub access: %s", err)
 
@@ -2185,7 +2186,8 @@ def find_easybuild_easyconfig(github_user=None):
 
     :param github_user: name of GitHub user to use when querying GitHub
     """
-    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN, github_user=github_user)
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch=GITHUB_DEVELOP_BRANCH,
+                             account=GITHUB_EB_MAIN, github_user=github_user)
     eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
     files = os.listdir(eb_parent_path)
 
