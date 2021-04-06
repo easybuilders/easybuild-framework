@@ -50,7 +50,7 @@ from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
-from easybuild.tools.py2vs3 import subprocess_popen_text
+from easybuild.tools.py2vs3 import subprocess_popen_text, string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import get_subclasses, nub
 
@@ -1538,6 +1538,28 @@ class Lmod(ModulesTool):
                     mkdir(cache_dir, parents=True)
                 write_file(cache_fp, stdout)
 
+    def _set_module_path(self, new_mod_path):
+        """
+        Set $MODULEPATH to the specified paths and logs the change.
+        new_mod_path can be None or an iterable of paths
+        """
+        if new_mod_path is not None:
+            if not isinstance(new_mod_path, list):
+                assert not isinstance(new_mod_path, string_type)  # Just to be sure
+                new_mod_path = list(new_mod_path)  # Expand generators
+            new_mod_path = mk_module_path(new_mod_path) if new_mod_path else None
+        cur_mod_path = os.environ.get('MODULEPATH')
+        if new_mod_path != cur_mod_path:
+            self.log.debug(
+                'Changing MODULEPATH from %s to %s',
+                '<unset>' if cur_mod_path is None else cur_mod_path,
+                '<unset>' if new_mod_path is None else new_mod_path,
+            )
+            if new_mod_path is None:
+                del os.environ['MODULEPATH']
+            else:
+                os.environ['MODULEPATH'] = new_mod_path
+
     def use(self, path, priority=None):
         """
         Add path to $MODULEPATH via 'module use'.
@@ -1561,31 +1583,13 @@ class Lmod(ModulesTool):
                 self.run_module(['use', path])
             else:
                 path = normalize_path(path)
-                cur_mod_path = os.environ.get('MODULEPATH')
-                if cur_mod_path is None:
-                    new_mod_path = path
-                else:
-                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if normalize_path(p) != path]
-                    new_mod_path = mk_module_path(new_mod_path)
-                self.log.debug('Changing MODULEPATH from %s to %s' %
-                               ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
-                os.environ['MODULEPATH'] = new_mod_path
+                self._set_module_path([path] + [p for p in curr_module_paths(clean=False) if normalize_path(p) != path])
 
     def unuse(self, path):
         """Remove a module path"""
         # We can simply remove the path from MODULEPATH to avoid the costly module call
-        cur_mod_path = os.environ.get('MODULEPATH')
-        if cur_mod_path is not None:
-            # Removing the last entry unsets the variable
-            if cur_mod_path == path:
-                self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
-                del os.environ['MODULEPATH']
-            else:
-                path = normalize_path(path)
-                new_mod_path = mk_module_path(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
-                if new_mod_path != cur_mod_path:
-                    self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
-                    os.environ['MODULEPATH'] = new_mod_path
+        path = normalize_path(path)
+        self._set_module_path(p for p in curr_module_paths(clean=False) if normalize_path(p) != path)
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """

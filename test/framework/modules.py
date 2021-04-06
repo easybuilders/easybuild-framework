@@ -1213,6 +1213,29 @@ class ModulesTest(EnhancedTestCase):
 
         # Tests for Lmod only
         if isinstance(self.modtool, Lmod):
+            # Check the helper function
+            old_module_path = os.environ['MODULEPATH']
+            self.modtool._set_module_path(['/foo'])
+            self.assertEqual(os.environ['MODULEPATH'], '/foo')
+            self.modtool._set_module_path(['/foo', '/bar'])
+            self.assertEqual(os.environ['MODULEPATH'], '/foo:/bar')
+            self.modtool._set_module_path([''])
+            self.assertEqual(os.environ['MODULEPATH'], '')
+            self.modtool._set_module_path([])
+            self.assertFalse('MODULEPATH' in os.environ)
+            self.modtool._set_module_path(None)
+            self.assertFalse('MODULEPATH' in os.environ)
+            # Same for generators
+            self.modtool._set_module_path(i for i in ['/foo'])
+            self.assertEqual(os.environ['MODULEPATH'], '/foo')
+            self.modtool._set_module_path(i for i in ['/foo', '/bar'])
+            self.assertEqual(os.environ['MODULEPATH'], '/foo:/bar')
+            self.modtool._set_module_path(i for i in [''])
+            self.assertEqual(os.environ['MODULEPATH'], '')
+            self.modtool._set_module_path(i for i in [])
+            self.assertFalse('MODULEPATH' in os.environ)
+            os.environ['MODULEPATH'] = old_module_path  # Restore
+
             # check whether prepend with priority actually works (priority is specific to Lmod)
             self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
@@ -1237,6 +1260,9 @@ class ModulesTest(EnhancedTestCase):
             del os.environ['MODULEPATH']
             self.modtool.use(test_dir1)
             self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+            self.modtool.unuse(test_dir1)
+            self.assertFalse('MODULEPATH' in os.environ)
+            # Unuse when the MODULEPATH is already empty
             self.modtool.unuse(test_dir1)
             self.assertNotIn('MODULEPATH', os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
