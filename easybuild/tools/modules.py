@@ -1438,7 +1438,7 @@ class Lmod(ModulesTool):
                     new_mod_path = path
                 else:
                     new_mod_path = [path] + [p for p in cur_mod_path.split(':') if p != path]
-                    new_mod_path = ':'.join(new_mod_path)
+                    new_mod_path = mk_module_path(new_mod_path)
                 self.log.debug('Changing MODULEPATH from %s to %s' %
                                ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
                 os.environ['MODULEPATH'] = new_mod_path
@@ -1453,7 +1453,7 @@ class Lmod(ModulesTool):
                 self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
                 del os.environ['MODULEPATH']
             else:
-                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if p != path)
+                new_mod_path = mk_module_path(p for p in cur_mod_path.split(':') if p != path)
                 if new_mod_path != cur_mod_path:
                     self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
                     os.environ['MODULEPATH'] = new_mod_path
