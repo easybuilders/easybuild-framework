@@ -2156,14 +2156,22 @@ def validate_github_token(token, github_user):
     * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
     * see if it can be used for authenticated access
     """
-    sha_regex = re.compile('^[0-9a-f]{40}')
+    # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
+    token_regex = re.compile('^ghp_[a-zA-Z0-9]{36}$')
+    token_regex_old_format = re.compile('^[0-9a-f]{40}$')
 
     # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = bool(sha_regex.match(token))
+    sanity_check = bool(token_regex.match(token))
     if sanity_check:
         _log.info("Sanity check on token passed")
     else:
-        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", sha_regex.pattern)
+        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", token_regex.pattern)
+        sanity_check = bool(token_regex_old_format.match(token))
+        if sanity_check:
+            _log.info("Sanity check on token (old format) passed")
+        else:
+            _log.warning("Sanity check on token failed; token doesn't match pattern '%s'",
+                         token_regex_old_format.pattern)
 
     # try and determine sha of latest commit in easybuilders/easybuild-easyconfigs repo through authenticated access
     sha = None
@@ -2173,6 +2181,7 @@ def validate_github_token(token, github_user):
     except Exception as err:
         _log.warning("An exception occurred when trying to use token for authenticated GitHub access: %s", err)
 
+    sha_regex = re.compile('^[0-9a-f]{40}$')
     token_test = bool(sha_regex.match(sha or ''))
     if token_test:
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
