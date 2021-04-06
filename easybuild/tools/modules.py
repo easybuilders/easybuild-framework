@@ -1603,12 +1603,18 @@ def get_software_version(name):
     return version
 
 
-def curr_module_paths():
+def curr_module_paths(clean=True):
     """
     Return a list of current module paths.
+    clean: If True remove empty and non-existing paths
     """
-    # avoid empty or nonexistent paths, which don't make any sense
-    return [p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p)]
+    if clean:
+        # avoid empty or nonexistent paths, which don't make any sense
+        paths = [p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p)]
+    else:
+        modulepath = os.environ.get('MODULEPATH')
+        paths = [] if modulepath is None else modulepath.split(':')
+    return paths
 
 
 def mk_module_path(paths):
