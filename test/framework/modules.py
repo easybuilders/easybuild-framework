@@ -1157,11 +1157,23 @@ class ModulesTest(EnhancedTestCase):
 
         self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
-        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir1))
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir1))
         self.modtool.use(test_dir2)
-        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir2))
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
         self.modtool.use(test_dir3)
-        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir3))
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
+
+        # Using an empty path still works (technically)
+        old_module_path = os.environ['MODULEPATH']
+        self.modtool.use('')
+        self.assertEqual(os.environ['MODULEPATH'], ':' + old_module_path)
+        self.modtool.unuse('')
+        self.assertEqual(os.environ['MODULEPATH'], old_module_path)
+        # Even works when the whole path is empty
+        os.environ['MODULEPATH'] = ''
+        self.modtool.unuse('')
+        self.assertFalse('MODULEPATH' in os.environ)
+        os.environ['MODULEPATH'] = old_module_path  # Restore
 
         # make sure the right test module is loaded
         self.modtool.load(['test'])

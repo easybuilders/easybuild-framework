@@ -1443,6 +1443,21 @@ class Lmod(ModulesTool):
                                ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
                 os.environ['MODULEPATH'] = new_mod_path
 
+    def unuse(self, path):
+        """Remove a module path"""
+        # We can simply remove the path from MODULEPATH to avoid the costly module call
+        cur_mod_path = os.environ.get('MODULEPATH')
+        if cur_mod_path is not None:
+            # Removing the last entry unsets the variable
+            if cur_mod_path == path:
+                self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
+                del os.environ['MODULEPATH']
+            else:
+                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if p != path)
+                if new_mod_path != cur_mod_path:
+                    self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
+                    os.environ['MODULEPATH'] = new_mod_path
+
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
