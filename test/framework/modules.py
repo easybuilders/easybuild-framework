@@ -1091,6 +1091,7 @@ class ModulesTest(EnhancedTestCase):
 
         # purposely extending $MODULEPATH with non-existing path, should be handled fine
         nonpath = os.path.join(self.test_prefix, 'nosuchfileordirectory')
+        mkdir(nonpath)
         self.modtool.use(nonpath)
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
         self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
@@ -1163,6 +1164,11 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.use(test_dir3)
         self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
 
+        # Adding an empty modulepath is not possible
+        modulepath = os.environ.get('MODULEPATH', '')
+        self.assertErrorRegex(EasyBuildError, "Cannot add empty path", self.modtool.use, '')
+        self.assertEqual(os.environ.get('MODULEPATH', ''), modulepath)
+
         # make sure the right test module is loaded
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'three')
@@ -1220,18 +1226,6 @@ class ModulesTest(EnhancedTestCase):
             self.modtool.use(test_dir1)
             self.assertEqual(os.environ['MODULEPATH'], test_dir1)
             self.modtool.unuse(test_dir1)
-            self.assertFalse('MODULEPATH' in os.environ)
-            os.environ['MODULEPATH'] = old_module_path  # Restore
-
-            # Using an empty path still works (technically) (Lmod only, ignored by Tcl)
-            old_module_path = os.environ['MODULEPATH']
-            self.modtool.use('')
-            self.assertEqual(os.environ['MODULEPATH'], ':' + old_module_path)
-            self.modtool.unuse('')
-            self.assertEqual(os.environ['MODULEPATH'], old_module_path)
-            # Even works when the whole path is empty
-            os.environ['MODULEPATH'] = ''
-            self.modtool.unuse('')
             self.assertFalse('MODULEPATH' in os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
 

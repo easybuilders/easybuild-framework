@@ -362,8 +362,12 @@ class ModulesTool(object):
             self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
                           priority, path)
 
-        # make sure path exists before we add it
-        mkdir(path, parents=True)
+        if not path:
+            raise EasyBuildError("Cannot add empty path to $MODULEPATH")
+        if not os.path.exists(path):
+            self.log.deprecated("Path '%s' for module.use should exist" % path, '5.0')
+            # make sure path exists before we add it
+            mkdir(path, parents=True)
         self.run_module(['use', path])
 
     def unuse(self, path):
@@ -431,6 +435,7 @@ class ModulesTool(object):
             eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
 
             # make sure EasyBuild module path is in 1st place
+            mkdir(eb_modpath, parents=True)
             self.prepend_module_path(eb_modpath)
             self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
@@ -1422,8 +1427,12 @@ class Lmod(ModulesTool):
         :param path: path to add to $MODULEPATH
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
-        # make sure path exists before we add it
-        mkdir(path, parents=True)
+        if not path:
+            raise EasyBuildError("Cannot add empty path to $MODULEPATH")
+        if not os.path.exists(path):
+            self.log.deprecated("Path '%s' for module.use should exist" % path, '5.0')
+            # make sure path exists before we add it
+            mkdir(path, parents=True)
 
         if priority:
             self.run_module(['use', '--priority', str(priority), path])
