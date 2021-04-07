@@ -4,6 +4,42 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.3.4 (April 9th 2021)
+-----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - specifying False for a version removes the dep (#3506)
+  - add create_unused_dir function to create a directory which does not yet exist (#3551)
+  - create CUDA cache (for JIT compiled PTX code) in build dir instead of $HOME (#3569)
+  - add "Citing" section to module files (#3596)
+  - add support for using fallback 'arch=*' key in dependency version specified as arch->version mapping (#3600)
+  - also check for pending change requests and mergeable_state in check_pr_eligible_to_merge (#3604)
+  - ignore undismissed 'changes requested' review if there is an 'approved' review by the same user (#3607)
+  - filter duplicates in changes_requested_by (#3608)
+  - sort output of eb --search in natural order (respecting numbers) (#3609)
+  - enhance 'eb' command to ensure that easybuild.main can be imported before settling on python* command to use (#3610)
+  - added configuration option to define the env command to use for shebangs (#3613)
+  - add templates for architecture independent Python wheels (#3618)
+  - mention easyblocks PR in gist when uploading test report for it + fix clean_gists.py script (#3622)
+  - deprecate --accept-eula, rename to --accept-eula-for + also accept regular expression value (#3630)
+  - update validate_github_token function to accept GitHub token in new format (#3632)
+- various bug fixes, including:
+  - fix $BLAS_LIB_MT for OpenBLAS, ensure -lpthread is included (#3584)
+  - use '--opt=val' for passing settings from config file to option parser to avoid error for values starting with '-' or '--' (#3594)
+  - avoid raised exception when getting output from interactive command in run_cmd_qa (#3599)
+  - add option to write file from file-like object and use in download_file (#3614)
+  - make sure that path to eb is always found by tests (#3617)
+  - fix typo in docstring of goblf toolchain definition (#3628)	
+- other changes:
+  - avoid running expensive 'module use' command when using Lmod as modules tool, update $MODULEPATH directly instead (#3557)
+  - add pick_default_branch function to clean up duplicate code in tools/github.py (#3592)
+  - refactor the CI configuration to use inclusion instead of exclusion (#3616)
+  - use develop branch when testing push access in --check-github (#3629)
+  - avoid module call for unuse() for Lmod and set $MODULEPATH directly (#3633)
+
+
 v4.3.3 (February 23rd 2021)
 ---------------------------
 
@@ -34,6 +70,7 @@ update/bugfix release
 - other changes:
   - rename EasyBlock._skip_step to EasyBlock.skip_step, to make it part of the public API (#3561)
   - make symlinking of posix_c.so to posix.so in test suite configuration conditional (#3570)
+  - use 'main' rather than 'master' branch in GitHub integration functionality (#3589)
 
 
 v4.3.2 (December 10th 2020)
