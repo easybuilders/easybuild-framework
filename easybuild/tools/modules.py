@@ -2046,6 +2046,12 @@ class Lmod(ModulesTool):
             else:
                 os.environ['MODULEPATH'] = new_mod_path
 
+    def _has_module_paths_with_priority(self):
+        """Return True if there are priorities attached to $MODULEPATH"""
+        # We simply check, if the Lmod variable is set and non-empty
+        # See https://github.com/TACC/Lmod/issues/509
+        return bool(os.environ.get('__LMOD_Priority_MODULEPATH'))
+
     def use(self, path, priority=None):
         """
         Add path to $MODULEPATH via 'module use'.
@@ -2065,7 +2071,7 @@ class Lmod(ModulesTool):
         else:
             # LMod allows modifying MODULEPATH directly. So do that to avoid the costly module use
             # unless priorities are in use already
-            if os.environ.get('__LMOD_Priority_MODULEPATH'):
+            if self._has_module_paths_with_priority():
                 self.run_module(['use', path])
             else:
                 path = normalize_path(path)
