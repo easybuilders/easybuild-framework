@@ -361,12 +361,14 @@ class ModulesTool(object):
 
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
-    def use(self, path, priority=None):
+    def use(self, path, priority=None, force_module_command=False):
         """
         Add path to $MODULEPATH via 'module use'.
 
         :param path: path to add to $MODULEPATH
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
         """
         if priority:
             self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
@@ -380,8 +382,14 @@ class ModulesTool(object):
             mkdir(path, parents=True)
         self.run_module(['use', path])
 
-    def unuse(self, path):
-        """Remove module path via 'module unuse'."""
+    def unuse(self, path, force_module_command=False):
+        """
+        Remove a module path (usually) via 'module unuse'.
+
+        :param path: path to remove from $MODULEPATH
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
+        """
         self.run_module(['unuse', path])
 
     def add_module_path(self, path, set_mod_paths=True):
@@ -1568,12 +1576,14 @@ class Lmod(ModulesTool):
         # See https://github.com/TACC/Lmod/issues/509
         return bool(os.environ.get('__LMOD_Priority_MODULEPATH'))
 
-    def use(self, path, priority=None):
+    def use(self, path, priority=None, force_module_command=False):
         """
         Add path to $MODULEPATH via 'module use'.
 
         :param path: path to add to $MODULEPATH
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
         """
         if not path:
             raise EasyBuildError("Cannot add empty path to $MODULEPATH")
@@ -1587,17 +1597,26 @@ class Lmod(ModulesTool):
         else:
             # LMod allows modifying MODULEPATH directly. So do that to avoid the costly module use
             # unless priorities are in use already
-            if self._has_module_paths_with_priority():
+            if force_module_command or self._has_module_paths_with_priority():
                 self.run_module(['use', path])
             else:
                 path = normalize_path(path)
                 self._set_module_path([path] + [p for p in curr_module_paths(clean=False) if normalize_path(p) != path])
 
-    def unuse(self, path):
-        """Remove a module path"""
-        # We can simply remove the path from MODULEPATH to avoid the costly module call
-        path = normalize_path(path)
-        self._set_module_path(p for p in curr_module_paths(clean=False) if normalize_path(p) != path)
+    def unuse(self, path, force_module_command=False):
+        """
+        Remove a module path
+
+        :param path: path to remove from $MODULEPATH
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
+        """
+        if force_module_command:
+            super(Lmod, self).unuse(path)
+        else:
+            # We can simply remove the path from MODULEPATH to avoid the costly module call
+            path = normalize_path(path)
+            self._set_module_path(p for p in curr_module_paths(clean=False) if normalize_path(p) != path)
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """

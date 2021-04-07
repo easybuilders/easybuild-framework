@@ -1286,6 +1286,19 @@ class ModulesTest(EnhancedTestCase):
             self.assertNotIn('MODULEPATH', os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
+            # Forcing to use the module command reloads modules (Only Lmod does this)
+            old_module_path = os.environ['MODULEPATH']
+            os.environ['MODULEPATH'] = test_dir1
+            self.assertFalse('TEST123' in os.environ)
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'one')
+            self.modtool.use(test_dir2, force_module_command=True)
+            self.assertEqual(os.getenv('TEST123'), 'two')  # Module reloaded
+            self.modtool.unuse(test_dir2, force_module_command=True)
+            self.assertEqual(os.getenv('TEST123'), 'one')  # Module reloaded
+            self.modtool.unload(['test'])
+            os.environ['MODULEPATH'] = old_module_path  # Restore
+
     def test_add_and_remove_module_path(self):
         """Test add_module_path and whether remove_module_path undoes changes of add_module_path"""
         test_dir1 = tempfile.mkdtemp(suffix="_dir1")
