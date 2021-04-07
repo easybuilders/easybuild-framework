@@ -592,7 +592,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
-        test_path = tempfile.mkdtemp(prefix=self.test_prefix)
+        test_path = tempfile.mkdtemp()
         self.modtool.prepend_module_path(test_path)
         self.assertTrue(os.path.samefile(curr_module_paths()[0], test_path))
 
@@ -615,17 +615,17 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(modulepath, curr_module_paths())
 
         # test prepending with high priority
-        test_path_bis = tempfile.mkdtemp(prefix=self.test_prefix)
-        test_path_tris = tempfile.mkdtemp(prefix=self.test_prefix)
-        self.modtool.prepend_module_path(test_path_bis, priority=10000)
-        self.assertEqual(test_path_bis, curr_module_paths()[0])
+        test_path_0 = tempfile.mkdtemp(suffix='path_0')
+        test_path_1 = tempfile.mkdtemp(suffix='path_1')
+        self.modtool.prepend_module_path(test_path_0, priority=1000)
+        self.assertEqual(test_path_0, curr_module_paths()[0])
 
         # check whether prepend with priority actually works (only for Lmod)
         if isinstance(self.modtool, Lmod):
-            self.modtool.prepend_module_path(test_path_tris)
+            self.modtool.prepend_module_path(test_path_1)
             modulepath = curr_module_paths()
-            self.assertEqual(test_path_bis, modulepath[0])
-            self.assertEqual(test_path_tris, modulepath[1])
+            self.assertEqual(test_path_0, modulepath[0])
+            self.assertEqual(test_path_1, modulepath[1])
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""

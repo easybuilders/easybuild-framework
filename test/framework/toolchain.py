@@ -2916,7 +2916,7 @@ class ToolchainTest(EnhancedTestCase):
         orig_tmpdir = os.environ.get('TMPDIR')
         if len(orig_tmpdir) > 40:
             # we need to make sure we have a short $TMPDIR for this test...
-            orig_tmpdir = tempfile.mkdtemp(prefix='/tmp/')
+            orig_tmpdir = tempfile.mkdtemp(dir='/tmp')
             mkdir(orig_tmpdir)
             os.environ['TMPDIR'] = orig_tmpdir
 
