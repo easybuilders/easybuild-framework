@@ -2095,6 +2095,19 @@ class Lmod(ModulesTool):
         modulepath = curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.use(path, priority=priority)
+            if (priority is None) == (not self._has_module_paths_with_priority()):
+                modulepath = curr_module_paths(normalize=True, clean=False)
+                path_idx = modulepath.index(normalize_path(path))
+                if path_idx != 0:
+                    prio_msg = "This can happen if paths were added via `module use` with a priority"
+                    if priority is not None:
+                        prio_msg += f" higher than {priority}."
+                    else:
+                        prio_msg += "."
+                    print_warning("Path '%s' could not be prepended to $MODULEPATH. "
+                                  "The following paths are still in front of it: %s\n"
+                                  "%s",
+                                  path, "; ".join(modulepath[:path_idx]), prio_msg, log=self.log)
             if set_mod_paths:
                 self.set_mod_paths()
 
