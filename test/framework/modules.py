@@ -633,6 +633,19 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(test_path_1, modulepath[1])
             self.assertEqual(test_path_0, modulepath[2])
 
+            # When prepend fails due to a higher priority path, a warning is shown
+            self.modtool.unuse(test_path_2)
+            self.modtool.prepend_module_path(test_path_0, priority=999999)
+            self.mock_stderr(True)
+            self.modtool.prepend_module_path(test_path_2)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            self.assertTrue('could not be prepended' in stderr)
+            modulepath = curr_module_paths()
+            self.assertEqual(test_path_0, modulepath[0])
+            self.assertEqual(test_path_2, modulepath[1])
+            self.assertEqual(test_path_1, modulepath[2])
+
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
         self.init_testmods()

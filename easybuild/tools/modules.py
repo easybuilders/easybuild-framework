@@ -1618,9 +1618,11 @@ class Lmod(ModulesTool):
             modulepath = curr_module_paths(clean=False)
             path_idx = modulepath.index(path)
             if path_idx != 0:
-                self.log.warn("Path '%s' could not be prepended to $MODULEPATH. The following paths have a higher "
-                              "priority: %s'",
-                              path, "; ".join(modulepath[:path_idx]))
+                print_warning("Path '%s' could not be prepended to $MODULEPATH. "
+                              "The following paths are still in front of it: %s\n"
+                              "This can happen if paths were added via `module use` with a priority higher than %s",
+                              path, "; ".join(modulepath[:path_idx]), self.HIGH_PRIORITY,
+                              log=self.log)
             if set_mod_paths:
                 self.set_mod_paths()
 
