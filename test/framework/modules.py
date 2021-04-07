@@ -624,8 +624,14 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             self.modtool.prepend_module_path(test_path_1)
             modulepath = curr_module_paths()
-            self.assertEqual(test_path_0, modulepath[0])
+            self.assertEqual(test_path_1, modulepath[0])
+            self.assertEqual(test_path_0, modulepath[1])
+            test_path_2 = tempfile.mkdtemp(suffix='path_2')
+            self.modtool.prepend_module_path(test_path_2)
+            modulepath = curr_module_paths()
+            self.assertEqual(test_path_2, modulepath[0])
             self.assertEqual(test_path_1, modulepath[1])
+            self.assertEqual(test_path_0, modulepath[2])
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""

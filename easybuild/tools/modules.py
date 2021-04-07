@@ -155,6 +155,8 @@ class ModulesTool(object):
     VERSION_REGEXP = None
     # modules tool user cache directory
     USER_CACHE_DIR = None
+    # Priority used to put module paths at the front when priorities are otherwise used
+    HIGH_PRIORITY = 10000
 
     def __init__(self, mod_paths=None, testing=False):
         """
@@ -1602,7 +1604,17 @@ class Lmod(ModulesTool):
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
+            # If no explicit priority is set, but priorities are already in use we need to use a high
+            # priority to make sure the path (very likely) ends up at the front
+            if priority is None and os.environ.get('__LMOD_Priority_MODULEPATH'):
+                priority = self.HIGH_PRIORITY
             self.use(path, priority=priority)
+            modulepath = curr_module_paths(clean=False)
+            path_idx = modulepath.index(path)
+            if path_idx != 0:
+                self.log.warn("Path '%s' could not be prepended to $MODULEPATH. The following paths have a higher "
+                              "priority: %s'",
+                              path, "; ".join(modulepath[:path_idx]))
             if set_mod_paths:
                 self.set_mod_paths()
 
