@@ -2416,7 +2416,7 @@ class EasyConfigTest(EnhancedTestCase):
             '',
         ])
 
-        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        handle, testec = tempfile.mkstemp(suffix='.eb')
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
@@ -2479,7 +2479,7 @@ class EasyConfigTest(EnhancedTestCase):
             'moduleclass = "tools"',
         ])
 
-        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        handle, testec = tempfile.mkstemp(suffix='.eb')
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
@@ -2555,7 +2555,7 @@ class EasyConfigTest(EnhancedTestCase):
             "# trailing comment",
         ])
 
-        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        handle, testec = tempfile.mkstemp(suffix='.eb')
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
