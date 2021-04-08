@@ -1229,6 +1229,38 @@ class ModulesTest(EnhancedTestCase):
             self.assertFalse('MODULEPATH' in os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
+    def test_add_and_remove_module_path(self):
+        """Test add_module_path and whether remove_module_path undoes changes of add_module_path"""
+        test_dir1 = tempfile.mkdtemp(suffix="_dir1")
+        test_dir2 = tempfile.mkdtemp(suffix="_dir2")
+        old_module_path = os.environ.get('MODULEPATH')
+        del os.environ['MODULEPATH']
+        self.modtool.add_module_path(test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+        self.modtool.add_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        # Adding the same path does not change the path
+        self.modtool.add_module_path(test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        self.modtool.add_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        # Even when a (meaningless) slash is added
+        # This occurs when using an empty modules directory name
+        self.modtool.add_module_path(os.path.join(test_dir1, ''))
+        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+
+        # Similar tests for remove_module_path
+        self.modtool.remove_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+        # Same again -> no-op
+        self.modtool.remove_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+        # And with empty last part
+        self.modtool.remove_module_path(os.path.join(test_dir1, ''))
+        self.assertEqual(os.environ.get('MODULEPATH', ''), '')
+
+        os.environ['MODULEPATH'] = old_module_path  # Restore
+
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
         # this test is here as check for a nasty bug in how the modules tool is deployed
