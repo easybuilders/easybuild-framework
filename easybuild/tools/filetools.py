@@ -508,6 +508,24 @@ def det_common_path_prefix(paths):
         return None
 
 
+def normalize_path(path):
+    """Normalize path removing empty and dot components.
+
+    Similar to os.path.normpath but does not resolve '..' which may return a wrong path when symlinks are used
+    """
+    # In POSIX 3 or more leading slashes are equivalent to 1
+    if path.startswith(os.path.sep):
+        if path.startswith(os.path.sep * 2) and not path.startswith(os.path.sep * 3):
+            start_slashes = os.path.sep * 2
+        else:
+            start_slashes = os.path.sep
+    else:
+        start_slashes = ''
+
+    filtered_comps = (comp for comp in path.split(os.path.sep) if comp and comp != '.')
+    return start_slashes + os.path.sep.join(filtered_comps)
+
+
 def is_alt_pypi_url(url):
     """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz

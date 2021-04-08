@@ -351,6 +351,21 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
 
+    def test_normalize_path(self):
+        """Test normalize_path"""
+        self.assertEqual(ft.normalize_path(''), '')
+        self.assertEqual(ft.normalize_path('/'), '/')
+        self.assertEqual(ft.normalize_path('//'), '//')
+        self.assertEqual(ft.normalize_path('///'), '/')
+        self.assertEqual(ft.normalize_path('/foo/bar/baz'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('/foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('foo//bar/././baz/'), 'foo/bar/baz')
+        self.assertEqual(ft.normalize_path('//foo//bar/././baz/'), '//foo/bar/baz')
+        self.assertEqual(ft.normalize_path('///foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('////foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
+
     def test_download_file(self):
         """Test download_file function."""
         fn = 'toy-0.0.tar.gz'

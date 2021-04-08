@@ -1259,6 +1259,27 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.remove_module_path(os.path.join(test_dir1, ''))
         self.assertEqual(os.environ.get('MODULEPATH', ''), '')
 
+        # And with some more trickery
+        test_dir1_relative = os.path.join(test_dir1, '..', os.path.basename(test_dir1))
+        test_dir2_dot = os.path.join(os.path.dirname(test_dir2), '.', os.path.basename(test_dir2))
+        self.modtool.add_module_path(test_dir1_relative)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1_relative)
+        self.modtool.add_module_path(test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1 + ':' + test_dir1_relative)
+        self.modtool.remove_module_path(test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1_relative)
+        self.modtool.add_module_path(test_dir2_dot)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1_relative)
+        self.modtool.remove_module_path(test_dir2_dot)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1_relative)
+        # Force adding such a dot path which can be removed with either variant
+        os.environ['MODULEPATH'] = test_dir2_dot + ':' + test_dir1_relative
+        self.modtool.remove_module_path(test_dir2_dot)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1_relative)
+        os.environ['MODULEPATH'] = test_dir2_dot + ':' + test_dir1_relative
+        self.modtool.remove_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1_relative)
+
         os.environ['MODULEPATH'] = old_module_path  # Restore
 
     def test_module_use_bash(self):
