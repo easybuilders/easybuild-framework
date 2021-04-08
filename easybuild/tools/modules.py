@@ -672,7 +672,8 @@ class ModulesTool(object):
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
-            self.prepend_module_path(full_mod_path)
+            if os.path.exists(full_mod_path):
+                self.prepend_module_path(full_mod_path)
 
         loaded_modules = self.loaded_modules()
         for mod in modules:

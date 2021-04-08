@@ -2155,7 +2155,7 @@ class EasyBlock(object):
         curr_modpaths = curr_module_paths()
         for init_modpath in init_modpaths:
             full_mod_path = os.path.join(self.installdir_mod, init_modpath)
-            if full_mod_path not in curr_modpaths:
+            if os.path.exists(full_mod_path) and full_mod_path not in curr_modpaths:
                 self.modules_tool.prepend_module_path(full_mod_path)
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
