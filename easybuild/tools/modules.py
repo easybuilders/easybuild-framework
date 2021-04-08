@@ -397,8 +397,13 @@ class ModulesTool(object):
         """
         # remove module path via 'module unuse' and make sure self.mod_paths is synced
         path = normalize_path(path)
-        if path in curr_module_paths(normalize=True):
-            self.unuse(path)
+        try:
+            # Unuse the path that is actually present in the environment
+            module_path = next(p for p in curr_module_paths() if normalize_path(p) == path)
+        except StopIteration:
+            pass
+        else:
+            self.unuse(module_path)
 
             if set_mod_paths:
                 self.set_mod_paths()
@@ -1295,8 +1300,13 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         # modulecmd.tcl keeps track of how often a path was added via 'module use',
         # so we need to check to make sure it's really removed
         path = normalize_path(path)
-        while path in curr_module_paths(normalize=True):
-            self.unuse(path)
+        while True:
+            try:
+                # Unuse the path that is actually present in the environment
+                module_path = next(p for p in curr_module_paths() if normalize_path(p) == path)
+            except StopIteration:
+                break
+            self.unuse(module_path)
         if set_mod_paths:
             self.set_mod_paths()
 
@@ -1451,7 +1461,7 @@ class Lmod(ModulesTool):
                 if cur_mod_path is None:
                     new_mod_path = path
                 else:
-                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if p != path]
+                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if normalize_path(p) != path]
                     new_mod_path = ':'.join(new_mod_path)
                 self.log.debug('Changing MODULEPATH from %s to %s' %
                                ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
@@ -1468,7 +1478,7 @@ class Lmod(ModulesTool):
                 del os.environ['MODULEPATH']
             else:
                 path = normalize_path(path)
-                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if p != path)
+                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
                 if new_mod_path != cur_mod_path:
                     self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
                     os.environ['MODULEPATH'] = new_mod_path
