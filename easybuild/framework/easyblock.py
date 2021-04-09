@@ -1034,6 +1034,27 @@ class EasyBlock(object):
 
         mkdir(dir_name, parents=True)
 
+    def set_up_cuda_cache(self):
+        """Set up CUDA PTX cache."""
+
+        cuda_cache_maxsize = build_option('cuda_cache_maxsize')
+        if cuda_cache_maxsize is None:
+            cuda_cache_maxsize = 1 * 1024  # 1 GiB default value
+        else:
+            cuda_cache_maxsize = int(cuda_cache_maxsize)
+
+        if cuda_cache_maxsize == 0:
+            self.log.info("Disabling CUDA PTX cache since cache size was set to zero")
+            env.setvar('CUDA_CACHE_DISABLE', '1')
+        else:
+            cuda_cache_dir = build_option('cuda_cache_dir')
+            if not cuda_cache_dir:
+                cuda_cache_dir = os.path.join(self.builddir, 'eb-cuda-cache')
+            self.log.info("Enabling CUDA PTX cache of size %s MiB at %s", cuda_cache_maxsize, cuda_cache_dir)
+            env.setvar('CUDA_CACHE_DISABLE', '0')
+            env.setvar('CUDA_CACHE_PATH', cuda_cache_dir)
+            env.setvar('CUDA_CACHE_MAXSIZE', str(cuda_cache_maxsize * 1024 * 1024))
+
     #
     # MODULE UTILITY FUNCTIONS
     #
@@ -1655,8 +1676,8 @@ class EasyBlock(object):
         if name is None:
             name = self.name
 
-        accepted_eulas = build_option('accept_eula') or []
-        if self.cfg['accept_eula'] or name in accepted_eulas:
+        accepted_eulas = build_option('accept_eula_for') or []
+        if self.cfg['accept_eula'] or name in accepted_eulas or any(re.match(x, name) for x in accepted_eulas):
             self.log.info("EULA for %s is accepted", name)
         else:
             error_lines = [
@@ -1667,7 +1688,7 @@ class EasyBlock(object):
 
             error_lines.extend([
                 "You should either:",
-                "- add --accept-eula=%(name)s to the 'eb' command;",
+                "- add --accept-eula-for=%(name)s to the 'eb' command;",
                 "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
                 "- add 'accept_eula = True' to the easyconfig file you are using;",
                 '',
@@ -2163,6 +2184,10 @@ class EasyBlock(object):
             self.log.info("Loading extra modules: %s", extra_modules)
             self.modules_tool.load(extra_modules)
 
+        # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
+        if get_software_root('CUDA') or get_software_root('CUDAcore'):
+            self.set_up_cuda_cache()
+
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
             self.guess_start_dir()
@@ -2367,7 +2392,7 @@ class EasyBlock(object):
                 if isinstance(fix_shebang_for, string_type):
                     fix_shebang_for = [fix_shebang_for]
 
-                shebang = '#!/usr/bin/env %s' % lang
+                shebang = '#!%s %s' % (build_option('env_for_shebang'), lang)
                 for glob_pattern in fix_shebang_for:
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",

@@ -988,7 +988,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         copy_file(toy_ec, self.test_prefix)
 
-        toy_ec_list = ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb']
+        toy_ec_list = ['toy-0.0.eb', 'toy-1.2.3.eb', 'toy-4.5.6.eb', 'toy-11.5.6.eb']
 
         # install index that list more files than are actually available,
         # so we can check whether it's used
@@ -998,15 +998,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--search=toy',
             '--robot-paths=%s' % self.test_prefix,
+            '--terse',
         ]
         self.mock_stdout(True)
         self.eb_main(args, testing=False, raise_error=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
-        for toy_ec_fn in toy_ec_list:
-            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        # Also checks for ordering: 11.x comes last!
+        expected_output = '\n'.join(os.path.join(self.test_prefix, ec) for ec in toy_ec_list) + '\n'
+        self.assertEqual(stdout, expected_output)
 
         args.append('--ignore-index')
         self.mock_stdout(True)
@@ -1014,11 +1015,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
-        regex = re.compile(re.escape(os.path.join(self.test_prefix, 'toy-0.0.eb')), re.M)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
-        for toy_ec_fn in ['toy-1.2.3.eb', 'toy-4.5.6.eb']:
-            regex = re.compile(re.escape(os.path.join(self.test_prefix, toy_ec_fn)), re.M)
-            self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+        # This should be the only EC found
+        self.assertEqual(stdout, os.path.join(self.test_prefix, 'toy-0.0.eb') + '\n')
 
     def test_search_archived(self):
         "Test searching for archived easyconfigs"
@@ -4435,7 +4433,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
             "* test suite passes: OK",
             "* last test report is successful: OK",
+            "* no pending change requests: OK",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
         ])
         expected_stderr = '\n'.join([
             "* targets some_branch branch: FAILED; found 'develop' => not eligible for merging!",
@@ -4457,8 +4457,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
+            "* no pending change requests: OK",
             "* approved review: OK (by wpoely86)",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
@@ -4483,8 +4485,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
+            "* no pending change requests: OK",
             "* approved review: OK (by migueldiascosta)",
             "* milestone is set: OK (3.3.1)",
+            "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
         ])
@@ -4662,7 +4666,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-    def test_prefix(self):
+    def test_prefix_option(self):
         """Test which configuration settings are affected by --prefix."""
         txt, _ = self._run_mock_eb(['--show-full-config', '--prefix=%s' % self.test_prefix], raise_error=True)
 
@@ -5890,7 +5894,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
     def test_accept_eula_for(self):
-        """Test --accept-eula configuration option."""
+        """Test --accept-eula-for configuration option."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         topdir = os.path.abspath(os.path.dirname(__file__))
@@ -5907,27 +5911,56 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [test_ec, '--force']
         error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
-
-        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula
-        self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
-
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
-        self.assertTrue(os.path.exists(toy_modfile))
+
+        # installation proceeds if EasyBuild is configured to accept EULA for specified software via --accept-eula-for
+        for val in ('foo,toy,bar', '.*', 't.y'):
+            self.eb_main(args + ['--accept-eula-for=' + val], do_build=True, raise_error=True)
+
+            self.assertTrue(os.path.exists(toy_modfile))
+
+            remove_dir(self.test_installpath)
+            self.assertFalse(os.path.exists(toy_modfile))
+
+            # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
+            os.environ['EASYBUILD_ACCEPT_EULA_FOR'] = val
+            self.eb_main(args, do_build=True, raise_error=True)
+            self.assertTrue(os.path.exists(toy_modfile))
+
+            remove_dir(self.test_installpath)
+            self.assertFalse(os.path.exists(toy_modfile))
+
+            del os.environ['EASYBUILD_ACCEPT_EULA_FOR']
+
+        # also check deprecated --accept-eula configuration option
+        self.allow_deprecated_behaviour()
+
+        self.mock_stderr(True)
+        self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue("Use accept-eula-for configuration setting rather than accept-eula" in stderr)
 
         remove_dir(self.test_installpath)
         self.assertFalse(os.path.exists(toy_modfile))
 
-        # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
+        # also via $EASYBUILD_ACCEPT_EULA
+        self.mock_stderr(True)
         os.environ['EASYBUILD_ACCEPT_EULA'] = 'toy'
         self.eb_main(args, do_build=True, raise_error=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
         self.assertTrue(os.path.exists(toy_modfile))
+        self.assertTrue("Use accept-eula-for configuration setting rather than accept-eula" in stderr)
 
         remove_dir(self.test_installpath)
         self.assertFalse(os.path.exists(toy_modfile))
 
         # also check accepting EULA via 'accept_eula = True' in easyconfig file
+        self.disallow_deprecated_behaviour()
         del os.environ['EASYBUILD_ACCEPT_EULA']
         write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)

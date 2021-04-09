@@ -85,6 +85,8 @@ except ImportError as err:
 
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
+GITHUB_BRANCH_MAIN = 'main'
+GITHUB_BRANCH_MASTER = 'master'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
@@ -120,6 +122,18 @@ VALID_CLOSE_PR_REASONS = {
 }
 
 
+def pick_default_branch(github_owner):
+    """Determine default name to use."""
+    # use 'main' as default branch for 'easybuilders' organisation,
+    # otherwise use 'master'
+    if github_owner == GITHUB_EB_MAIN:
+        branch = GITHUB_BRANCH_MAIN
+    else:
+        branch = GITHUB_BRANCH_MASTER
+
+    return branch
+
+
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
 
@@ -133,10 +147,7 @@ class Githubfs(object):
         :param token:    (optional) a github api token.
         """
         if branchname is None:
-            if githubuser == GITHUB_EB_MAIN:
-                branchname = 'main'
-            else:
-                branchname = 'master'
+            branchname = pick_default_branch(githubuser)
 
         if token is None:
             token = fetch_github_token(username)
@@ -318,12 +329,7 @@ def fetch_latest_commit_sha(repo, account, branch=None, github_user=None, token=
     :return: latest SHA1
     """
     if branch is None:
-        # use 'main' as default branch for 'easybuilders' organisation,
-        # otherwise use 'master'
-        if account == GITHUB_EB_MAIN:
-            branch = 'main'
-        else:
-            branch = 'master'
+        branch = pick_default_branch(account)
 
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
                                           github_user=github_user, token=token, per_page=GITHUB_MAX_PER_PAGE)
@@ -356,12 +362,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, account=GITHUB_EB_M
     :param github_user: name of GitHub user to use
     """
     if branch is None:
-        # use 'main' as default branch for 'easybuilders' organisation,
-        # otherwise use 'master'
-        if account == GITHUB_EB_MAIN:
-            branch = 'main'
-        else:
-            branch = 'master'
+        branch = pick_default_branch(account)
 
     # make sure path exists, create it if necessary
     if path is None:
@@ -1141,6 +1142,19 @@ def check_pr_eligible_to_merge(pr_data):
         if review['state'] == 'APPROVED':
             approved_review_by.append(review['user']['login'])
 
+    # check for requested changes
+    changes_requested_by = []
+    for review in pr_data['reviews']:
+        if review['state'] == 'CHANGES_REQUESTED':
+            if review['user']['login'] not in approved_review_by + changes_requested_by:
+                changes_requested_by.append(review['user']['login'])
+
+    msg_tmpl = "* no pending change requests: %s"
+    if changes_requested_by:
+        res = not_eligible(msg_tmpl % 'FAILED (changes requested by %s)' % ', '.join(changes_requested_by))
+    else:
+        print_msg(msg_tmpl % 'OK', prefix=False)
+
     msg_tmpl = "* approved review: %s"
     if approved_review_by:
         print_msg(msg_tmpl % 'OK (by %s)' % ', '.join(approved_review_by), prefix=False)
@@ -1153,6 +1167,16 @@ def check_pr_eligible_to_merge(pr_data):
         print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
+
+    # check github mergeable state
+    msg_tmpl = "* mergeable state is clean: %s"
+    if pr_data['merged']:
+        print_msg(msg_tmpl % "PR is already merged", prefix=False)
+    elif pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN:
+        print_msg(msg_tmpl % "OK", prefix=False)
+    else:
+        reason = "FAILED (mergeable state is '%s')" % pr_data['mergeable_state']
+        res = not_eligible(msg_tmpl % reason)
 
     return res
 
@@ -1433,7 +1457,7 @@ def post_pr_labels(pr, labels):
         return True
 
 
-def add_pr_labels(pr, branch='develop'):
+def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
     """
     Try to determine and add labels to PR.
     :param pr: pull request number in easybuild-easyconfigs repo
@@ -1962,7 +1986,7 @@ def check_github():
     branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=not debug)
-        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'main',
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, GITHUB_DEVELOP_BRANCH,
                                  silent=not debug, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
@@ -2132,22 +2156,32 @@ def validate_github_token(token, github_user):
     * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
     * see if it can be used for authenticated access
     """
-    sha_regex = re.compile('^[0-9a-f]{40}')
+    # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
+    token_regex = re.compile('^ghp_[a-zA-Z0-9]{36}$')
+    token_regex_old_format = re.compile('^[0-9a-f]{40}$')
 
     # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = bool(sha_regex.match(token))
+    sanity_check = bool(token_regex.match(token))
     if sanity_check:
         _log.info("Sanity check on token passed")
     else:
-        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", sha_regex.pattern)
+        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", token_regex.pattern)
+        sanity_check = bool(token_regex_old_format.match(token))
+        if sanity_check:
+            _log.info("Sanity check on token (old format) passed")
+        else:
+            _log.warning("Sanity check on token failed; token doesn't match pattern '%s'",
+                         token_regex_old_format.pattern)
 
     # try and determine sha of latest commit in easybuilders/easybuild-easyconfigs repo through authenticated access
     sha = None
     try:
-        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user, token=token)
+        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN,
+                                      branch=GITHUB_DEVELOP_BRANCH, github_user=github_user, token=token)
     except Exception as err:
         _log.warning("An exception occurred when trying to use token for authenticated GitHub access: %s", err)
 
+    sha_regex = re.compile('^[0-9a-f]{40}$')
     token_test = bool(sha_regex.match(sha or ''))
     if token_test:
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
@@ -2161,7 +2195,8 @@ def find_easybuild_easyconfig(github_user=None):
 
     :param github_user: name of GitHub user to use when querying GitHub
     """
-    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN, github_user=github_user)
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch=GITHUB_DEVELOP_BRANCH,
+                             account=GITHUB_EB_MAIN, github_user=github_user)
     eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
     files = os.listdir(eb_parent_path)
 

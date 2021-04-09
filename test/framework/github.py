@@ -42,7 +42,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, VALID_CLOSE_PR_REASONS
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
+from easybuild.tools.github import VALID_CLOSE_PR_REASONS
+from easybuild.tools.github import pick_default_branch
 from easybuild.tools.testing import post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -82,6 +84,12 @@ class GithubTest(EnhancedTestCase):
         self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
 
         self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
+
+    def test_pick_default_branch(self):
+        """Test pick_default_branch function."""
+
+        self.assertEqual(pick_default_branch('easybuilders'), 'main')
+        self.assertEqual(pick_default_branch('foobar'), 'master')
 
     def test_walk(self):
         """test the gitubfs walk function"""
@@ -539,6 +547,11 @@ class GithubTest(EnhancedTestCase):
 
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
+        # if a token in the old format is available, test with that too
+        token_old_format = os.getenv('TEST_GITHUB_TOKEN_OLD_FORMAT')
+        if token_old_format:
+            self.assertTrue(gh.validate_github_token(token_old_format, GITHUB_TEST_ACCOUNT))
+
     def test_find_easybuild_easyconfig(self):
         """Test for find_easybuild_easyconfig function"""
         if self.skip_github_tests:
@@ -647,7 +660,11 @@ class GithubTest(EnhancedTestCase):
             'issue_comments': [],
             'milestone': None,
             'number': '1234',
-            'reviews': [],
+            'merged': False,
+            'mergeable_state': 'unknown',
+            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}},
+                        # to check that duplicates are filtered
+                        {'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -707,11 +724,21 @@ class GithubTest(EnhancedTestCase):
         pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
         run_check()
 
-        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        expected_warning = "* no pending change requests: FAILED (changes requested by boegel)"
+        expected_warning += " => not eligible for merging!"
         run_check()
 
+        # if PR is approved by a different user that requested changes and that request has not been dismissed,
+        # the PR is still not mergeable
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'not_boegel'}})
+        expected_stdout_saved = expected_stdout
+        expected_stdout += "* approved review: OK (by not_boegel)\n"
+        run_check()
+
+        # if the user that requested changes approves the PR, it's mergeable
         pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
-        expected_stdout += "* approved review: OK (by boegel)\n"
+        expected_stdout = expected_stdout_saved + "* no pending change requests: OK\n"
+        expected_stdout += "* approved review: OK (by not_boegel, boegel)\n"
         expected_warning = ''
         run_check()
 
@@ -721,6 +748,13 @@ class GithubTest(EnhancedTestCase):
 
         pr_data['milestone'] = {'title': '3.3.1'}
         expected_stdout += "* milestone is set: OK (3.3.1)\n"
+
+        # mergeable state must be clean
+        expected_warning = "* mergeable state is clean: FAILED (mergeable state is 'unknown')"
+        run_check()
+
+        pr_data['mergeable_state'] = GITHUB_MERGEABLE_STATE_CLEAN
+        expected_stdout += "* mergeable state is clean: OK\n"
 
         # all checks pass, PR is eligible for merging
         expected_warning = ''

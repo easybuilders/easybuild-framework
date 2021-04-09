@@ -155,6 +155,19 @@ for ext in extensions:
         ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
         ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
     ]
+for pyver in ('py2.py3', 'py2', 'py3'):
+    if pyver == 'py2.py3':
+        desc = 'Python 2 & Python 3'
+        name_infix = ''
+    else:
+        desc = 'Python ' + pyver[-1]
+        name_infix = pyver.upper() + '_'
+    TEMPLATE_CONSTANTS += [
+        ('SOURCE_%sWHL' % name_infix, '%%(name)s-%%(version)s-%s-none-any.whl' % pyver,
+         'Generic (non-compiled) %s wheel package' % desc),
+        ('SOURCELOWER_%sWHL' % name_infix, '%%(namelower)s-%%(version)s-%s-none-any.whl' % pyver,
+         'Generic (non-compiled) %s wheel package with lowercase name' % desc),
+    ]
 
 # TODO derived config templates
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )

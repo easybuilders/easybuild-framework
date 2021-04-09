@@ -60,7 +60,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import nub, remove_unwanted_chars
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
 try:
     import requests
@@ -217,7 +217,7 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     overwrites current file contents without backup by default!
 
     :param path: location of file
-    :param data: contents to write to file
+    :param data: contents to write to file. Can be a file-like object of binary data
     :param append: append to existing file rather than overwrite
     :param forced: force actually writing file in (extended) dry run mode
     :param backup: back up existing file before overwriting or modifying it
@@ -246,15 +246,21 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     # cfr. https://docs.python.org/3/library/functions.html#open
     mode = 'a' if append else 'w'
 
+    data_is_file_obj = hasattr(data, 'read')
+
     # special care must be taken with binary data in Python 3
-    if sys.version_info[0] >= 3 and isinstance(data, bytes):
+    if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
         mode += 'b'
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
         with open_file(path, mode) as fh:
-            fh.write(data)
+            if data_is_file_obj:
+                # if a file-like object was provided, use copyfileobj (which reads the file in chunks)
+                shutil.copyfileobj(data, fh)
+            else:
+                fh.write(data)
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -710,7 +716,11 @@ def download_file(filename, url, path, forced=False):
                 url_fd = response.raw
                 url_fd.decode_content = True
             _log.debug('response code for given url %s: %s' % (url, status_code))
-            write_file(path, url_fd.read(), forced=forced, backup=True)
+            # note: we pass the file object to write_file rather than reading the file first,
+            # to ensure the data is read in chunks (which prevents problems in Python 3.9+);
+            # cfr. https://github.com/easybuilders/easybuild-framework/issues/3455
+            # and https://bugs.python.org/issue42853
+            write_file(path, url_fd, forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
@@ -1000,8 +1010,11 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        path_index = load_index(path, ignore_dirs=ignore_dirs)
-        if path_index is None or build_option('ignore_index'):
+        if build_option('ignore_index'):
+            path_index = None
+        else:
+            path_index = load_index(path, ignore_dirs=ignore_dirs)
+        if path_index is None:
             if os.path.exists(path):
                 _log.info("No index found for %s, creating one...", path)
                 path_index = create_index(path, ignore_dirs=ignore_dirs)
@@ -1021,15 +1034,17 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
                 else:
                     path_hits.append(os.path.join(path, filepath))
 
-        path_hits = sorted(path_hits)
+        path_hits = sorted(path_hits, key=natural_keys)
 
         if path_hits:
-            common_prefix = det_common_path_prefix(path_hits)
-            if not terse and short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_defs.append((var, common_prefix))
-                hits.extend([os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in path_hits])
-            else:
-                hits.extend(path_hits)
+            if not terse and short:
+                common_prefix = det_common_path_prefix(path_hits)
+                if common_prefix is not None and len(common_prefix) > len(var) * 2:
+                    var_defs.append((var, common_prefix))
+                    var_spec = '$' + var
+                    # Replace the common prefix by var_spec
+                    path_hits = (var_spec + fn[len(common_prefix):] for fn in path_hits)
+            hits.extend(path_hits)
 
     return var_defs, hits
 
@@ -1652,6 +1667,25 @@ def patch_perl_script_autoflush(path):
         write_file(path, newtxt)
 
 
+def set_gid_sticky_bits(path, set_gid=None, sticky=None, recursive=False):
+    """Set GID/sticky bits on specified path."""
+    if set_gid is None:
+        set_gid = build_option('set_gid_bit')
+    if sticky is None:
+        sticky = build_option('sticky_bit')
+
+    bits = 0
+    if set_gid:
+        bits |= stat.S_ISGID
+    if sticky:
+        bits |= stat.S_ISVTX
+    if bits:
+        try:
+            adjust_permissions(path, bits, add=True, relative=True, recursive=recursive, onlydirs=True)
+        except OSError as err:
+            raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
+
+
 def mkdir(path, parents=False, set_gid=None, sticky=None):
     """
     Create a directory
@@ -1687,18 +1721,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
         # set group ID and sticky bits, if desired
-        bits = 0
-        if set_gid:
-            bits |= stat.S_ISGID
-        if sticky:
-            bits |= stat.S_ISVTX
-        if bits:
-            try:
-                new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
-                new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
-                adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
-            except OSError as err:
-                raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
+        new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
+        new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
+        set_gid_sticky_bits(new_path, set_gid, sticky, recursive=True)
     else:
         _log.debug("Not creating existing path %s" % path)
 
@@ -2573,3 +2598,32 @@ def copy_framework_files(paths, target_dir):
             raise EasyBuildError("Couldn't find parent folder of updated file: %s", path)
 
     return file_info
+
+
+def create_unused_dir(parent_folder, name):
+    """
+    Create a new folder in parent_folder using name as the name.
+    When a folder of that name already exists, '_0' is appended which is retried for increasing numbers until
+    an unused name was found
+    """
+    if not os.path.isabs(parent_folder):
+        parent_folder = os.path.abspath(parent_folder)
+
+    start_path = os.path.join(parent_folder, name)
+    for number in range(-1, 10000):  # Start with no suffix and limit the number of attempts
+        if number < 0:
+            path = start_path
+        else:
+            path = start_path + '_' + str(number)
+        try:
+            os.mkdir(path)
+            break
+        except OSError as err:
+            # Distinguish between error due to existing folder and anything else
+            if not os.path.exists(path):
+                raise EasyBuildError("Failed to create directory %s: %s", path, err)
+
+    # set group ID and sticky bits, if desired
+    set_gid_sticky_bits(path, recursive=True)
+
+    return path

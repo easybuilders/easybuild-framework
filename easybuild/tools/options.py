@@ -60,8 +60,8 @@ from easybuild.tools import build_log, run  # build_log should always stay there
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
-from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENVVAR_USERS_MODULES, DEFAULT_FORCE_DOWNLOAD
-from easybuild.tools.config import DEFAULT_INDEX_MAX_AGE
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
@@ -334,7 +334,9 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
-            'accept-eula': ("Accept EULA for specified software", 'strlist', 'store', []),
+            'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
+                            'strlist', 'store', []),
+            'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
                                                 "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
                                                 None, 'store_true', False),
@@ -358,6 +360,11 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
+            'cuda-cache-dir': ("Path to CUDA cache dir to use if enabled. Defaults to a path inside the build dir.",
+                               str, 'store', None, {'metavar': "PATH"}),
+            'cuda-cache-maxsize': ("Maximum size of the CUDA cache (in MiB) used for JIT compilation of PTX code. "
+                                   "Leave value empty to let EasyBuild choose a value or '0' to disable the cache",
+                                   int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
                                           "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
@@ -375,6 +382,8 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
                                   None, 'store_true', False),
+            'env-for-shebang': ("Define the env command to use when fixing shebangs", None, 'store',
+                                DEFAULT_ENV_FOR_SHEBANG),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
