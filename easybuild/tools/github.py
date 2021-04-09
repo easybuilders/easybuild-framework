@@ -690,7 +690,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     print_msg("fetching branch '%s' from %s..." % (branch_name, github_url), silent=silent)
     res = None
     try:
-        if target_account != None:
+        if target_account is not None:
             res = origin.fetch()
     except GitCommandError as err:
         raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", branch_name, github_url, err)
@@ -973,7 +973,7 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
     if dry_run:
         print_msg(push_branch_msg + ' [DRY RUN]', log=_log)
     else:
-        if target_account == None:
+        if target_account is None:
             raise EasyBuildError("No valid GitHub username (--github-user) given, pushing branch will fail!")
         else:
             print_msg(push_branch_msg, log=_log)
