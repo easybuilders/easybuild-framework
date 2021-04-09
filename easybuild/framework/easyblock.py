@@ -3096,7 +3096,7 @@ class EasyBlock(object):
     def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
-        force = build_option('force') or build_option('rebuild')
+        force = build_option('force')
         skip = False
 
         # under --skip, sanity check is not skipped
