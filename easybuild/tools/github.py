@@ -688,8 +688,10 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     # git fetch
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
     print_msg("fetching branch '%s' from %s..." % (branch_name, github_url), silent=silent)
+    res = None
     try:
-        res = origin.fetch()
+        if target_account != None:
+            res = origin.fetch()
     except GitCommandError as err:
         raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", branch_name, github_url, err)
     if res:
@@ -971,21 +973,24 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
     if dry_run:
         print_msg(push_branch_msg + ' [DRY RUN]', log=_log)
     else:
-        print_msg(push_branch_msg, log=_log)
-        try:
-            res = remote.push(branch)
-        except GitCommandError as err:
-            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", branch, github_url, err)
-
-        if res:
-            if res[0].ERROR & res[0].flags:
-                raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
-                                     branch, remote, github_url, res[0].summary)
-            else:
-                _log.debug("Pushed branch %s to remote %s (%s): %s", branch, remote, github_url, res[0].summary)
+        if target_account == None:
+            raise EasyBuildError("No valid GitHub username (--github-user) given, pushing branch will fail!")
         else:
-            raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
-                                 branch, remote, github_url)
+            print_msg(push_branch_msg, log=_log)
+            try:
+                res = remote.push(branch)
+            except GitCommandError as err:
+                raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", branch, github_url, err)
+
+            if res:
+                if res[0].ERROR & res[0].flags:
+                    raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
+                                         branch, remote, github_url, res[0].summary)
+                else:
+                    _log.debug("Pushed branch %s to remote %s (%s): %s", branch, remote, github_url, res[0].summary)
+            else:
+                raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
+                                     branch, remote, github_url)
 
 
 def is_patch_for(patch_name, ec):
