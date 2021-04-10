@@ -197,36 +197,3 @@ jobs:
           # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
-
-    - name: test bootstrap script
-      run: |
-          # (re)initialize environment for modules tool
-          if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
-          source $(cat $HOME/mod_init); type module
-          # also pick up changes to $PATH set by sourcing $HOME/mod_init
-          export PATH=$(cat $HOME/path)
-
-          # define $EASYBUILD_MODULES_TOOL only for oldest module tools
-          # (for Lmod and EnvironmentModules 4.x the bootstrap script should correctly auto-detect the modules tool)
-          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
-          fi
-
-          # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
-          EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
-          EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
-          EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210106.01 c2d93de0dd91123eb4f51cfc16d1f5efb80f1d238b3d6cd100994086887a1ae0"
-          test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
-
-          # test bootstrap script
-          export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
-          python easybuild/scripts/bootstrap_eb.py $PREFIX
-          # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
-          unset PYTHONPATH
-          # simple sanity check on bootstrapped EasyBuild module
-          module use $PREFIX/modules/all
-          module load EasyBuild
-          eb --version
