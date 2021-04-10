@@ -676,6 +676,9 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     """
     _log.debug("Cloning from %s", github_url)
 
+    if target_account is None:
+        raise EasyBuildError("target_account not specified in setup_repo_from!")
+
     # salt to use for names of remotes/branches that are created
     salt = ''.join(random.choice(ascii_letters) for _ in range(5))
 
@@ -688,10 +691,12 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     # git fetch
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
     print_msg("fetching branch '%s' from %s..." % (branch_name, github_url), silent=silent)
+    res = None
     try:
         res = origin.fetch()
     except GitCommandError as err:
         raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", branch_name, github_url, err)
+
     if res:
         if res[0].flags & res[0].ERROR:
             raise EasyBuildError("Fetching branch '%s' from remote %s failed: %s", branch_name, origin, res[0].note)
@@ -807,6 +812,10 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         # if start branch is not specified, we're opening a new PR
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
         target_account = build_option('github_org') or build_option('github_user')
+
+        if target_account is None:
+            raise EasyBuildError("--github-org or --github-user must be specified!")
+
         # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
     else:
@@ -959,6 +968,8 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
     :param target_repo: repository name
     :param branch: name of branch to push
     """
+    if target_account is None:
+        raise EasyBuildError("target_account not specified in push_branch_to_github!")
 
     # push to GitHub
     remote = create_remote(git_repo, target_account, target_repo)
