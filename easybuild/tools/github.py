@@ -276,10 +276,33 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     url = request_f(RestClient(GITHUB_API_URL, username=github_user, token=token))
 
     try:
-        status, data = url.get(**kwargs)
+        status, headers = url.head(**kwargs)
     except socket.gaierror as err:
-        _log.warning("Error occurred while performing get request: %s", err)
-        status, data = 0, None
+        _log.warning("Error occurred while performing head request: %s", err)
+        status, headers = 0, None
+
+    pages = [1]
+    if headers:
+        links = headers.getheader('Link')
+        if links:
+            match = re.search(r"page=(\d+)>; rel=\"last\"", links)
+            if match:
+                last = int(match.groups()[0])
+                pages = range(1, last+1)
+
+    data = []
+    for page in pages:
+        kwargs['page'] = page
+        try:
+            status, page_data = url.get(**kwargs)
+        except socket.gaierror as err:
+            _log.warning("Error occurred while performing get request: %s", err)
+            status, page_data = 0, None
+            break
+        if isinstance(page_data, list):
+            data.extend(page_data)
+        else:
+            data = page_data
 
     _log.debug("get request result for %s: status: %d, data: %s", url.url, status, data)
     return (status, data)
